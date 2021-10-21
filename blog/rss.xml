@@ -8,9 +8,9 @@
         <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
         <generator>https://github.com/jpmonette/feed</generator>
         <item>
-            <title><![CDATA[Introducing Meteor]]></title>
-            <link>https://odpf.github.io/guardian/blog/introducing-meteor</link>
-            <guid>introducing-meteor</guid>
+            <title><![CDATA[Introducing Guardian]]></title>
+            <link>https://odpf.github.io/guardian/blog/introducing-guardian</link>
+            <guid>introducing-guardian</guid>
             <pubDate>Fri, 20 Aug 2021 00:00:00 GMT</pubDate>
             <description><![CDATA[We are live!]]></description>
         </item>

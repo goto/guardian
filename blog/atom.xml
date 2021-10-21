@@ -8,9 +8,9 @@
     <subtitle>Guardian Blog</subtitle>
     <icon>https://odpf.github.io/guardian/img/favicon.ico</icon>
     <entry>
-        <title type="html"><![CDATA[Introducing Meteor]]></title>
-        <id>introducing-meteor</id>
-        <link href="https://odpf.github.io/guardian/blog/introducing-meteor"/>
+        <title type="html"><![CDATA[Introducing Guardian]]></title>
+        <id>introducing-guardian</id>
+        <link href="https://odpf.github.io/guardian/blog/introducing-guardian"/>
         <updated>2021-08-20T00:00:00.000Z</updated>
         <summary type="html"><![CDATA[We are live!]]></summary>
         <author>

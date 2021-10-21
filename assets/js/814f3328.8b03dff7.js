@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkguardian=self.webpackChunkguardian||[]).push([[535],{5641:function(e){e.exports=JSON.parse('{"title":"Recent posts","items":[{"title":"Introducing Meteor","permalink":"/guardian/blog/introducing-meteor"}]}')}}]);

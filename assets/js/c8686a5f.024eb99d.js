@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkguardian=self.webpackChunkguardian||[]).push([[322],{6478:function(a){a.exports=JSON.parse('{"allTagsPath":"/guardian/blog/tags","slug":"/guardian/blog/tags/meteor","name":"meteor","count":1,"permalink":"/guardian/blog/tags/meteor"}')}}]);
