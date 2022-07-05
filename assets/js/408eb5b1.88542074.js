@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkguardian=self.webpackChunkguardian||[]).push([[558],{9541:function(a){a.exports=JSON.parse('{"allTagsPath":"/guardian/blog/tags","slug":"/guardian/blog/tags/guardian","name":"guardian","count":1,"permalink":"/guardian/blog/tags/guardian"}')}}]);

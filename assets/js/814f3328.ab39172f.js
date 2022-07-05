@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkguardian=self.webpackChunkguardian||[]).push([[535],{5641:function(n){n.exports=JSON.parse('{"title":"Recent posts","items":[{"title":"Introducing Guardian","permalink":"/guardian/blog/introducing-guardian"}]}')}}]);

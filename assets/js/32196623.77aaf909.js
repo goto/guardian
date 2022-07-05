@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkguardian=self.webpackChunkguardian||[]).push([[421],{8573:function(e){e.exports=JSON.parse('{"permalink":"/guardian/blog","page":1,"postsPerPage":10,"totalPages":1,"totalCount":1,"previousPage":null,"nextPage":null,"blogDescription":"Blog","blogTitle":"Blog"}')}}]);

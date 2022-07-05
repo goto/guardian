@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkguardian=self.webpackChunkguardian||[]).push([[343],{2474:function(a){a.exports=JSON.parse('{"allTagsPath":"/guardian/blog/tags","slug":"/guardian/blog/tags/odpf","name":"odpf","count":1,"permalink":"/guardian/blog/tags/odpf"}')}}]);
