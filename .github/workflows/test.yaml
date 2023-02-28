@@ -10,6 +10,11 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: "1.18"
+      - uses: extractions/netrc@v1 # to work with private repo dependencies
+        with:
+          machine: github.com
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
@@ -28,13 +33,14 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go-version }}
+      - uses: extractions/netrc@v1 # to work with private repo dependencies
+        with:
+          machine: github.com
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Test
         run: make test
-      - name: Install goveralls and send coverage
         env:
-          COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          go install github.com/mattn/goveralls@latest
-          goveralls -coverprofile=coverage.out -service=github
+          GOPRIVATE: ${{ env.GOPRIVATE }}
