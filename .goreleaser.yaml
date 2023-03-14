@@ -81,5 +81,5 @@ brews:
     install: |-
       bin.install "guardian"
     commit_author:
-      name: Muhammad Abduh
-      email: muhammad.abduh@gojek.com
+      name: github-actions[bot]
+      email: 41898282+github-actions[bot]@users.noreply.github.com
