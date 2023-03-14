@@ -28,7 +28,6 @@ const (
 	AuditKeyDeleteApprover = "appeal.deleteApprover"
 
 	RevokeReasonForExtension = "Automatically revoked for grant extension"
-	PermanentDuration        = "Permanent"
 )
 
 var TimeNow = time.Now
@@ -787,9 +786,9 @@ func getApprovalNotifications(appeal *domain.Appeal) []domain.Notification {
 	notifications := []domain.Notification{}
 	approval := appeal.GetNextPendingApproval()
 
-	duration := PermanentDuration
+	duration := domain.PermanentDuration
 	if !appeal.IsDurationEmpty() {
-		duration = appeal.Options.Duration
+		duration = GetReadableDuration(appeal.Options.Duration)
 	}
 
 	if approval != nil {
@@ -818,6 +817,26 @@ func getApprovalNotifications(appeal *domain.Appeal) []domain.Notification {
 		}
 	}
 	return notifications
+}
+
+// GetReadableDuration returns a human-readable duration string in integer days preferably, or the original string if it's either not a valid duration or a days value is not integer.
+func GetReadableDuration(durationStr string) string {
+	duration, err := time.ParseDuration(durationStr)
+	if err != nil {
+		return durationStr
+	}
+
+	days := duration.Hours() / 24
+	if days > 0 {
+		if utils.IsInteger(days) {
+			// if the duration is in integral days, return it as integer
+			return fmt.Sprintf("%dd", int(days))
+		}
+
+		return durationStr
+	}
+
+	return domain.PermanentDuration
 }
 
 func checkIfAppealStatusStillPending(status string) error {

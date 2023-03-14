@@ -2582,3 +2582,57 @@ func (s *ServiceTestSuite) TestDeleteApprover() {
 func TestService(t *testing.T) {
 	suite.Run(t, new(ServiceTestSuite))
 }
+
+func TestGetReadableDuration(t *testing.T) {
+	type args struct {
+		durationStr string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "should return duration in integral days when input can be converted into days - 1",
+			args: args{
+				durationStr: "2160h",
+			},
+			want: "90d",
+		},
+		{
+			name: "should return duration in integral days when input can be converted into days - 2",
+			args: args{
+				durationStr: "24h",
+			},
+			want: "1d",
+		},
+		{
+			name: "should return duration same as input when input cannot be converted into days - 1",
+			args: args{
+				durationStr: "1h",
+			},
+			want: "1h",
+		},
+		{
+			name: "should return duration same as input when input cannot be converted into days - 2",
+			args: args{
+				durationStr: "25h",
+			},
+			want: "25h",
+		},
+		{
+			name: "should return duration same as input when input is not a valid duration",
+			args: args{
+				durationStr: "124hs",
+			},
+			want: "124hs",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := appeal.GetReadableDuration(tt.args.durationStr); got != tt.want {
+				t.Errorf("GetReadableDuration() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
