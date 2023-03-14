@@ -9,11 +9,6 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: extractions/netrc@v1 # to work with private repo dependencies
-        with:
-          machine: github.com
-          username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.PASSWORD }}
       - name: Checkout
         uses: actions/checkout@v2
         with:
@@ -28,11 +23,6 @@ jobs:
           registry: docker.io
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: extractions/netrc@v1 # to work with private repo dependencies
-        with:
-          machine: github.com
-          username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.PASSWORD }}
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2.6.1
         with:
@@ -41,4 +31,3 @@ jobs:
           args: --rm-dist
         env:
           GITHUB_TOKEN: ${{ secrets.GO_RELEASER_TOKEN }}
-          GOPRIVATE: ${{ env.GOPRIVATE }}
