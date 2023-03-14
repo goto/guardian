@@ -314,7 +314,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	}
 
 	for _, a := range appeals {
-		notifications = append(notifications, getApprovalNotifications(a)...)
+		notifications = append(notifications, s.getApprovalNotifications(a)...)
 	}
 
 	if len(notifications) > 0 {
@@ -517,7 +517,7 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 				},
 			})
 		} else {
-			notifications = append(notifications, getApprovalNotifications(appeal)...)
+			notifications = append(notifications, s.getApprovalNotifications(appeal)...)
 		}
 		if len(notifications) > 0 {
 			if errs := s.notifier.Notify(notifications); errs != nil {
@@ -782,13 +782,15 @@ func (s *Service) getPoliciesMap(ctx context.Context) (map[string]map[uint]*doma
 	return policiesMap, nil
 }
 
-func getApprovalNotifications(appeal *domain.Appeal) []domain.Notification {
+func (s *Service) getApprovalNotifications(appeal *domain.Appeal) []domain.Notification {
 	notifications := []domain.Notification{}
 	approval := appeal.GetNextPendingApproval()
 
 	duration := domain.PermanentDuration
+	var err error
 	if !appeal.IsDurationEmpty() {
-		duration = GetReadableDuration(appeal.Options.Duration)
+		duration, err = GetReadableDuration(appeal.Options.Duration)
+		s.logger.Error("failed to get readable duration", "error", err, "appeal_id", appeal.ID)
 	}
 
 	if approval != nil {
@@ -820,23 +822,23 @@ func getApprovalNotifications(appeal *domain.Appeal) []domain.Notification {
 }
 
 // GetReadableDuration returns a human-readable duration string in integer days preferably, or the original string if it's either not a valid duration or a days value is not integer.
-func GetReadableDuration(durationStr string) string {
+func GetReadableDuration(durationStr string) (string, error) {
 	duration, err := time.ParseDuration(durationStr)
 	if err != nil {
-		return durationStr
+		return durationStr, err
 	}
 
 	days := duration.Hours() / 24
 	if days > 0 {
 		if utils.IsInteger(days) {
 			// if the duration is in integral days, return it as integer
-			return fmt.Sprintf("%dd", int(days))
+			return fmt.Sprintf("%dd", int(days)), nil
 		}
 
-		return durationStr
+		return durationStr, nil
 	}
 
-	return domain.PermanentDuration
+	return domain.PermanentDuration, nil
 }
 
 func checkIfAppealStatusStillPending(status string) error {
