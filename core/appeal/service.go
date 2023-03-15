@@ -790,7 +790,9 @@ func (s *Service) getApprovalNotifications(appeal *domain.Appeal) []domain.Notif
 	var err error
 	if !appeal.IsDurationEmpty() {
 		duration, err = utils.GetReadableDuration(appeal.Options.Duration)
-		s.logger.Error("failed to get readable duration", "error", err, "appeal_id", appeal.ID)
+		if err != nil {
+			s.logger.Error("failed to get readable duration", "error", err, "appeal_id", appeal.ID)
+		}
 	}
 
 	if approval != nil {
