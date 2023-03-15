@@ -29,6 +29,14 @@ func TestGetReadableDuration(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "should return duration in integral days when input can be converted into days - 3",
+			args: args{
+				durationStr: "86400s",
+			},
+			want:    "1d",
+			wantErr: false,
+		},
+		{
 			name: "should return duration same as input when input cannot be converted into days - 1",
 			args: args{
 				durationStr: "1h",
@@ -42,6 +50,14 @@ func TestGetReadableDuration(t *testing.T) {
 				durationStr: "25h",
 			},
 			want:    "25h",
+			wantErr: false,
+		},
+		{
+			name: "should return duration same as input when input cannot be converted into days - 3",
+			args: args{
+				durationStr: "86399s",
+			},
+			want:    "86399s",
 			wantErr: false,
 		},
 		{
