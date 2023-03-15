@@ -22,7 +22,7 @@ const (
 	SystemActorName = "system"
 
 	DefaultAppealAccountType = "user"
-	PermanentDuration        = "Permanent"
+	PermanentDurationLabel   = "Permanent"
 )
 
 var (

@@ -786,10 +786,10 @@ func (s *Service) getApprovalNotifications(appeal *domain.Appeal) []domain.Notif
 	notifications := []domain.Notification{}
 	approval := appeal.GetNextPendingApproval()
 
-	duration := domain.PermanentDuration
+	duration := domain.PermanentDurationLabel
 	var err error
 	if !appeal.IsDurationEmpty() {
-		duration, err = GetReadableDuration(appeal.Options.Duration)
+		duration, err = utils.GetReadableDuration(appeal.Options.Duration)
 		s.logger.Error("failed to get readable duration", "error", err, "appeal_id", appeal.ID)
 	}
 
@@ -819,26 +819,6 @@ func (s *Service) getApprovalNotifications(appeal *domain.Appeal) []domain.Notif
 		}
 	}
 	return notifications
-}
-
-// GetReadableDuration returns a human-readable duration string in integer days preferably, or the original string if it's either not a valid duration or a days value is not integer.
-func GetReadableDuration(durationStr string) (string, error) {
-	duration, err := time.ParseDuration(durationStr)
-	if err != nil {
-		return durationStr, err
-	}
-
-	days := duration.Hours() / 24
-	if days > 0 {
-		if utils.IsInteger(days) {
-			// if the duration is in integral days, return it as integer
-			return fmt.Sprintf("%dd", int(days)), nil
-		}
-
-		return durationStr, nil
-	}
-
-	return domain.PermanentDuration, nil
 }
 
 func checkIfAppealStatusStillPending(status string) error {
