@@ -22,6 +22,8 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		CreatedBy: user,
 		Statuses:  req.GetStatuses(),
 		OrderBy:   req.GetOrderBy(),
+		Size:      int(req.GetSize()),
+		Offset:    int(req.GetOffset()),
 	})
 	if err != nil {
 		return nil, err
