@@ -19,6 +19,7 @@ const (
 type Dataset struct {
 	ProjectID string
 	DatasetID string
+	Labels    map[string]string
 }
 
 func (d *Dataset) FromDomain(r *domain.Resource) error {
@@ -32,11 +33,26 @@ func (d *Dataset) FromDomain(r *domain.Resource) error {
 }
 
 func (d *Dataset) ToDomain() *domain.Resource {
-	return &domain.Resource{
+	r := &domain.Resource{
 		Type: ResourceTypeDataset,
 		Name: d.DatasetID,
 		URN:  fmt.Sprintf("%s:%s", d.ProjectID, d.DatasetID),
 	}
+
+	var metadata map[string]interface{}
+	if d.Labels != nil {
+		metadata = map[string]interface{}{
+			"labels": d.Labels,
+		}
+	}
+	if metadata != nil {
+		if r.Details == nil {
+			r.Details = make(map[string]interface{})
+		}
+		r.Details["_metadata"] = metadata
+	}
+
+	return r
 }
 
 // Table is a reference to a BigQuery table
@@ -44,6 +60,7 @@ type Table struct {
 	ProjectID string
 	DatasetID string
 	TableID   string
+	Labels    map[string]string
 }
 
 func (t *Table) FromDomain(r *domain.Resource) error {
@@ -62,11 +79,26 @@ func (t *Table) FromDomain(r *domain.Resource) error {
 }
 
 func (t *Table) ToDomain() *domain.Resource {
-	return &domain.Resource{
+	r := &domain.Resource{
 		Type: ResourceTypeTable,
 		Name: t.TableID,
 		URN:  fmt.Sprintf("%s:%s.%s", t.ProjectID, t.DatasetID, t.TableID),
 	}
+
+	var metadata map[string]interface{}
+	if t.Labels != nil {
+		metadata = map[string]interface{}{
+			"labels": t.Labels,
+		}
+	}
+	if metadata != nil {
+		if r.Details == nil {
+			r.Details = make(map[string]interface{})
+		}
+		r.Details["_metadata"] = metadata
+	}
+
+	return r
 }
 
 type datasetAccessEntry bq.AccessEntry

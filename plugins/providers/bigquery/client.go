@@ -59,10 +59,20 @@ func (c *bigQueryClient) GetDatasets(ctx context.Context) ([]*Dataset, error) {
 			return nil, err
 		}
 
-		results = append(results, &Dataset{
+		d := &Dataset{
 			ProjectID: dataset.ProjectID,
 			DatasetID: dataset.DatasetID,
-		})
+		}
+
+		md, err := dataset.Metadata(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("getting metadata for dataset %s: %w", dataset.DatasetID, err)
+		}
+		if md.Labels != nil {
+			d.Labels = md.Labels
+		}
+
+		results = append(results, d)
 	}
 
 	return results, nil
@@ -81,11 +91,21 @@ func (c *bigQueryClient) GetTables(ctx context.Context, datasetID string) ([]*Ta
 			return nil, err
 		}
 
-		results = append(results, &Table{
+		t := &Table{
 			ProjectID: table.ProjectID,
 			DatasetID: table.DatasetID,
 			TableID:   table.TableID,
-		})
+		}
+
+		md, err := table.Metadata(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("getting metadata for table %s: %w", table.TableID, err)
+		}
+		if md.Labels != nil {
+			t.Labels = md.Labels
+		}
+
+		results = append(results, t)
 	}
 
 	return results, nil
