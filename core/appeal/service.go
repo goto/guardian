@@ -303,6 +303,31 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 				notifications = addOnBehalfApprovedNotification(appeal, notifications)
 			}
 		}
+
+		if appeal.Status == domain.AppealStatusRejected {
+			var reason string
+			for _, approval := range appeal.Approvals {
+				if approval.Status == domain.ApprovalStatusRejected {
+					reason = approval.Reason
+					break
+				}
+			}
+
+			notifications = append(notifications, domain.Notification{
+				User: appeal.CreatedBy,
+				Message: domain.NotificationMessage{
+					Type: domain.NotificationTypeAppealRejected,
+					Variables: map[string]interface{}{
+						"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+						"role":          appeal.Role,
+						"account_id":    appeal.AccountID,
+						"appeal_id":     appeal.ID,
+						"requestor":     appeal.CreatedBy,
+						"reason":        reason,
+					},
+				},
+			})
+		}
 	}
 
 	if err := s.repo.BulkUpsert(ctx, appeals); err != nil {
