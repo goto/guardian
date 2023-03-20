@@ -89,6 +89,10 @@ func (s *Service) Update(ctx context.Context, r *domain.Resource) error {
 		return err
 	}
 
+	// Details["_metadata"] is not allowed to be updated by users
+	// value for this field should only set by the provider on FetchResources
+	delete(r.Details, "_metadata")
+
 	if err := mergo.Merge(r, existingResource); err != nil {
 		return err
 	}
