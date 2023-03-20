@@ -303,31 +303,6 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 				notifications = addOnBehalfApprovedNotification(appeal, notifications)
 			}
 		}
-
-		if appeal.Status == domain.AppealStatusRejected {
-			var reason string
-			for _, approval := range appeal.Approvals {
-				if approval.Status == domain.ApprovalStatusRejected {
-					reason = approval.Reason
-					break
-				}
-			}
-
-			notifications = append(notifications, domain.Notification{
-				User: appeal.CreatedBy,
-				Message: domain.NotificationMessage{
-					Type: domain.NotificationTypeAppealRejected,
-					Variables: map[string]interface{}{
-						"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-						"role":          appeal.Role,
-						"account_id":    appeal.AccountID,
-						"appeal_id":     appeal.ID,
-						"requestor":     appeal.CreatedBy,
-						"reason":        reason,
-					},
-				},
-			})
-		}
 	}
 
 	if err := s.repo.BulkUpsert(ctx, appeals); err != nil {
@@ -339,6 +314,31 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	}
 
 	for _, a := range appeals {
+		if a.Status == domain.AppealStatusRejected {
+			var reason string
+			for _, approval := range a.Approvals {
+				if approval.Status == domain.ApprovalStatusRejected {
+					reason = approval.Reason
+					break
+				}
+			}
+
+			notifications = append(notifications, domain.Notification{
+				User: a.CreatedBy,
+				Message: domain.NotificationMessage{
+					Type: domain.NotificationTypeAppealRejected,
+					Variables: map[string]interface{}{
+						"resource_name": fmt.Sprintf("%s (%s: %s)", a.Resource.Name, a.Resource.ProviderType, a.Resource.URN),
+						"role":          a.Role,
+						"account_id":    a.AccountID,
+						"appeal_id":     a.ID,
+						"requestor":     a.CreatedBy,
+						"reason":        reason,
+					},
+				},
+			})
+		}
+
 		notifications = append(notifications, s.getApprovalNotifications(a)...)
 	}
 
