@@ -39,17 +39,13 @@ func (d *Dataset) ToDomain() *domain.Resource {
 		URN:  fmt.Sprintf("%s:%s", d.ProjectID, d.DatasetID),
 	}
 
-	var metadata map[string]interface{}
 	if d.Labels != nil {
-		metadata = map[string]interface{}{
-			"labels": d.Labels,
-		}
-	}
-	if metadata != nil {
 		if r.Details == nil {
 			r.Details = make(map[string]interface{})
 		}
-		r.Details["_metadata"] = metadata
+		r.Details["_metadata"] = map[string]interface{}{
+			"labels": d.Labels,
+		}
 	}
 
 	return r
@@ -85,17 +81,13 @@ func (t *Table) ToDomain() *domain.Resource {
 		URN:  fmt.Sprintf("%s:%s.%s", t.ProjectID, t.DatasetID, t.TableID),
 	}
 
-	var metadata map[string]interface{}
 	if t.Labels != nil {
-		metadata = map[string]interface{}{
-			"labels": t.Labels,
-		}
-	}
-	if metadata != nil {
 		if r.Details == nil {
 			r.Details = make(map[string]interface{})
 		}
-		r.Details["_metadata"] = metadata
+		r.Details["_metadata"] = map[string]interface{}{
+			"labels": t.Labels,
+		}
 	}
 
 	return r
