@@ -123,6 +123,7 @@ func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, 
 
 	resources := []*domain.Resource{}
 	eg, ctx := errgroup.WithContext(context.TODO())
+	eg.SetLimit(10)
 
 	datasets, err := client.GetDatasets(ctx)
 	if err != nil {
