@@ -21,19 +21,19 @@ type bigQueryClient struct {
 	apiClient  *bqApi.Service
 }
 
-func newBigQueryClient(projectID string, credentialsJSON []byte) (*bigQueryClient, error) {
+func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQueryClient, error) {
 	ctx := context.Background()
-	client, err := bq.NewClient(ctx, projectID, option.WithCredentialsJSON(credentialsJSON))
+	client, err := bq.NewClient(ctx, projectID, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	apiClient, err := bqApi.NewService(ctx, option.WithCredentialsJSON(credentialsJSON))
+	apiClient, err := bqApi.NewService(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	iamService, err := iam.NewService(ctx, option.WithCredentialsJSON(credentialsJSON))
+	iamService, err := iam.NewService(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/patrickmn/go-cache"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/api/option"
 )
 
 var (
@@ -342,7 +343,7 @@ func (p *Provider) getBigQueryClient(credentials Credentials) (BigQueryClient, e
 	}
 
 	credentials.Decrypt(p.encryptor)
-	client, err := newBigQueryClient(projectID, []byte(credentials.ServiceAccountKey))
+	client, err := NewBigQueryClient(projectID, option.WithCredentialsJSON([]byte(credentials.ServiceAccountKey)))
 	if err != nil {
 		return nil, err
 	}
