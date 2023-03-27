@@ -525,8 +525,7 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 	for _, r := range flattenedProviderResources {
 		for _, er := range existingGuardianResources {
 			if er.URN == r.URN {
-				existingDetails := er.Details
-				if existingDetails != nil {
+				if existingDetails := er.Details; existingDetails != nil {
 					if r.Details != nil {
 						for key, value := range existingDetails {
 							if _, ok := r.Details[key]; !ok {
