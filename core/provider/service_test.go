@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/goto/guardian/core/provider"
 	providermocks "github.com/goto/guardian/core/provider/mocks"
+	"github.com/goto/guardian/core/resource"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/salt/log"
 	"github.com/stretchr/testify/mock"
@@ -360,7 +361,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 				URN:          "test-resource-urn-1",
 				Details: map[string]interface{}{
 					"owner": "test-owner",
-					"_metadata": map[string]interface{}{
+					resource.ReservedDetailsKeyMetadata: map[string]interface{}{
 						"labels": map[string]string{
 							"foo": "bar",
 							"baz": "qux",
@@ -377,7 +378,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 				Type:         "test-resource-type",
 				URN:          "test-resource-urn-1",
 				Details: map[string]interface{}{
-					"_metadata": map[string]interface{}{
+					resource.ReservedDetailsKeyMetadata: map[string]interface{}{
 						"labels": map[string]string{
 							"new-key": "new-value",
 						},
@@ -399,7 +400,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 				URN:          "test-resource-urn-1",
 				Details: map[string]interface{}{
 					"owner": "test-owner", // owner not changed
-					"_metadata": map[string]interface{}{ // metadata updated
+					resource.ReservedDetailsKeyMetadata: map[string]interface{}{ // metadata updated
 						"labels": map[string]string{
 							"new-key": "new-value",
 						},

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	bq "cloud.google.com/go/bigquery"
+	"github.com/goto/guardian/core/resource"
 	"github.com/goto/guardian/domain"
 )
 
@@ -43,7 +44,7 @@ func (d *Dataset) ToDomain() *domain.Resource {
 		if r.Details == nil {
 			r.Details = make(map[string]interface{})
 		}
-		r.Details["_metadata"] = map[string]interface{}{
+		r.Details[resource.ReservedDetailsKeyMetadata] = map[string]interface{}{
 			"labels": d.Labels,
 		}
 	}
@@ -85,7 +86,7 @@ func (t *Table) ToDomain() *domain.Resource {
 		if r.Details == nil {
 			r.Details = make(map[string]interface{})
 		}
-		r.Details["_metadata"] = map[string]interface{}{
+		r.Details[resource.ReservedDetailsKeyMetadata] = map[string]interface{}{
 			"labels": t.Labels,
 		}
 	}

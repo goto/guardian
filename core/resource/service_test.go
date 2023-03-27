@@ -172,12 +172,12 @@ func (s *ServiceTestSuite) TestUpdate() {
 				},
 			},
 			{
-				name: "should exclude _metadata from update payload",
+				name: "should exclude __metadata from update payload",
 				resourceUpdatePayload: &domain.Resource{
 					ID: "2",
 					Details: map[string]interface{}{
 						"owner": "new-owner@example.com",
-						"_metadata": map[string]string{
+						resource.ReservedDetailsKeyMetadata: map[string]string{
 							"new-key": "new-value",
 						},
 					},
@@ -187,7 +187,7 @@ func (s *ServiceTestSuite) TestUpdate() {
 					Details: map[string]interface{}{
 						"owner": "user@example.com",
 						"foo":   "bar",
-						"_metadata": map[string]string{
+						resource.ReservedDetailsKeyMetadata: map[string]string{
 							"key": "value",
 						},
 					},
@@ -197,7 +197,7 @@ func (s *ServiceTestSuite) TestUpdate() {
 					Details: map[string]interface{}{
 						"owner": "new-owner@example.com",
 						"foo":   "bar",
-						"_metadata": map[string]string{
+						resource.ReservedDetailsKeyMetadata: map[string]string{
 							"key": "value",
 						},
 					},
