@@ -134,7 +134,7 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 	}
 
 	go func() {
-		s.logger.Info("fetching resources", "provider_urn", p.URN)
+		s.logger.Info("provider create fetching resources", "provider_urn", p.URN)
 		ctx := audit.WithActor(context.Background(), domain.SystemActorName)
 		resources, err := s.getResources(ctx, p)
 		if err != nil {
@@ -212,7 +212,7 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 	}
 
 	go func() {
-		s.logger.Info("fetching resources", "provider_urn", p.URN)
+		s.logger.Info("provider update fetching resources", "provider_urn", p.URN)
 		ctx := audit.WithActor(context.Background(), domain.SystemActorName)
 		resources, err := s.getResources(ctx, p)
 		if err != nil {
