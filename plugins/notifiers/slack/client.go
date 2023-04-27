@@ -65,16 +65,16 @@ func (n *Notifier) Notify(items []domain.Notification) []error {
 	for _, item := range items {
 		slackID, err := n.findSlackIDByEmail(item.User)
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("appeal_id:%s | %w", item.AppealID, err))
 		}
 
 		msg, err := ParseMessage(item.Message, n.Messages, n.defaultMessageFiles)
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("error parsing message for appeal_id:%s - %w", item.AppealID, err))
 		}
 
 		if err := n.sendMessage(slackID, msg); err != nil {
-			errs = append(errs, fmt.Errorf("error sending message to user %s - %s", item.User, err))
+			errs = append(errs, fmt.Errorf("appeal_id:%s | error sending message to user:%s | %w", item.AppealID, item.User, err))
 		}
 	}
 

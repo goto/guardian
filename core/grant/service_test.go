@@ -181,11 +181,15 @@ func (s *ServiceTestSuite) TestUpdate() {
 			},
 		}
 		expectedNotifications := []domain.Notification{{
-			User:    updatePayload.Owner,
-			Message: notificationMessage,
+			User:     updatePayload.Owner,
+			AppealID: existingGrant.AppealID,
+			GrantID:  existingGrant.ID,
+			Message:  notificationMessage,
 		}, {
-			User:    existingGrant.Owner,
-			Message: notificationMessage,
+			User:     existingGrant.Owner,
+			AppealID: existingGrant.AppealID,
+			GrantID:  existingGrant.ID,
+			Message:  notificationMessage,
 		}}
 		s.mockNotifier.EXPECT().
 			Notify(expectedNotifications).Return(nil).Once()
@@ -261,7 +265,9 @@ func (s *ServiceTestSuite) TestRevoke() {
 
 		s.mockNotifier.EXPECT().
 			Notify([]domain.Notification{{
-				User: expectedGrantDetails.CreatedBy,
+				User:     expectedGrantDetails.CreatedBy,
+				AppealID: expectedGrantDetails.AppealID,
+				GrantID:  expectedGrantDetails.ID,
 				Message: domain.NotificationMessage{
 					Type: domain.NotificationTypeAccessRevoked,
 					Variables: map[string]interface{}{

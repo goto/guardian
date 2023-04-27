@@ -142,13 +142,17 @@ func (s *Service) Update(ctx context.Context, payload *domain.Grant) error {
 			},
 		}
 		notifications := []domain.Notification{{
-			User:    updatedGrant.Owner,
-			Message: message,
+			User:     updatedGrant.Owner,
+			AppealID: grantDetails.AppealID,
+			GrantID:  grantDetails.ID,
+			Message:  message,
 		}}
 		if previousOwner != "" {
 			notifications = append(notifications, domain.Notification{
-				User:    previousOwner,
-				Message: message,
+				User:     previousOwner,
+				AppealID: grantDetails.AppealID,
+				GrantID:  grantDetails.ID,
+				Message:  message,
 			})
 		}
 		if errs := s.notifier.Notify(notifications); errs != nil {
@@ -204,7 +208,9 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 
 	if !options.skipNotification {
 		if errs := s.notifier.Notify([]domain.Notification{{
-			User: grant.CreatedBy,
+			User:     grant.CreatedBy,
+			AppealID: grant.AppealID,
+			GrantID:  grant.ID,
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeAccessRevoked,
 				Variables: map[string]interface{}{

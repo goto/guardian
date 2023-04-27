@@ -37,7 +37,9 @@ func (h *handler) GrantExpirationReminder(ctx context.Context) error {
 		var notifications []domain.Notification
 		for _, g := range grants {
 			notifications = append(notifications, domain.Notification{
-				User: g.CreatedBy,
+				User:     g.CreatedBy,
+				AppealID: g.AppealID,
+				GrantID:  g.ID,
 				Message: domain.NotificationMessage{
 					Type: domain.NotificationTypeExpirationReminder,
 					Variables: map[string]interface{}{
