@@ -140,7 +140,7 @@ func (s *ApprovalRepositoryTestSuite) TestListApprovals() {
 		Role:          "role_test_b",
 		Permissions:   []string{"permission_test"},
 		CreatedBy:     "abc-user@example.com",
-		Status:        "canceled",
+		Status:        domain.AppealStatusCanceled,
 	}
 
 	s.appealRepository.BulkUpsert(context.Background(), []*domain.Appeal{appealA, appealB})
@@ -249,7 +249,7 @@ func (s *ApprovalRepositoryTestSuite) TestListApprovals() {
 		approvals, err := s.repository.ListApprovals(context.Background(), &domain.ListApprovalsFilter{
 			AccountID:      appealB.AccountID,
 			CreatedBy:      dummyApprover[3].Email,
-			AppealStatuses: []string{"canceled"},
+			AppealStatuses: []string{domain.AppealStatusCanceled},
 			OrderBy:        []string{"status", "updated_at:desc", "created_at"},
 		})
 
@@ -262,7 +262,7 @@ func (s *ApprovalRepositoryTestSuite) TestListApprovals() {
 		approvals, err := s.repository.ListApprovals(context.Background(), &domain.ListApprovalsFilter{
 			AccountID:      appealA.AccountID,
 			CreatedBy:      dummyApprover[3].Email,
-			AppealStatuses: []string{"pending"},
+			AppealStatuses: []string{domain.AppealStatusPending},
 			OrderBy:        []string{"status", "updated_at:desc", "created_at"},
 		})
 
