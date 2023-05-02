@@ -128,7 +128,7 @@ func (s *ApprovalRepositoryTestSuite) TestListApprovals() {
 		Role:          "role_test_a",
 		Permissions:   []string{"permission_test"},
 		CreatedBy:     "abc-user@example.com",
-		Status:        "pending",
+		Status:        domain.AppealStatusPending,
 	}
 
 	appealB := &domain.Appeal{
