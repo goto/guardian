@@ -287,8 +287,10 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 				}
 
 				notifications = append(notifications, domain.Notification{
-					User:     appeal.CreatedBy,
-					AppealID: appeal.ID,
+					User: appeal.CreatedBy,
+					Labels: map[string]string{
+						"appeal_id": appeal.ID,
+					},
 					Message: domain.NotificationMessage{
 						Type: domain.NotificationTypeAppealApproved,
 						Variables: map[string]interface{}{
@@ -325,8 +327,10 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			}
 
 			notifications = append(notifications, domain.Notification{
-				User:     a.CreatedBy,
-				AppealID: a.ID,
+				User: a.CreatedBy,
+				Labels: map[string]string{
+					"appeal_id": a.ID,
+				},
 				Message: domain.NotificationMessage{
 					Type: domain.NotificationTypeAppealRejected,
 					Variables: map[string]interface{}{
@@ -378,8 +382,10 @@ func (s *Service) findActiveGrant(ctx context.Context, a *domain.Appeal) (*domai
 func addOnBehalfApprovedNotification(appeal *domain.Appeal, notifications []domain.Notification) []domain.Notification {
 	if appeal.AccountType == domain.DefaultAppealAccountType && appeal.AccountID != appeal.CreatedBy {
 		notifications = append(notifications, domain.Notification{
-			User:     appeal.AccountID,
-			AppealID: appeal.ID,
+			User: appeal.AccountID,
+			Labels: map[string]string{
+				"appeal_id": appeal.ID,
+			},
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeOnBehalfAppealApproved,
 				Variables: map[string]interface{}{
@@ -517,8 +523,10 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 		notifications := []domain.Notification{}
 		if appeal.Status == domain.AppealStatusApproved {
 			notifications = append(notifications, domain.Notification{
-				User:     appeal.CreatedBy,
-				AppealID: appeal.ID,
+				User: appeal.CreatedBy,
+				Labels: map[string]string{
+					"appeal_id": appeal.ID,
+				},
 				Message: domain.NotificationMessage{
 					Type: domain.NotificationTypeAppealApproved,
 					Variables: map[string]interface{}{
@@ -533,8 +541,10 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			notifications = addOnBehalfApprovedNotification(appeal, notifications)
 		} else if appeal.Status == domain.AppealStatusRejected {
 			notifications = append(notifications, domain.Notification{
-				User:     appeal.CreatedBy,
-				AppealID: appeal.ID,
+				User: appeal.CreatedBy,
+				Labels: map[string]string{
+					"appeal_id": appeal.ID,
+				},
 				Message: domain.NotificationMessage{
 					Type: domain.NotificationTypeAppealRejected,
 					Variables: map[string]interface{}{
@@ -643,8 +653,10 @@ func (s *Service) AddApprover(ctx context.Context, appealID, approvalID, email s
 
 	if errs := s.notifier.Notify([]domain.Notification{
 		{
-			User:     email,
-			AppealID: appeal.ID,
+			User: email,
+			Labels: map[string]string{
+				"appeal_id": appeal.ID,
+			},
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeApproverNotification,
 				Variables: map[string]interface{}{
@@ -829,8 +841,10 @@ func (s *Service) getApprovalNotifications(appeal *domain.Appeal) []domain.Notif
 	if approval != nil {
 		for _, approver := range approval.Approvers {
 			notifications = append(notifications, domain.Notification{
-				User:     approver,
-				AppealID: appeal.ID,
+				User: approver,
+				Labels: map[string]string{
+					"appeal_id": appeal.ID,
+				},
 				Message: domain.NotificationMessage{
 					Type: domain.NotificationTypeApproverNotification,
 					Variables: map[string]interface{}{

@@ -29,6 +29,5 @@ type Notification struct {
 	User    string
 	Message NotificationMessage
 
-	AppealID string
-	GrantID  string
+	Labels map[string]string
 }

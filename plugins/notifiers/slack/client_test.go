@@ -47,14 +47,16 @@ func (s *ClientTestSuite) TestNotify() {
 		resp := &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(slackAPIResponse)))}
 		s.mockHttpClient.On("Do", mock.Anything).Return(resp, nil)
 		expectedErrs := []error{
-			fmt.Errorf("appeal_id:test-appeal-id | %w", errors.New("error finding slack id for email test-user@abc.com - users_not_found")),
-			fmt.Errorf("appeal_id:test-appeal-id | error sending message to user:test-user@abc.com | %w", errors.New("EOF")),
+			fmt.Errorf("[appeal_id=test-appeal-id] | %w", errors.New("error finding slack id for email test-user@abc.com - users_not_found")),
+			fmt.Errorf("[appeal_id=test-appeal-id] | error sending message to user:test-user@abc.com | %w", errors.New("EOF")),
 		}
 
 		notifications := []domain.Notification{
 			{
-				User:     "test-user@abc.com",
-				AppealID: "test-appeal-id",
+				User: "test-user@abc.com",
+				Labels: map[string]string{
+					"appeal_id": "test-appeal-id",
+				},
 				Message: domain.NotificationMessage{
 					Type: domain.NotificationTypeAppealRejected,
 					Variables: map[string]interface{}{
