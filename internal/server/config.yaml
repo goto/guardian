@@ -37,9 +37,11 @@ JOBS:
   REVOKE_GRANTS_BY_USER_CRITERIA:
     CONFIG:
       IAM:
+        PROVIDER: http
         CONFIG:
-          URL: http://localhost:5000?user_id={user_id}
-      USER_CRITERIA: 'is_active == true'
+          URL: http://example.com/users/{user_id}
+      USER_CRITERIA: '$user.is_active == true'
+      REASSIGN_OWNERSHIP_TO: '$user.manager_email'
 TELEMETRY:
     ENABLED: true
     SERVICE_NAME: "guardian"
