@@ -45,11 +45,13 @@ func runJobCmd() *cobra.Command {
 		`),
 		Args: cobra.ExactValidArgs(1),
 		ValidArgs: []string{
-			"fetch_resources",
-			"grant_expiration_reminder",
-			"grant_expiration_revocation",
-			"appeal_expiration_reminder",
-			"appeal_expiration_revocation",
+			string(jobs.FetchResources),
+			string(jobs.ExpiringGrantNotification),
+			string(jobs.RevokeExpiredGrants),
+			string(jobs.RevokeGrantsByUserCriteria),
+
+			string(jobs.RevokeExpiredAccess),
+			string(jobs.ExpiringAccessNotification),
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configFile, err := cmd.Flags().GetString("config")
@@ -85,22 +87,28 @@ func runJobCmd() *cobra.Command {
 				services.GrantService,
 				services.ProviderService,
 				notifier,
+				crypto,
+				validator,
 			)
 
-			jobsMap := map[string]func(context.Context) error{
-				"fetch_resources":              handler.FetchResources,
-				"grant_expiration_reminder":    handler.GrantExpirationReminder,
-				"grant_expiration_revocation":  handler.RevokeExpiredGrants,
-				"appeal_expiration_reminder":   handler.GrantExpirationReminder,
-				"appeal_expiration_revocation": handler.RevokeExpiredGrants,
+			jobsMap := map[jobs.Type]func(context.Context, jobs.Config) error{
+				jobs.FetchResources:             handler.FetchResources,
+				jobs.ExpiringGrantNotification:  handler.GrantExpirationReminder,
+				jobs.RevokeExpiredGrants:        handler.RevokeExpiredGrants,
+				jobs.RevokeGrantsByUserCriteria: handler.RevokeGrantsByUserCriteria,
+
+				// deprecated job names
+				jobs.ExpiringAccessNotification: handler.GrantExpirationReminder,
+				jobs.RevokeExpiredAccess:        handler.RevokeExpiredGrants,
 			}
 
-			jobName := args[0]
+			jobName := jobs.Type(args[0])
 			job := jobsMap[jobName]
 			if job == nil {
 				return fmt.Errorf("invalid job name: %s", jobName)
 			}
-			if err := job(context.Background()); err != nil {
+			jobConfig := config.Jobs[jobName].Config
+			if err := job(context.Background(), jobConfig); err != nil {
 				return fmt.Errorf(`failed to run job "%s": %w`, jobName, err)
 			}
 

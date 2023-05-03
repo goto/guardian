@@ -34,6 +34,12 @@ JOBS:
   EXPIRING_ACCESS_NOTIFICATION:
     ENABLED: true
     INTERVAL: "0 9 * * *"
+  REVOKE_GRANTS_BY_USER_CRITERIA:
+    CONFIG:
+      IAM:
+        CONFIG:
+          URL: http://localhost:5000?user_id={user_id}
+      USER_CRITERIA: 'is_active == true'
 TELEMETRY:
     ENABLED: true
     SERVICE_NAME: "guardian"

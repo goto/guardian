@@ -77,23 +77,25 @@ func RunServer(config *Config) error {
 		services.GrantService,
 		services.ProviderService,
 		notifier,
+		crypto,
+		validator,
 	)
 
 	// init scheduler
 	// TODO: allow timeout configuration for job handler context
-	jobsMap := map[JobType]func(context.Context) error{
-		FetchResources:            jobHandler.FetchResources,
-		ExpiringGrantNotification: jobHandler.GrantExpirationReminder,
-		RevokeExpiredGrants:       jobHandler.RevokeExpiredGrants,
+	jobsMap := map[jobs.Type]func(context.Context, jobs.Config) error{
+		jobs.FetchResources:            jobHandler.FetchResources,
+		jobs.ExpiringGrantNotification: jobHandler.GrantExpirationReminder,
+		jobs.RevokeExpiredGrants:       jobHandler.RevokeExpiredGrants,
 	}
 
 	enabledJobs := fetchJobsToRun(config)
 	tasks := make([]*scheduler.Task, 0)
 	for _, job := range enabledJobs {
-		fn := jobsMap[job.JobType]
+		fn := jobsMap[job.Type]
 		task := scheduler.Task{
 			CronTab: job.Interval,
-			Func:    func() error { return fn(context.Background()) },
+			Func:    func() error { return fn(context.Background(), job.Config) },
 		}
 		tasks = append(tasks, &task)
 	}
@@ -242,30 +244,30 @@ func makeHeaderMatcher(c *Config) func(key string) (string, bool) {
 	}
 }
 
-func fetchJobsToRun(config *Config) []*JobConfig {
-	jobsToRun := make([]*JobConfig, 0)
+func fetchJobsToRun(config *Config) []*jobs.Job {
+	jobsToRun := make([]*jobs.Job, 0)
 
-	if config.Jobs.FetchResources.Enabled {
-		job := config.Jobs.FetchResources
-		job.JobType = FetchResources
+	if config.Jobs[jobs.FetchResources].Enabled {
+		job := config.Jobs[jobs.FetchResources]
+		job.Type = jobs.FetchResources
 		jobsToRun = append(jobsToRun, &job)
 	}
 
-	if config.Jobs.ExpiringAccessNotification.Enabled || config.Jobs.ExpiringGrantNotification.Enabled {
-		job := config.Jobs.ExpiringAccessNotification
-		job.JobType = ExpiringGrantNotification
+	if config.Jobs[jobs.ExpiringAccessNotification].Enabled || config.Jobs[jobs.ExpiringGrantNotification].Enabled {
+		job := config.Jobs[jobs.ExpiringAccessNotification]
+		job.Type = jobs.ExpiringGrantNotification
 		jobsToRun = append(jobsToRun, &job)
 	}
 
-	if config.Jobs.RevokeExpiredAccess.Enabled || config.Jobs.RevokeExpiredGrants.Enabled {
-		job := config.Jobs.RevokeExpiredAccess
-		job.JobType = RevokeExpiredGrants
+	if config.Jobs[jobs.RevokeExpiredAccess].Enabled || config.Jobs[jobs.RevokeExpiredGrants].Enabled {
+		job := config.Jobs[jobs.RevokeExpiredAccess]
+		job.Type = jobs.RevokeExpiredGrants
 		jobsToRun = append(jobsToRun, &job)
 	}
 
 	jobScheduleMapping := fetchDefaultJobScheduleMapping()
 	for _, jobConfig := range jobsToRun {
-		schedule, ok := jobScheduleMapping[jobConfig.JobType]
+		schedule, ok := jobScheduleMapping[jobConfig.Type]
 		if ok && jobConfig.Interval == "" {
 			jobConfig.Interval = schedule
 		}
@@ -274,11 +276,11 @@ func fetchJobsToRun(config *Config) []*JobConfig {
 	return jobsToRun
 }
 
-func fetchDefaultJobScheduleMapping() map[JobType]string {
-	return map[JobType]string{
-		FetchResources:            "0 */2 * * *",
-		RevokeExpiredGrants:       "*/20 * * * *",
-		ExpiringGrantNotification: "0 9 * * *",
+func fetchDefaultJobScheduleMapping() map[jobs.Type]string {
+	return map[jobs.Type]string{
+		jobs.FetchResources:            "0 */2 * * *",
+		jobs.RevokeExpiredGrants:       "*/20 * * * *",
+		jobs.ExpiringGrantNotification: "0 9 * * *",
 	}
 }
 
