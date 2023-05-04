@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/goto/guardian/domain"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStep_ResolveApprovers(t *testing.T) {
@@ -179,6 +180,103 @@ func TestStep_ResolveApprovers(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRequirementTrigger(t *testing.T) {
+	t.Run("should return error if got error when parsing appeal to map", func(t *testing.T) {
+		brokenAppeal := &domain.Appeal{
+			Creator: map[string]interface{}{
+				"foobar": &brokenType{},
+			},
+		}
+		r := domain.RequirementTrigger{
+			Expression: "$appeal.creator.foobar == true",
+		}
+		match, err := r.IsMatch(brokenAppeal)
+		assert.ErrorContains(t, err, "parsing appeal to map:")
+		assert.False(t, match)
+	})
+
+	t.Run("should return error if got error when evaluating expression", func(t *testing.T) {
+		expr := "invalid expression"
+		r := domain.RequirementTrigger{
+			Expression: expr,
+		}
+		match, err := r.IsMatch(&domain.Appeal{})
+		assert.ErrorContains(t, err, fmt.Sprintf("evaluating expression %q:", expr))
+		assert.False(t, match)
+	})
+
+	t.Run("should return error if expression result is not boolean", func(t *testing.T) {
+		expr := "$appeal.resource.details.foo"
+		appeal := &domain.Appeal{
+			Resource: &domain.Resource{
+				Details: map[string]interface{}{
+					"foo": "bar",
+				},
+			},
+		}
+		r := domain.RequirementTrigger{
+			Expression: expr,
+		}
+		match, err := r.IsMatch(appeal)
+		assert.ErrorContains(t, err, fmt.Sprintf("expression %q did not evaluate to a boolean, evaluated value: %q", expr, "bar"))
+		assert.False(t, match)
+	})
+
+	t.Run("test trigger matching using expression", func(t *testing.T) {
+		testCases := []struct {
+			name          string
+			expression    string
+			appeal        *domain.Appeal
+			expectedMatch bool
+		}{
+			{
+				name:       "check if resource_urn is matched",
+				expression: `$appeal.resource.urn == "urn:my-resource:123"`,
+				appeal: &domain.Appeal{
+					Resource: &domain.Resource{
+						URN: "urn:my-resource:123",
+					},
+				},
+				expectedMatch: true,
+			},
+			{
+				name:       "check if resource_urn is matched (false condition)",
+				expression: `$appeal.resource.urn == "urn:my-resource:123"`,
+				appeal: &domain.Appeal{
+					Resource: &domain.Resource{
+						URN: "urn:my-resource:123456",
+					},
+				},
+				expectedMatch: false,
+			},
+			{
+				name:       "get boolean from value",
+				expression: `$appeal.resource.details.foo`,
+				appeal: &domain.Appeal{
+					Resource: &domain.Resource{
+						Details: map[string]interface{}{
+							"foo": true,
+						},
+					},
+				},
+				expectedMatch: true,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				r := domain.RequirementTrigger{
+					Expression: tc.expression,
+				}
+
+				match, err := r.IsMatch(tc.appeal)
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedMatch, match)
+			})
+		}
+	})
 }
 
 type brokenType struct{}
