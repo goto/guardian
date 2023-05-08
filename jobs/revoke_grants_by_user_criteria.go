@@ -69,6 +69,7 @@ func (h *handler) RevokeGrantsByUserCriteria(ctx context.Context, c Config) erro
 		}
 
 		// evaluating user criteria
+		h.logger.Debug("checking criteria against user", "email", email, "criteria", cfg.UserCriteria.String(), "user_details", userDetails)
 		criteriaEvaluation, err := cfg.UserCriteria.EvaluateWithVars(evaluationParams)
 		if err != nil {
 			return fmt.Errorf("evaluating user_criteria: %w", err)
@@ -77,6 +78,7 @@ func (h *handler) RevokeGrantsByUserCriteria(ctx context.Context, c Config) erro
 		if !ok {
 			return fmt.Errorf("invalid type for user_criteria evaluation result: expected boolean, got %T; value is %q", criteriaEvaluation, criteriaEvaluation)
 		} else if !criteriaSatisfied {
+			h.logger.Debug("criteria not satisfied", "email", email)
 			continue
 		}
 
@@ -87,9 +89,10 @@ func (h *handler) RevokeGrantsByUserCriteria(ctx context.Context, c Config) erro
 		h.logger.Info("revoking grants", "account_id", email)
 		revokedGrants, err := h.grantService.BulkRevoke(ctx, revokeGrantsFilter, domain.SystemActorName, "Revoked due to user deactivated")
 		if err != nil {
-			return fmt.Errorf("revoking grants: %w", err)
+			h.logger.Debug("failed to revoke grants", "account_id", email, "error", err)
+			return fmt.Errorf("revoking grants for %q: %w", email, err)
 		}
-		fmt.Printf("revokeGrantsFilter: %v\n", revokeGrantsFilter)
+
 		revokedGrantIDs := []string{}
 		for _, g := range revokedGrants {
 			revokedGrantIDs = append(revokedGrantIDs, g.ID)
@@ -113,8 +116,8 @@ func (h *handler) RevokeGrantsByUserCriteria(ctx context.Context, c Config) erro
 
 			h.logger.Info("updating grant owner", "grant_id", g.ID, "existing_owner", g.Owner, "new_owner", newOwner)
 			g.Owner = newOwner
-			fmt.Printf("newOwner: %v\n", newOwner)
 			if err := h.grantService.Update(ctx, g); err != nil { // TODO: refactor by creating grantServie.BulkUpdate
+				h.logger.Debug("failed to update grant owner", "grant_id", g.ID, "existing_owner", g.Owner, "new_owner", newOwner, "error", err)
 				return fmt.Errorf("updating grant owner for %v: %w", g.ID, err)
 			}
 			h.logger.Info("grant update successful", "grant_id", g.ID, "existing_owner", g.Owner, "new_owner", newOwner)
