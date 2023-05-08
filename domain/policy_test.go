@@ -224,16 +224,32 @@ func TestRequirementTrigger(t *testing.T) {
 		assert.False(t, match)
 	})
 
-	t.Run("test trigger matching using expression", func(t *testing.T) {
+	t.Run("test trigger matching", func(t *testing.T) {
 		testCases := []struct {
 			name          string
-			expression    string
+			trigger       domain.RequirementTrigger
 			appeal        *domain.Appeal
 			expectedMatch bool
 		}{
 			{
-				name:       "check if resource_urn is matched",
-				expression: `$appeal.resource.urn == "urn:my-resource:123"`,
+				name: "using provider_type and resource_type",
+				trigger: domain.RequirementTrigger{
+					ProviderType: "my-provider",
+					ResourceType: "my-resource",
+				},
+				appeal: &domain.Appeal{
+					Resource: &domain.Resource{
+						Type:         "my-resource",
+						ProviderType: "my-provider",
+					},
+				},
+				expectedMatch: true,
+			},
+			{
+				name: "check if resource_urn is matched expression",
+				trigger: domain.RequirementTrigger{
+					Expression: `$appeal.resource.urn == "urn:my-resource:123"`,
+				},
 				appeal: &domain.Appeal{
 					Resource: &domain.Resource{
 						URN: "urn:my-resource:123",
@@ -242,8 +258,10 @@ func TestRequirementTrigger(t *testing.T) {
 				expectedMatch: true,
 			},
 			{
-				name:       "check if resource_urn is matched (false condition)",
-				expression: `$appeal.resource.urn == "urn:my-resource:123"`,
+				name: "check if resource_urn is matched expression (false condition)",
+				trigger: domain.RequirementTrigger{
+					Expression: `$appeal.resource.urn == "urn:my-resource:123"`,
+				},
 				appeal: &domain.Appeal{
 					Resource: &domain.Resource{
 						URN: "urn:my-resource:123456",
@@ -252,8 +270,10 @@ func TestRequirementTrigger(t *testing.T) {
 				expectedMatch: false,
 			},
 			{
-				name:       "get boolean from value",
-				expression: `$appeal.resource.details.foo`,
+				name: "expression returns boolean value",
+				trigger: domain.RequirementTrigger{
+					Expression: `$appeal.resource.details.foo`,
+				},
 				appeal: &domain.Appeal{
 					Resource: &domain.Resource{
 						Details: map[string]interface{}{
@@ -263,15 +283,91 @@ func TestRequirementTrigger(t *testing.T) {
 				},
 				expectedMatch: true,
 			},
+			{
+				name: "using conditions",
+				trigger: domain.RequirementTrigger{
+					Conditions: []*domain.Condition{
+						{
+							Field: "$resource.type",
+							Match: &domain.MatchCondition{
+								Eq: "test-resource-type",
+							},
+						},
+					},
+				},
+				appeal: &domain.Appeal{
+					Resource: &domain.Resource{
+						Type: "test-resource-type",
+					},
+				},
+				expectedMatch: true,
+			},
+			{
+				name: "should return false on matched conditions and not matched expression",
+				trigger: domain.RequirementTrigger{
+					Conditions: []*domain.Condition{
+						{
+							Field: "$resource.type",
+							Match: &domain.MatchCondition{
+								Eq: "test-resource-type-incorrect",
+							},
+						},
+					},
+					Expression: `$appeal.resource.type == "test-resource-type"`,
+				},
+				appeal: &domain.Appeal{
+					Resource: &domain.Resource{
+						Type: "test-resource-type",
+					},
+				},
+				expectedMatch: false,
+			},
+			{
+				name: "should return false on not matched conditions and matched expression",
+				trigger: domain.RequirementTrigger{
+					Conditions: []*domain.Condition{
+						{
+							Field: "$resource.type",
+							Match: &domain.MatchCondition{
+								Eq: "test-resource-type",
+							},
+						},
+					},
+					Expression: `$appeal.resource.type == "test-resource-type-incorrect"`,
+				},
+				appeal: &domain.Appeal{
+					Resource: &domain.Resource{
+						Type: "test-resource-type",
+					},
+				},
+				expectedMatch: false,
+			},
+			{
+				name: "should return true on matched conditions and expression",
+				trigger: domain.RequirementTrigger{
+					Conditions: []*domain.Condition{
+						{
+							Field: "$resource.type",
+							Match: &domain.MatchCondition{
+								Eq: "test-resource-type",
+							},
+						},
+					},
+					Expression: `$appeal.resource.provider_type == "test-provider-type"`,
+				},
+				appeal: &domain.Appeal{
+					Resource: &domain.Resource{
+						Type:         "test-resource-type",
+						ProviderType: "test-provider-type",
+					},
+				},
+				expectedMatch: true,
+			},
 		}
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				r := domain.RequirementTrigger{
-					Expression: tc.expression,
-				}
-
-				match, err := r.IsMatch(tc.appeal)
+				match, err := tc.trigger.IsMatch(tc.appeal)
 				assert.NoError(t, err)
 				assert.Equal(t, tc.expectedMatch, match)
 			})
