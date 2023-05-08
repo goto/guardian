@@ -85,11 +85,10 @@ func (h *handler) RevokeGrantsByUserCriteria(ctx context.Context, c Config) erro
 			AccountIDs: []string{email},
 		}
 		h.logger.Info("revoking grants", "account_id", email)
-		// revokedGrants, err := h.grantService.BulkRevoke(ctx, revokeGrantsFilter, domain.SystemActorName, "Revoked due to user deactivated")
-		// if err != nil {
-		// 	return fmt.Errorf("revoking grants: %w", err)
-		// }
-		revokedGrants := []*domain.Grant{}
+		revokedGrants, err := h.grantService.BulkRevoke(ctx, revokeGrantsFilter, domain.SystemActorName, "Revoked due to user deactivated")
+		if err != nil {
+			return fmt.Errorf("revoking grants: %w", err)
+		}
 		fmt.Printf("revokeGrantsFilter: %v\n", revokeGrantsFilter)
 		revokedGrantIDs := []string{}
 		for _, g := range revokedGrants {
@@ -115,9 +114,9 @@ func (h *handler) RevokeGrantsByUserCriteria(ctx context.Context, c Config) erro
 			h.logger.Info("updating grant owner", "grant_id", g.ID, "existing_owner", g.Owner, "new_owner", newOwner)
 			g.Owner = newOwner
 			fmt.Printf("newOwner: %v\n", newOwner)
-			// if err := h.grantService.Update(ctx, g); err != nil { // TODO: refactor by creating grantServie.BulkUpdate
-			// 	return fmt.Errorf("updating grant owner for %v: %w", g.ID, err)
-			// }
+			if err := h.grantService.Update(ctx, g); err != nil { // TODO: refactor by creating grantServie.BulkUpdate
+				return fmt.Errorf("updating grant owner for %v: %w", g.ID, err)
+			}
 			h.logger.Info("grant update successful", "grant_id", g.ID, "existing_owner", g.Owner, "new_owner", newOwner)
 		}
 	}
