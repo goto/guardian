@@ -5,15 +5,15 @@ import "github.com/mitchellh/mapstructure"
 type Type string
 
 const (
-	FetchResources             Type = "fetch_resources"
-	ExpiringGrantNotification  Type = "expiring_grant_notification"
-	RevokeExpiredGrants        Type = "revoke_expired_grants"
-	RevokeGrantsByUserCriteria Type = "revoke_grants_by_user_criteria"
+	TypeFetchResources             Type = "fetch_resources"
+	TypeExpiringGrantNotification  Type = "expiring_grant_notification"
+	TypeRevokeExpiredGrants        Type = "revoke_expired_grants"
+	TypeRevokeGrantsByUserCriteria Type = "revoke_grants_by_user_criteria"
 
 	// Deprecated: use RevokeExpiredGrants instead
-	RevokeExpiredAccess Type = "revoke_expired_access"
+	TypeRevokeExpiredAccess Type = "revoke_expired_access"
 	// Deprecated: use ExpiringGrantNotification instead
-	ExpiringAccessNotification Type = "expiring_access_notification"
+	TypeExpiringAccessNotification Type = "expiring_access_notification"
 )
 
 type Job struct {

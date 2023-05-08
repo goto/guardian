@@ -16,11 +16,11 @@ type RevokeGrantsByUserCriteriaConfig struct {
 }
 
 func (h *handler) RevokeGrantsByUserCriteria(ctx context.Context, c Config) error {
-	h.logger.Info(fmt.Sprintf("starting %q job", RevokeGrantsByUserCriteria))
+	h.logger.Info(fmt.Sprintf("starting %q job", TypeRevokeGrantsByUserCriteria))
 
 	var cfg RevokeGrantsByUserCriteriaConfig
 	if err := c.Decode(&cfg); err != nil {
-		return fmt.Errorf("invalid config for %s job: %w", RevokeGrantsByUserCriteria, err)
+		return fmt.Errorf("invalid config for %s job: %w", TypeRevokeGrantsByUserCriteria, err)
 	}
 
 	iamManager := identities.NewManager(h.crypto, h.validator)

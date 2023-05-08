@@ -45,13 +45,13 @@ func runJobCmd() *cobra.Command {
 		`),
 		Args: cobra.ExactValidArgs(1),
 		ValidArgs: []string{
-			string(jobs.FetchResources),
-			string(jobs.ExpiringGrantNotification),
-			string(jobs.RevokeExpiredGrants),
-			string(jobs.RevokeGrantsByUserCriteria),
+			string(jobs.TypeFetchResources),
+			string(jobs.TypeExpiringGrantNotification),
+			string(jobs.TypeRevokeExpiredGrants),
+			string(jobs.TypeRevokeGrantsByUserCriteria),
 
-			string(jobs.RevokeExpiredAccess),
-			string(jobs.ExpiringAccessNotification),
+			string(jobs.TypeRevokeExpiredAccess),
+			string(jobs.TypeExpiringAccessNotification),
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configFile, err := cmd.Flags().GetString("config")
@@ -92,14 +92,14 @@ func runJobCmd() *cobra.Command {
 			)
 
 			jobsMap := map[jobs.Type]func(context.Context, jobs.Config) error{
-				jobs.FetchResources:             handler.FetchResources,
-				jobs.ExpiringGrantNotification:  handler.GrantExpirationReminder,
-				jobs.RevokeExpiredGrants:        handler.RevokeExpiredGrants,
-				jobs.RevokeGrantsByUserCriteria: handler.RevokeGrantsByUserCriteria,
+				jobs.TypeFetchResources:             handler.FetchResources,
+				jobs.TypeExpiringGrantNotification:  handler.GrantExpirationReminder,
+				jobs.TypeRevokeExpiredGrants:        handler.RevokeExpiredGrants,
+				jobs.TypeRevokeGrantsByUserCriteria: handler.RevokeGrantsByUserCriteria,
 
 				// deprecated job names
-				jobs.ExpiringAccessNotification: handler.GrantExpirationReminder,
-				jobs.RevokeExpiredAccess:        handler.RevokeExpiredGrants,
+				jobs.TypeExpiringAccessNotification: handler.GrantExpirationReminder,
+				jobs.TypeRevokeExpiredAccess:        handler.RevokeExpiredGrants,
 			}
 
 			jobName := jobs.Type(args[0])
