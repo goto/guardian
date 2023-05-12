@@ -11,6 +11,8 @@ type IAMConfig struct {
 	Provider IAMProviderType   `json:"provider" yaml:"provider" validate:"required,oneof=http shield"`
 	Config   interface{}       `json:"config" yaml:"config" validate:"required"`
 	Schema   map[string]string `json:"schema" yaml:"schema"`
+	// AllowRequestError is a flag that lets the appeal creation continue even if the request to the IAM provider fails.
+	AllowRequestError bool `json:"allow_request_error" yaml:"allow_request_error"`
 }
 
 type IAMManager interface {
