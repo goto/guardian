@@ -331,7 +331,12 @@ func (c *client) fetchCollectionPermissions(wg *sync.WaitGroup, resourceGroups R
 	for groupId, r := range graphs[groups].(map[string]interface{}) {
 		for collectionId, permission := range r.(map[string]interface{}) {
 			if permission != none {
-				addGroupToResource(resourceGroups, fmt.Sprintf("%s:%s", collection, collectionId), groupId, []string{permission.(string)}, err)
+				p, ok := permission.(string)
+				if !ok {
+					c.logger.Warn("Invalid permission type for metabase collection", "collectionId", collectionId, "groupId", groupId, "permission", permission, "type", reflect.TypeOf(permission))
+					continue
+				}
+				addGroupToResource(resourceGroups, fmt.Sprintf("%s:%s", collection, collectionId), groupId, []string{p}, err)
 			}
 		}
 	}
