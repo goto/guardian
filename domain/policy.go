@@ -296,6 +296,8 @@ type PolicyAppealConfig struct {
 	AllowPermanentAccess         bool                   `json:"allow_permanent_access" yaml:"allow_permanent_access"`
 	AllowActiveAccessExtensionIn string                 `json:"allow_active_access_extension_in" yaml:"allow_active_access_extension_in"`
 	Questions                    []Question             `json:"questions" yaml:"questions"`
+	// IgnoreIAMError is a flag that lets the appeal creation to continue when the request to the IAM provider fails
+	IgnoreIAMError bool `json:"ignore_iam_error" yaml:"ignore_iam_error"`
 }
 
 type Question struct {

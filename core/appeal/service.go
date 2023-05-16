@@ -1073,7 +1073,7 @@ func (s *Service) addCreatorDetails(a *domain.Appeal, p *domain.Policy) error {
 
 	userDetails, err := iamClient.GetUser(a.CreatedBy)
 	if err != nil {
-		if p.IAM.AllowRequestError {
+		if p.AppealConfig != nil && p.AppealConfig.IgnoreIAMError {
 			s.logger.Warn("fetching creator's user iam", "error", err)
 			return nil
 		}

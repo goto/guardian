@@ -747,9 +747,11 @@ func (s *ServiceTestSuite) TestCreate() {
 						"role":     `$response.roles[0].name`,
 						"roles":    `map($response.roles, {#.name})`,
 					},
-					AllowRequestError: true,
 				},
-				AppealConfig: &domain.PolicyAppealConfig{AllowOnBehalf: true},
+				AppealConfig: &domain.PolicyAppealConfig{
+					AllowOnBehalf:  true,
+					IgnoreIAMError: true,
+				},
 			},
 		}
 		expectedCreatorUser := map[string]interface{}{
