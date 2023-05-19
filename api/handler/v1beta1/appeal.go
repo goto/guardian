@@ -3,7 +3,6 @@ package v1beta1
 import (
 	"context"
 	"errors"
-
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/domain"
@@ -106,15 +105,22 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 
 func (s *GRPCServer) GetAppeal(ctx context.Context, req *guardianv1beta1.GetAppealRequest) (*guardianv1beta1.GetAppealResponse, error) {
 	id := req.GetId()
-	appeal, err := s.appealService.GetByID(ctx, id)
+
+	a, err := s.appealService.GetByID(ctx, id)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to retrieve appeal: %v", err)
+		switch err {
+		case appeal.ErrAppealIDEmptyParam,
+			new(appeal.InvalidError):
+			return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		default:
+			return nil, status.Errorf(codes.Internal, "failed to retrieve appeal: %v", err)
+		}
 	}
-	if appeal == nil {
+	if a == nil {
 		return nil, status.Errorf(codes.NotFound, "appeal not found: %v", id)
 	}
 
-	appealProto, err := s.adapter.ToAppealProto(appeal)
+	appealProto, err := s.adapter.ToAppealProto(a)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to parse appeal: %v", err)
 	}
@@ -126,6 +132,7 @@ func (s *GRPCServer) GetAppeal(ctx context.Context, req *guardianv1beta1.GetAppe
 
 func (s *GRPCServer) CancelAppeal(ctx context.Context, req *guardianv1beta1.CancelAppealRequest) (*guardianv1beta1.CancelAppealResponse, error) {
 	id := req.GetId()
+
 	a, err := s.appealService.Cancel(ctx, id)
 	if err != nil {
 		switch err {
@@ -134,7 +141,9 @@ func (s *GRPCServer) CancelAppeal(ctx context.Context, req *guardianv1beta1.Canc
 		case appeal.ErrAppealStatusCanceled,
 			appeal.ErrAppealStatusApproved,
 			appeal.ErrAppealStatusRejected,
-			appeal.ErrAppealStatusUnrecognized:
+			appeal.ErrAppealStatusUnrecognized,
+			appeal.ErrAppealIDEmptyParam,
+			new(appeal.InvalidError):
 			return nil, status.Errorf(codes.InvalidArgument, "unable to process the request: %v", err)
 		default:
 			return nil, status.Errorf(codes.Internal, "failed to cancel appeal: %v", err)
