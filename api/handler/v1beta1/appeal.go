@@ -108,14 +108,12 @@ func (s *GRPCServer) GetAppeal(ctx context.Context, req *guardianv1beta1.GetAppe
 
 	a, err := s.appealService.GetByID(ctx, id)
 	if err != nil {
-		switch err {
-		case appeal.ErrAppealIDEmptyParam,
-			new(appeal.InvalidError):
+		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
 			return nil, status.Errorf(codes.InvalidArgument, err.Error())
-		default:
-			return nil, status.Errorf(codes.Internal, "failed to retrieve appeal: %v", err)
 		}
+		return nil, status.Errorf(codes.Internal, "failed to retrieve appeal: %v", err)
 	}
+
 	if a == nil {
 		return nil, status.Errorf(codes.NotFound, "appeal not found: %v", id)
 	}
@@ -135,15 +133,17 @@ func (s *GRPCServer) CancelAppeal(ctx context.Context, req *guardianv1beta1.Canc
 
 	a, err := s.appealService.Cancel(ctx, id)
 	if err != nil {
+		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
+			return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		}
+
 		switch err {
 		case appeal.ErrAppealNotFound:
 			return nil, status.Errorf(codes.NotFound, "appeal not found: %v", id)
 		case appeal.ErrAppealStatusCanceled,
 			appeal.ErrAppealStatusApproved,
 			appeal.ErrAppealStatusRejected,
-			appeal.ErrAppealStatusUnrecognized,
-			appeal.ErrAppealIDEmptyParam,
-			new(appeal.InvalidError):
+			appeal.ErrAppealStatusUnrecognized:
 			return nil, status.Errorf(codes.InvalidArgument, "unable to process the request: %v", err)
 		default:
 			return nil, status.Errorf(codes.Internal, "failed to cancel appeal: %v", err)
