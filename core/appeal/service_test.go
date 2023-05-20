@@ -749,8 +749,8 @@ func (s *ServiceTestSuite) TestCreate() {
 					},
 				},
 				AppealConfig: &domain.PolicyAppealConfig{
-					AllowOnBehalf:  true,
-					IgnoreIAMError: true,
+					AllowOnBehalf:              true,
+					AllowCreatorDetailsFailure: true,
 				},
 			},
 		}
