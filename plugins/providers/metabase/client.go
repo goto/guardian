@@ -44,6 +44,7 @@ const (
 
 type ResourceGroupDetails map[string][]map[string]interface{}
 
+//go:generate mockery --name=MetabaseClient --exported --with-expecter
 type MetabaseClient interface {
 	GetDatabases() ([]*Database, error)
 	GetCollections() ([]*Collection, error)

@@ -18,23 +18,17 @@ type PolicyTagClient interface {
 	ListAccess(ctx context.Context, resources []*domain.Resource) (domain.MapResourceAccess, error)
 }
 
-type encryptor interface {
-	domain.Crypto
-}
-
 // Provider for policy tag
 type Provider struct {
-	Clients   map[string]PolicyTagClient
-	typeName  string
-	encryptor encryptor
+	Clients  map[string]PolicyTagClient
+	typeName string
 }
 
 // NewProvider returns policy tag provider
-func NewProvider(typeName string, c encryptor) *Provider {
+func NewProvider(typeName string) *Provider {
 	return &Provider{
-		typeName:  typeName,
-		Clients:   map[string]PolicyTagClient{},
-		encryptor: c,
+		typeName: typeName,
+		Clients:  map[string]PolicyTagClient{},
 	}
 }
 
@@ -45,13 +39,9 @@ func (p *Provider) GetType() string {
 
 // CreateConfig validates provider config
 func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
-	c := NewConfig(pc, p.encryptor)
+	c := NewConfig(pc)
 
-	if err := c.ParseAndValidate(); err != nil {
-		return err
-	}
-
-	return c.EncryptCredentials()
+	return c.ParseAndValidate()
 }
 
 func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, error) {
@@ -197,10 +187,6 @@ func (p *Provider) getPolicyTagClient(credentials Credentials) (PolicyTagClient,
 		return p.Clients[projectID], nil
 	}
 
-	err = credentials.Decrypt(p.encryptor)
-	if err != nil {
-		return nil, ErrUnableToDecryptCredentials
-	}
 	client, err := newPolicyTagClient(projectID, taxonomyLocation, []byte(credentials.ServiceAccountKey))
 	if err != nil {
 		return nil, err

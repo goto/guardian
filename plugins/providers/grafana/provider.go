@@ -12,14 +12,12 @@ type provider struct {
 
 	typeName string
 	Clients  map[string]GrafanaClient
-	crypto   domain.Crypto
 }
 
-func NewProvider(typeName string, crypto domain.Crypto) *provider {
+func NewProvider(typeName string) *provider {
 	return &provider{
 		typeName: typeName,
 		Clients:  map[string]GrafanaClient{},
-		crypto:   crypto,
 	}
 }
 
@@ -28,13 +26,8 @@ func (p *provider) GetType() string {
 }
 
 func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
-	c := NewConfig(pc, p.crypto)
-
-	if err := c.ParseAndValidate(); err != nil {
-		return err
-	}
-
-	return c.EncryptCredentials()
+	c := NewConfig(pc)
+	return c.ParseAndValidate()
 }
 
 func (p *provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, error) {
@@ -140,10 +133,6 @@ func (p *provider) GetAccountTypes() []string {
 func (p *provider) getClient(providerURN string, credentials Credentials) (GrafanaClient, error) {
 	if p.Clients[providerURN] != nil {
 		return p.Clients[providerURN], nil
-	}
-
-	if err := credentials.Decrypt(p.crypto); err != nil {
-		return nil, err
 	}
 
 	org := providerURN

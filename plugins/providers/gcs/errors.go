@@ -3,12 +3,9 @@ package gcs
 import "errors"
 
 var (
-	ErrInvalidPermissionConfig       = errors.New("invalid permission config type")
-	ErrUnableToDecryptNilCredentials = errors.New("unable to decrypt nil credentials")
-
-	ErrInvalidResourceType           = errors.New("invalid resource type")
-	ErrUnableToEncryptNilCredentials = errors.New("unable to encrypt nil credentials")
-	ErrInvalidCredentialsType        = errors.New("invalid credentials type")
+	ErrInvalidPermissionConfig = errors.New("invalid permission config type")
+	ErrInvalidResourceType     = errors.New("invalid resource type")
+	ErrInvalidCredentialsType  = errors.New("invalid credentials type")
 
 	ErrNilProviderConfig    = errors.New("provider config can't be nil")
 	ErrNilAppeal            = errors.New("appeal can't be nil")

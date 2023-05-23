@@ -40,7 +40,6 @@ var (
 type Config struct {
 	ProviderConfig *domain.ProviderConfig
 
-	crypto    domain.Crypto
 	validator *validator.Validate
 }
 
@@ -49,41 +48,12 @@ type Credentials struct {
 	ResourceName      string `json:"resource_name" mapstructure:"resource_name" validate:"required"`
 }
 
-func (c *Credentials) Decrypt(decryptor domain.Decryptor) error {
-	if c == nil {
-		return ErrUnableToDecryptNilCredentials
-	}
-
-	decryptedServiceAccount, err := decryptor.Decrypt(c.ServiceAccountKey)
-	if err != nil {
-		return err
-	}
-
-	c.ServiceAccountKey = decryptedServiceAccount
-	return nil
-}
-
-func (c *Credentials) Encrypt(encryptor domain.Encryptor) error {
-	if c == nil {
-		return ErrUnableToEncryptNilCredentials
-	}
-
-	encryptedServiceAccount, err := encryptor.Encrypt(c.ServiceAccountKey)
-	if err != nil {
-		return err
-	}
-
-	c.ServiceAccountKey = encryptedServiceAccount
-	return nil
-}
-
 type Permission string
 
-func NewConfig(pc *domain.ProviderConfig, crypto domain.Crypto) *Config {
+func NewConfig(pc *domain.ProviderConfig) *Config {
 	return &Config{
 		ProviderConfig: pc,
 		validator:      validator.New(),
-		crypto:         crypto,
 	}
 }
 

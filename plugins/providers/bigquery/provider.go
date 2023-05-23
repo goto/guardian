@@ -58,11 +58,6 @@ type cloudLoggingClientI interface {
 	ListLogEntries(context.Context, ImportActivitiesFilter) ([]*Activity, error)
 }
 
-//go:generate mockery --name=encryptor --exported --with-expecter
-type encryptor interface {
-	domain.Crypto
-}
-
 // Provider for bigquery
 type Provider struct {
 	provider.PermissionManager
@@ -70,7 +65,6 @@ type Provider struct {
 	typeName   string
 	Clients    map[string]BigQueryClient
 	LogClients map[string]cloudLoggingClientI
-	encryptor  encryptor
 	logger     log.Logger
 
 	mu         sync.Mutex
@@ -78,12 +72,11 @@ type Provider struct {
 }
 
 // NewProvider returns bigquery provider
-func NewProvider(typeName string, c encryptor, logger log.Logger) *Provider {
+func NewProvider(typeName string, logger log.Logger) *Provider {
 	return &Provider{
 		typeName:   typeName,
 		Clients:    map[string]BigQueryClient{},
 		LogClients: map[string]cloudLoggingClientI{},
-		encryptor:  c,
 		logger:     logger,
 
 		mu:         sync.Mutex{},
@@ -98,13 +91,8 @@ func (p *Provider) GetType() string {
 
 // CreateConfig validates provider config
 func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
-	c := NewConfig(pc, p.encryptor)
-
-	if err := c.ParseAndValidate(); err != nil {
-		return err
-	}
-
-	return c.EncryptCredentials()
+	c := NewConfig(pc)
+	return c.ParseAndValidate()
 }
 
 // GetResources returns BigQuery dataset and table resources
@@ -346,7 +334,6 @@ func (p *Provider) getBigQueryClient(credentials Credentials) (BigQueryClient, e
 		return p.Clients[projectID], nil
 	}
 
-	credentials.Decrypt(p.encryptor)
 	client, err := NewBigQueryClient(projectID, option.WithCredentialsJSON([]byte(credentials.ServiceAccountKey)))
 	if err != nil {
 		return nil, err
@@ -357,17 +344,17 @@ func (p *Provider) getBigQueryClient(credentials Credentials) (BigQueryClient, e
 }
 
 func (p *Provider) getCloudLoggingClient(ctx context.Context, pd domain.ProviderConfig) (cloudLoggingClientI, error) {
-	decryptedCreds, err := ParseCredentials(pd.Credentials, p.encryptor)
+	creds, err := ParseCredentials(pd.Credentials)
 	if err != nil {
 		return nil, fmt.Errorf("parsing credentials: %w", err)
 	}
 
-	projectID := strings.Replace(decryptedCreds.ResourceName, "projects/", "", 1)
+	projectID := strings.Replace(creds.ResourceName, "projects/", "", 1)
 	if p.LogClients[projectID] != nil {
 		return p.LogClients[projectID], nil
 	}
 
-	client, err := NewCloudLoggingClient(ctx, projectID, []byte(decryptedCreds.ServiceAccountKey))
+	client, err := NewCloudLoggingClient(ctx, projectID, []byte(creds.ServiceAccountKey))
 	if err != nil {
 		return nil, err
 	}
@@ -442,7 +429,7 @@ func (p *Provider) getGcloudPermissions(ctx context.Context, pd domain.Provider,
 	}
 
 	p.logger.Debug("getting permissions from gcloud", "role", roleID)
-	creds, err := ParseCredentials(pd.Config.Credentials, p.encryptor)
+	creds, err := ParseCredentials(pd.Config.Credentials)
 	if err != nil {
 		return nil, fmt.Errorf("parsing credentials: %w", err)
 	}

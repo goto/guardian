@@ -15,15 +15,13 @@ type provider struct {
 
 	typeName string
 	Clients  map[string]MetabaseClient
-	crypto   domain.Crypto
 	logger   log.Logger
 }
 
-func NewProvider(typeName string, crypto domain.Crypto, logger log.Logger) *provider {
+func NewProvider(typeName string, logger log.Logger) *provider {
 	return &provider{
 		typeName: typeName,
 		Clients:  map[string]MetabaseClient{},
-		crypto:   crypto,
 		logger:   logger,
 	}
 }
@@ -33,13 +31,9 @@ func (p *provider) GetType() string {
 }
 
 func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
-	c := NewConfig(pc, p.crypto)
+	c := NewConfig(pc)
 
-	if err := c.ParseAndValidate(); err != nil {
-		return err
-	}
-
-	return c.EncryptCredentials()
+	return c.ParseAndValidate()
 }
 
 func (p *provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, error) {
@@ -356,9 +350,6 @@ func (p *provider) getClient(providerURN string, credentials Credentials) (Metab
 		return p.Clients[providerURN], nil
 	}
 
-	if err := credentials.Decrypt(p.crypto); err != nil {
-		return nil, err
-	}
 	client, err := NewClient(&ClientConfig{
 		Host:     credentials.Host,
 		Username: credentials.Username,

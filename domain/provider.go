@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"time"
@@ -71,10 +72,50 @@ type ProviderConfig struct {
 	URN                 string               `json:"urn" yaml:"urn" validate:"required"`
 	AllowedAccountTypes []string             `json:"allowed_account_types" yaml:"allowed_account_types" validate:"omitempty,min=1"`
 	Labels              map[string]string    `json:"labels,omitempty" yaml:"labels,omitempty"`
-	Credentials         interface{}          `json:"credentials,omitempty" yaml:"credentials" validate:"required"`
+	Credentials         interface{}          `json:"credentials,omitempty" yaml:"credentials,omitempty" validate:"required"`
 	Appeal              *AppealConfig        `json:"appeal,omitempty" yaml:"appeal,omitempty" validate:"required"`
 	Resources           []*ResourceConfig    `json:"resources" yaml:"resources" validate:"required"`
 	Parameters          []*ProviderParameter `json:"parameters,omitempty" yaml:"parameters,omitempty"`
+}
+
+func (pc *ProviderConfig) EncryptCredentials(encryptor Encryptor) error {
+	if pc.Credentials == nil {
+		return nil
+	}
+
+	serializedCreds, err := json.Marshal(pc.Credentials)
+	if err != nil {
+		return fmt.Errorf("serializing credentials: %w", err)
+	}
+
+	encryptedCreds, err := encryptor.Encrypt(string(serializedCreds))
+	if err != nil {
+		return err
+	}
+	pc.Credentials = encryptedCreds
+	return nil
+}
+
+func (pc *ProviderConfig) DecryptCredentials(decryptor Decryptor) error {
+	if pc.Credentials == nil {
+		return nil
+	}
+	encryptedCreds, ok := pc.Credentials.(string)
+	if !ok {
+		return fmt.Errorf("invalid credentials type: %T", pc.Credentials)
+	}
+
+	decryptedCreds, err := decryptor.Decrypt(encryptedCreds)
+	if err != nil {
+		return err
+	}
+
+	var creds interface{}
+	if err := json.Unmarshal([]byte(decryptedCreds), &creds); err != nil {
+		return fmt.Errorf("unmarshalling credentials: %w", err)
+	}
+	pc.Credentials = creds
+	return nil
 }
 
 type ProviderParameter struct {

@@ -14,8 +14,7 @@ import (
 func TestGetType(t *testing.T) {
 	t.Run("should return provider type name", func(t *testing.T) {
 		expectedTypeName := domain.ProviderTypeTableau
-		crypto := new(mocks.Crypto)
-		p := tableau.NewProvider(expectedTypeName, crypto)
+		p := tableau.NewProvider(expectedTypeName)
 
 		actualTypeName := p.GetType()
 
@@ -26,9 +25,8 @@ func TestGetType(t *testing.T) {
 func TestCreateConfig(t *testing.T) {
 	t.Run("should return error if there credentials are invalid", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.TableauClient)
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 		p.Clients = map[string]tableau.TableauClient{
 			providerURN: client,
 		}
@@ -65,9 +63,8 @@ func TestCreateConfig(t *testing.T) {
 
 	t.Run("should return error if there resource config is invalid", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.TableauClient)
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 		p.Clients = map[string]tableau.TableauClient{
 			providerURN: client,
 		}
@@ -121,7 +118,6 @@ func TestCreateConfig(t *testing.T) {
 
 	t.Run("should not return error if parse and valid of Credentials are correct", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.TableauClient)
 		validCredentials := tableau.Credentials{
 			Host:       "http://localhost",
@@ -129,11 +125,10 @@ func TestCreateConfig(t *testing.T) {
 			Password:   "test-password",
 			ContentURL: "test-content-url",
 		}
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 		p.Clients = map[string]tableau.TableauClient{
 			providerURN: client,
 		}
-		crypto.On("Encrypt", "test-password").Return("encrypted-test-pasword", nil)
 
 		testcases := []struct {
 			pc            *domain.ProviderConfig
@@ -280,8 +275,7 @@ func TestCreateConfig(t *testing.T) {
 
 func TestGetResources(t *testing.T) {
 	t.Run("should return error if credentials is invalid", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 
 		pc := &domain.ProviderConfig{
 			Credentials: "invalid-creds",
@@ -293,29 +287,9 @@ func TestGetResources(t *testing.T) {
 		assert.Error(t, actualError)
 	})
 
-	t.Run("should return error if there credentials couldnt be decrypted", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := tableau.NewProvider("", crypto)
-
-		expectedError := errors.New("decrypt error")
-		crypto.On("Decrypt", "test-password").Return("", expectedError).Once()
-		pc := &domain.ProviderConfig{
-			Credentials: map[string]interface{}{
-				"password": "test-password",
-			},
-		}
-
-		actualResources, actualError := p.GetResources(pc)
-
-		assert.Nil(t, actualResources)
-		assert.EqualError(t, actualError, expectedError.Error())
-	})
-
 	t.Run("should return error if there HTTP client isn't valid", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 
-		crypto.On("Decrypt", "test-password").Return("correct-password", nil).Once()
 		pc := &domain.ProviderConfig{
 			Type: "test-URN",
 			Credentials: map[string]interface{}{
@@ -349,9 +323,8 @@ func TestGetResources(t *testing.T) {
 
 	t.Run("should return error if got any on getting workbook resources", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.TableauClient)
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 		p.Clients = map[string]tableau.TableauClient{
 			providerURN: client,
 		}
@@ -376,9 +349,8 @@ func TestGetResources(t *testing.T) {
 
 	t.Run("should return error if got any on getting flow resources", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.TableauClient)
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 		p.Clients = map[string]tableau.TableauClient{
 			providerURN: client,
 		}
@@ -403,9 +375,8 @@ func TestGetResources(t *testing.T) {
 
 	t.Run("should return error if got any on getting datasource resources", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.TableauClient)
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 		p.Clients = map[string]tableau.TableauClient{
 			providerURN: client,
 		}
@@ -430,9 +401,8 @@ func TestGetResources(t *testing.T) {
 
 	t.Run("should return error if got any on getting view resources", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.TableauClient)
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 		p.Clients = map[string]tableau.TableauClient{
 			providerURN: client,
 		}
@@ -457,9 +427,8 @@ func TestGetResources(t *testing.T) {
 
 	t.Run("should return error if got any on getting metric resources", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.TableauClient)
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 		p.Clients = map[string]tableau.TableauClient{
 			providerURN: client,
 		}
@@ -484,9 +453,8 @@ func TestGetResources(t *testing.T) {
 
 	t.Run("should return list of resources and nil error on success", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.TableauClient)
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 		p.Clients = map[string]tableau.TableauClient{
 			providerURN: client,
 		}
@@ -642,8 +610,7 @@ func TestGetResources(t *testing.T) {
 
 func TestGrantAccess(t *testing.T) {
 	t.Run("should return error if credentials is invalid", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 
 		pc := &domain.ProviderConfig{
 			Credentials: "invalid-credentials",
@@ -675,81 +642,33 @@ func TestGrantAccess(t *testing.T) {
 	})
 
 	t.Run("should return error if there are any on client initialization", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := tableau.NewProvider("", crypto)
-		expectedError := errors.New("decrypt error")
-		crypto.On("Decrypt", "test-password").Return("", expectedError).Once()
-
+		p := tableau.NewProvider("")
 		pc := &domain.ProviderConfig{
-			Credentials: tableau.Credentials{
-				Host:       "localhost",
-				Username:   "test-username",
-				Password:   "test-password",
-				ContentURL: "test-content-url",
-			},
-			Resources: []*domain.ResourceConfig{
-				{
-					Type: "test-type",
-					Roles: []*domain.Role{
-						{
-							ID: "test-role",
-							Permissions: []interface{}{
-								tableau.Permission{
-									Name: "test-permission-config",
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-		a := domain.Grant{
-			Resource: &domain.Resource{
-				Type: "test-type",
-			},
-			Role: "test-role",
+			Credentials: tableau.Credentials{}, // empty credentials
 		}
 
-		actualError := p.GrantAccess(pc, a)
+		actualError := p.GrantAccess(pc, domain.Grant{})
 
-		assert.EqualError(t, actualError, expectedError.Error())
+		assert.Error(t, actualError)
 	})
 
 	t.Run("should return error if resource type in unknown", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := tableau.NewProvider("", crypto)
-		expectedError := errors.New("invalid resource type")
-		crypto.On("Decrypt", "test-password").Return("", expectedError).Once()
+		providerURN := "test-provider-urn"
+		client := new(mocks.TableauClient)
+		p := tableau.NewProvider("")
+		p.Clients = map[string]tableau.TableauClient{
+			providerURN: client,
+		}
+
+		expectedError := tableau.ErrInvalidResourceType
 
 		pc := &domain.ProviderConfig{
-			Credentials: tableau.Credentials{
-				Host:       "localhost",
-				Username:   "test-username",
-				Password:   "test-password",
-				ContentURL: "test-content-url",
-			},
-			Resources: []*domain.ResourceConfig{
-				{
-					Type: "test-type",
-					Roles: []*domain.Role{
-						{
-							ID: "test-role",
-							Permissions: []interface{}{
-								tableau.Permission{
-									Name: "test-permission-config",
-								},
-							},
-						},
-					},
-				},
-			},
-			URN: "test-urn",
+			URN: providerURN,
 		}
 		a := domain.Grant{
 			Resource: &domain.Resource{
-				Type: "test-type",
+				Type: "invalid-type",
 			},
-			Role: "test-role",
 		}
 
 		actualError := p.GrantAccess(pc, a)
@@ -761,9 +680,8 @@ func TestGrantAccess(t *testing.T) {
 			providerURN := "test-provider-urn"
 			expectedError := errors.New("client error")
 
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -860,7 +778,6 @@ func TestGrantAccess(t *testing.T) {
 
 		t.Run("should return nil error if granting access is successful", func(t *testing.T) {
 			providerURN := "test-provider-urn"
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
 			expectedWorkbook := &tableau.Workbook{
 				Name: "test-workbook",
@@ -868,7 +785,7 @@ func TestGrantAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := tableau.PermissionNames[tableau.ResourceTypeWorkbook][0] + ":" + tableau.PermissionModes[0]
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -920,9 +837,8 @@ func TestGrantAccess(t *testing.T) {
 		t.Run("should return error if there is an error in granting flow access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			expectedError := errors.New("client error")
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -1020,7 +936,6 @@ func TestGrantAccess(t *testing.T) {
 
 		t.Run("should return nil error if granting access is successful", func(t *testing.T) {
 			providerURN := "test-provider-urn"
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
 			expectedFlow := &tableau.Flow{
 				Name: "test-flow",
@@ -1028,7 +943,7 @@ func TestGrantAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := tableau.PermissionNames[tableau.ResourceTypeFlow][0] + ":" + tableau.PermissionModes[0]
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -1080,9 +995,8 @@ func TestGrantAccess(t *testing.T) {
 		t.Run("should return error if there is an error in granting view access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			expectedError := errors.New("client error")
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -1180,7 +1094,6 @@ func TestGrantAccess(t *testing.T) {
 
 		t.Run("should return nil error if granting access is successful", func(t *testing.T) {
 			providerURN := "test-provider-urn"
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
 			expectedView := &tableau.View{
 				Name: "test-view",
@@ -1188,7 +1101,7 @@ func TestGrantAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := tableau.PermissionNames[tableau.ResourceTypeView][0] + ":" + tableau.PermissionModes[0]
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -1240,9 +1153,8 @@ func TestGrantAccess(t *testing.T) {
 		t.Run("should return error if there is an error in granting metric access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			expectedError := errors.New("client error")
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -1339,7 +1251,6 @@ func TestGrantAccess(t *testing.T) {
 
 		t.Run("should return nil error if granting access is successful", func(t *testing.T) {
 			providerURN := "test-provider-urn"
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
 			expectedMetric := &tableau.Metric{
 				Name: "test-metric",
@@ -1347,7 +1258,7 @@ func TestGrantAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := tableau.PermissionNames[tableau.ResourceTypeMetric][0] + ":" + tableau.PermissionModes[0]
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -1399,9 +1310,8 @@ func TestGrantAccess(t *testing.T) {
 		t.Run("should return error if there is an error in granting datasource access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			expectedError := errors.New("client error")
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -1499,7 +1409,6 @@ func TestGrantAccess(t *testing.T) {
 
 		t.Run("should return nil error if granting access is successful", func(t *testing.T) {
 			providerURN := "test-provider-urn"
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
 			expectedDatasource := &tableau.DataSource{
 				Name: "test-datasource",
@@ -1507,7 +1416,7 @@ func TestGrantAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := tableau.PermissionNames[tableau.ResourceTypeDataSource][0] + ":" + tableau.PermissionModes[0]
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -1558,8 +1467,7 @@ func TestGrantAccess(t *testing.T) {
 
 func TestRevokeAccess(t *testing.T) {
 	t.Run("should return error if credentials is invalid", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 
 		pc := &domain.ProviderConfig{
 			Credentials: "invalid-credentials",
@@ -1591,81 +1499,33 @@ func TestRevokeAccess(t *testing.T) {
 	})
 
 	t.Run("should return error if there are any on client initialization", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := tableau.NewProvider("", crypto)
-		expectedError := errors.New("decrypt error")
-		crypto.On("Decrypt", "test-password").Return("", expectedError).Once()
-
+		p := tableau.NewProvider("")
 		pc := &domain.ProviderConfig{
-			Credentials: tableau.Credentials{
-				Host:       "localhost",
-				Username:   "test-username",
-				Password:   "test-password",
-				ContentURL: "test-content-url",
-			},
-			Resources: []*domain.ResourceConfig{
-				{
-					Type: "test-type",
-					Roles: []*domain.Role{
-						{
-							ID: "test-role",
-							Permissions: []interface{}{
-								tableau.Permission{
-									Name: "test-permission-config",
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-		a := domain.Grant{
-			Resource: &domain.Resource{
-				Type: "test-type",
-			},
-			Role: "test-role",
+			Credentials: tableau.Credentials{}, // empty credentials
 		}
 
-		actualError := p.RevokeAccess(pc, a)
+		actualError := p.RevokeAccess(pc, domain.Grant{})
 
-		assert.EqualError(t, actualError, expectedError.Error())
+		assert.Error(t, actualError)
 	})
 
 	t.Run("should return error if resource type in unknown", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := tableau.NewProvider("", crypto)
-		expectedError := errors.New("invalid resource type")
-		crypto.On("Decrypt", "test-password").Return("", expectedError).Once()
+		providerURN := "test-provider-urn"
+		client := new(mocks.TableauClient)
+		p := tableau.NewProvider("")
+		p.Clients = map[string]tableau.TableauClient{
+			providerURN: client,
+		}
+
+		expectedError := tableau.ErrInvalidResourceType
 
 		pc := &domain.ProviderConfig{
-			Credentials: tableau.Credentials{
-				Host:       "localhost",
-				Username:   "test-username",
-				Password:   "test-password",
-				ContentURL: "test-content-url",
-			},
-			Resources: []*domain.ResourceConfig{
-				{
-					Type: "test-type",
-					Roles: []*domain.Role{
-						{
-							ID: "test-role",
-							Permissions: []interface{}{
-								tableau.Permission{
-									Name: "test-permission-config",
-								},
-							},
-						},
-					},
-				},
-			},
-			URN: "test-urn",
+			URN: providerURN,
 		}
 		a := domain.Grant{
 			Resource: &domain.Resource{
-				Type: "test-type",
+				Type: "invalid-type",
 			},
-			Role: "test-role",
 		}
 
 		actualError := p.RevokeAccess(pc, a)
@@ -1677,9 +1537,8 @@ func TestRevokeAccess(t *testing.T) {
 		t.Run("should return error if there is an error in revoking workflow access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			expectedError := errors.New("client error")
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -1726,7 +1585,6 @@ func TestRevokeAccess(t *testing.T) {
 
 		t.Run("should return nil error if revoking access is successful", func(t *testing.T) {
 			providerURN := "test-provider-urn"
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
 			expectedWorkbook := &tableau.Workbook{
 				Name: "test-workbook",
@@ -1734,7 +1592,7 @@ func TestRevokeAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := tableau.PermissionNames[tableau.ResourceTypeWorkbook][0] + ":" + tableau.PermissionModes[0]
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -1786,9 +1644,8 @@ func TestRevokeAccess(t *testing.T) {
 		t.Run("should return error if there is an error in revoking flow access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			expectedError := errors.New("client error")
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -1835,7 +1692,6 @@ func TestRevokeAccess(t *testing.T) {
 
 		t.Run("should return nil error if revoking access is successful", func(t *testing.T) {
 			providerURN := "test-provider-urn"
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
 			expectedFlow := &tableau.Flow{
 				Name: "test-flow",
@@ -1843,7 +1699,7 @@ func TestRevokeAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := tableau.PermissionNames[tableau.ResourceTypeFlow][0] + ":" + tableau.PermissionModes[0]
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -1896,9 +1752,8 @@ func TestRevokeAccess(t *testing.T) {
 		t.Run("should return error if there is an error in revoking view access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			expectedError := errors.New("client error")
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -1945,7 +1800,6 @@ func TestRevokeAccess(t *testing.T) {
 
 		t.Run("should return nil error if revoking access is successful", func(t *testing.T) {
 			providerURN := "test-provider-urn"
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
 			expectedView := &tableau.View{
 				Name: "test-view",
@@ -1953,7 +1807,7 @@ func TestRevokeAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := tableau.PermissionNames[tableau.ResourceTypeView][0] + ":" + tableau.PermissionModes[0]
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -2006,9 +1860,8 @@ func TestRevokeAccess(t *testing.T) {
 		t.Run("should return error if there is an error in revoking metric access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			expectedError := errors.New("client error")
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -2055,7 +1908,6 @@ func TestRevokeAccess(t *testing.T) {
 
 		t.Run("should return nil error if revoking access is successful", func(t *testing.T) {
 			providerURN := "test-provider-urn"
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
 			expectedMetric := &tableau.Metric{
 				Name: "test-metric",
@@ -2063,7 +1915,7 @@ func TestRevokeAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := tableau.PermissionNames[tableau.ResourceTypeMetric][0] + ":" + tableau.PermissionModes[0]
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -2116,9 +1968,8 @@ func TestRevokeAccess(t *testing.T) {
 		t.Run("should return error if there is an error in revoking datasource access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			expectedError := errors.New("client error")
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -2165,7 +2016,6 @@ func TestRevokeAccess(t *testing.T) {
 
 		t.Run("should return nil error if revoking access is successful", func(t *testing.T) {
 			providerURN := "test-provider-urn"
-			crypto := new(mocks.Crypto)
 			client := new(mocks.TableauClient)
 			expectedDatasource := &tableau.DataSource{
 				Name: "test-datasource",
@@ -2173,7 +2023,7 @@ func TestRevokeAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := tableau.PermissionNames[tableau.ResourceTypeDataSource][0] + ":" + tableau.PermissionModes[0]
-			p := tableau.NewProvider("", crypto)
+			p := tableau.NewProvider("")
 			p.Clients = map[string]tableau.TableauClient{
 				providerURN: client,
 			}
@@ -2226,8 +2076,7 @@ func TestRevokeAccess(t *testing.T) {
 func TestGetAccountTypes(t *testing.T) {
 	t.Run("should return the valid Account Types \"user\"", func(t *testing.T) {
 		expectedAccountTypes := []string{"user"}
-		crypto := new(mocks.Crypto)
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 
 		actualAccountTypes := p.GetAccountTypes()
 
@@ -2241,8 +2090,7 @@ func TestGetRoles(t *testing.T) {
 	})
 
 	t.Run("should return roles specified in the provider config", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := tableau.NewProvider("", crypto)
+		p := tableau.NewProvider("")
 		expectedRoles := []*domain.Role{
 			{
 				ID:   "read",

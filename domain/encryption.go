@@ -1,11 +1,15 @@
 package domain
 
 // Encryptor does encrypt a plain text into an encrypted text
+//
+//go:generate mockery --name=Encryptor --exported --with-expecter
 type Encryptor interface {
 	Encrypt(string) (string, error)
 }
 
 // Decryptor does decrypt an encrypted text into a plain text
+//
+//go:generate mockery --name=Decryptor --exported --with-expecter
 type Decryptor interface {
 	Decrypt(string) (string, error)
 }

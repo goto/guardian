@@ -60,6 +60,11 @@ type auditLogger interface {
 	Log(ctx context.Context, action string, data interface{}) error
 }
 
+//go:generate mockery --name=encryptor --exported --with-expecter
+type encryptor interface {
+	domain.Crypto
+}
+
 // Service handling the business logics
 type Service struct {
 	repository      repository
@@ -67,6 +72,7 @@ type Service struct {
 	clients         map[string]Client
 
 	validator   *validator.Validate
+	encryptor   encryptor
 	logger      log.Logger
 	auditLogger auditLogger
 }
@@ -77,6 +83,7 @@ type ServiceDeps struct {
 	Clients         []Client
 
 	Validator   *validator.Validate
+	Encryptor   encryptor
 	Logger      log.Logger
 	AuditLogger auditLogger
 }
@@ -94,6 +101,7 @@ func NewService(deps ServiceDeps) *Service {
 		mapProviderClients,
 
 		deps.Validator,
+		deps.Encryptor,
 		deps.Logger,
 		deps.AuditLogger,
 	}
@@ -120,9 +128,11 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 	if err := c.CreateConfig(p.Config); err != nil {
 		return err
 	}
+	if err := p.Config.EncryptCredentials(s.encryptor); err != nil {
+		return fmt.Errorf("encrypting credentials: %w", err)
+	}
 
 	dryRun := isDryRun(ctx)
-
 	if !dryRun {
 		if err := s.repository.Create(ctx, p); err != nil {
 			return err
@@ -136,6 +146,10 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 	go func() {
 		s.logger.Info("provider create fetching resources", "provider_urn", p.URN)
 		ctx := audit.WithActor(context.Background(), domain.SystemActorName)
+		if err := p.Config.DecryptCredentials(s.encryptor); err != nil {
+			s.logger.Error("failed to decrypt credentials", "error", err)
+			return
+		}
 		resources, err := s.getResources(ctx, p)
 		if err != nil {
 			s.logger.Error("failed to fetch resources", "error", err)
@@ -198,9 +212,11 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 	if err := c.CreateConfig(p.Config); err != nil {
 		return err
 	}
+	if err := p.Config.EncryptCredentials(s.encryptor); err != nil {
+		return fmt.Errorf("encrypting credentials: %w", err)
+	}
 
 	dryRun := isDryRun(ctx)
-
 	if !dryRun {
 		if err := s.repository.Update(ctx, p); err != nil {
 			return err
@@ -214,6 +230,10 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 	go func() {
 		s.logger.Info("provider update fetching resources", "provider_urn", p.URN)
 		ctx := audit.WithActor(context.Background(), domain.SystemActorName)
+		if err := p.Config.DecryptCredentials(s.encryptor); err != nil {
+			s.logger.Error("failed to decrypt credentials", "error", err)
+			return
+		}
 		resources, err := s.getResources(ctx, p)
 		if err != nil {
 			s.logger.Error("failed to fetch resources", "error", err)
@@ -241,6 +261,7 @@ func (s *Service) FetchResources(ctx context.Context) error {
 	failedProviders := make([]string, 0)
 	for _, p := range providers {
 		s.logger.Info("fetching resources", "provider_urn", p.URN)
+		// TODO: decrypt credentials
 		resources, err := s.getResources(ctx, p)
 		if err != nil {
 			s.logger.Error("failed to get resources", "error", err)
@@ -393,6 +414,9 @@ func (s *Service) GrantAccess(ctx context.Context, a domain.Grant) error {
 	if err != nil {
 		return err
 	}
+	if err := p.Config.DecryptCredentials(s.encryptor); err != nil {
+		return fmt.Errorf("decrypting credentials: %w", err)
+	}
 
 	return c.GrantAccess(p.Config, a)
 }
@@ -410,6 +434,9 @@ func (s *Service) RevokeAccess(ctx context.Context, a domain.Grant) error {
 	p, err := s.getProviderConfig(ctx, a.Resource.ProviderType, a.Resource.ProviderURN)
 	if err != nil {
 		return err
+	}
+	if err := p.Config.DecryptCredentials(s.encryptor); err != nil {
+		return fmt.Errorf("decrypting credentials: %w", err)
 	}
 
 	return c.RevokeAccess(p.Config, a)
@@ -450,6 +477,9 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 
 func (s *Service) ListAccess(ctx context.Context, p domain.Provider, resources []*domain.Resource) (domain.MapResourceAccess, error) {
 	c := s.getClient(p.Type)
+	if err := p.Config.DecryptCredentials(s.encryptor); err != nil {
+		return nil, fmt.Errorf("decrypting credentials: %w", err)
+	}
 	providerAccesses, err := c.ListAccess(ctx, *p.Config, resources)
 	if err != nil {
 		return nil, err
@@ -490,6 +520,9 @@ func (s *Service) ImportActivities(ctx context.Context, filter domain.ImportActi
 		return nil, fmt.Errorf("populating resources: %w", err)
 	}
 
+	if err := p.Config.DecryptCredentials(s.encryptor); err != nil {
+		return nil, fmt.Errorf("decrypting credentials: %w", err)
+	}
 	activities, err := activityClient.GetActivities(ctx, *p, filter)
 	if err != nil {
 		return nil, fmt.Errorf("getting activities: %w", err)

@@ -14,8 +14,7 @@ import (
 func TestGetType(t *testing.T) {
 	t.Run("should return provider type name", func(t *testing.T) {
 		expectedTypeName := domain.ProviderTypeGrafana
-		crypto := new(mocks.Crypto)
-		p := grafana.NewProvider(expectedTypeName, crypto)
+		p := grafana.NewProvider(expectedTypeName)
 
 		actualTypeName := p.GetType()
 
@@ -26,9 +25,8 @@ func TestGetType(t *testing.T) {
 func TestCreateConfig(t *testing.T) {
 	t.Run("should return error if there credentials are invalid", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.GrafanaClient)
-		p := grafana.NewProvider("", crypto)
+		p := grafana.NewProvider("")
 		p.Clients = map[string]grafana.GrafanaClient{
 			providerURN: client,
 		}
@@ -64,9 +62,8 @@ func TestCreateConfig(t *testing.T) {
 
 	t.Run("should return error if there resource config is invalid", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.GrafanaClient)
-		p := grafana.NewProvider("", crypto)
+		p := grafana.NewProvider("")
 		p.Clients = map[string]grafana.GrafanaClient{
 			providerURN: client,
 		}
@@ -118,13 +115,11 @@ func TestCreateConfig(t *testing.T) {
 
 	t.Run("should not return error if parse and valid of Credentials are correct", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.GrafanaClient)
-		p := grafana.NewProvider("", crypto)
+		p := grafana.NewProvider("")
 		p.Clients = map[string]grafana.GrafanaClient{
 			providerURN: client,
 		}
-		crypto.On("Encrypt", "test-password").Return("encrypted-test-pasword", nil)
 
 		testcases := []struct {
 			pc            *domain.ProviderConfig
@@ -179,15 +174,13 @@ func TestCreateConfig(t *testing.T) {
 		for _, tc := range testcases {
 			actualError := p.CreateConfig(tc.pc)
 			assert.Equal(t, tc.expectedError, actualError)
-			crypto.AssertExpectations(t)
 		}
 	})
 }
 
 func TestGetResources(t *testing.T) {
 	t.Run("should return error if credentials is invalid", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := grafana.NewProvider("", crypto)
+		p := grafana.NewProvider("")
 
 		pc := &domain.ProviderConfig{
 			Credentials: "invalid-creds",
@@ -200,28 +193,24 @@ func TestGetResources(t *testing.T) {
 	})
 
 	t.Run("should return error if there are any on client initialization", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := grafana.NewProvider("", crypto)
+		p := grafana.NewProvider("")
 
-		expectedError := errors.New("decrypt error")
-		crypto.On("Decrypt", "test-password").Return("", expectedError).Once()
 		pc := &domain.ProviderConfig{
 			Credentials: map[string]interface{}{
-				"password": "test-password",
+				"password": 1,
 			},
 		}
 
 		actualResources, actualError := p.GetResources(pc)
 
 		assert.Nil(t, actualResources)
-		assert.EqualError(t, actualError, expectedError.Error())
+		assert.ErrorContains(t, actualError, "1 error(s) decoding:\n\n* 'password' expected type 'string', got unconvertible type 'int'")
 	})
 
 	t.Run("should return error if got any on getting folder resources", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.GrafanaClient)
-		p := grafana.NewProvider("", crypto)
+		p := grafana.NewProvider("")
 		p.Clients = map[string]grafana.GrafanaClient{
 			providerURN: client,
 		}
@@ -241,9 +230,8 @@ func TestGetResources(t *testing.T) {
 
 	t.Run("should return error if got any on getting dashboard resources", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.GrafanaClient)
-		p := grafana.NewProvider("", crypto)
+		p := grafana.NewProvider("")
 		p.Clients = map[string]grafana.GrafanaClient{
 			providerURN: client,
 		}
@@ -270,9 +258,8 @@ func TestGetResources(t *testing.T) {
 
 	t.Run("should return list of resources and nil error on success", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.GrafanaClient)
-		p := grafana.NewProvider("", crypto)
+		p := grafana.NewProvider("")
 		p.Clients = map[string]grafana.GrafanaClient{
 			providerURN: client,
 		}
@@ -314,8 +301,7 @@ func TestGetResources(t *testing.T) {
 
 func TestGrantAccess(t *testing.T) {
 	t.Run("should return error if credentials is invalid", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := grafana.NewProvider("", crypto)
+		p := grafana.NewProvider("")
 
 		pc := &domain.ProviderConfig{
 			Credentials: "invalid-credentials",
@@ -343,18 +329,9 @@ func TestGrantAccess(t *testing.T) {
 	})
 
 	t.Run("should return error if there are any on client initialization", func(t *testing.T) {
-		password := "test-password"
-		crypto := new(mocks.Crypto)
-		p := grafana.NewProvider("", crypto)
-		expectedError := errors.New("decrypt error")
-		crypto.On("Decrypt", password).Return("", expectedError).Once()
-
+		p := grafana.NewProvider("")
 		pc := &domain.ProviderConfig{
-			Credentials: grafana.Credentials{
-				Host:     "localhost",
-				Username: "test-username",
-				Password: password,
-			},
+			Credentials: grafana.Credentials{}, // empty credentials
 			Resources: []*domain.ResourceConfig{
 				{
 					Type: "test-type",
@@ -376,19 +353,17 @@ func TestGrantAccess(t *testing.T) {
 
 		actualError := p.GrantAccess(pc, a)
 
-		assert.EqualError(t, actualError, expectedError.Error())
+		assert.Error(t, actualError)
 	})
 
 	t.Run("should return error if resource type in unknown", func(t *testing.T) {
 		password := "test-password"
-		crypto := new(mocks.Crypto)
-		p := grafana.NewProvider("", crypto)
+		p := grafana.NewProvider("")
 		expectedError := errors.New("invalid resource type")
-		crypto.On("Decrypt", password).Return("", expectedError).Once()
 
 		pc := &domain.ProviderConfig{
 			Credentials: grafana.Credentials{
-				Host:     "localhost",
+				Host:     "http://localhost",
 				Username: "test-username",
 				Password: password,
 			},
@@ -421,9 +396,8 @@ func TestGrantAccess(t *testing.T) {
 		t.Run("should return error if there is an error in granting dashboard access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			expectedError := errors.New("client error")
-			crypto := new(mocks.Crypto)
 			client := new(mocks.GrafanaClient)
-			p := grafana.NewProvider("", crypto)
+			p := grafana.NewProvider("")
 			p.Clients = map[string]grafana.GrafanaClient{
 				providerURN: client,
 			}
@@ -465,7 +439,6 @@ func TestGrantAccess(t *testing.T) {
 
 		t.Run("should return nil error if granting access is successful", func(t *testing.T) {
 			providerURN := "test-provider-urn"
-			crypto := new(mocks.Crypto)
 			client := new(mocks.GrafanaClient)
 			expectedDatabase := &grafana.Dashboard{
 				Title: "test-dashboard",
@@ -473,7 +446,7 @@ func TestGrantAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := grafana.DashboardRoleViewer
-			p := grafana.NewProvider("", crypto)
+			p := grafana.NewProvider("")
 			p.Clients = map[string]grafana.GrafanaClient{
 				providerURN: client,
 			}
@@ -519,8 +492,7 @@ func TestGrantAccess(t *testing.T) {
 
 func TestRevokeAccess(t *testing.T) {
 	t.Run("should return error if credentials is invalid", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := grafana.NewProvider("", crypto)
+		p := grafana.NewProvider("")
 
 		pc := &domain.ProviderConfig{
 			Credentials: "invalid-credentials",
@@ -548,18 +520,9 @@ func TestRevokeAccess(t *testing.T) {
 	})
 
 	t.Run("should return error if there are any on client initialization", func(t *testing.T) {
-		password := "test-password"
-		crypto := new(mocks.Crypto)
-		p := grafana.NewProvider("", crypto)
-		expectedError := errors.New("decrypt error")
-		crypto.On("Decrypt", password).Return("", expectedError).Once()
-
+		p := grafana.NewProvider("")
 		pc := &domain.ProviderConfig{
-			Credentials: grafana.Credentials{
-				Host:     "localhost",
-				Username: "test-username",
-				Password: password,
-			},
+			Credentials: grafana.Credentials{}, // empty credentials
 			Resources: []*domain.ResourceConfig{
 				{
 					Type: "test-type",
@@ -581,19 +544,17 @@ func TestRevokeAccess(t *testing.T) {
 
 		actualError := p.RevokeAccess(pc, a)
 
-		assert.EqualError(t, actualError, expectedError.Error())
+		assert.Error(t, actualError)
 	})
 
 	t.Run("should return error if resource type in unknown", func(t *testing.T) {
 		password := "test-password"
-		crypto := new(mocks.Crypto)
-		p := grafana.NewProvider("", crypto)
+		p := grafana.NewProvider("")
 		expectedError := errors.New("invalid resource type")
-		crypto.On("Decrypt", password).Return("", expectedError).Once()
 
 		pc := &domain.ProviderConfig{
 			Credentials: grafana.Credentials{
-				Host:     "localhost",
+				Host:     "http://localhost",
 				Username: "test-username",
 				Password: password,
 			},
@@ -626,9 +587,8 @@ func TestRevokeAccess(t *testing.T) {
 		t.Run("should return error if there is an error in revoking dashboard access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			expectedError := errors.New("client error")
-			crypto := new(mocks.Crypto)
 			client := new(mocks.GrafanaClient)
-			p := grafana.NewProvider("", crypto)
+			p := grafana.NewProvider("")
 			p.Clients = map[string]grafana.GrafanaClient{
 				providerURN: client,
 			}
@@ -671,7 +631,6 @@ func TestRevokeAccess(t *testing.T) {
 
 	t.Run("should return nil error if revoking access is successful", func(t *testing.T) {
 		providerURN := "test-provider-urn"
-		crypto := new(mocks.Crypto)
 		client := new(mocks.GrafanaClient)
 		expectedDatabase := &grafana.Dashboard{
 			Title: "test-dashboard",
@@ -679,7 +638,7 @@ func TestRevokeAccess(t *testing.T) {
 		}
 		expectedUser := "test@email.com"
 		expectedRole := grafana.DashboardRoleViewer
-		p := grafana.NewProvider("", crypto)
+		p := grafana.NewProvider("")
 		p.Clients = map[string]grafana.GrafanaClient{
 			providerURN: client,
 		}
@@ -727,8 +686,7 @@ func TestRevokeAccess(t *testing.T) {
 func TestGetRoles(t *testing.T) {
 	t.Run("should return an error if invalid resource type", func(t *testing.T) {
 		expectedError := grafana.ErrInvalidResourceType
-		crypto := new(mocks.Crypto)
-		pv := grafana.NewProvider("grafana", crypto)
+		pv := grafana.NewProvider("grafana")
 		validconfig := &domain.ProviderConfig{
 			Type: "grafana",
 			Credentials: grafana.Credentials{
@@ -758,8 +716,7 @@ func TestGetRoles(t *testing.T) {
 				Permissions: []interface{}{"view"},
 			},
 		}
-		crypto := new(mocks.Crypto)
-		pv := grafana.NewProvider("grafana", crypto)
+		pv := grafana.NewProvider("grafana")
 		validconfig := &domain.ProviderConfig{
 			Type: "grafana",
 			Credentials: grafana.Credentials{
@@ -786,8 +743,7 @@ func TestGetRoles(t *testing.T) {
 
 func TestGetAccountTypes(t *testing.T) {
 	t.Run("should return the list of supported account types (user only)", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		pv := grafana.NewProvider("grafana", crypto)
+		pv := grafana.NewProvider("grafana")
 		expectedAccountTypes := []string{"user"}
 
 		actualAccountTypes := pv.GetAccountTypes()
