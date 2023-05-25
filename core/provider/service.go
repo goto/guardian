@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"reflect"
 	"strings"
@@ -125,6 +126,11 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 		}
 	}
 
+	if p.Config.Credentials != nil {
+		// decode any base64 encoded string within credentials
+		decodeBase64Values(p.Config.Credentials)
+	}
+
 	if err := c.CreateConfig(p.Config); err != nil {
 		return err
 	}
@@ -207,6 +213,11 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 		if err := s.validateAppealConfig(p.Config.Appeal); err != nil {
 			return err
 		}
+	}
+
+	if p.Config.Credentials != nil {
+		// decode any base64 encoded string within credentials
+		decodeBase64Values(p.Config.Credentials)
 	}
 
 	if err := c.CreateConfig(p.Config); err != nil {
@@ -691,4 +702,41 @@ func WithDryRun(ctx context.Context) context.Context {
 
 func isDryRun(ctx context.Context) bool {
 	return ctx.Value(isDryRunKey("dry_run")) != nil
+}
+
+// decodeBase64Values recursively decodes all values in a map/slice that were base64 encoded.
+func decodeBase64Values(v interface{}) {
+	value := reflect.ValueOf(v)
+	switch value.Kind() {
+	case reflect.Map:
+		keys := value.MapKeys()
+		for _, key := range keys {
+			mapValue := value.MapIndex(key)
+			if mapValue.Kind() == reflect.Interface {
+				mapValue = mapValue.Elem()
+			}
+			if mapValue.Kind() == reflect.String {
+				if decodedValue, err := base64.StdEncoding.DecodeString(mapValue.String()); err == nil {
+					value.SetMapIndex(key, reflect.ValueOf(string(decodedValue)))
+				}
+			} else if mapValue.IsValid() {
+				decodeBase64Values(mapValue.Interface())
+			}
+		}
+	case reflect.Slice:
+		length := value.Len()
+		for i := 0; i < length; i++ {
+			sliceValue := value.Index(i)
+			if sliceValue.Kind() == reflect.Interface {
+				sliceValue = sliceValue.Elem()
+			}
+			if sliceValue.Kind() == reflect.String {
+				if decodedValue, err := base64.StdEncoding.DecodeString(sliceValue.String()); err == nil {
+					value.Index(i).Set(reflect.ValueOf(string(decodedValue)))
+				}
+			} else if sliceValue.IsValid() {
+				decodeBase64Values(sliceValue.Interface())
+			}
+		}
+	}
 }

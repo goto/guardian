@@ -2,7 +2,6 @@ package bigquery_test
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"testing"
@@ -97,7 +96,7 @@ func TestCreateConfig(t *testing.T) {
 				name: "resource type invalid",
 				pc: &domain.ProviderConfig{
 					Credentials: bigquery.Credentials{
-						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
+						ServiceAccountKey: `{"type":"service_account"}`,
 						ResourceName:      "projects/test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
@@ -117,7 +116,7 @@ func TestCreateConfig(t *testing.T) {
 				name: "wrong permissions for dataset type",
 				pc: &domain.ProviderConfig{
 					Credentials: bigquery.Credentials{
-						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
+						ServiceAccountKey: `{"type":"service_account"}`,
 						ResourceName:      "projects/test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
@@ -137,7 +136,7 @@ func TestCreateConfig(t *testing.T) {
 				name: "wrong permissions for table resource type",
 				pc: &domain.ProviderConfig{
 					Credentials: bigquery.Credentials{
-						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
+						ServiceAccountKey: `{"type":"service_account"}`,
 						ResourceName:      "projects/test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
@@ -185,7 +184,7 @@ func TestCreateConfig(t *testing.T) {
 				},
 			},
 			Credentials: bigquery.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)), // private_key
+				ServiceAccountKey: `{"type":"service_account"}`, // private_key
 				ResourceName:      "projects/test-resource-name",
 			},
 			URN: providerURN,
@@ -218,7 +217,7 @@ func TestCreateConfig(t *testing.T) {
 				},
 			},
 			Credentials: bigquery.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)), // private_key
+				ServiceAccountKey: `{"type":"service_account"}`, // private_key
 				ResourceName:      "projects/test-resource-name",
 			},
 			URN: providerURN,
@@ -254,7 +253,7 @@ func TestGetResources(t *testing.T) {
 			"resource-name": client,
 		}
 		validCredentials := bigquery.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name",
 		}
 		pc := &domain.ProviderConfig{
@@ -433,7 +432,7 @@ func TestGrantAccess(t *testing.T) {
 			"resource-name": client,
 		}
 		validCredentials := bigquery.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name",
 		}
 		client.On("GrantDatasetAccess", mock.Anything, mock.Anything, expectedAccountID, mock.Anything).Return(expectedError).Once()
@@ -484,7 +483,7 @@ func TestGrantAccess(t *testing.T) {
 			"resource-name": client,
 		}
 		validCredentials := bigquery.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name",
 		}
 		client.On("GrantDatasetAccess", mock.Anything, mock.Anything, expectedAccountID, mock.Anything).Return(bigquery.ErrPermissionAlreadyExists).Once()
@@ -537,7 +536,7 @@ func TestGrantAccess(t *testing.T) {
 			"resource-name": client,
 		}
 		validCredentials := bigquery.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name",
 		}
 		client.On("GrantTableAccess", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(bigquery.ErrPermissionAlreadyExists).Once()
@@ -689,7 +688,7 @@ func TestRevokeAccess(t *testing.T) {
 			"resource-name": client,
 		}
 		validCredentials := bigquery.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name",
 		}
 		client.On("RevokeDatasetAccess", mock.Anything, mock.Anything, expectedAccountID, mock.Anything).Return(expectedError).Once()
@@ -740,7 +739,7 @@ func TestRevokeAccess(t *testing.T) {
 			"resource-name": client,
 		}
 		validCredentials := bigquery.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name",
 		}
 		client.On("RevokeDatasetAccess", mock.Anything, mock.Anything, expectedAccountID, mock.Anything).Return(bigquery.ErrPermissionNotFound).Once()
@@ -792,7 +791,7 @@ func TestRevokeAccess(t *testing.T) {
 			"resource-name": client,
 		}
 		validCredentials := bigquery.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name",
 		}
 		client.On("RevokeTableAccess", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(bigquery.ErrPermissionNotFound).Once()

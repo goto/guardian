@@ -2,7 +2,6 @@ package dataplex_test
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"testing"
@@ -89,7 +88,7 @@ func TestCreateConfig(t *testing.T) {
 				name: "resource type invalid",
 				pc: &domain.ProviderConfig{
 					Credentials: dataplex.Credentials{
-						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
+						ServiceAccountKey: `{"type":"service_account"}`,
 						ResourceName:      "projects/project-name/location/us",
 					},
 					Resources: []*domain.ResourceConfig{
@@ -109,7 +108,7 @@ func TestCreateConfig(t *testing.T) {
 				name: "wrong permissions for tag type",
 				pc: &domain.ProviderConfig{
 					Credentials: dataplex.Credentials{
-						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
+						ServiceAccountKey: `{"type":"service_account"}`,
 						ResourceName:      "projects/project-name/location/us",
 					},
 					Resources: []*domain.ResourceConfig{
@@ -156,7 +155,7 @@ func TestCreateConfig(t *testing.T) {
 				},
 			},
 			Credentials: dataplex.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)), // private_key
+				ServiceAccountKey: `{"type":"service_account"}`, // private_key
 				ResourceName:      "projects/project-name/location/us",
 			},
 			URN: providerURN,
@@ -188,7 +187,7 @@ func TestCreateConfig(t *testing.T) {
 				},
 			},
 			Credentials: dataplex.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)), // private_key
+				ServiceAccountKey: `{"type":"service_account"}`, // private_key
 				ResourceName:      "projects/project-name/location/us",
 			},
 			URN: providerURN,
@@ -379,7 +378,7 @@ func TestGrantAccess(t *testing.T) {
 			"resource-name": client,
 		}
 		validCredentials := dataplex.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name/locations/us",
 		}
 		policy := &dataplex.Policy{}
@@ -431,7 +430,7 @@ func TestGrantAccess(t *testing.T) {
 			"resource-name": client,
 		}
 		validCredentials := dataplex.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name/locations/us",
 		}
 		policy := &dataplex.Policy{
@@ -588,7 +587,7 @@ func TestRevokeAccess(t *testing.T) {
 		}
 
 		validCredentials := dataplex.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name/locations/us",
 		}
 		policy := &dataplex.Policy{}
@@ -640,7 +639,7 @@ func TestRevokeAccess(t *testing.T) {
 			"resource-name": client,
 		}
 		validCredentials := dataplex.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name/locations/us",
 		}
 		policy := &dataplex.Policy{}

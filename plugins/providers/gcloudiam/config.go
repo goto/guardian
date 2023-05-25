@@ -1,7 +1,6 @@
 package gcloudiam
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -18,7 +17,7 @@ const (
 )
 
 type Credentials struct {
-	ServiceAccountKey string `mapstructure:"service_account_key" json:"service_account_key" validate:"required,base64"`
+	ServiceAccountKey string `mapstructure:"service_account_key" json:"service_account_key" validate:"required"`
 	ResourceName      string `mapstructure:"resource_name" json:"resource_name" validate:"startswith=projects/|startswith=organizations/"`
 }
 
@@ -83,13 +82,6 @@ func (c *Config) validateCredentials(value interface{}) (*Credentials, error) {
 	if err := c.validator.Struct(credentials); err != nil {
 		return nil, err
 	}
-
-	saKeyJson, err := base64.StdEncoding.DecodeString(credentials.ServiceAccountKey)
-	if err != nil {
-		return nil, err
-	}
-
-	credentials.ServiceAccountKey = string(saKeyJson)
 
 	return &credentials, nil
 }

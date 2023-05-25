@@ -33,7 +33,7 @@ type ServiceTestSuite struct {
 	service                *provider.Service
 }
 
-func (s *ServiceTestSuite) SetupTest() {
+func (s *ServiceTestSuite) SetupSubTest() {
 	logger := log.NewLogrus(log.LogrusWithLevel("info"))
 	validator := validator.New()
 	s.mockProviderRepository = new(providermocks.Repository)
@@ -111,6 +111,92 @@ func (s *ServiceTestSuite) TestCreate() {
 
 			s.EqualError(actualError, expectedError.Error())
 		})
+	})
+
+	s.Run("should decode base64 encoded value from any fields within credentials", func() {
+		decodedValue := "lorem ipsum"
+		encodedValue := "bG9yZW0gaXBzdW0="
+
+		input := &domain.Provider{
+			Type: mockProviderType,
+			Config: &domain.ProviderConfig{
+				Credentials: map[string]interface{}{
+					"key":        encodedValue,
+					"non-base64": "non-base64",
+					"non-string": 123,
+					"nil":        nil,
+					"slice1": []string{
+						"abc",
+						encodedValue,
+					},
+					"slice2": []interface{}{
+						"abc",
+						encodedValue,
+						123,
+						true,
+						nil,
+					},
+					"map-string": map[string]string{
+						"key": encodedValue,
+					},
+					"nested": map[string]interface{}{
+						"key":        encodedValue,
+						"non-base64": "non-base64",
+						"non-string": 123,
+						"nil":        nil,
+					},
+				},
+			},
+		}
+
+		want := &domain.Provider{
+			Type: mockProviderType,
+			Config: &domain.ProviderConfig{
+				AllowedAccountTypes: []string{"user"},
+				Credentials: map[string]interface{}{
+					"key":        decodedValue,
+					"non-base64": "non-base64",
+					"non-string": 123,
+					"nil":        nil,
+					"slice1": []string{
+						"abc",
+						decodedValue,
+					},
+					"slice2": []interface{}{
+						"abc",
+						decodedValue,
+						123,
+						true,
+						nil,
+					},
+					"map-string": map[string]string{
+						"key": decodedValue,
+					},
+					"nested": map[string]interface{}{
+						"key":        decodedValue,
+						"non-base64": "non-base64",
+						"non-string": 123,
+						"nil":        nil,
+					},
+				},
+			},
+		}
+
+		s.mockProvider.EXPECT().GetAccountTypes().Return([]string{"user"}).Once()
+		s.mockEncryptor.EXPECT().Encrypt(mock.Anything).Return("encrypted-creds", nil).Once()
+		s.mockProvider.EXPECT().CreateConfig(mock.AnythingOfType("*domain.ProviderConfig")).Return(nil).Once().Run(func(args mock.Arguments) {
+			actualConfig := args.Get(0).(*domain.ProviderConfig)
+			s.Empty(cmp.Diff(want.Config, actualConfig))
+		})
+		s.mockProviderRepository.EXPECT().Create(mock.AnythingOfType("*context.emptyCtx"), input).Return(nil).Once()
+		s.mockAuditLogger.EXPECT().Log(mock.Anything, provider.AuditKeyCreate, mock.Anything).Return(nil).Once()
+
+		s.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(nil, nil).Once()
+		s.mockEncryptor.EXPECT().Decrypt(mock.Anything).Return("{}", nil).Once()
+		s.mockProvider.EXPECT().GetResources(mock.Anything).Return(nil, nil).Once()
+		s.mockResourceService.EXPECT().BulkUpsert(mock.Anything, mock.Anything).Return(nil).Once()
+
+		s.service.Create(context.Background(), input)
 	})
 
 	s.Run("should return error if got error from the provider repository", func() {

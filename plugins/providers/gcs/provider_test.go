@@ -2,7 +2,6 @@ package gcs_test
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"testing"
 
@@ -40,7 +39,7 @@ func TestCreateConfig(t *testing.T) {
 				name: "invalid resource type",
 				pc: &domain.ProviderConfig{
 					Credentials: gcs.Credentials{
-						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
+						ServiceAccountKey: `{"type":"service_account"}`,
 						ResourceName:      "projects/test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
@@ -60,7 +59,7 @@ func TestCreateConfig(t *testing.T) {
 				name: "invalid permissions for bucket resource type",
 				pc: &domain.ProviderConfig{
 					Credentials: gcs.Credentials{
-						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
+						ServiceAccountKey: `{"type":"service_account"}`,
 						ResourceName:      "projects/test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
@@ -93,7 +92,7 @@ func TestCreateConfig(t *testing.T) {
 			Type: domain.ProviderTypeGCS,
 			URN:  providerURN,
 			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
+				ServiceAccountKey: `{"type":"service_account"}`,
 				ResourceName:      "projects/test-resource-name",
 			},
 			Resources: []*domain.ResourceConfig{
@@ -152,7 +151,7 @@ func TestGetResources(t *testing.T) {
 			Type: domain.ProviderTypeGCS,
 			URN:  providerURN,
 			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service_account-key-json")),
+				ServiceAccountKey: "service_account-key-json",
 				ResourceName:      "projects/test-resource-name",
 			},
 			Resources: []*domain.ResourceConfig{
@@ -304,7 +303,7 @@ func TestGrantAccess(t *testing.T) {
 			Type: domain.ProviderTypeGCS,
 			URN:  providerURN,
 			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service_account-key-json")),
+				ServiceAccountKey: "service_account-key-json",
 				ResourceName:      "projects/test-resource-name",
 			},
 			Resources: []*domain.ResourceConfig{
@@ -358,7 +357,7 @@ func TestGrantAccess(t *testing.T) {
 			Type: domain.ProviderTypeGCS,
 			URN:  providerURN,
 			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service_account-key-json")),
+				ServiceAccountKey: "service_account-key-json",
 				ResourceName:      "projects/test-resource-name",
 			},
 			Resources: []*domain.ResourceConfig{
@@ -510,7 +509,7 @@ func TestRevokeAccess(t *testing.T) {
 			Type: domain.ProviderTypeGCS,
 			URN:  providerURN,
 			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service_account-key-json")),
+				ServiceAccountKey: "service_account-key-json",
 				ResourceName:      "projects/test-resource-name",
 			},
 			Resources: []*domain.ResourceConfig{
@@ -564,7 +563,7 @@ func TestRevokeAccess(t *testing.T) {
 			Type: domain.ProviderTypeGCS,
 			URN:  providerURN,
 			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service_account-key-json")),
+				ServiceAccountKey: "service_account-key-json",
 				ResourceName:      "projects/test-resource-name",
 			},
 			Resources: []*domain.ResourceConfig{

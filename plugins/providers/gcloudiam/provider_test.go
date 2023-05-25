@@ -1,7 +1,6 @@
 package gcloudiam_test
 
 import (
-	"encoding/base64"
 	"errors"
 	"testing"
 
@@ -99,7 +98,7 @@ func TestCreateConfig(t *testing.T) {
 			{
 				pc: &domain.ProviderConfig{
 					Credentials: gcloudiam.Credentials{
-						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+						ServiceAccountKey: "service-account-key-json",
 						ResourceName:      "projects/test-resource-name",
 					},
 				},
@@ -107,7 +106,7 @@ func TestCreateConfig(t *testing.T) {
 			{
 				pc: &domain.ProviderConfig{
 					Credentials: gcloudiam.Credentials{
-						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+						ServiceAccountKey: "service-account-key-json",
 						ResourceName:      "projects/test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
@@ -120,7 +119,7 @@ func TestCreateConfig(t *testing.T) {
 			{
 				pc: &domain.ProviderConfig{
 					Credentials: gcloudiam.Credentials{
-						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+						ServiceAccountKey: "service-account-key-json",
 						ResourceName:      "projects/test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
@@ -171,7 +170,7 @@ func TestCreateConfig(t *testing.T) {
 				},
 			},
 			Credentials: gcloudiam.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
+				ServiceAccountKey: `{"type":"service_account"}`,
 				ResourceName:      "projects/test-resource-name",
 			},
 			URN: providerURN,

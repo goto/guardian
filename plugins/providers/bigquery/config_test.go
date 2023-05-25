@@ -1,7 +1,6 @@
 package bigquery_test
 
 import (
-	"encoding/base64"
 	"testing"
 
 	"github.com/goto/guardian/domain"
@@ -24,15 +23,11 @@ func TestNewConfig(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	validCredentials := bigquery.Credentials{
-		ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
-		ResourceName:      "projects/resource-name",
-	}
-	credentialsWithoutBaseEncodedSAKey := bigquery.Credentials{
-		ServiceAccountKey: "non-base64-value",
+		ServiceAccountKey: "service-account-key-json",
 		ResourceName:      "projects/resource-name",
 	}
 	credentialsWithoutResourceName := bigquery.Credentials{
-		ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+		ServiceAccountKey: "service-account-key-json",
 	}
 	validPermissionConfig := "permission-name"
 
@@ -42,11 +37,6 @@ func TestValidate(t *testing.T) {
 			credentials      interface{}
 			permissionConfig interface{}
 		}{
-			{
-				name:             "should return error if service account key of credentials is not a base64 string",
-				credentials:      credentialsWithoutBaseEncodedSAKey,
-				permissionConfig: validPermissionConfig,
-			},
 			{
 				name:             "should return error if permission type is invalid",
 				credentials:      validCredentials,

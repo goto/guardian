@@ -1,7 +1,6 @@
 package gcs
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -44,7 +43,7 @@ type Config struct {
 }
 
 type Credentials struct {
-	ServiceAccountKey string `json:"service_account_key" mapstructure:"service_account_key" validate:"required,base64"`
+	ServiceAccountKey string `json:"service_account_key" mapstructure:"service_account_key" validate:"required"`
 	ResourceName      string `json:"resource_name" mapstructure:"resource_name" validate:"required"`
 }
 
@@ -93,13 +92,6 @@ func (c *Config) validateCredentials(value interface{}) (*Credentials, error) {
 	if err := c.validator.Struct(credentials); err != nil {
 		return nil, err
 	}
-
-	saKeyJson, err := base64.StdEncoding.DecodeString(credentials.ServiceAccountKey)
-	if err != nil {
-		return nil, err
-	}
-
-	credentials.ServiceAccountKey = string(saKeyJson)
 
 	return &credentials, nil
 }
