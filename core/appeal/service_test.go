@@ -21,56 +21,15 @@ import (
 
 type ServiceTestSuite struct {
 	suite.Suite
-	mockRepository      *appealmocks.Repository
-	mockApprovalService *appealmocks.ApprovalService
-	mockResourceService *appealmocks.ResourceService
-	mockProviderService *appealmocks.ProviderService
-	mockPolicyService   *appealmocks.PolicyService
-	mockGrantService    *appealmocks.GrantService
-	mockIAMManager      *appealmocks.IamManager
-	mockIAMClient       *mocks.IAMClient
-	mockNotifier        *appealmocks.Notifier
-	mockAuditLogger     *appealmocks.AuditLogger
-
-	service *appeal.Service
-	now     time.Time
-}
-
-func (s *ServiceTestSuite) setup() {
-	s.mockRepository = new(appealmocks.Repository)
-	s.mockApprovalService = new(appealmocks.ApprovalService)
-	s.mockResourceService = new(appealmocks.ResourceService)
-	s.mockProviderService = new(appealmocks.ProviderService)
-	s.mockPolicyService = new(appealmocks.PolicyService)
-	s.mockGrantService = new(appealmocks.GrantService)
-	s.mockIAMManager = new(appealmocks.IamManager)
-	s.mockIAMClient = new(mocks.IAMClient)
-	s.mockNotifier = new(appealmocks.Notifier)
-	s.mockAuditLogger = new(appealmocks.AuditLogger)
-	s.now = time.Now()
-
-	service := appeal.NewService(appeal.ServiceDeps{
-		s.mockRepository,
-		s.mockApprovalService,
-		s.mockResourceService,
-		s.mockProviderService,
-		s.mockPolicyService,
-		s.mockGrantService,
-		s.mockIAMManager,
-		s.mockNotifier,
-		validator.New(),
-		log.NewNoop(),
-		s.mockAuditLogger,
-	})
-	service.TimeNow = func() time.Time {
-		return s.now
-	}
-
-	s.service = service
+	mockService
 }
 
 func (s *ServiceTestSuite) SetupTest() {
-	s.setup()
+	s.mockService = newMockAppealService()
+}
+
+func (s *ServiceTestSuite) TearDownSubTest() {
+	s.mockService = newMockAppealService()
 }
 
 func (s *ServiceTestSuite) TestGetByID() {
@@ -551,7 +510,6 @@ func (s *ServiceTestSuite) TestCreate() {
 
 		for _, tc := range testCases {
 			s.Run(tc.name, func() {
-				s.setup()
 				s.mockResourceService.On("Find", mock.Anything, mock.Anything).Return(tc.resources, nil).Once()
 				s.mockProviderService.On("Find", mock.Anything).Return(tc.providers, nil).Once()
 				s.mockPolicyService.On("Find", mock.Anything).Return(tc.policies, nil).Once()
@@ -910,14 +868,28 @@ func (s *ServiceTestSuite) TestCreate() {
 		s.mockRepository.EXPECT().
 			Find(mock.AnythingOfType("*context.emptyCtx"), expectedExistingAppealsFilters).
 			Return(expectedExistingAppeals, nil).Once()
-		s.mockGrantService.EXPECT().
-			List(mock.AnythingOfType("*context.emptyCtx"), domain.ListGrantsFilter{
-				Statuses: []string{string(domain.GrantStatusActive)},
-			}).
-			Return(expectedActiveGrants, nil).Once()
 		s.mockProviderService.On("ValidateAppeal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		s.mockProviderService.On("GetPermissions", mock.Anything, mock.Anything, mock.AnythingOfType("string"), "role_id").
 			Return([]interface{}{"test-permission-1"}, nil)
+		s.mockGrantService.EXPECT(). // findActiveGrants
+						List(mock.AnythingOfType("*context.emptyCtx"), domain.ListGrantsFilter{
+				Statuses:    []string{string(domain.GrantStatusActive)},
+				AccountIDs:  []string{accountID},
+				ResourceIDs: []string{resources[0].ID},
+				Roles:       []string{"role_id"},
+				OrderBy:     []string{"updated_at:desc"},
+			}).
+			Return(expectedActiveGrants, nil).Once()
+		s.mockGrantService.EXPECT(). // prepareGrant
+						List(mock.AnythingOfType("*context.emptyCtx"), domain.ListGrantsFilter{
+				Statuses:    []string{string(domain.GrantStatusActive)},
+				AccountIDs:  []string{"addOnBehalfApprovedNotification-user"},
+				ResourceIDs: []string{resources[1].ID},
+				Roles:       []string{"role_id"},
+				OrderBy:     []string{"updated_at:desc"},
+				// Permissions: []string{},
+			}).
+			Return(expectedActiveGrants, nil).Once()
 		s.mockIAMManager.On("ParseConfig", mock.Anything, mock.Anything).Return(nil, nil)
 		s.mockIAMManager.On("GetClient", mock.Anything, mock.Anything).Return(s.mockIAMClient, nil)
 		expectedCreatorResponse := map[string]interface{}{
@@ -1076,8 +1048,6 @@ func (s *ServiceTestSuite) TestCreate() {
 }
 
 func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprovalSteps() {
-	s.setup()
-
 	timeNow := time.Now()
 	appeal.TimeNow = func() time.Time {
 		return timeNow
@@ -1326,7 +1296,6 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprov
 }
 
 func (s *ServiceTestSuite) TestCreateAppeal__WithAdditionalAppeals() {
-	s.setup()
 	providerType := "test-provider-type"
 	providerURN := "test-provider-urn"
 	resourceType := "test-resource-type"
@@ -2233,7 +2202,6 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		}
 		for _, tc := range testCases {
 			s.Run(tc.name, func() {
-				s.setup()
 
 				s.mockRepository.EXPECT().
 					GetByID(mock.AnythingOfType("*context.emptyCtx"), validApprovalActionParam.AppealID).
@@ -2283,8 +2251,6 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 }
 
 func (s *ServiceTestSuite) TestGrantAccessToProvider() {
-	s.setup()
-
 	s.Run("should return error when policy is not found", func() {
 		expectedError := errors.New("retrieving policy: not found")
 
@@ -2872,4 +2838,116 @@ func (s *ServiceTestSuite) TestDeleteApprover() {
 
 func TestService(t *testing.T) {
 	suite.Run(t, new(ServiceTestSuite))
+}
+
+type mockService struct {
+	dummyResources []*domain.Resource
+	dummyProviders []*domain.Provider
+	dummyPolicies  []*domain.Policy
+
+	mockRepository      *appealmocks.Repository
+	mockApprovalService *appealmocks.ApprovalService
+	mockResourceService *appealmocks.ResourceService
+	mockProviderService *appealmocks.ProviderService
+	mockPolicyService   *appealmocks.PolicyService
+	mockGrantService    *appealmocks.GrantService
+	mockIAMManager      *appealmocks.IamManager
+	mockIAMClient       *mocks.IAMClient
+	mockNotifier        *appealmocks.Notifier
+	mockAuditLogger     *appealmocks.AuditLogger
+
+	service *appeal.Service
+	now     time.Time
+}
+
+func newMockAppealService() mockService {
+	mock := mockService{
+		mockRepository:      new(appealmocks.Repository),
+		mockApprovalService: new(appealmocks.ApprovalService),
+		mockResourceService: new(appealmocks.ResourceService),
+		mockProviderService: new(appealmocks.ProviderService),
+		mockPolicyService:   new(appealmocks.PolicyService),
+		mockGrantService:    new(appealmocks.GrantService),
+		mockIAMManager:      new(appealmocks.IamManager),
+		mockIAMClient:       new(mocks.IAMClient),
+		mockNotifier:        new(appealmocks.Notifier),
+		mockAuditLogger:     new(appealmocks.AuditLogger),
+
+		now: time.Now(),
+	}
+	mock.initDummyData()
+
+	mock.service = appeal.NewService(appeal.ServiceDeps{
+		mock.mockRepository,
+		mock.mockApprovalService,
+		mock.mockResourceService,
+		mock.mockProviderService,
+		mock.mockPolicyService,
+		mock.mockGrantService,
+		mock.mockIAMManager,
+		mock.mockNotifier,
+		validator.New(),
+		log.NewNoop(),
+		mock.mockAuditLogger,
+	})
+	mock.service.TimeNow = func() time.Time { return mock.now }
+	return mock
+}
+
+func (s *mockService) initDummyData() {
+	providerType := "test-provider-type"
+	providerURN := "test-provider-urn"
+	s.dummyPolicies = []*domain.Policy{
+		{
+			ID:      "test-policy-id-1",
+			Version: 1,
+			Steps: []*domain.Step{
+				{
+					Name:      "test-step-1",
+					Strategy:  domain.ApprovalStepStrategyAuto,
+					ApproveIf: `true`,
+				},
+			},
+		},
+	}
+	s.dummyProviders = []*domain.Provider{
+		{
+			ID:   "test-provider-id",
+			Type: providerType,
+			URN:  providerURN,
+			Config: &domain.ProviderConfig{
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: "test-resource-type-1",
+						Policy: &domain.PolicyConfig{
+							ID:      s.dummyPolicies[0].ID,
+							Version: int(s.dummyPolicies[0].Version),
+						},
+						Roles: []*domain.Role{
+							{
+								ID:          "test-role-1",
+								Permissions: []interface{}{"test-permission-1"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	s.dummyResources = []*domain.Resource{
+		{
+			ID:           "test-resource-id-1",
+			URN:          "test-resource-urn-1",
+			Type:         "test-resource-type-1",
+			ProviderType: providerType,
+			ProviderURN:  providerURN,
+		},
+		{
+			ID:           "test-resource-id-2",
+			URN:          "test-resource-urn-2",
+			Type:         "test-resource-type-2",
+			ProviderType: providerType,
+			ProviderURN:  providerURN,
+		},
+	}
 }
