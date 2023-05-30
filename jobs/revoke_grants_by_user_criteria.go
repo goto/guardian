@@ -13,6 +13,7 @@ type RevokeGrantsByUserCriteriaConfig struct {
 	IAM                 domain.IAMConfig     `mapstructure:"iam"`
 	UserCriteria        evaluator.Expression `mapstructure:"user_criteria"`
 	ReassignOwnershipTo evaluator.Expression `mapstructure:"reassign_ownership_to"`
+	DryRun              bool                 `mapstructure:"dry_run"`
 }
 
 func (h *handler) RevokeGrantsByUserCriteria(ctx context.Context, c Config) error {
@@ -55,74 +56,128 @@ func (h *handler) RevokeGrantsByUserCriteria(ctx context.Context, c Config) erro
 	}
 
 	for email := range uniqueUserEmails {
-		user, err := iamClient.GetUser(email)
+		userDetails, err := fetchUserDetails(iamClient, email)
 		if err != nil {
-			h.logger.Error("getting user details from identity manager", "email", email, "error", err)
+			h.logger.Debug("fetching user details", "email", email, "error", err)
 			continue
 		}
-		userDetails, ok := user.(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("parsing user details: expected a map[string]interface{}, got %T instead; value is %q", user, user)
-		}
-		evaluationParams := map[string]interface{}{
-			"user": userDetails,
-		}
 
-		// evaluating user criteria
-		h.logger.Debug("checking criteria against user", "email", email, "criteria", cfg.UserCriteria.String(), "user_details", userDetails)
-		criteriaEvaluation, err := cfg.UserCriteria.EvaluateWithVars(evaluationParams)
-		if err != nil {
-			return fmt.Errorf("evaluating user_criteria: %w", err)
-		}
-		criteriaSatisfied, ok := criteriaEvaluation.(bool)
-		if !ok {
-			return fmt.Errorf("invalid type for user_criteria evaluation result: expected boolean, got %T; value is %q", criteriaEvaluation, criteriaEvaluation)
+		if criteriaSatisfied, err := evaluateCriteria(cfg.UserCriteria, userDetails); err != nil {
+			h.logger.Error("checking criteria against user", "email", email, "criteria", cfg.UserCriteria.String(), "error", err)
 		} else if !criteriaSatisfied {
 			h.logger.Debug("criteria not satisfied", "email", email)
 			continue
 		}
 
 		// revoking grants with account_id == email
-		revokeGrantsFilter := domain.RevokeGrantsFilter{
-			AccountIDs: []string{email},
+		if revokedGrants, err := h.revokeUserGrants(ctx, email); err != nil {
+			h.logger.Error("revoking user grants", "account_id", email, "error", err)
+		} else {
+			revokedGrantIDs := []string{}
+			for _, g := range revokedGrants {
+				revokedGrantIDs = append(revokedGrantIDs, g.ID)
+			}
+			h.logger.Info("grant revocation successful", "count", len(revokedGrantIDs), "grant_ids", revokedGrantIDs)
 		}
-		h.logger.Info("revoking grants", "account_id", email)
-		revokedGrants, err := h.grantService.BulkRevoke(ctx, revokeGrantsFilter, domain.SystemActorName, "Revoked due to user deactivated")
-		if err != nil {
-			h.logger.Debug("failed to revoke grants", "account_id", email, "error", err)
-			return fmt.Errorf("revoking grants for %q: %w", email, err)
-		}
-
-		revokedGrantIDs := []string{}
-		for _, g := range revokedGrants {
-			revokedGrantIDs = append(revokedGrantIDs, g.ID)
-		}
-		h.logger.Info("grant revocation successful", "count", len(revokedGrantIDs), "grant_ids", revokedGrantIDs)
 
 		// reassigning grants owned by the user to the new owner
-		for _, g := range grantsOwnedByUser[email] {
-			newOwnerEvaluation, err := cfg.ReassignOwnershipTo.EvaluateWithVars(evaluationParams)
-			if err != nil {
-				return fmt.Errorf("evaluating reassign_ownership_to: %w", err)
+		newOwner, err := h.evaluateNewOwner(cfg.ReassignOwnershipTo, userDetails)
+		if err != nil {
+			h.logger.Error("evaluating new owner", "email", email, "error", err)
+			continue
+		}
+		successfulGrants, failedGrants := h.reassignGrantsOwnership(ctx, grantsOwnedByUser[email], newOwner)
+		if len(successfulGrants) > 0 {
+			successfulGrantIDs := []string{}
+			for _, g := range successfulGrants {
+				successfulGrantIDs = append(successfulGrantIDs, g.ID)
 			}
-			newOwner, ok := newOwnerEvaluation.(string)
-			if !ok {
-				return fmt.Errorf("invalid type for reassign_ownership_to evaluation result: expected string, got %T instead; value is %q", newOwnerEvaluation, newOwnerEvaluation)
-			} else if newOwner == "" {
-				return fmt.Errorf("invalid value for reassign_ownership_to evaluation result: expected a non-empty string, got %q instead", newOwner)
-			} else if err := h.validator.Var(newOwner, "email"); err != nil {
-				return fmt.Errorf("invalid value for reassign_ownership_to evaluation result: expected a valid email address, got %q", newOwner)
+			h.logger.Info("grant ownership reassignment successful", "count", len(successfulGrantIDs), "grant_ids", successfulGrantIDs)
+		}
+		if len(failedGrants) > 0 {
+			failedGrantIDs := []string{}
+			for _, g := range failedGrants {
+				failedGrantIDs = append(failedGrantIDs, g.ID)
 			}
-
-			h.logger.Info("updating grant owner", "grant_id", g.ID, "existing_owner", g.Owner, "new_owner", newOwner)
-			g.Owner = newOwner
-			if err := h.grantService.Update(ctx, g); err != nil { // TODO: refactor by creating grantServie.BulkUpdate
-				h.logger.Debug("failed to update grant owner", "grant_id", g.ID, "existing_owner", g.Owner, "new_owner", newOwner, "error", err)
-				return fmt.Errorf("updating grant owner for %v: %w", g.ID, err)
-			}
-			h.logger.Info("grant update successful", "grant_id", g.ID, "existing_owner", g.Owner, "new_owner", newOwner)
+			h.logger.Error("grant ownership reassignment failed", "count", len(failedGrantIDs), "grant_ids", failedGrantIDs)
 		}
 	}
 
 	return nil
+}
+
+func fetchUserDetails(iamClient domain.IAMClient, email string) (map[string]interface{}, error) {
+	user, err := iamClient.GetUser(email)
+	if err != nil {
+		return nil, err
+	}
+	userMap, ok := user.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("parsing user details: expected a map[string]interface{}, got %T instead; value is %q", user, user)
+	}
+	return userMap, nil
+}
+
+func evaluateCriteria(criteriaExpr evaluator.Expression, user map[string]interface{}) (bool, error) {
+	criteriaEvaluation, err := criteriaExpr.EvaluateWithVars(map[string]interface{}{
+		"user": user,
+	})
+	if err != nil {
+		return false, fmt.Errorf("evaluating criteria: %w", err)
+	}
+	satisfied, ok := criteriaEvaluation.(bool)
+	if !ok {
+		return false, fmt.Errorf("invalid type for user_criteria evaluation result: expected boolean, got %T; value is %q", criteriaEvaluation, criteriaEvaluation)
+	}
+
+	return satisfied, nil
+}
+
+func (h *handler) revokeUserGrants(ctx context.Context, email string) ([]*domain.Grant, error) {
+	revokeGrantsFilter := domain.RevokeGrantsFilter{
+		AccountIDs: []string{email},
+	}
+	h.logger.Info("revoking grants", "account_id", email)
+	revokedGrants, err := h.grantService.BulkRevoke(ctx, revokeGrantsFilter, domain.SystemActorName, "Revoked due to user deactivated")
+	if err != nil {
+		return nil, fmt.Errorf("revoking grants for %q: %w", email, err)
+	}
+
+	return revokedGrants, nil
+}
+
+func (h *handler) evaluateNewOwner(newOwnerExpr evaluator.Expression, user map[string]interface{}) (string, error) {
+	newOwner, err := newOwnerExpr.EvaluateWithVars(map[string]interface{}{
+		"user": user,
+	})
+	if err != nil {
+		return "", fmt.Errorf("evaluating reassign_ownership_to: %w", err)
+	}
+
+	newOwnerStr, ok := newOwner.(string)
+	// owner validation
+	if !ok {
+		return "", fmt.Errorf("invalid type for reassign_ownership_to evaluation result: expected string, got %T instead; value is %q", newOwner, newOwner)
+	} else if newOwnerStr == "" {
+		return "", fmt.Errorf("invalid value for reassign_ownership_to evaluation result: expected a non-empty string, got %q instead", newOwnerStr)
+	} else if err := h.validator.Var(newOwnerStr, "email"); err != nil {
+		return "", fmt.Errorf("invalid value for reassign_ownership_to evaluation result: expected a valid email address, got %q", newOwnerStr)
+	}
+
+	return newOwnerStr, nil
+}
+
+func (h *handler) reassignGrantsOwnership(ctx context.Context, ownedGrants []*domain.Grant, newOwner string) ([]*domain.Grant, []*domain.Grant) {
+	var successfulGrants, failedGrants []*domain.Grant
+	for _, g := range ownedGrants {
+		g.Owner = newOwner
+		if err := h.grantService.Update(ctx, g); err != nil {
+			failedGrants = append(failedGrants, g)
+			h.logger.Error("updating grant owner", "grant_id", g.ID, "existing_owner", g.Owner, "new_owner", newOwner, "error", err)
+			continue
+		}
+		successfulGrants = append(successfulGrants, g)
+	}
+
+	return successfulGrants, failedGrants
 }
