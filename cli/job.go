@@ -91,15 +91,36 @@ func runJobCmd() *cobra.Command {
 				validator,
 			)
 
-			jobsMap := map[jobs.Type]func(context.Context, jobs.Config) error{
-				jobs.TypeFetchResources:             handler.FetchResources,
-				jobs.TypeExpiringGrantNotification:  handler.GrantExpirationReminder,
-				jobs.TypeRevokeExpiredGrants:        handler.RevokeExpiredGrants,
-				jobs.TypeRevokeGrantsByUserCriteria: handler.RevokeGrantsByUserCriteria,
+			jobsMap := map[jobs.Type]*struct {
+				handler func(context.Context, jobs.Config) error
+				config  jobs.Config
+			}{
+				jobs.TypeFetchResources: {
+					handler: handler.FetchResources,
+					config:  config.Jobs.FetchResources.Config,
+				},
+				jobs.TypeExpiringGrantNotification: {
+					handler: handler.GrantExpirationReminder,
+					config:  config.Jobs.ExpiringGrantNotification.Config,
+				},
+				jobs.TypeRevokeExpiredGrants: {
+					handler: handler.RevokeExpiredGrants,
+					config:  config.Jobs.RevokeExpiredGrants.Config,
+				},
+				jobs.TypeRevokeGrantsByUserCriteria: {
+					handler: handler.RevokeGrantsByUserCriteria,
+					config:  config.Jobs.RevokeGrantsByUserCriteria.Config,
+				},
 
 				// deprecated job names
-				jobs.TypeExpiringAccessNotification: handler.GrantExpirationReminder,
-				jobs.TypeRevokeExpiredAccess:        handler.RevokeExpiredGrants,
+				jobs.TypeExpiringAccessNotification: {
+					handler: handler.GrantExpirationReminder,
+					config:  config.Jobs.ExpiringAccessNotification.Config,
+				},
+				jobs.TypeRevokeExpiredAccess: {
+					handler: handler.RevokeExpiredGrants,
+					config:  config.Jobs.RevokeExpiredAccess.Config,
+				},
 			}
 
 			jobName := jobs.Type(args[0])
@@ -107,8 +128,7 @@ func runJobCmd() *cobra.Command {
 			if job == nil {
 				return fmt.Errorf("invalid job name: %s", jobName)
 			}
-			jobConfig := config.Jobs[jobName].Config
-			if err := job(context.Background(), jobConfig); err != nil {
+			if err := job.handler(context.Background(), job.config); err != nil {
 				return fmt.Errorf(`failed to run job "%s": %w`, jobName, err)
 			}
 

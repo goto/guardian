@@ -247,20 +247,20 @@ func makeHeaderMatcher(c *Config) func(key string) (string, bool) {
 func fetchJobsToRun(config *Config) []*jobs.Job {
 	jobsToRun := make([]*jobs.Job, 0)
 
-	if config.Jobs[jobs.TypeFetchResources].Enabled {
-		job := config.Jobs[jobs.TypeFetchResources]
+	if config.Jobs.FetchResources.Enabled {
+		job := config.Jobs.FetchResources
 		job.Type = jobs.TypeFetchResources
 		jobsToRun = append(jobsToRun, &job)
 	}
 
-	if config.Jobs[jobs.TypeExpiringAccessNotification].Enabled || config.Jobs[jobs.TypeExpiringGrantNotification].Enabled {
-		job := config.Jobs[jobs.TypeExpiringAccessNotification]
+	if config.Jobs.ExpiringAccessNotification.Enabled || config.Jobs.ExpiringGrantNotification.Enabled {
+		job := config.Jobs.ExpiringAccessNotification
 		job.Type = jobs.TypeExpiringGrantNotification
 		jobsToRun = append(jobsToRun, &job)
 	}
 
-	if config.Jobs[jobs.TypeRevokeExpiredAccess].Enabled || config.Jobs[jobs.TypeRevokeExpiredGrants].Enabled {
-		job := config.Jobs[jobs.TypeRevokeExpiredAccess]
+	if config.Jobs.RevokeExpiredAccess.Enabled || config.Jobs.RevokeExpiredGrants.Enabled {
+		job := config.Jobs.RevokeExpiredAccess
 		job.Type = jobs.TypeRevokeExpiredGrants
 		jobsToRun = append(jobsToRun, &job)
 	}

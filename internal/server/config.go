@@ -22,6 +22,18 @@ type Auth struct {
 	OIDC     auth.OIDCAuth `mapstructure:"oidc"`
 }
 
+type Jobs struct {
+	FetchResources             jobs.Job `mapstructure:"fetch_resources"`
+	RevokeExpiredGrants        jobs.Job `mapstructure:"revoke_expired_grants"`
+	ExpiringGrantNotification  jobs.Job `mapstructure:"expiring_grant_notification"`
+	RevokeGrantsByUserCriteria jobs.Job `mapstructure:"revoke_grants_by_user_criteria"`
+
+	// Deprecated: use ExpiringGrantNotification instead
+	ExpiringAccessNotification jobs.Job `mapstructure:"expiring_access_notification"`
+	// Deprecated: use RevokeExpiredGrants instead
+	RevokeExpiredAccess jobs.Job `mapstructure:"revoke_expired_access"`
+}
+
 type Config struct {
 	Port                   int              `mapstructure:"port" default:"8080"`
 	EncryptionSecretKeyKey string           `mapstructure:"encryption_secret_key"`
@@ -29,11 +41,11 @@ type Config struct {
 	LogLevel               string           `mapstructure:"log_level" default:"info"`
 	DB                     store.Config     `mapstructure:"db"`
 	// Deprecated: use Auth.Default.HeaderKey instead note on the AuthenticatedUserHeaderKey
-	AuthenticatedUserHeaderKey string                 `mapstructure:"authenticated_user_header_key"`
-	AuditLogTraceIDHeaderKey   string                 `mapstructure:"audit_log_trace_id_header_key" default:"X-Trace-Id"`
-	Jobs                       map[jobs.Type]jobs.Job `mapstructure:"jobs"`
-	Telemetry                  tracing.Config         `mapstructure:"telemetry"`
-	Auth                       Auth                   `mapstructure:"auth"`
+	AuthenticatedUserHeaderKey string         `mapstructure:"authenticated_user_header_key"`
+	AuditLogTraceIDHeaderKey   string         `mapstructure:"audit_log_trace_id_header_key" default:"X-Trace-Id"`
+	Jobs                       Jobs           `mapstructure:"jobs"`
+	Telemetry                  tracing.Config `mapstructure:"telemetry"`
+	Auth                       Auth           `mapstructure:"auth"`
 }
 
 func LoadConfig(configFile string) (Config, error) {
