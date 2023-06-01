@@ -2877,19 +2877,20 @@ func newMockAppealService() mockService {
 	}
 	mock.initDummyData()
 
-	mock.service = appeal.NewService(appeal.ServiceDeps{
-		mock.mockRepository,
-		mock.mockApprovalService,
-		mock.mockResourceService,
-		mock.mockProviderService,
-		mock.mockPolicyService,
-		mock.mockGrantService,
-		mock.mockIAMManager,
-		mock.mockNotifier,
-		validator.New(),
-		log.NewNoop(),
-		mock.mockAuditLogger,
-	})
+	mock.service = appeal.NewService(
+		appeal.ServiceDeps{
+			Repository:      mock.mockRepository,
+			ApprovalService: mock.mockApprovalService,
+			ResourceService: mock.mockResourceService,
+			ProviderService: mock.mockProviderService,
+			PolicyService:   mock.mockPolicyService,
+			GrantService:    mock.mockGrantService,
+			IAMManager:      mock.mockIAMManager,
+			Notifier:        mock.mockNotifier,
+			Validator:       validator.New(),
+			Logger:          log.NewNoop(),
+			AuditLogger:     mock.mockAuditLogger,
+		})
 	mock.service.TimeNow = func() time.Time { return mock.now }
 	return mock
 }
