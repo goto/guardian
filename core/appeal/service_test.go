@@ -104,6 +104,7 @@ func (s *ServiceTestSuite) TestCreate() {
 	appeal.TimeNow = func() time.Time {
 		return timeNow
 	}
+
 	s.Run("should return error if got error from resource service", func() {
 		expectedError := errors.New("resource service error")
 		s.mockResourceService.On("Find", mock.Anything, mock.Anything).Return(nil, expectedError).Once()
@@ -2358,6 +2359,37 @@ func (s *ServiceTestSuite) TestCancel() {
 		actualResult, actualErr := s.service.Cancel(context.Background(), id)
 		s.Nil(actualResult)
 		s.EqualError(actualErr, expectedErr.Error())
+	})
+
+	s.Run("should return error if appeal is not found", func() {
+		id := uuid.New().String()
+		expectedErr := appeal.ErrAppealNotFound
+
+		s.mockRepository.EXPECT().GetByID(mock.AnythingOfType("*context.emptyCtx"), id).Return(nil, expectedErr).Once()
+
+		actualResult, actualErr := s.service.Cancel(context.Background(), id)
+		s.Nil(actualResult)
+		s.EqualError(actualErr, expectedErr.Error())
+	})
+
+	s.Run("should return cancelled appeal", func() {
+		id := uuid.New().String()
+		a := &domain.Appeal{
+			ID:     id,
+			Status: domain.AppealStatusPending,
+		}
+		expectedResult := &domain.Appeal{
+			ID:     id,
+			Status: domain.AppealStatusCanceled,
+		}
+		s.mockRepository.EXPECT().GetByID(mock.AnythingOfType("*context.emptyCtx"), id).Return(a, nil).Once()
+
+		s.mockRepository.EXPECT().Update(mock.AnythingOfType("*context.emptyCtx"), expectedResult).Return(nil).Once()
+		s.mockAuditLogger.EXPECT().Log(mock.Anything, appeal.AuditKeyCancel, map[string]interface{}{"appeal_id": id}).Return(nil).Once()
+
+		actualResult, actualErr := s.service.Cancel(context.Background(), id)
+		s.Nil(actualErr)
+		s.Equal(expectedResult, actualResult)
 	})
 
 }
