@@ -20,7 +20,7 @@ var ErrFailedRequest = errors.New("request failed")
 const UserIDWildcard = "{user_id}"
 
 type HTTPAuthConfig struct {
-	Type string `mapstructure:"type" json:"type" yaml:"type" validate:"required,oneof=basic api_key bearer oidc"`
+	Type string `mapstructure:"type" json:"type" yaml:"type" validate:"required,oneof=basic api_key bearer google_idtoken"`
 
 	// basic auth
 	Username string `mapstructure:"username,omitempty" json:"username,omitempty" yaml:"username,omitempty" validate:"required_if=Type basic"`
@@ -34,9 +34,10 @@ type HTTPAuthConfig struct {
 	// bearer
 	Token string `mapstructure:"token,omitempty" json:"token,omitempty" yaml:"token,omitempty" validate:"required_if=Type bearer"`
 
-	// oidc
-	Audience                        string `mapstructure:"audience,omitempty" json:"audience,omitempty" yaml:"audience,omitempty" validate:"required_if=Type oidc"`
-	GoogleServiceAccountCredentials string `mapstructure:"google_service_account_credentials,omitempty" json:"google_service_account_credentials,omitempty" yaml:"google_service_account_credentials,omitempty" validate:"required_if=Type oidc"`
+	// google_idtoken
+	Audience string `mapstructure:"audience,omitempty" json:"audience,omitempty" yaml:"audience,omitempty" validate:"required_if=Type google_idtoken"`
+	// TODO: allow base64 encoded credentials
+	CredentialsJSON string `mapstructure:"credentials_json,omitempty" json:"credentials_json,omitempty" yaml:"credentials_json,omitempty" validate:"required_if=Type google_idtoken"`
 }
 
 // HTTPClientConfig is the configuration required by iam.Client
@@ -80,12 +81,12 @@ func (c *HTTPClientConfig) Encrypt() error {
 			c.Auth.Token = encryptedValue
 		}
 
-		if c.Auth.GoogleServiceAccountCredentials != "" {
-			encryptedValue, err := c.crypto.Encrypt(c.Auth.GoogleServiceAccountCredentials)
+		if c.Auth.CredentialsJSON != "" {
+			encryptedValue, err := c.crypto.Encrypt(c.Auth.CredentialsJSON)
 			if err != nil {
 				return err
 			}
-			c.Auth.GoogleServiceAccountCredentials = encryptedValue
+			c.Auth.CredentialsJSON = encryptedValue
 		}
 	}
 
@@ -118,12 +119,12 @@ func (c *HTTPClientConfig) Decrypt() error {
 			c.Auth.Token = decryptedValue
 		}
 
-		if c.Auth.GoogleServiceAccountCredentials != "" {
-			decryptedValue, err := c.crypto.Decrypt(c.Auth.GoogleServiceAccountCredentials)
+		if c.Auth.CredentialsJSON != "" {
+			decryptedValue, err := c.crypto.Decrypt(c.Auth.CredentialsJSON)
 			if err != nil {
 				return err
 			}
-			c.Auth.GoogleServiceAccountCredentials = decryptedValue
+			c.Auth.CredentialsJSON = decryptedValue
 		}
 	}
 
@@ -149,9 +150,9 @@ func NewHTTPClient(config *HTTPClientConfig) (*HTTPClient, error) {
 		httpClient = http.DefaultClient
 	}
 
-	if config.Auth.Type == "oidc" {
+	if config.Auth.Type == "google_idtoken" {
 		ctx := context.Background()
-		ts, err := idtoken.NewTokenSource(ctx, config.Auth.Audience, idtoken.WithCredentialsJSON([]byte(config.Auth.GoogleServiceAccountCredentials)))
+		ts, err := idtoken.NewTokenSource(ctx, config.Auth.Audience, idtoken.WithCredentialsJSON([]byte(config.Auth.CredentialsJSON)))
 		if err != nil {
 			return nil, err
 		}
