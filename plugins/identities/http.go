@@ -1,6 +1,7 @@
 package identities
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -125,6 +126,11 @@ func NewHTTPClient(config *HTTPClientConfig) (*HTTPClient, error) {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	httpClient.Transport = tr
 
 	return &HTTPClient{
 		httpClient: httpClient,
