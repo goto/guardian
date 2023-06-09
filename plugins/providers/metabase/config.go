@@ -26,72 +26,24 @@ type Credentials struct {
 	Password string `json:"password" mapstructure:"password" validate:"required"`
 }
 
-func (c *Credentials) Encrypt(encryptor domain.Encryptor) error {
-	if c == nil {
-		return ErrUnableToEncryptNilCredentials
-	}
-
-	encryptedPassword, err := encryptor.Encrypt(c.Password)
-	if err != nil {
-		return err
-	}
-
-	c.Password = encryptedPassword
-	return nil
-}
-
-func (c *Credentials) Decrypt(decryptor domain.Decryptor) error {
-	if c == nil {
-		return ErrUnableToDecryptNilCredentials
-	}
-
-	decryptedPassword, err := decryptor.Decrypt(c.Password)
-	if err != nil {
-		return err
-	}
-
-	c.Password = decryptedPassword
-	return nil
-}
-
 type Permission string
 
 type Config struct {
 	ProviderConfig *domain.ProviderConfig
 	valid          bool
 
-	crypto    domain.Crypto
 	validator *validator.Validate
 }
 
-func NewConfig(pc *domain.ProviderConfig, crypto domain.Crypto) *Config {
+func NewConfig(pc *domain.ProviderConfig) *Config {
 	return &Config{
 		ProviderConfig: pc,
 		validator:      validator.New(),
-		crypto:         crypto,
 	}
 }
 
 func (c *Config) ParseAndValidate() error {
 	return c.parseAndValidate()
-}
-
-func (c *Config) EncryptCredentials() error {
-	if err := c.parseAndValidate(); err != nil {
-		return err
-	}
-
-	credentials, ok := c.ProviderConfig.Credentials.(*Credentials)
-	if !ok {
-		return ErrInvalidCredentials
-	}
-
-	if err := credentials.Encrypt(c.crypto); err != nil {
-		return err
-	}
-
-	c.ProviderConfig.Credentials = credentials
-	return nil
 }
 
 func (c *Config) parseAndValidate() error {

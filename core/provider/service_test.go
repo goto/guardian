@@ -29,16 +29,18 @@ type ServiceTestSuite struct {
 	mockResourceService    *providermocks.ResourceService
 	mockProvider           *providermocks.Client
 	mockAuditLogger        *providermocks.AuditLogger
+	mockEncryptor          *providermocks.Encryptor
 	service                *provider.Service
 }
 
-func (s *ServiceTestSuite) SetupTest() {
+func (s *ServiceTestSuite) SetupSubTest() {
 	logger := log.NewLogrus(log.LogrusWithLevel("info"))
 	validator := validator.New()
 	s.mockProviderRepository = new(providermocks.Repository)
 	s.mockResourceService = new(providermocks.ResourceService)
 	s.mockProvider = new(providermocks.Client)
 	s.mockAuditLogger = new(providermocks.AuditLogger)
+	s.mockEncryptor = new(providermocks.Encryptor)
 	s.mockProvider.On("GetType").Return(mockProviderType).Once()
 
 	s.service = provider.NewService(provider.ServiceDeps{
@@ -48,6 +50,7 @@ func (s *ServiceTestSuite) SetupTest() {
 		Validator:       validator,
 		Logger:          logger,
 		AuditLogger:     s.mockAuditLogger,
+		Encryptor:       s.mockEncryptor,
 	})
 }
 
@@ -110,9 +113,96 @@ func (s *ServiceTestSuite) TestCreate() {
 		})
 	})
 
+	s.Run("should decode base64 encoded value from any fields within credentials", func() {
+		decodedValue := "lorem ipsum"
+		encodedValue := "bG9yZW0gaXBzdW0="
+
+		input := &domain.Provider{
+			Type: mockProviderType,
+			Config: &domain.ProviderConfig{
+				Credentials: map[string]interface{}{
+					"key":        encodedValue,
+					"non-base64": "non-base64",
+					"non-string": 123,
+					"nil":        nil,
+					"slice1": []string{
+						"abc",
+						encodedValue,
+					},
+					"slice2": []interface{}{
+						"abc",
+						encodedValue,
+						123,
+						true,
+						nil,
+					},
+					"map-string": map[string]string{
+						"key": encodedValue,
+					},
+					"nested": map[string]interface{}{
+						"key":        encodedValue,
+						"non-base64": "non-base64",
+						"non-string": 123,
+						"nil":        nil,
+					},
+				},
+			},
+		}
+
+		want := &domain.Provider{
+			Type: mockProviderType,
+			Config: &domain.ProviderConfig{
+				AllowedAccountTypes: []string{"user"},
+				Credentials: map[string]interface{}{
+					"key":        decodedValue,
+					"non-base64": "non-base64",
+					"non-string": 123,
+					"nil":        nil,
+					"slice1": []string{
+						"abc",
+						decodedValue,
+					},
+					"slice2": []interface{}{
+						"abc",
+						decodedValue,
+						123,
+						true,
+						nil,
+					},
+					"map-string": map[string]string{
+						"key": decodedValue,
+					},
+					"nested": map[string]interface{}{
+						"key":        decodedValue,
+						"non-base64": "non-base64",
+						"non-string": 123,
+						"nil":        nil,
+					},
+				},
+			},
+		}
+
+		s.mockProvider.EXPECT().GetAccountTypes().Return([]string{"user"}).Once()
+		s.mockEncryptor.EXPECT().Encrypt(mock.Anything).Return("encrypted-creds", nil).Once()
+		s.mockProvider.EXPECT().CreateConfig(mock.AnythingOfType("*domain.ProviderConfig")).Return(nil).Once().Run(func(args mock.Arguments) {
+			actualConfig := args.Get(0).(*domain.ProviderConfig)
+			s.Empty(cmp.Diff(want.Config, actualConfig))
+		})
+		s.mockProviderRepository.EXPECT().Create(mock.AnythingOfType("*context.emptyCtx"), input).Return(nil).Once()
+		s.mockAuditLogger.EXPECT().Log(mock.Anything, provider.AuditKeyCreate, mock.Anything).Return(nil).Once()
+
+		s.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(nil, nil).Once()
+		s.mockEncryptor.EXPECT().Decrypt(mock.Anything).Return("{}", nil).Once()
+		s.mockProvider.EXPECT().GetResources(mock.Anything).Return(nil, nil).Once()
+		s.mockResourceService.EXPECT().BulkUpsert(mock.Anything, mock.Anything).Return(nil).Once()
+
+		s.service.Create(context.Background(), input)
+	})
+
 	s.Run("should return error if got error from the provider repository", func() {
 		expectedError := errors.New("error from repository")
 		s.mockProvider.On("GetAccountTypes").Return([]string{"user"}).Once()
+		s.mockEncryptor.EXPECT().Encrypt(mock.Anything).Return("encrypted-creds", nil).Once()
 		s.mockProvider.On("CreateConfig", mock.Anything).Return(nil).Once()
 		s.mockProviderRepository.EXPECT().Create(mock.AnythingOfType("*context.emptyCtx"), mock.Anything).Return(expectedError).Once()
 
@@ -123,6 +213,7 @@ func (s *ServiceTestSuite) TestCreate() {
 
 	s.Run("should pass the model from the param and trigger fetch resources on success", func() {
 		s.mockProvider.On("GetAccountTypes").Return([]string{"user"}).Once()
+		s.mockEncryptor.EXPECT().Encrypt(mock.Anything).Return("encrypted-creds", nil).Once()
 		s.mockProvider.On("CreateConfig", mock.Anything).Return(nil).Once()
 		s.mockProviderRepository.EXPECT().Create(mock.AnythingOfType("*context.emptyCtx"), p).Return(nil).Once()
 		s.mockAuditLogger.On("Log", mock.Anything, provider.AuditKeyCreate, mock.Anything).Return(nil).Once()
@@ -132,6 +223,7 @@ func (s *ServiceTestSuite) TestCreate() {
 			ProviderType: p.Type,
 			ProviderURN:  p.URN,
 		}).Return([]*domain.Resource{}, nil).Once()
+		s.mockEncryptor.EXPECT().Decrypt(mock.Anything).Return("{}", nil).Once()
 		s.mockProvider.On("GetResources", p.Config).Return(expectedResources, nil).Once()
 		s.mockResourceService.On("BulkUpsert", mock.Anything, expectedResources).Return(nil).Once()
 
@@ -235,7 +327,6 @@ func (s *ServiceTestSuite) TestUpdate() {
 	s.Run("should update record on success", func() {
 		testCases := []struct {
 			updatePayload       *domain.Provider
-			existingProvider    *domain.Provider
 			expectedNewProvider *domain.Provider
 		}{
 			{
@@ -253,6 +344,9 @@ func (s *ServiceTestSuite) TestUpdate() {
 						},
 						Type: mockProviderType,
 						URN:  "urn",
+						Credentials: map[string]interface{}{
+							"foo": "bar",
+						},
 					},
 				},
 				expectedNewProvider: &domain.Provider{
@@ -267,8 +361,9 @@ func (s *ServiceTestSuite) TestUpdate() {
 						Labels: map[string]string{
 							"foo": "bar",
 						},
-						Type: mockProviderType,
-						URN:  "urn",
+						Type:        mockProviderType,
+						URN:         "urn",
+						Credentials: "encrypted-creds",
 					},
 				},
 			},
@@ -276,6 +371,7 @@ func (s *ServiceTestSuite) TestUpdate() {
 
 		for _, tc := range testCases {
 			s.mockProvider.On("GetAccountTypes").Return([]string{"user"}).Once()
+			s.mockEncryptor.EXPECT().Encrypt(`{"foo":"bar"}`).Return("encrypted-creds", nil).Once()
 			s.mockProvider.On("CreateConfig", mock.Anything).Return(nil).Once()
 			s.mockProviderRepository.EXPECT().Update(mock.AnythingOfType("*context.emptyCtx"), tc.expectedNewProvider).Return(nil)
 			s.mockAuditLogger.On("Log", mock.Anything, provider.AuditKeyUpdate, mock.Anything).Return(nil).Once()
@@ -285,6 +381,7 @@ func (s *ServiceTestSuite) TestUpdate() {
 				ProviderType: tc.updatePayload.Type,
 				ProviderURN:  tc.updatePayload.URN,
 			}).Return([]*domain.Resource{}, nil).Once()
+			s.mockEncryptor.EXPECT().Decrypt("encrypted-creds").Return(`{"foo":"bar"}`, nil).Once()
 			s.mockProvider.On("GetResources", tc.updatePayload.Config).Return(expectedResources, nil).Once()
 			s.mockResourceService.On("BulkUpsert", mock.Anything, expectedResources).Return(nil).Once()
 
@@ -596,12 +693,15 @@ func (s *ServiceTestSuite) TestGrantAccess() {
 
 	s.Run("should grant access to the provider on success", func() {
 		provider := &domain.Provider{
-			Config: &domain.ProviderConfig{},
+			Config: &domain.ProviderConfig{
+				Credentials: "encrypted-credentials",
+			},
 		}
 		s.mockProviderRepository.
 			EXPECT().GetOne(mock.AnythingOfType("*context.emptyCtx"), validAppeal.Resource.ProviderType, validAppeal.Resource.ProviderURN).
 			Return(provider, nil).
 			Once()
+		s.mockEncryptor.EXPECT().Decrypt("encrypted-credentials").Return("{}", nil).Once()
 		s.mockProvider.
 			On("GrantAccess", provider.Config, validAppeal).
 			Return(nil).
@@ -690,12 +790,15 @@ func (s *ServiceTestSuite) TestRevokeAccess() {
 
 	s.Run("should grant access to the provider on success", func() {
 		provider := &domain.Provider{
-			Config: &domain.ProviderConfig{},
+			Config: &domain.ProviderConfig{
+				Credentials: "encrypted-credentials",
+			},
 		}
 		s.mockProviderRepository.
 			EXPECT().GetOne(mock.AnythingOfType("*context.emptyCtx"), validAppeal.Resource.ProviderType, validAppeal.Resource.ProviderURN).
 			Return(provider, nil).
 			Once()
+		s.mockEncryptor.EXPECT().Decrypt("encrypted-credentials").Return("{}", nil).Once()
 		s.mockProvider.
 			On("RevokeAccess", provider.Config, validAppeal).
 			Return(nil).

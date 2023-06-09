@@ -12,14 +12,12 @@ type provider struct {
 
 	typeName string
 	Clients  map[string]TableauClient
-	crypto   domain.Crypto
 }
 
-func NewProvider(typeName string, crypto domain.Crypto) *provider {
+func NewProvider(typeName string) *provider {
 	return &provider{
 		typeName: typeName,
 		Clients:  map[string]TableauClient{},
-		crypto:   crypto,
 	}
 }
 
@@ -28,13 +26,9 @@ func (p *provider) GetType() string {
 }
 
 func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
-	c := NewConfig(pc, p.crypto)
+	c := NewConfig(pc)
 
-	if err := c.ParseAndValidate(); err != nil {
-		return err
-	}
-
-	return c.EncryptCredentials()
+	return c.ParseAndValidate()
 }
 
 func (p *provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, error) {
@@ -351,11 +345,6 @@ func (p *provider) GetAccountTypes() []string {
 func (p *provider) getClient(providerURN string, credentials Credentials) (TableauClient, error) {
 	if p.Clients[providerURN] != nil {
 		return p.Clients[providerURN], nil
-	}
-
-	err := credentials.Decrypt(p.crypto)
-	if err != nil {
-		return nil, err
 	}
 
 	client, err := NewClient(&ClientConfig{

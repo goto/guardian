@@ -2,7 +2,6 @@ package dataplex_test
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"testing"
@@ -29,9 +28,8 @@ func TestGetType(t *testing.T) {
 
 func TestCreateConfig(t *testing.T) {
 	t.Run("should return error if error in credentials are invalid/mandatory fields are missing", func(t *testing.T) {
-		encryptor := new(mocks.Encryptor)
 		client := new(mocks.DataplexClient)
-		p := dataplex.NewProvider("", encryptor)
+		p := dataplex.NewProvider("")
 		p.Clients = map[string]dataplex.PolicyTagClient{
 			"resource-name": client,
 		}
@@ -76,9 +74,8 @@ func TestCreateConfig(t *testing.T) {
 	})
 
 	t.Run("should return error if error in parse and validate configurations", func(t *testing.T) {
-		encryptor := new(mocks.Encryptor)
 		client := new(mocks.DataplexClient)
-		p := dataplex.NewProvider("", encryptor)
+		p := dataplex.NewProvider("")
 		p.Clients = map[string]dataplex.PolicyTagClient{
 			"test-resource-name": client,
 		}
@@ -91,7 +88,7 @@ func TestCreateConfig(t *testing.T) {
 				name: "resource type invalid",
 				pc: &domain.ProviderConfig{
 					Credentials: dataplex.Credentials{
-						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
+						ServiceAccountKey: `{"type":"service_account"}`,
 						ResourceName:      "projects/project-name/location/us",
 					},
 					Resources: []*domain.ResourceConfig{
@@ -111,7 +108,7 @@ func TestCreateConfig(t *testing.T) {
 				name: "wrong permissions for tag type",
 				pc: &domain.ProviderConfig{
 					Credentials: dataplex.Credentials{
-						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
+						ServiceAccountKey: `{"type":"service_account"}`,
 						ResourceName:      "projects/project-name/location/us",
 					},
 					Resources: []*domain.ResourceConfig{
@@ -128,7 +125,6 @@ func TestCreateConfig(t *testing.T) {
 				},
 			},
 		}
-		encryptor.On("Encrypt", `{"type":"service_account"}`).Return(`{"type":"service_account"}`, nil)
 
 		for _, tc := range testcases {
 			t.Run(tc.name, func(t *testing.T) {
@@ -140,9 +136,8 @@ func TestCreateConfig(t *testing.T) {
 
 	t.Run("should return error if error in parsing or validaing permissions", func(t *testing.T) {
 		providerURN := "test-URN"
-		encryptor := new(mocks.Encryptor)
 		client := new(mocks.DataplexClient)
-		p := dataplex.NewProvider("", encryptor)
+		p := dataplex.NewProvider("")
 		p.Clients = map[string]dataplex.PolicyTagClient{
 			"test-resource-name": client,
 		}
@@ -160,7 +155,7 @@ func TestCreateConfig(t *testing.T) {
 				},
 			},
 			Credentials: dataplex.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)), // private_key
+				ServiceAccountKey: `{"type":"service_account"}`, // private_key
 				ResourceName:      "projects/project-name/location/us",
 			},
 			URN: providerURN,
@@ -171,39 +166,10 @@ func TestCreateConfig(t *testing.T) {
 		assert.Error(t, actualError)
 	})
 
-	t.Run("should return error if error in encrypting the credentials", func(t *testing.T) {
-		providerURN := "test-URN"
-		encryptor := new(mocks.Encryptor)
-		client := new(mocks.DataplexClient)
-		p := dataplex.NewProvider("", encryptor)
-		p.Clients = map[string]dataplex.PolicyTagClient{
-			"test-resource-name": client,
-		}
-		pc := &domain.ProviderConfig{
-			Resources: []*domain.ResourceConfig{
-				{
-					Type:  dataplex.ResourceTypeTag,
-					Roles: []*domain.Role{},
-				},
-			},
-			Credentials: dataplex.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
-				ResourceName:      "projects/project-name/location/us",
-			},
-			URN: providerURN,
-		}
-		expectedError := errors.New("error in encrypting SAK")
-		encryptor.On("Encrypt", `{"type":"service_account"}`).Return("", expectedError)
-		actualError := p.CreateConfig(pc)
-
-		assert.Equal(t, expectedError, actualError)
-	})
-
 	t.Run("should return nil error and create the config on success", func(t *testing.T) {
 		providerURN := "test-URN"
-		encryptor := new(mocks.Encryptor)
 		client := new(mocks.DataplexClient)
-		p := dataplex.NewProvider("", encryptor)
+		p := dataplex.NewProvider("")
 		p.Clients = map[string]dataplex.PolicyTagClient{
 			"test-resource-name": client,
 		}
@@ -221,24 +187,21 @@ func TestCreateConfig(t *testing.T) {
 				},
 			},
 			Credentials: dataplex.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)), // private_key
+				ServiceAccountKey: `{"type":"service_account"}`, // private_key
 				ResourceName:      "projects/project-name/location/us",
 			},
 			URN: providerURN,
 		}
-		encryptor.On("Encrypt", `{"type":"service_account"}`).Return(`{"type":"service_account"}`, nil)
 
 		actualError := p.CreateConfig(pc)
 
 		assert.NoError(t, actualError)
-		encryptor.AssertExpectations(t)
 	})
 }
 
 func TestGetResources(t *testing.T) {
 	t.Run("should error when credentials are invalid", func(t *testing.T) {
-		encryptor := new(mocks.Encryptor)
-		p := dataplex.NewProvider("", encryptor)
+		p := dataplex.NewProvider("")
 		pc := &domain.ProviderConfig{
 			Type:        domain.ProviderTypePolicyTag,
 			URN:         "test-project-id",
@@ -253,9 +216,8 @@ func TestGetResources(t *testing.T) {
 
 	t.Run("should return policy resource object", func(t *testing.T) {
 		providerUrn := "policy-tag-urn"
-		encryptor := new(mocks.Encryptor)
 		client := new(mocks.DataplexClient)
-		p := dataplex.NewProvider("", encryptor)
+		p := dataplex.NewProvider("")
 		p.Clients = map[string]dataplex.PolicyTagClient{
 			"project-name": client,
 		}
@@ -410,14 +372,13 @@ func TestGrantAccess(t *testing.T) {
 		expectedError := errors.New("Test-Error")
 		expectedAccountType := "user"
 		expectedAccountID := "test@email.com"
-		encryptor := new(mocks.Encryptor)
 		client := new(mocks.DataplexClient)
-		p := dataplex.NewProvider("dataplex", encryptor)
+		p := dataplex.NewProvider("dataplex")
 		p.Clients = map[string]dataplex.PolicyTagClient{
 			"resource-name": client,
 		}
 		validCredentials := dataplex.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name/locations/us",
 		}
 		policy := &dataplex.Policy{}
@@ -463,14 +424,13 @@ func TestGrantAccess(t *testing.T) {
 		providerURN := "test-URN"
 		expectedAccountType := "user"
 		expectedAccountID := "test@email.com"
-		encryptor := new(mocks.Encryptor)
 		client := new(mocks.DataplexClient)
-		p := dataplex.NewProvider("dataplex", encryptor)
+		p := dataplex.NewProvider("dataplex")
 		p.Clients = map[string]dataplex.PolicyTagClient{
 			"resource-name": client,
 		}
 		validCredentials := dataplex.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name/locations/us",
 		}
 		policy := &dataplex.Policy{
@@ -620,15 +580,14 @@ func TestRevokeAccess(t *testing.T) {
 		expectedError := errors.New("Test-Error")
 		expectedAccountType := "user"
 		expectedAccountID := "test@email.com"
-		encryptor := new(mocks.Encryptor)
 		client := new(mocks.DataplexClient)
-		p := dataplex.NewProvider("dataplex", encryptor)
+		p := dataplex.NewProvider("dataplex")
 		p.Clients = map[string]dataplex.PolicyTagClient{
 			"resource-name": client,
 		}
 
 		validCredentials := dataplex.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name/locations/us",
 		}
 		policy := &dataplex.Policy{}
@@ -674,14 +633,13 @@ func TestRevokeAccess(t *testing.T) {
 	t.Run("should Revoke access to policy resource and return no error on success", func(t *testing.T) {
 		expectedAccountType := "user"
 		expectedAccountID := "test@email.com"
-		encryptor := new(mocks.Encryptor)
 		client := new(mocks.DataplexClient)
-		p := dataplex.NewProvider("dataplex", encryptor)
+		p := dataplex.NewProvider("dataplex")
 		p.Clients = map[string]dataplex.PolicyTagClient{
 			"resource-name": client,
 		}
 		validCredentials := dataplex.Credentials{
-			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+			ServiceAccountKey: "service-account-key-json",
 			ResourceName:      "projects/resource-name/locations/us",
 		}
 		policy := &dataplex.Policy{}
@@ -800,7 +758,6 @@ type DataplexProviderTestSuite struct {
 
 	mockDataplexClient *mocks.DataplexClient
 	//mockCloudLoggingClient *mocks.CloudLoggingClientI
-	mockEncryptor  *mocks.Encryptor
 	dummyProjectID string
 	provider       *dataplex.Provider
 
@@ -813,8 +770,7 @@ func TestDataplexProvider(t *testing.T) {
 
 func (s *DataplexProviderTestSuite) SetupTest() {
 	s.mockDataplexClient = new(mocks.DataplexClient)
-	s.mockEncryptor = new(mocks.Encryptor)
-	s.provider = dataplex.NewProvider(domain.ProviderTypePolicyTag, s.mockEncryptor)
+	s.provider = dataplex.NewProvider(domain.ProviderTypePolicyTag)
 	s.dummyProjectID = "test-project-id"
 	s.provider.Clients[s.dummyProjectID] = s.mockDataplexClient
 
@@ -847,29 +803,23 @@ func (s *DataplexProviderTestSuite) SetupTest() {
 			},
 		},
 	}
-
-	s.mockEncryptor.On("Decrypt", "12345").Return(`{"type":"service_account"}`, nil) // tests the newIamClient when p.Clients is not initialised in the provider config
 }
 
 func (s *DataplexProviderTestSuite) TestListAccess() {
 	s.Run("return error if initializing client fails", func() {
-		s.mockEncryptor.EXPECT().Decrypt("invalid-key").Return("", errors.New("invalid-key")).Once()
-
 		ctx := context.Background()
 		_, err := s.provider.ListAccess(ctx, domain.ProviderConfig{
 			Type: "dataplex",
 			URN:  "new-urn",
 			Credentials: map[string]interface{}{
-				"service_account_key": "invalid-key",
-				"resource_name":       "projects/project-name/locations/u",
+				"service_account_key": make(chan int),
 			},
 		}, []*domain.Resource{})
 
-		s.EqualError(err, "initializing dataplex client: unable to decrypt credentials")
+		s.ErrorContains(err, "parsing credentials: 1 error(s) decoding:\n\n* 'service_account_key' expected type 'string', got unconvertible type 'chan int'")
 	})
 }
 
 func initProvider() *dataplex.Provider {
-	crypto := new(mocks.Encryptor)
-	return dataplex.NewProvider(domain.ProviderTypePolicyTag, crypto)
+	return dataplex.NewProvider(domain.ProviderTypePolicyTag)
 }

@@ -21,30 +21,23 @@ type GCSClient interface {
 	ListAccess(context.Context, []*domain.Resource) (domain.MapResourceAccess, error)
 }
 
-//go:generate mockery --name=Crypto --exported --with-expecter
-type Crypto interface {
-	domain.Crypto
-}
-
 type Provider struct {
 	provider.UnimplementedClient
 	provider.PermissionManager
 
 	typeName string
 	Clients  map[string]GCSClient
-	crypto   Crypto
 }
 
-func NewProvider(typeName string, crypto Crypto) *Provider {
+func NewProvider(typeName string) *Provider {
 	return &Provider{
 		typeName: typeName,
 		Clients:  map[string]GCSClient{},
-		crypto:   crypto,
 	}
 }
 
 func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
-	c := NewConfig(pc, p.crypto)
+	c := NewConfig(pc)
 
 	if err := c.parseAndValidate(); err != nil {
 		return err
@@ -53,10 +46,6 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 	credentials, ok := c.ProviderConfig.Credentials.(*Credentials)
 	if !ok {
 		return ErrInvalidCredentialsType
-	}
-
-	if err := credentials.Encrypt(c.crypto); err != nil {
-		return fmt.Errorf("encrypting creds: %w", err)
 	}
 
 	c.ProviderConfig.Credentials = credentials
@@ -205,10 +194,6 @@ func (p *Provider) getGCSClient(pc domain.ProviderConfig) (GCSClient, error) {
 	var creds Credentials
 	if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
 		return nil, fmt.Errorf("decoding credentials: %w", err)
-	}
-
-	if err := creds.Decrypt(p.crypto); err != nil {
-		return nil, fmt.Errorf("decrypting credentials: %w", err)
 	}
 
 	projectID := strings.Replace(creds.ResourceName, "projects/", "", 1)

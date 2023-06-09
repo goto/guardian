@@ -1,7 +1,6 @@
 package gcs
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -40,50 +39,20 @@ var (
 type Config struct {
 	ProviderConfig *domain.ProviderConfig
 
-	crypto    domain.Crypto
 	validator *validator.Validate
 }
 
 type Credentials struct {
-	ServiceAccountKey string `json:"service_account_key" mapstructure:"service_account_key" validate:"required,base64"`
+	ServiceAccountKey string `json:"service_account_key" mapstructure:"service_account_key" validate:"required"`
 	ResourceName      string `json:"resource_name" mapstructure:"resource_name" validate:"required"`
-}
-
-func (c *Credentials) Decrypt(decryptor domain.Decryptor) error {
-	if c == nil {
-		return ErrUnableToDecryptNilCredentials
-	}
-
-	decryptedServiceAccount, err := decryptor.Decrypt(c.ServiceAccountKey)
-	if err != nil {
-		return err
-	}
-
-	c.ServiceAccountKey = decryptedServiceAccount
-	return nil
-}
-
-func (c *Credentials) Encrypt(encryptor domain.Encryptor) error {
-	if c == nil {
-		return ErrUnableToEncryptNilCredentials
-	}
-
-	encryptedServiceAccount, err := encryptor.Encrypt(c.ServiceAccountKey)
-	if err != nil {
-		return err
-	}
-
-	c.ServiceAccountKey = encryptedServiceAccount
-	return nil
 }
 
 type Permission string
 
-func NewConfig(pc *domain.ProviderConfig, crypto domain.Crypto) *Config {
+func NewConfig(pc *domain.ProviderConfig) *Config {
 	return &Config{
 		ProviderConfig: pc,
 		validator:      validator.New(),
-		crypto:         crypto,
 	}
 }
 
@@ -123,13 +92,6 @@ func (c *Config) validateCredentials(value interface{}) (*Credentials, error) {
 	if err := c.validator.Struct(credentials); err != nil {
 		return nil, err
 	}
-
-	saKeyJson, err := base64.StdEncoding.DecodeString(credentials.ServiceAccountKey)
-	if err != nil {
-		return nil, err
-	}
-
-	credentials.ServiceAccountKey = string(saKeyJson)
 
 	return &credentials, nil
 }

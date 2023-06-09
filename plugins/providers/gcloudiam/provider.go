@@ -19,25 +19,18 @@ type GcloudIamClient interface {
 	ListAccess(ctx context.Context, resources []*domain.Resource) (domain.MapResourceAccess, error)
 }
 
-//go:generate mockery --name=encryptor --exported --with-expecter
-type encryptor interface {
-	domain.Crypto
-}
-
 type Provider struct {
 	provider.PermissionManager
 	provider.UnimplementedClient
 
 	typeName string
 	Clients  map[string]GcloudIamClient
-	crypto   encryptor
 }
 
-func NewProvider(typeName string, crypto encryptor) *Provider {
+func NewProvider(typeName string) *Provider {
 	return &Provider{
 		typeName: typeName,
 		Clients:  map[string]GcloudIamClient{},
-		crypto:   crypto,
 	}
 }
 
@@ -46,7 +39,7 @@ func (p *Provider) GetType() string {
 }
 
 func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
-	c := NewConfig(pc, p.crypto)
+	c := NewConfig(pc)
 
 	if err := c.ParseAndValidate(); err != nil {
 		return err
@@ -63,7 +56,7 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 		}
 	}
 
-	return c.EncryptCredentials()
+	return nil
 }
 
 func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, error) {
@@ -192,7 +185,6 @@ func (p *Provider) getIamClient(pc *domain.ProviderConfig) (GcloudIamClient, err
 		return p.Clients[providerURN], nil
 	}
 
-	credentials.Decrypt(p.crypto)
 	client, err := newIamClient([]byte(credentials.ServiceAccountKey), credentials.ResourceName)
 	if err != nil {
 		return nil, err

@@ -103,14 +103,14 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 	grantRepository := postgres.NewGrantRepository(store.DB())
 
 	providerClients := []provider.Client{
-		bigquery.NewProvider(domain.ProviderTypeBigQuery, deps.Crypto, deps.Logger),
-		metabase.NewProvider(domain.ProviderTypeMetabase, deps.Crypto, deps.Logger),
-		grafana.NewProvider(domain.ProviderTypeGrafana, deps.Crypto),
-		tableau.NewProvider(domain.ProviderTypeTableau, deps.Crypto),
-		gcloudiam.NewProvider(domain.ProviderTypeGCloudIAM, deps.Crypto),
+		bigquery.NewProvider(domain.ProviderTypeBigQuery, deps.Logger),
+		metabase.NewProvider(domain.ProviderTypeMetabase, deps.Logger),
+		grafana.NewProvider(domain.ProviderTypeGrafana),
+		tableau.NewProvider(domain.ProviderTypeTableau),
+		gcloudiam.NewProvider(domain.ProviderTypeGCloudIAM),
 		noop.NewProvider(domain.ProviderTypeNoOp, deps.Logger),
-		gcs.NewProvider(domain.ProviderTypeGCS, deps.Crypto),
-		dataplex.NewProvider(domain.ProviderTypePolicyTag, deps.Crypto),
+		gcs.NewProvider(domain.ProviderTypeGCS),
+		dataplex.NewProvider(domain.ProviderTypePolicyTag),
 		shield.NewProvider(domain.ProviderTypeShield, deps.Logger),
 	}
 
@@ -126,6 +126,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		ResourceService: resourceService,
 		Clients:         providerClients,
 		Validator:       deps.Validator,
+		Encryptor:       deps.Crypto,
 		Logger:          deps.Logger,
 		AuditLogger:     auditLogger,
 	})

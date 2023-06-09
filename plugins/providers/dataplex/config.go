@@ -1,7 +1,6 @@
 package dataplex
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -19,38 +18,8 @@ const (
 
 // Credentials is the authentication configuration used by the policy_tag client
 type Credentials struct {
-	ServiceAccountKey string `mapstructure:"service_account_key" json:"service_account_key" validate:"required,base64"`
+	ServiceAccountKey string `mapstructure:"service_account_key" json:"service_account_key" validate:"required"`
 	ResourceName      string `mapstructure:"resource_name" json:"resource_name" validate:"startswith=projects/"`
-}
-
-// Encrypt encrypts GCP credentials
-func (c *Credentials) Encrypt(encryptor domain.Encryptor) error {
-	if c == nil {
-		return ErrUnableToEncryptNilCredentials
-	}
-
-	encryptedCredentials, err := encryptor.Encrypt(c.ServiceAccountKey)
-	if err != nil {
-		return err
-	}
-
-	c.ServiceAccountKey = encryptedCredentials
-	return nil
-}
-
-// Decrypt decrypts GCP credentials
-func (c *Credentials) Decrypt(decryptor domain.Decryptor) error {
-	if c == nil {
-		return ErrUnableToDecryptNilCredentials
-	}
-
-	decryptedCredentials, err := decryptor.Decrypt(c.ServiceAccountKey)
-	if err != nil {
-		return err
-	}
-
-	c.ServiceAccountKey = decryptedCredentials
-	return nil
 }
 
 // Permission is for mapping role into policy tag fine-grained-reader permissions
@@ -61,36 +30,15 @@ type Config struct {
 	ProviderConfig *domain.ProviderConfig
 	valid          bool
 
-	crypto    domain.Crypto
 	validator *validator.Validate
 }
 
 // NewConfig returns policy_tag config struct
-func NewConfig(pc *domain.ProviderConfig, crypto domain.Crypto) *Config {
+func NewConfig(pc *domain.ProviderConfig) *Config {
 	return &Config{
 		ProviderConfig: pc,
 		validator:      validator.New(),
-		crypto:         crypto,
 	}
-}
-
-// EncryptCredentials encrypts the policy_tag credentials config
-func (c *Config) EncryptCredentials() error {
-	if err := c.parseAndValidate(); err != nil {
-		return err
-	}
-
-	credentials, ok := c.ProviderConfig.Credentials.(*Credentials)
-	if !ok {
-		return ErrInvalidCredentialsType
-	}
-
-	if err := credentials.Encrypt(c.crypto); err != nil {
-		return err
-	}
-
-	c.ProviderConfig.Credentials = credentials
-	return nil
 }
 
 // ParseAndValidate validates policy_tag config within provider config and make the interface{} config value castable into the expected policy_tag config value
@@ -145,13 +93,6 @@ func (c *Config) validateCredentials(value interface{}) (*Credentials, error) {
 	if err := c.validator.Struct(credentials); err != nil {
 		return nil, err
 	}
-
-	saKeyJson, err := base64.StdEncoding.DecodeString(credentials.ServiceAccountKey)
-	if err != nil {
-		return nil, err
-	}
-
-	credentials.ServiceAccountKey = string(saKeyJson)
 
 	return &credentials, nil
 }

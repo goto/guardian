@@ -2,8 +2,6 @@ package gcs_test
 
 import (
 	"context"
-	"encoding/base64"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -17,8 +15,7 @@ import (
 func TestGetType(t *testing.T) {
 	t.Run("should return the typeName of the provider", func(t *testing.T) {
 		expectedTypeName := "test-typeName"
-		crypto := new(mocks.Crypto)
-		p := gcs.NewProvider(expectedTypeName, crypto)
+		p := gcs.NewProvider(expectedTypeName)
 
 		actualTypeName := p.GetType()
 
@@ -28,9 +25,8 @@ func TestGetType(t *testing.T) {
 
 func TestCreateConfig(t *testing.T) {
 	t.Run("should return error if error in parse and validate configurations", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
 		client := new(mocks.GCSClient)
-		p := gcs.NewProvider("", crypto)
+		p := gcs.NewProvider("")
 		p.Clients = map[string]gcs.GCSClient{
 			"test-resource-name": client,
 		}
@@ -43,7 +39,7 @@ func TestCreateConfig(t *testing.T) {
 				name: "invalid resource type",
 				pc: &domain.ProviderConfig{
 					Credentials: gcs.Credentials{
-						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
+						ServiceAccountKey: `{"type":"service_account"}`,
 						ResourceName:      "projects/test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
@@ -63,7 +59,7 @@ func TestCreateConfig(t *testing.T) {
 				name: "invalid permissions for bucket resource type",
 				pc: &domain.ProviderConfig{
 					Credentials: gcs.Credentials{
-						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
+						ServiceAccountKey: `{"type":"service_account"}`,
 						ResourceName:      "projects/test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
@@ -80,7 +76,6 @@ func TestCreateConfig(t *testing.T) {
 				},
 			},
 		}
-		crypto.On("Encrypt", `{"type":"service_account"}`).Return(`{"type":"service_account"}`, nil)
 
 		for _, tc := range testcases {
 			t.Run(tc.name, func(t *testing.T) {
@@ -90,43 +85,14 @@ func TestCreateConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("should return error if error in encrypting the credentials", func(t *testing.T) {
-		providerURN := "test-URN"
-		crypto := new(mocks.Crypto)
-		client := new(mocks.GCSClient)
-		p := gcs.NewProvider("", crypto)
-		p.Clients = map[string]gcs.GCSClient{
-			"test-resource-name": client,
-		}
-		pc := &domain.ProviderConfig{
-			Resources: []*domain.ResourceConfig{
-				{
-					Type:  gcs.ResourceTypeBucket,
-					Roles: []*domain.Role{},
-				},
-			},
-			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
-				ResourceName:      "projects/test-resource-name",
-			},
-			URN: providerURN,
-		}
-		expectedError := errors.New("error in encrypting SAK")
-		crypto.On("Encrypt", `{"type":"service_account"}`).Return("", expectedError)
-		actualError := p.CreateConfig(pc)
-
-		assert.ErrorIs(t, actualError, expectedError)
-	})
-
 	t.Run("should make the provider config, parse and validate the credentials and permissions and return nil error on success", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		p := gcs.NewProvider("gcs", crypto)
+		p := gcs.NewProvider("gcs")
 		providerURN := "test-resource-name"
 		pc := &domain.ProviderConfig{
 			Type: domain.ProviderTypeGCS,
 			URN:  providerURN,
 			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account"}`)),
+				ServiceAccountKey: `{"type":"service_account"}`,
 				ResourceName:      "projects/test-resource-name",
 			},
 			Resources: []*domain.ResourceConfig{
@@ -143,11 +109,9 @@ func TestCreateConfig(t *testing.T) {
 				},
 			},
 		}
-		crypto.On("Encrypt", `{"type":"service_account"}`).Return("encrypted Service Account Key", nil)
 
 		actualError := p.CreateConfig(pc)
 		assert.NoError(t, actualError)
-		crypto.AssertExpectations(t)
 	})
 }
 
@@ -175,61 +139,19 @@ func TestGetResources(t *testing.T) {
 		assert.Error(t, actualError)
 	})
 
-	t.Run("should return error if error in decrypting the service account key", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
-		client := new(mocks.GCSClient)
-		p := gcs.NewProvider("gcs", crypto)
-		p.Clients = map[string]gcs.GCSClient{
-			"test-resource-name": client,
-		}
-		providerURN := "test-resource-name"
-		expectedError := errors.New("Error in decrypting service account key")
-		crypto.On("Decrypt", "c2VydmljZV9hY2NvdW50LWtleS1qc29u").Return(`{"type":"service_account"}`, expectedError)
-
-		pc := &domain.ProviderConfig{
-			Type: domain.ProviderTypeGCS,
-			URN:  providerURN,
-			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service_account-key-json")),
-				ResourceName:      "projects/test-resource-name",
-			},
-			Resources: []*domain.ResourceConfig{
-				{
-					Type: gcs.ResourceTypeBucket,
-					Roles: []*domain.Role{
-						{
-							ID:          "Storage Legacy Bucket Writer",
-							Name:        "Storage Legacy Bucket Writer",
-							Description: "Read access to buckets with object listing/creation/deletion",
-							Permissions: []interface{}{"roles/storage.legacyBucketWriter"},
-						},
-					},
-				},
-			},
-		}
-
-		actualResources, actualError := p.GetResources(pc)
-
-		assert.Nil(t, actualResources)
-		assert.Error(t, actualError)
-		crypto.AssertExpectations(t)
-	})
-
 	t.Run("should get the bucket resources defined in the provider config", func(t *testing.T) {
-		crypto := new(mocks.Crypto)
 		client := new(mocks.GCSClient)
-		p := gcs.NewProvider("gcs", crypto)
+		p := gcs.NewProvider("gcs")
 		p.Clients = map[string]gcs.GCSClient{
 			"test-resource-name": client,
 		}
 		providerURN := "test-resource-name"
-		crypto.On("Decrypt", "c2VydmljZV9hY2NvdW50LWtleS1qc29u").Return(`{"type":"service_account"}`, nil)
 
 		pc := &domain.ProviderConfig{
 			Type: domain.ProviderTypeGCS,
 			URN:  providerURN,
 			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service_account-key-json")),
+				ServiceAccountKey: "service_account-key-json",
 				ResourceName:      "projects/test-resource-name",
 			},
 			Resources: []*domain.ResourceConfig{
@@ -371,75 +293,17 @@ func TestGrantAccess(t *testing.T) {
 		assert.Error(t, actualError)
 	})
 
-	t.Run("should return error if error in decrypting the service account key", func(t *testing.T) {
-		expectedAccountType := "user"
-		expectedAccountID := "test@email.com"
-		crypto := new(mocks.Crypto)
-		client := new(mocks.GCSClient)
-		p := gcs.NewProvider("gcs", crypto)
-		p.Clients = map[string]gcs.GCSClient{
-			"test-resource-name": client,
-		}
-		providerURN := "test-resource-name"
-		expectedError := errors.New("Error in decrypting service account key")
-		crypto.On("Decrypt", "c2VydmljZV9hY2NvdW50LWtleS1qc29u").Return(`{"type":"service_account"}`, expectedError)
-
-		pc := &domain.ProviderConfig{
-			Type: domain.ProviderTypeGCS,
-			URN:  providerURN,
-			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service_account-key-json")),
-				ResourceName:      "projects/test-resource-name",
-			},
-			Resources: []*domain.ResourceConfig{
-				{
-					Type: gcs.ResourceTypeBucket,
-					Roles: []*domain.Role{
-						{
-							ID:          "Storage Legacy Bucket Writer",
-							Name:        "Storage Legacy Bucket Writer",
-							Description: "Read access to buckets with object listing/creation/deletion",
-							Permissions: []interface{}{"roles/storage.legacyBucketWriter"},
-						},
-					},
-				},
-			},
-		}
-		g := domain.Grant{
-			Role: "Storage Legacy Bucket Writer",
-			Resource: &domain.Resource{
-				URN:          "test-bucket-name",
-				Name:         "test-bucket-name",
-				ProviderType: "gcs",
-				ProviderURN:  "test-resource-name",
-				Type:         "bucket",
-			},
-			ID:          "999",
-			ResourceID:  "999",
-			AccountType: expectedAccountType,
-			AccountID:   expectedAccountID,
-			Permissions: []string{"Storage Legacy Bucket Writer"},
-		}
-
-		actualError := p.GrantAccess(pc, g)
-
-		assert.Error(t, actualError)
-	})
-
 	t.Run("should return error if error in getting the gcs client", func(t *testing.T) {
 		expectedAccountType := "user"
 		expectedAccountID := "test@email.com"
-		crypto := new(mocks.Crypto)
-		p := gcs.NewProvider("gcs", crypto)
+		p := gcs.NewProvider("gcs")
 		providerURN := "test-resource-name"
-
-		crypto.On("Decrypt", "c2VydmljZV9hY2NvdW50LWtleS1qc29u").Return(`{"type":"service_account"}`, nil)
 
 		pc := &domain.ProviderConfig{
 			Type: domain.ProviderTypeGCS,
 			URN:  providerURN,
 			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service_account-key-json")),
+				ServiceAccountKey: "service_account-key-json",
 				ResourceName:      "projects/test-resource-name",
 			},
 			Resources: []*domain.ResourceConfig{
@@ -481,21 +345,19 @@ func TestGrantAccess(t *testing.T) {
 		expectedAccountType := "user"
 		expectedAccountID := "test@email.com"
 
-		crypto := new(mocks.Crypto)
 		client := new(mocks.GCSClient)
-		p := gcs.NewProvider("gcs", crypto)
+		p := gcs.NewProvider("gcs")
 		p.Clients = map[string]gcs.GCSClient{
 			"test-resource-name": client,
 		}
 		providerURN := "test-resource-name"
 
-		crypto.On("Decrypt", "c2VydmljZV9hY2NvdW50LWtleS1qc29u").Return(`{"type":"service_account"}`, nil)
 		client.On("GrantBucketAccess", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		pc := &domain.ProviderConfig{
 			Type: domain.ProviderTypeGCS,
 			URN:  providerURN,
 			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service_account-key-json")),
+				ServiceAccountKey: "service_account-key-json",
 				ResourceName:      "projects/test-resource-name",
 			},
 			Resources: []*domain.ResourceConfig{
@@ -637,75 +499,17 @@ func TestRevokeAccess(t *testing.T) {
 		assert.Error(t, actualError)
 	})
 
-	t.Run("should return error if error in decrypting the service account key", func(t *testing.T) {
-		expectedAccountType := "user"
-		expectedAccountID := "test@email.com"
-		crypto := new(mocks.Crypto)
-		client := new(mocks.GCSClient)
-		p := gcs.NewProvider("gcs", crypto)
-		p.Clients = map[string]gcs.GCSClient{
-			"test-resource-name": client,
-		}
-		providerURN := "test-resource-name"
-		expectedError := errors.New("Error in decrypting service account key")
-		crypto.On("Decrypt", "c2VydmljZV9hY2NvdW50LWtleS1qc29u").Return(`{"type":"service_account"}`, expectedError)
-
-		pc := &domain.ProviderConfig{
-			Type: domain.ProviderTypeGCS,
-			URN:  providerURN,
-			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service_account-key-json")),
-				ResourceName:      "projects/test-resource-name",
-			},
-			Resources: []*domain.ResourceConfig{
-				{
-					Type: gcs.ResourceTypeBucket,
-					Roles: []*domain.Role{
-						{
-							ID:          "Storage Legacy Bucket Writer",
-							Name:        "Storage Legacy Bucket Writer",
-							Description: "Read access to buckets with object listing/creation/deletion",
-							Permissions: []interface{}{"roles/storage.legacyBucketWriter"},
-						},
-					},
-				},
-			},
-		}
-		a := domain.Grant{
-			Role: "Storage Legacy Bucket Writer",
-			Resource: &domain.Resource{
-				URN:          "test-bucket-name",
-				Name:         "test-bucket-name",
-				ProviderType: "gcs",
-				ProviderURN:  "test-resource-name",
-				Type:         "bucket",
-			},
-			ID:          "999",
-			ResourceID:  "999",
-			AccountType: expectedAccountType,
-			AccountID:   expectedAccountID,
-			Permissions: []string{"Storage Legacy Bucket Writer"},
-		}
-
-		actualError := p.RevokeAccess(pc, a)
-
-		assert.Error(t, actualError)
-	})
-
 	t.Run("should return error if error in getting the gcs client", func(t *testing.T) {
 		expectedAccountType := "user"
 		expectedAccountID := "test@email.com"
-		crypto := new(mocks.Crypto)
-		p := gcs.NewProvider("gcs", crypto)
+		p := gcs.NewProvider("gcs")
 		providerURN := "test-resource-name"
-
-		crypto.On("Decrypt", "c2VydmljZV9hY2NvdW50LWtleS1qc29u").Return(`{"type":"service_account"}`, nil)
 
 		pc := &domain.ProviderConfig{
 			Type: domain.ProviderTypeGCS,
 			URN:  providerURN,
 			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service_account-key-json")),
+				ServiceAccountKey: "service_account-key-json",
 				ResourceName:      "projects/test-resource-name",
 			},
 			Resources: []*domain.ResourceConfig{
@@ -747,21 +551,19 @@ func TestRevokeAccess(t *testing.T) {
 		expectedAccountType := "user"
 		expectedAccountID := "test@email.com"
 
-		crypto := new(mocks.Crypto)
 		client := new(mocks.GCSClient)
-		p := gcs.NewProvider("gcs", crypto)
+		p := gcs.NewProvider("gcs")
 		p.Clients = map[string]gcs.GCSClient{
 			"test-resource-name": client,
 		}
 		providerURN := "test-resource-name"
 
-		crypto.On("Decrypt", "c2VydmljZV9hY2NvdW50LWtleS1qc29u").Return(`{"type":"service_account"}`, nil)
 		client.On("RevokeBucketAccess", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		pc := &domain.ProviderConfig{
 			Type: domain.ProviderTypeGCS,
 			URN:  providerURN,
 			Credentials: gcs.Credentials{
-				ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service_account-key-json")),
+				ServiceAccountKey: "service_account-key-json",
 				ResourceName:      "projects/test-resource-name",
 			},
 			Resources: []*domain.ResourceConfig{
@@ -830,21 +632,18 @@ func TestGetAccountType(t *testing.T) {
 }
 
 func TestListAccess(t *testing.T) {
-	crypto := new(mocks.Crypto)
 	client := new(mocks.GCSClient)
-	p := gcs.NewProvider("gcs", crypto)
+	p := gcs.NewProvider("gcs")
 	providerURN := "test-resource-name"
 	p.Clients = map[string]gcs.GCSClient{
 		providerURN: client,
 	}
 
-	saKey := "service_account-key-json"
-	encryptedSAKey := "encrypted-service_account-key-json"
 	dummyProviderConfig := &domain.ProviderConfig{
 		Type: domain.ProviderTypeGCS,
 		URN:  providerURN,
 		Credentials: gcs.Credentials{
-			ServiceAccountKey: encryptedSAKey,
+			ServiceAccountKey: "service_account-key-json",
 			ResourceName:      "projects/test-resource-name",
 		},
 		Resources: []*domain.ResourceConfig{
@@ -862,7 +661,6 @@ func TestListAccess(t *testing.T) {
 		},
 	}
 
-	crypto.EXPECT().Decrypt(encryptedSAKey).Return(saKey, nil).Once()
 	dummyResources := []*domain.Resource{}
 	expectedResourcesAccess := domain.MapResourceAccess{}
 	client.EXPECT().
@@ -873,11 +671,9 @@ func TestListAccess(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, expectedResourcesAccess, actualResourcesAccess)
-	crypto.AssertExpectations(t)
 	client.AssertExpectations(t)
 }
 
 func initProvider() *gcs.Provider {
-	crypto := new(mocks.Crypto)
-	return gcs.NewProvider("gcs", crypto)
+	return gcs.NewProvider("gcs")
 }
