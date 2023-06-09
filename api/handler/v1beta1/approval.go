@@ -18,7 +18,10 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 	}
 
 	approvals, err := s.listApprovals(ctx, &domain.ListApprovalsFilter{
+		Q:              req.GetQ(),
 		AccountID:      req.GetAccountId(),
+		AccountTypes:   req.GetAccountTypes(),
+		ResourceTypes:  req.GetResourceTypes(),
 		CreatedBy:      user,
 		Statuses:       req.GetStatuses(),
 		OrderBy:        req.GetOrderBy(),
@@ -37,7 +40,10 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 
 func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.ListApprovalsRequest) (*guardianv1beta1.ListApprovalsResponse, error) {
 	approvals, err := s.listApprovals(ctx, &domain.ListApprovalsFilter{
+		Q:              req.GetQ(),
 		AccountID:      req.GetAccountId(),
+		AccountTypes:   req.GetAccountTypes(),
+		ResourceTypes:  req.GetResourceTypes(),
 		CreatedBy:      req.GetCreatedBy(),
 		Statuses:       req.GetStatuses(),
 		OrderBy:        req.GetOrderBy(),

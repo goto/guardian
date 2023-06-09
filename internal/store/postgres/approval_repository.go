@@ -37,9 +37,9 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, conditions *doma
 	records := []*domain.Approval{}
 
 	db := r.db.WithContext(ctx)
-	db = db.Preload("Appeal.Resource")
-	db = db.Joins("Appeal")
-	db = db.Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
+	db = db.Joins("Appeal").
+		Joins("Appeal.Resource").
+		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
 
 	if conditions.CreatedBy != "" {
 		db = db.Where(`"approvers"."email" = ?`, conditions.CreatedBy)
@@ -47,8 +47,21 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, conditions *doma
 	if conditions.Statuses != nil {
 		db = db.Where(`"approvals"."status" IN ?`, conditions.Statuses)
 	}
+	if conditions.Q != "" {
+		db = db.Where(db.
+			Or(`"Appeal"."account_id" LIKE ?`, fmt.Sprintf("%%%s%%", conditions.Q)).
+			Or(`"Appeal"."role" LIKE ?`, fmt.Sprintf("%%%s%%", conditions.Q)).
+			Or(`"Appeal__Resource"."urn" LIKE ?`, fmt.Sprintf("%%%s%%", conditions.Q)),
+		)
+	}
 	if conditions.AccountID != "" {
 		db = db.Where(`"Appeal"."account_id" = ?`, conditions.AccountID)
+	}
+	if conditions.AccountTypes != nil {
+		db = db.Where(`"Appeal"."account_type" IN ?`, conditions.AccountTypes)
+	}
+	if conditions.ResourceTypes != nil {
+		db = db.Where(`"Appeal__Resource"."type" IN ?`, conditions.ResourceTypes)
 	}
 
 	if len(conditions.AppealStatuses) == 0 {
