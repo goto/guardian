@@ -2680,6 +2680,10 @@
             "type": "object",
             "$ref": "#/definitions/v1beta1Approval"
           }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
@@ -2764,6 +2768,10 @@
             "type": "object",
             "$ref": "#/definitions/v1beta1Approval"
           }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
