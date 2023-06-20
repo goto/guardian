@@ -141,18 +141,18 @@ func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) *gorm.DB {
 		Joins("Appeal.Resource").
 		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
 
+	if filter.Q != "" {
+		db = db.Where(db.
+			Where(`"Appeal"."account_id" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
+			Or(`"Appeal"."role" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
+			Or(`"Appeal__Resource"."urn" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)),
+		)
+	}
 	if filter.CreatedBy != "" {
 		db = db.Where(`"approvers"."email" = ?`, filter.CreatedBy)
 	}
 	if filter.Statuses != nil {
 		db = db.Where(`"approvals"."status" IN ?`, filter.Statuses)
-	}
-	if filter.Q != "" {
-		db = db.Where(db.
-			Or(`"Appeal"."account_id" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
-			Or(`"Appeal"."role" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
-			Or(`"Appeal__Resource"."urn" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)),
-		)
 	}
 	if filter.AccountID != "" {
 		db = db.Where(`"Appeal"."account_id" = ?`, filter.AccountID)
