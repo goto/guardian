@@ -142,6 +142,8 @@ func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) *gorm.DB {
 		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
 
 	if filter.Q != "" {
+		// NOTE: avoid adding conditions before this grouped where clause.
+		// Otherwise, it will be wrapped in parentheses and the query will be invalid.
 		db = db.Where(db.
 			Where(`"Appeal"."account_id" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
 			Or(`"Appeal"."role" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
