@@ -55,7 +55,7 @@ type BigQueryClient interface {
 //go:generate mockery --name=cloudLoggingClientI --exported --with-expecter
 type cloudLoggingClientI interface {
 	Close() error
-	ListLogEntries(context.Context, ImportActivitiesFilter) ([]*Activity, error)
+	ListLogEntries(context.Context, string, int) ([]*Activity, error)
 }
 
 //go:generate mockery --name=encryptor --exported --with-expecter
@@ -302,10 +302,11 @@ func (p *Provider) GetActivities(ctx context.Context, pd domain.Provider, filter
 		return nil, fmt.Errorf("initializing cloud logging client: %w", err)
 	}
 
-	entries, err := logClient.ListLogEntries(ctx, ImportActivitiesFilter{
+	activityFilter := importActivitiesFilter{
 		ImportActivitiesFilter: filter,
 		Types:                  BigQueryAuditMetadataMethods,
-	})
+	}
+	entries, err := logClient.ListLogEntries(ctx, activityFilter.String(), 0)
 	if err != nil {
 		return nil, fmt.Errorf("listing log entries: %w", err)
 	}

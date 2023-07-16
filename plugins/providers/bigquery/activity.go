@@ -158,16 +158,14 @@ func (r bqResource) fullURN() string {
 	return s
 }
 
-type ImportActivitiesFilter struct {
+type importActivitiesFilter struct {
 	domain.ImportActivitiesFilter
 	Types          []string
 	Authorizations []string
 	Limit          int
 }
 
-type bqFilter ImportActivitiesFilter
-
-func (f bqFilter) String() string {
+func (f importActivitiesFilter) String() string {
 	criteria := []string{
 		`protoPayload.serviceName="bigquery.googleapis.com"`,
 		`resource.type="bigquery_dataset"`, // exclude logs for bigquery jobs ("bigquery_project")
@@ -204,16 +202,16 @@ func (f bqFilter) String() string {
 	return strings.Join(criteria, " AND ")
 }
 
-func (c *cloudLoggingClient) ListLogEntries(ctx context.Context, filter ImportActivitiesFilter) ([]*Activity, error) {
+func (c *cloudLoggingClient) ListLogEntries(ctx context.Context, filter string, limit int) ([]*Activity, error) {
 	var entries []*Activity
 
-	options := []logadmin.EntriesOption{logadmin.Filter(bqFilter(filter).String())}
-	if filter.Limit > 0 {
+	options := []logadmin.EntriesOption{logadmin.Filter(filter)}
+	if limit > 0 {
 		options = append(options, logadmin.NewestFirst())
 	}
 	it := c.client.Entries(ctx, options...)
 	for {
-		if filter.Limit > 0 && len(entries) >= filter.Limit {
+		if limit > 0 && len(entries) >= limit {
 			break
 		}
 
@@ -228,7 +226,6 @@ func (c *cloudLoggingClient) ListLogEntries(ctx context.Context, filter ImportAc
 			entries = append(entries, &Activity{e})
 		}
 	}
-
 	return entries, nil
 }
 

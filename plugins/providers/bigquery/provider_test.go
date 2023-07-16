@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -1084,10 +1085,13 @@ func (s *BigQueryProviderTestSuite) TestGetActivities_Success() {
 				},
 			},
 		}
+		expectedListLogEntriesFilter := strings.Join([]string{
+			`protoPayload.serviceName="bigquery.googleapis.com"`,
+			`resource.type="bigquery_dataset"`,
+			fmt.Sprintf(`protoPayload.methodName=("%s")`, strings.Join(bigquery.BigQueryAuditMetadataMethods, `" OR "`)),
+		}, ` AND `)
 		s.mockCloudLoggingClient.EXPECT().
-			ListLogEntries(mock.AnythingOfType("*context.emptyCtx"), bigquery.ImportActivitiesFilter{
-				Types: bigquery.BigQueryAuditMetadataMethods,
-			}).Return(expectedBigQueryActivities, nil).Once()
+			ListLogEntries(mock.AnythingOfType("*context.emptyCtx"), expectedListLogEntriesFilter, 0).Return(expectedBigQueryActivities, nil).Once()
 		s.mockBigQueryClient.EXPECT().
 			GetRolePermissions(mock.AnythingOfType("*context.emptyCtx"), "roles/bigquery.dataViewer").Return([]string{"bigquery.datasets.get"}, nil).Once()
 		s.mockBigQueryClient.EXPECT().
@@ -1176,7 +1180,7 @@ func (s *BigQueryProviderTestSuite) TestGetActivities_Success() {
 	s.Run("should return error if there is an error on listing log entries", func() {
 		expectedError := errors.New("error")
 		s.mockCloudLoggingClient.EXPECT().
-			ListLogEntries(mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("bigquery.ImportActivitiesFilter")).Return(nil, expectedError).Once()
+			ListLogEntries(mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("string"), 0).Return(nil, expectedError).Once()
 
 		_, err := s.provider.GetActivities(context.Background(), *s.validProvider, domain.ImportActivitiesFilter{})
 
