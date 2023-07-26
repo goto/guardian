@@ -31,6 +31,8 @@ type providerService interface {
 	GetByID(context.Context, string) (*domain.Provider, error)
 	RevokeAccess(context.Context, domain.Grant) error
 	ListAccess(context.Context, domain.Provider, []*domain.Resource) (domain.MapResourceAccess, error)
+	ListActivities(context.Context, domain.Provider, domain.ListActivitiesFilter) ([]*domain.Activity, error)
+	CorrelateGrantActivities(context.Context, domain.Provider, []*domain.Grant, []*domain.Activity) error
 }
 
 //go:generate mockery --name=resourceService --exported --with-expecter
@@ -480,6 +482,76 @@ func (s *Service) ImportFromProvider(ctx context.Context, criteria ImportFromPro
 	return newAndUpdatedGrants, nil
 }
 
+func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyCheckCriteria) error {
+	provider, err := s.providerService.GetByID(ctx, criteria.ProviderID)
+	if err != nil {
+		return fmt.Errorf("getting provider details: %w", err)
+	}
+
+	s.logger.Info(fmt.Sprintf("getting active grants for provider %q", provider.URN))
+	grants, err := s.List(ctx, domain.ListGrantsFilter{
+		Statuses:                  []string{string(domain.GrantStatusActive)}, // TODO: evaluate later to use status_in_provider
+		ExpirationDateGreaterThan: time.Now().Add(criteria.RetainDuration),
+		ProviderTypes:             []string{provider.Type},
+		ProviderURNs:              []string{provider.URN},
+	})
+	if err != nil {
+		return fmt.Errorf("listing active grants: %w", err)
+	}
+	grantIDs := getGrantIDs(grants)
+	s.logger.Info(fmt.Sprintf("found %d active grants for provider %q", len(grants), provider.URN), "grant_ids", grantIDs)
+
+	var uniqueAccountIDs []string
+	uniqueAccountIDsMap := map[string]bool{}
+	for _, g := range grants {
+		if _, ok := uniqueAccountIDsMap[g.AccountID]; !ok {
+			uniqueAccountIDs = append(uniqueAccountIDs, g.AccountID)
+			uniqueAccountIDsMap[g.AccountID] = true
+		}
+	}
+
+	activities, err := s.providerService.ListActivities(ctx, *provider, domain.ListActivitiesFilter{
+		AccountIDs:   uniqueAccountIDs,
+		TimestampGte: &criteria.TimestampeGte,
+		TimestampLte: &criteria.TimestampeLte, // TODO: set default value = now
+	})
+	if err != nil {
+		return fmt.Errorf("listing activities: %w", err)
+	}
+
+	grantsPointer := make([]*domain.Grant, len(grants))
+	for i, g := range grants {
+		grantsPointer[i] = &g
+	}
+	if err := s.providerService.CorrelateGrantActivities(ctx, *provider, grantsPointer, activities); err != nil {
+		return fmt.Errorf("correlating grant activities: %w", err)
+	}
+
+	var dormantGrants []*domain.Grant
+	var dormantGrantsIDs []string
+	for _, g := range grantsPointer {
+		if len(g.Activities) == 0 {
+			g.ExpirationDateReason = fmt.Sprintf("%s: %s", domain.GrantExpirationReasonDormant, criteria.RetainDuration)
+			newExpDate := time.Now().Add(criteria.RetainDuration)
+			g.ExpirationDate = &newExpDate
+
+			dormantGrants = append(dormantGrants, g)
+			dormantGrantsIDs = append(dormantGrantsIDs, g.ID)
+		}
+	}
+	s.logger.Info(fmt.Sprintf("found %d dormant grants for provider %q", len(dormantGrants), provider.URN), "grant_ids", dormantGrantsIDs)
+
+	if criteria.DryRun {
+		s.logger.Info("dry run mode, skipping updating grants expiration date")
+		return nil
+	}
+
+	if err := s.repo.BulkUpsert(ctx, dormantGrants); err != nil {
+		return fmt.Errorf("updating grants expiration date: %w", err)
+	}
+	return nil
+}
+
 func getAccountSignature(accountType, accountID string) string {
 	return fmt.Sprintf("%s:%s", accountType, accountID)
 }
@@ -532,4 +604,20 @@ func reduceGrantsByProviderRole(rc domain.ResourceConfig, grants []*domain.Grant
 	}
 
 	return
+}
+
+func getGrantIDs(grants []domain.Grant) []string {
+	var ids []string
+	for _, g := range grants {
+		ids = append(ids, g.ID)
+	}
+	return ids
+}
+
+func getGrantIDsP(grants []*domain.Grant) []string {
+	var ids []string
+	for _, g := range grants {
+		ids = append(ids, g.ID)
+	}
+	return ids
 }

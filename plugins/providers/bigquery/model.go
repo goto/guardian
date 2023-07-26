@@ -7,6 +7,7 @@ import (
 	bq "cloud.google.com/go/bigquery"
 	"github.com/goto/guardian/core/resource"
 	"github.com/goto/guardian/domain"
+	"github.com/mitchellh/mapstructure"
 )
 
 const (
@@ -14,7 +15,30 @@ const (
 	ResourceTypeDataset = "dataset"
 	// ResourceTypeTable is the resource type name for BigQuery table
 	ResourceTypeTable = "table"
+
+	resourceTypeUnknown = "unknown"
 )
+
+// ResourceURN is Guardian representation of BigQuery resource's relative resource name
+// Example:
+// - Dataset: "project-id:dataset_name"
+// - Table: "project-id:dataset_name.table_name"
+type ResourceURN string
+
+// Type returns "dataset", "table", or "unknown"
+func (urn ResourceURN) Type() string {
+	u := strings.Replace(string(urn), ":", " ", 1)
+	u = strings.Replace(u, ".", " ", 1)
+	u = strings.TrimSpace(u)
+	items := strings.Split(u, " ")
+
+	if len(items) == 2 {
+		return ResourceTypeDataset
+	} else if len(items) == 3 {
+		return ResourceTypeTable
+	}
+	return resourceTypeUnknown
+}
 
 // Dataset is a reference to a BigQuery dataset
 type Dataset struct {
@@ -145,4 +169,32 @@ func (r BigQueryResourceName) BigQueryResourceID() string {
 		urn = fmt.Sprintf("%s.%s", urn, tableID)
 	}
 	return urn
+}
+
+type cloudLoggingOptions struct {
+	LogBucket string `json:"log_bucket" yaml:"log_bucket" mapstructure:"log_bucket"`
+}
+
+type activityConfig struct {
+	*domain.ActivityConfig
+}
+
+func (c activityConfig) Validate() error {
+	// TODO:
+	return nil
+}
+
+func (c activityConfig) GetCloudLoggingOptions() (*cloudLoggingOptions, error) {
+	if c.ActivityConfig == nil || (c.ActivityConfig.Source == "cloud_logging" && c.ActivityConfig.Options == nil) {
+		return &cloudLoggingOptions{}, nil
+	}
+	if c.ActivityConfig.Source != "cloud_logging" {
+		return nil, fmt.Errorf("invalid source: %q", c.ActivityConfig.Source)
+	}
+
+	result := &cloudLoggingOptions{}
+	if err := mapstructure.Decode(c.ActivityConfig.Options, result); err != nil {
+		return nil, fmt.Errorf("decoding options: %w", err)
+	}
+	return result, nil
 }

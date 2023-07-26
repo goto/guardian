@@ -3,13 +3,13 @@ package bigquery_test
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"cloud.google.com/go/logging"
 	"github.com/google/go-cmp/cmp"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
@@ -19,7 +19,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"google.golang.org/genproto/googleapis/api/monitoredres"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/api/logging/v2"
 	"google.golang.org/genproto/googleapis/cloud/audit"
 )
 
@@ -1058,24 +1059,30 @@ func (s *BigQueryProviderTestSuite) TestGetActivities_Success() {
 	s.Run("should map bigquery logging entries to guardian activities", func() {
 		now := time.Now()
 
+		auditLog := &audit.AuditLog{
+			ResourceName: "projects/test-project-id/datasets/test-dataset-id",
+			ServiceName:  "bigquery.googleapis.com",
+			AuthenticationInfo: &audit.AuthenticationInfo{
+				PrincipalEmail: "user@example.com",
+			},
+			AuthorizationInfo: []*audit.AuthorizationInfo{
+				{
+					Permission: "bigquery.datasets.get",
+				},
+			},
+		}
+		auditLogBytes, err := json.Marshal(auditLog)
+		if err != nil {
+			s.Require().NoError(err)
+		}
+
 		expectedBigQueryActivities := []*bigquery.Activity{
 			{
-				&logging.Entry{
-					Timestamp: now,
-					InsertID:  "test-activity-id",
-					Payload: &audit.AuditLog{
-						ResourceName: "projects/test-project-id/datasets/test-dataset-id",
-						ServiceName:  "bigquery.googleapis.com",
-						AuthenticationInfo: &audit.AuthenticationInfo{
-							PrincipalEmail: "user@example.com",
-						},
-						AuthorizationInfo: []*audit.AuthorizationInfo{
-							{
-								Permission: "bigquery.datasets.get",
-							},
-						},
-					},
-					Resource: &monitoredres.MonitoredResource{
+				&logging.LogEntry{
+					Timestamp:    now.Format(time.RFC3339Nano),
+					InsertId:     "test-activity-id",
+					ProtoPayload: googleapi.RawMessage(auditLogBytes),
+					Resource: &logging.MonitoredResource{
 						Type: "bigquery_dataset",
 						Labels: map[string]string{
 							"dataset_id": "test-dataset-id",
@@ -1137,7 +1144,7 @@ func (s *BigQueryProviderTestSuite) TestGetActivities_Success() {
 							},
 							"type": "bigquery_dataset",
 						},
-						"severity":        float64(0),
+						"severity":        "",
 						"source_location": nil,
 						"span_id":         "",
 						"timestamp":       now.Format(time.RFC3339Nano),
@@ -1148,7 +1155,7 @@ func (s *BigQueryProviderTestSuite) TestGetActivities_Success() {
 			},
 		}
 
-		actualActivities, err := s.provider.GetActivities(context.Background(), *s.validProvider, domain.ImportActivitiesFilter{})
+		actualActivities, err := s.provider.GetActivities(context.Background(), *s.validProvider, domain.ListActivitiesFilter{})
 
 		s.mockCloudLoggingClient.AssertExpectations(s.T())
 		s.mockBigQueryClient.AssertExpectations(s.T())
@@ -1171,7 +1178,7 @@ func (s *BigQueryProviderTestSuite) TestGetActivities_Success() {
 				},
 			},
 		}
-		_, err := s.provider.GetActivities(context.Background(), *invalidProvider, domain.ImportActivitiesFilter{})
+		_, err := s.provider.GetActivities(context.Background(), *invalidProvider, domain.ListActivitiesFilter{})
 
 		s.mockEncryptor.AssertExpectations(s.T())
 		s.ErrorIs(err, expectedError)
@@ -1182,7 +1189,7 @@ func (s *BigQueryProviderTestSuite) TestGetActivities_Success() {
 		s.mockCloudLoggingClient.EXPECT().
 			ListLogEntries(mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("string"), 0).Return(nil, expectedError).Once()
 
-		_, err := s.provider.GetActivities(context.Background(), *s.validProvider, domain.ImportActivitiesFilter{})
+		_, err := s.provider.GetActivities(context.Background(), *s.validProvider, domain.ListActivitiesFilter{})
 
 		s.mockCloudLoggingClient.AssertExpectations(s.T())
 		s.ErrorIs(err, expectedError)

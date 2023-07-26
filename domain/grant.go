@@ -8,17 +8,16 @@ import (
 )
 
 type GrantStatus string
+type GrantSource string
 
 const (
 	GrantStatusActive   GrantStatus = "active"
 	GrantStatusInactive GrantStatus = "inactive"
-)
 
-type GrantSource string
-
-const (
 	GrantSourceAppeal GrantSource = "appeal"
 	GrantSourceImport GrantSource = "import"
+
+	GrantExpirationReasonDormant = "grant/access hasn't been use for a while"
 )
 
 type Grant struct {
@@ -44,8 +43,9 @@ type Grant struct {
 	CreatedAt               time.Time   `json:"created_at" yaml:"created_at"`
 	UpdatedAt               time.Time   `json:"updated_at" yaml:"updated_at"`
 
-	Resource *Resource `json:"resource,omitempty" yaml:"resource,omitempty"`
-	Appeal   *Appeal   `json:"appeal,omitempty" yaml:"appeal,omitempty"`
+	Resource   *Resource   `json:"resource,omitempty" yaml:"resource,omitempty"`
+	Appeal     *Appeal     `json:"appeal,omitempty" yaml:"appeal,omitempty"`
+	Activities []*Activity `json:"activities,omitempty" yaml:"activities,omitempty"`
 }
 
 func (g Grant) PermissionsKey() string {
@@ -139,3 +139,11 @@ func (ae AccessEntry) ToGrant(resource Resource) Grant {
 
 // MapResourceAccess is list of UserAccess grouped by resource urn
 type MapResourceAccess map[string][]AccessEntry
+
+type DormancyCheckCriteria struct {
+	ProviderID     string
+	TimestampeGte  time.Time
+	TimestampeLte  time.Time // optional, default is time.Now()
+	RetainDuration time.Duration
+	DryRun         bool
+}
