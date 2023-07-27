@@ -490,13 +490,16 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 
 	s.logger.Info(fmt.Sprintf("getting active grants for provider %q", provider.URN))
 	grants, err := s.List(ctx, domain.ListGrantsFilter{
-		Statuses:                  []string{string(domain.GrantStatusActive)}, // TODO: evaluate later to use status_in_provider
-		ExpirationDateGreaterThan: time.Now().Add(criteria.RetainDuration),
-		ProviderTypes:             []string{provider.Type},
-		ProviderURNs:              []string{provider.URN},
+		Statuses:      []string{string(domain.GrantStatusActive)}, // TODO: evaluate later to use status_in_provider
+		ProviderTypes: []string{provider.Type},
+		ProviderURNs:  []string{provider.URN},
 	})
 	if err != nil {
 		return fmt.Errorf("listing active grants: %w", err)
+	}
+	if len(grants) == 0 {
+		s.logger.Info(fmt.Sprintf("no active grants found for provider %q", provider.URN))
+		return nil
 	}
 	grantIDs := getGrantIDs(grants)
 	s.logger.Info(fmt.Sprintf("found %d active grants for provider %q", len(grants), provider.URN), "grant_ids", grantIDs)
@@ -521,6 +524,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 
 	grantsPointer := make([]*domain.Grant, len(grants))
 	for i, g := range grants {
+		g := g
 		grantsPointer[i] = &g
 	}
 	if err := s.providerService.CorrelateGrantActivities(ctx, *provider, grantsPointer, activities); err != nil {

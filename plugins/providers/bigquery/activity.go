@@ -140,7 +140,8 @@ func NewCloudLoggingClient(ctx context.Context, projectID string, credentialsJSO
 	}
 
 	return &cloudLoggingClient{
-		client: service,
+		client:    service,
+		projectID: projectID,
 	}, nil
 }
 
@@ -180,7 +181,7 @@ func (c *cloudLoggingClient) ListLogEntries(ctx context.Context, filter string, 
 	errLimitReached := errors.New("limit reached")
 	if err := c.client.Entries.List(req).Pages(ctx, func(page *logging.ListLogEntriesResponse) error {
 		for _, e := range page.Entries {
-			if len(entries) >= limit {
+			if limit != 0 && len(entries) >= limit {
 				return errLimitReached
 			}
 			entries = append(entries, &Activity{e})

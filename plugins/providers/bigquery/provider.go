@@ -402,7 +402,7 @@ func (p *Provider) ListActivities(ctx context.Context, pd domain.Provider, filte
 	if err != nil {
 		return nil, fmt.Errorf("getting log bucket: %w", err)
 	}
-	retentionDuration, err := time.ParseDuration(fmt.Sprintf("%dd", logBucket.RetentionDays))
+	retentionDuration, err := time.ParseDuration(fmt.Sprintf("%dh", 24*logBucket.RetentionDays))
 	if err != nil {
 		return nil, fmt.Errorf("invalid bucket's retention period: %q: %w", logBucket.RetentionDays, err)
 	}
@@ -420,16 +420,20 @@ func (p *Provider) ListActivities(ctx context.Context, pd domain.Provider, filte
 		`logName:"` + decryptedCreds.ResourceName + `/logs/cloudaudit.googleapis.com%2F"`, // `logName:"projects/{{project_id}}/logs/cloudaudit.googleapis.com%2F"`
 		`protoPayload.authorizationInfo.granted=true`,
 		`protoPayload.authorizationInfo.permission!=null`,
-		`protoPayload.authenticationInfo.principalEmail="` + strings.Join(filter.AccountIDs, `" OR "`) + `"`,
+	}
+	if len(filter.AccountIDs) > 0 {
+		filters = append(filters,
+			`protoPayload.authenticationInfo.principalEmail=("`+strings.Join(filter.AccountIDs, `" OR "`)+`")`,
+		)
 	}
 	if filter.TimestampGte != nil && !filter.TimestampGte.IsZero() {
-		filters = append(filters, `timestamp>=`+filter.TimestampGte.Format(time.RFC3339))
+		filters = append(filters, `timestamp>="`+filter.TimestampGte.Format(time.RFC3339)+`"`)
 	}
 	if filter.TimestampLte != nil && !filter.TimestampLte.IsZero() {
-		filters = append(filters, `timestamp<=`+filter.TimestampLte.Format(time.RFC3339))
+		filters = append(filters, `timestamp<="`+filter.TimestampLte.Format(time.RFC3339)+`"`)
 	}
 
-	entries, err := logClient.ListLogEntries(ctx, strings.Join(filters, " AND "), 1)
+	entries, err := logClient.ListLogEntries(ctx, strings.Join(filters, " AND "), 0)
 	if err != nil {
 		return nil, fmt.Errorf("listing log entries: %w", err)
 	}
