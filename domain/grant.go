@@ -103,6 +103,7 @@ type ListGrantsFilter struct {
 	ExpirationDateLessThan    time.Time
 	ExpirationDateGreaterThan time.Time
 	IsPermanent               *bool
+	CreatedAtLte              time.Time
 }
 
 type RevokeGrantsFilter struct {
@@ -142,8 +143,24 @@ type MapResourceAccess map[string][]AccessEntry
 
 type DormancyCheckCriteria struct {
 	ProviderID     string
-	TimestampeGte  time.Time
-	TimestampeLte  time.Time // optional, default is time.Now()
+	Period         time.Duration
 	RetainDuration time.Duration
 	DryRun         bool
+}
+
+func (c DormancyCheckCriteria) Validate() error {
+	if c.ProviderID == "" {
+		return errors.New("provider id is required")
+	}
+	if c.Period == 0 {
+		return errors.New("period is required")
+	} else if c.Period < 0 {
+		return errors.New("period must be positive")
+	}
+	if c.RetainDuration == 0 {
+		return errors.New("retain duration is required")
+	} else if c.RetainDuration < 0 {
+		return errors.New("retain duration must be positive")
+	}
+	return nil
 }

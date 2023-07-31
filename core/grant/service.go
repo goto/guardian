@@ -483,6 +483,11 @@ func (s *Service) ImportFromProvider(ctx context.Context, criteria ImportFromPro
 }
 
 func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyCheckCriteria) error {
+	if err := criteria.Validate(); err != nil {
+		return fmt.Errorf("invalid criteria: %w", err)
+	}
+	startDate := time.Now().Add(-criteria.Period)
+
 	provider, err := s.providerService.GetByID(ctx, criteria.ProviderID)
 	if err != nil {
 		return fmt.Errorf("getting provider details: %w", err)
@@ -493,6 +498,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 		Statuses:      []string{string(domain.GrantStatusActive)}, // TODO: evaluate later to use status_in_provider
 		ProviderTypes: []string{provider.Type},
 		ProviderURNs:  []string{provider.URN},
+		CreatedAtLte:  startDate,
 	})
 	if err != nil {
 		return fmt.Errorf("listing active grants: %w", err)
@@ -513,10 +519,10 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 		}
 	}
 
+	s.logger.Info(fmt.Sprintf("getting activities for provider %q", provider.URN))
 	activities, err := s.providerService.ListActivities(ctx, *provider, domain.ListActivitiesFilter{
 		AccountIDs:   uniqueAccountIDs,
-		TimestampGte: &criteria.TimestampeGte,
-		TimestampLte: &criteria.TimestampeLte, // TODO: set default value = now
+		TimestampGte: &startDate,
 	})
 	if err != nil {
 		return fmt.Errorf("listing activities: %w", err)
@@ -531,6 +537,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 		return fmt.Errorf("correlating grant activities: %w", err)
 	}
 
+	s.logger.Info("checking grants dormancy...")
 	var dormantGrants []*domain.Grant
 	var dormantGrantsIDs []string
 	for _, g := range grantsPointer {
@@ -611,14 +618,6 @@ func reduceGrantsByProviderRole(rc domain.ResourceConfig, grants []*domain.Grant
 }
 
 func getGrantIDs(grants []domain.Grant) []string {
-	var ids []string
-	for _, g := range grants {
-		ids = append(ids, g.ID)
-	}
-	return ids
-}
-
-func getGrantIDsP(grants []*domain.Grant) []string {
 	var ids []string
 	for _, g := range grants {
 		ids = append(ids, g.ID)
