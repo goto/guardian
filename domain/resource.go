@@ -2,6 +2,13 @@ package domain
 
 import "time"
 
+type Resourceable interface {
+	GetType() string
+	GetURN() string
+	GetDisplayName() string
+	GetMetadata() map[string]interface{}
+}
+
 // Resource struct
 type Resource struct {
 	ID           string                 `json:"id" yaml:"id"`
@@ -17,6 +24,10 @@ type Resource struct {
 	IsDeleted    bool                   `json:"is_deleted,omitempty" yaml:"is_deleted,omitempty"`
 	ParentID     *string                `json:"parent_id,omitempty" yaml:"parent_id,omitempty"`
 	Children     []*Resource            `json:"children,omitempty" yaml:"children,omitempty"`
+}
+
+func (r *Resource) GetType() string {
+	return r.Type
 }
 
 func (r *Resource) GetFlattened() []*Resource {
