@@ -2,8 +2,10 @@ package grant
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -540,6 +542,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 	s.logger.Info("checking grants dormancy...")
 	var dormantGrants []*domain.Grant
 	var dormantGrantsIDs []string
+	var dormantGrantsByOwner = map[string][]*domain.Grant{}
 	for _, g := range grantsPointer {
 		if len(g.Activities) == 0 {
 			g.ExpirationDateReason = fmt.Sprintf("%s: %s", domain.GrantExpirationReasonDormant, criteria.RetainDuration)
@@ -548,6 +551,8 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 
 			dormantGrants = append(dormantGrants, g)
 			dormantGrantsIDs = append(dormantGrantsIDs, g.ID)
+
+			dormantGrantsByOwner[g.Owner] = append(dormantGrantsByOwner[g.Owner], g)
 		}
 	}
 	s.logger.Info(fmt.Sprintf("found %d dormant grants for provider %q", len(dormantGrants), provider.URN), "grant_ids", dormantGrantsIDs)
@@ -560,6 +565,48 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 	if err := s.repo.BulkUpsert(ctx, dormantGrants); err != nil {
 		return fmt.Errorf("updating grants expiration date: %w", err)
 	}
+
+	go func() { // send notifications
+		var notifications []domain.Notification
+	prepare_notifications:
+		for owner, grants := range dormantGrantsByOwner {
+			var grantsMap []map[string]interface{}
+			var grantIDs []string
+
+			for _, g := range grants {
+				grantMap, err := structToMap(g)
+				if err != nil {
+					s.logger.Error("failed to convert grant to map", "error", err)
+					continue prepare_notifications
+				}
+				grantsMap = append(grantsMap, grantMap)
+			}
+
+			notifications = append(notifications, domain.Notification{
+				User: owner,
+				Labels: map[string]string{
+					"owner":     owner,
+					"grant_ids": strings.Join(grantIDs, ", "),
+				},
+				Message: domain.NotificationMessage{
+					Type: domain.NotificationTypeUnusedGrant,
+					Variables: map[string]interface{}{
+						"dormant_grants":       grantsMap,
+						"period":               criteria.Period.String(),
+						"retain_duration":      criteria.RetainDuration.String(),
+						"start_date_formatted": startDate.Format("Jan 02, 2006 15:04:05 UTC"),
+					},
+				},
+			})
+		}
+
+		if errs := s.notifier.Notify(notifications); errs != nil {
+			for _, err1 := range errs {
+				s.logger.Error("failed to send notifications", "error", err1.Error())
+			}
+		}
+	}()
+
 	return nil
 }
 
@@ -623,4 +670,21 @@ func getGrantIDs(grants []domain.Grant) []string {
 		ids = append(ids, g.ID)
 	}
 	return ids
+}
+
+func structToMap(item interface{}) (map[string]interface{}, error) {
+	result := map[string]interface{}{}
+
+	if item != nil {
+		jsonString, err := json.Marshal(item)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := json.Unmarshal(jsonString, &result); err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
 }
