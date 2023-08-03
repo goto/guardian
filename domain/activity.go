@@ -75,39 +75,3 @@ func (f *ListActivitiesFilter) GetResources() []*Resource {
 
 	return resources
 }
-
-// act exists in domain and used across services
-// this should be associatable with grants
-type act struct {
-	AccountID    string
-	ProviderType string
-	ProviderURN  string
-	ResourceType string
-	ResourceURN  string
-	Permissions  []string
-	Timestamp    time.Time
-	grant        *Grant
-}
-
-// 1. fetch active grants, within a provider
-//    - get unique account_ids (A)
-// 2. fetch acts
-//    - cluster by provider/project_id
-//    - filter by account_ids (A)
-// 3. associate acts with grants
-//    - grant has many activities
-//    - if no activities, set revocation date
-
-// act.assignGrants([]grant) or grant.assignActs([]act)?
-//
-
-// bigqueryAct exists in plugin
-type bigqueryAct struct {
-	AccountID    string
-	ResourceName string   // --> resourceURN, resourceType
-	Permissions  []string // gcp permissions
-	Timestamp    time.Time
-}
-
-type grants []grants
-type acts []act

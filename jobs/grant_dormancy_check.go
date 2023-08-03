@@ -35,9 +35,6 @@ func (h *handler) GrantDormancyCheck(ctx context.Context, c Config) error {
 	}
 
 	for _, p := range providers {
-		if p.URN != "pilotdata-integration-bigquery" {
-			continue
-		}
 		h.logger.Info(fmt.Sprintf("checking dormancy for grants under provider: %q", p.URN))
 		if err := h.grantService.DormancyCheck(ctx, domain.DormancyCheckCriteria{
 			ProviderID:     p.ID,
