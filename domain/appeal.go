@@ -1,13 +1,13 @@
 package domain
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"time"
 
 	"github.com/goto/guardian/pkg/evaluator"
+	"github.com/goto/guardian/utils"
 )
 
 const (
@@ -203,7 +203,7 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 		if approval.Status == ApprovalStatusPending {
 			stepConfig := policy.Steps[approval.Index]
 
-			appealMap, err := structToMap(a)
+			appealMap, err := utils.StructToMap(a)
 			if err != nil {
 				return fmt.Errorf("parsing appeal struct to map: %w", err)
 			}
@@ -259,23 +259,6 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 	}
 
 	return nil
-}
-
-func structToMap(item interface{}) (map[string]interface{}, error) {
-	result := map[string]interface{}{}
-
-	if item != nil {
-		jsonString, err := json.Marshal(item)
-		if err != nil {
-			return nil, err
-		}
-
-		if err := json.Unmarshal(jsonString, &result); err != nil {
-			return nil, err
-		}
-	}
-
-	return result, nil
 }
 
 type ApprovalActionType string

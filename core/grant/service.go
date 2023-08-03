@@ -2,7 +2,6 @@ package grant
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -572,7 +571,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 			var grantIDs []string
 
 			for _, g := range grants {
-				grantMap, err := structToMap(g)
+				grantMap, err := utils.StructToMap(g)
 				if err != nil {
 					s.logger.Error("failed to convert grant to map", "error", err)
 					continue prepare_notifications
@@ -668,21 +667,4 @@ func getGrantIDs(grants []domain.Grant) []string {
 		ids = append(ids, g.ID)
 	}
 	return ids
-}
-
-func structToMap(item interface{}) (map[string]interface{}, error) {
-	result := map[string]interface{}{}
-
-	if item != nil {
-		jsonString, err := json.Marshal(item)
-		if err != nil {
-			return nil, err
-		}
-
-		if err := json.Unmarshal(jsonString, &result); err != nil {
-			return nil, err
-		}
-	}
-
-	return result, nil
 }
