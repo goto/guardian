@@ -17,7 +17,7 @@ const (
 	GrantSourceAppeal GrantSource = "appeal"
 	GrantSourceImport GrantSource = "import"
 
-	GrantExpirationReasonDormant = "grant/access hasn't been use for a while"
+	GrantExpirationReasonDormant = "grant/access hasn't been used for a while"
 )
 
 type Grant struct {

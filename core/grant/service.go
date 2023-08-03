@@ -486,7 +486,7 @@ func (s *Service) ImportFromProvider(ctx context.Context, criteria ImportFromPro
 
 func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyCheckCriteria) error {
 	if err := criteria.Validate(); err != nil {
-		return fmt.Errorf("invalid criteria: %w", err)
+		return fmt.Errorf("invalid dormany check criteria: %w", err)
 	}
 	startDate := time.Now().Add(-criteria.Period)
 
