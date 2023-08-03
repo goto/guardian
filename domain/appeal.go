@@ -278,19 +278,6 @@ func structToMap(item interface{}) (map[string]interface{}, error) {
 	return result, nil
 }
 
-func uniqueSlice(arr []string) []string {
-	keys := map[string]bool{}
-	result := []string{}
-
-	for _, v := range arr {
-		if _, exist := keys[v]; !exist {
-			result = append(result, v)
-			keys[v] = true
-		}
-	}
-	return result
-}
-
 type ApprovalActionType string
 
 const (

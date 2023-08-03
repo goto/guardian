@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/plugins/notifiers"
 	"github.com/goto/guardian/utils"
 	"github.com/goto/salt/log"
@@ -512,18 +513,15 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 	grantIDs := getGrantIDs(grants)
 	s.logger.Info(fmt.Sprintf("found %d active grants for provider %q", len(grants), provider.URN), "grant_ids", grantIDs)
 
-	var uniqueAccountIDs []string
-	uniqueAccountIDsMap := map[string]bool{}
+	var accountIDs []string
 	for _, g := range grants {
-		if _, ok := uniqueAccountIDsMap[g.AccountID]; !ok {
-			uniqueAccountIDs = append(uniqueAccountIDs, g.AccountID)
-			uniqueAccountIDsMap[g.AccountID] = true
-		}
+		accountIDs = append(accountIDs, g.AccountID)
 	}
+	accountIDs = slices.UniqueStringSlice(accountIDs)
 
 	s.logger.Info(fmt.Sprintf("getting activities for provider %q", provider.URN))
 	activities, err := s.providerService.ListActivities(ctx, *provider, domain.ListActivitiesFilter{
-		AccountIDs:   uniqueAccountIDs,
+		AccountIDs:   accountIDs,
 		TimestampGte: &startDate,
 	})
 	if err != nil {

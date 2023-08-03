@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/pkg/evaluator"
+	"github.com/goto/guardian/pkg/slices"
 	"github.com/mcuadros/go-lookup"
 )
 
@@ -152,7 +153,7 @@ func (s Step) ResolveApprovers(a *Appeal) ([]string, error) {
 		}
 	}
 
-	distinctApprovers := uniqueSlice(approvers)
+	distinctApprovers := slices.UniqueStringSlice(approvers)
 	if err := validate.Var(distinctApprovers, "dive,email"); err != nil {
 		return nil, err
 	}
