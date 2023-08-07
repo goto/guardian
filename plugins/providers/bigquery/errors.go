@@ -29,4 +29,5 @@ var (
 	ErrCannotVerifyTablePermission = errors.New("cannot verify the table permissions since this bigquery project does not have any tables")
 
 	ErrActivityLogRetentionPeriodExceeded = errors.New("activity log retention period exceeded")
+	ErrPrivateLogViewerAccessNotGranted   = errors.New("private log viewer access not granted")
 )

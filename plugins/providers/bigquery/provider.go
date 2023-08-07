@@ -13,6 +13,7 @@ import (
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/slices"
+	"github.com/goto/guardian/utils"
 	"github.com/goto/salt/log"
 	"github.com/mitchellh/mapstructure"
 	"github.com/patrickmn/go-cache"
@@ -52,6 +53,7 @@ type BigQueryClient interface {
 	ListAccess(ctx context.Context, resources []*domain.Resource) (domain.MapResourceAccess, error)
 	GetRolePermissions(context.Context, string) ([]string, error)
 	ListRolePermissions(context.Context, []string) (map[string][]string, error)
+	CheckGrantedPermission(context.Context, []string) ([]string, error)
 }
 
 //go:generate mockery --name=cloudLoggingClientI --exported --with-expecter
@@ -379,6 +381,14 @@ func (p *Provider) ListActivities(ctx context.Context, pd domain.Provider, filte
 	if pd.Type != p.typeName {
 		return nil, ErrProviderTypeMismatch
 	}
+	creds, err := ParseCredentials(pd.Config.Credentials, p.encryptor)
+	if err != nil {
+		return nil, fmt.Errorf("parsing credentials: %w", err)
+	}
+	bqClient, err := p.getBigQueryClient(*creds)
+	if err != nil {
+		return nil, fmt.Errorf("initializing bigquery client: %w", err)
+	}
 	logClient, err := p.getCloudLoggingClient(ctx, *pd.Config)
 	if err != nil {
 		return nil, fmt.Errorf("initializing cloud logging client: %w", err)
@@ -413,7 +423,12 @@ func (p *Provider) ListActivities(ctx context.Context, pd domain.Provider, filte
 		filter.TimestampGte = &t
 	}
 
-	// TODO: check private log viewer access is granted
+	// check private log viewer access is granted
+	if grantedPermissions, err := bqClient.CheckGrantedPermission(ctx, []string{privateLogViewerPermission}); err != nil {
+		return nil, fmt.Errorf("checking granted permission: %w", err)
+	} else if !utils.ContainsString(grantedPermissions, privateLogViewerPermission) {
+		return nil, fmt.Errorf("%w: %q permissions is required", ErrPrivateLogViewerAccessNotGranted, privateLogViewerPermission)
+	}
 
 	filters := []string{
 		`protoPayload.serviceName="bigquery.googleapis.com"`,

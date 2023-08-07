@@ -9,6 +9,7 @@ import (
 	bq "cloud.google.com/go/bigquery"
 	"github.com/goto/guardian/domain"
 	bqApi "google.golang.org/api/bigquery/v2"
+	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -19,6 +20,7 @@ type bigQueryClient struct {
 	client     *bq.Client
 	iamService *iam.Service
 	apiClient  *bqApi.Service
+	crmService *cloudresourcemanager.Service
 }
 
 func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQueryClient, error) {
@@ -38,11 +40,17 @@ func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQuery
 		return nil, err
 	}
 
+	crmService, err := cloudresourcemanager.NewService(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
 	return &bigQueryClient{
 		projectID:  projectID,
 		client:     client,
 		iamService: iamService,
 		apiClient:  apiClient,
+		crmService: crmService,
 	}, nil
 }
 
@@ -344,6 +352,17 @@ func (c *bigQueryClient) ListRolePermissions(ctx context.Context, roleIDs []stri
 	}
 
 	return permissions, nil
+}
+
+func (c *bigQueryClient) CheckGrantedPermission(ctx context.Context, permissions []string) ([]string, error) {
+	res, err := c.crmService.Projects.TestIamPermissions(c.projectID, &cloudresourcemanager.TestIamPermissionsRequest{
+		Permissions: permissions,
+	}).Context(ctx).Do()
+	if err != nil {
+		return nil, err
+	}
+
+	return res.Permissions, nil
 }
 
 func (c *bigQueryClient) getGrantableRolesForTables() ([]string, error) {

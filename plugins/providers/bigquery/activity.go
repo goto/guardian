@@ -19,6 +19,10 @@ var (
 	ErrEmptyActivityPayload       = errors.New("couldn't get payload from log entry")
 )
 
+const (
+	privateLogViewerPermission = "logging.privateLogEntries.list"
+)
+
 type auditLog struct {
 	*audit.AuditLog
 }
