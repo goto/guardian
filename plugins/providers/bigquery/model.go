@@ -7,6 +7,7 @@ import (
 	bq "cloud.google.com/go/bigquery"
 	"github.com/goto/guardian/core/resource"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/utils"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -180,7 +181,11 @@ type activityConfig struct {
 }
 
 func (c activityConfig) Validate() error {
-	// TODO:
+	validSources := []string{"default", "cloud_logging"}
+	if !utils.ContainsString(validSources, c.ActivityConfig.Source) {
+		return fmt.Errorf("invalid source: %q, allowed values %v", c.ActivityConfig.Source, validSources)
+	}
+
 	return nil
 }
 
