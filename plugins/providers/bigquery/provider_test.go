@@ -1312,6 +1312,51 @@ func (s *BigQueryProviderTestSuite) TestListActivities() {
 	})
 }
 
+func (s *BigQueryProviderTestSuite) TestCorrelateGrantActivities() {
+	s.Run("should attach activities to the related grants and return nil error on success", func() {
+		dummyRolePermissions := map[string][]string{
+			"role-1": {"permission-1", "permission-2"},
+			"role-2": {"permission-3", "permission-4"},
+			"role-3": {"permission-4"},
+			"role-4": {"permission-1", "permission-2", "permission-3"},
+		}
+		grants := []*domain.Grant{
+			{ID: "g1", Permissions: []string{"role-1"}},
+			{ID: "g2", Permissions: []string{"role-2"}},
+			{ID: "g3", Permissions: []string{"role-3"}},
+			{ID: "g4", Permissions: []string{"role-4"}},
+		}
+		activities := []*domain.Activity{
+			{ID: "a1", Authorizations: []string{"permission-1", "permission-2"}},
+			{ID: "a2", Authorizations: []string{"permission-3"}},
+			{ID: "a3", Authorizations: []string{"permission-1"}},
+			{ID: "a4", Authorizations: []string{"permission-2"}},
+		}
+
+		expectedUniqueRoles := []string{"role-1", "role-2", "role-3", "role-4"}
+		s.mockBigQueryClient.EXPECT().
+			ListRolePermissions(mock.AnythingOfType("*context.emptyCtx"), expectedUniqueRoles).
+			Return(dummyRolePermissions, nil).Once()
+		expectedAssociatedGrants := map[string][]string{
+			"g1": {"a1", "a3", "a4"},
+			"g2": {"a2"},
+			"g3": {},
+			"g4": {"a1", "a2", "a3", "a4"},
+		}
+
+		err := s.provider.CorrelateGrantActivities(context.Background(), *s.validProvider, grants, activities)
+		s.NoError(err)
+		for _, g := range grants {
+			expectedActivityIDs := expectedAssociatedGrants[g.ID]
+			actualActivityIDs := []string{}
+			for _, a := range g.Activities {
+				actualActivityIDs = append(actualActivityIDs, a.ID)
+			}
+			s.Equal(expectedActivityIDs, actualActivityIDs)
+		}
+	})
+}
+
 func initProvider() *bigquery.Provider {
 	crypto := new(mocks.Encryptor)
 	l := log.NewNoop()
