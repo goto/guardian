@@ -258,6 +258,9 @@ func TestCreateConfig(t *testing.T) {
 				ResourceName:      "projects/test-resource-name",
 			},
 			URN: providerURN,
+			Activity: &domain.ActivityConfig{
+				Source: "default",
+			},
 		}
 		encryptor.On("Encrypt", `{"type":"service_account"}`).Return(`{"type":"service_account"}`, nil)
 
@@ -1193,6 +1196,119 @@ func (s *BigQueryProviderTestSuite) TestGetActivities_Success() {
 
 		s.mockCloudLoggingClient.AssertExpectations(s.T())
 		s.ErrorIs(err, expectedError)
+	})
+}
+
+func (s *BigQueryProviderTestSuite) TestListActivities() {
+	timeNow := time.Now()
+
+	s.Run("should return list of activity on success", func() {
+		expectedLogBucket := &logging.LogBucket{
+			RetentionDays: 30,
+		}
+		s.mockCloudLoggingClient.EXPECT().
+			GetLogBucket(mock.AnythingOfType("*context.emptyCtx"), fmt.Sprintf("projects/%s/locations/global/buckets/_Default", s.dummyProjectID)).
+			Return(expectedLogBucket, nil).Once()
+		s.mockBigQueryClient.EXPECT().
+			CheckGrantedPermission(mock.AnythingOfType("*context.emptyCtx"), []string{bigquery.PrivateLogViewerPermission}).
+			Return([]string{bigquery.PrivateLogViewerPermission}, nil).Once()
+		expectedBqActivities := []*bigquery.Activity{
+			{
+				LogEntry: &logging.LogEntry{
+					Timestamp: timeNow.Format(time.RFC3339Nano),
+					ProtoPayload: googleapi.RawMessage(`{
+	"authentication_info": { "principal_email": "user@example.com" },
+	"authorization_info": [
+		{ "permission": "bigquery.datasets.get" }
+	],
+	"resource_name": "projects/test-project-id/datasets/test-dataset-id"
+}`),
+				},
+			},
+		}
+		s.mockCloudLoggingClient.EXPECT().
+			ListLogEntries(mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("string"), 0).
+			Return(expectedBqActivities, nil).Once()
+
+		expectedActivities := []*domain.Activity{
+			{
+				AccountType:    "user",
+				AccountID:      "user@example.com",
+				Timestamp:      timeNow,
+				Authorizations: []string{"bigquery.datasets.get"},
+				Metadata: map[string]interface{}{
+					"logging_entry": map[string]interface{}{
+						"insert_id": string(""),
+						"labels":    nil,
+						"operation": nil,
+						"payload": map[string]interface{}{
+							"authentication_info": map[string]interface{}{
+								"principal_email": "user@example.com",
+							},
+							"authorization_info": []interface{}{
+								map[string]interface{}{
+									"permission": "bigquery.datasets.get",
+								},
+							},
+							"resource_name": "projects/test-project-id/datasets/test-dataset-id",
+						},
+						"resource":        nil,
+						"severity":        "",
+						"source_location": nil,
+						"span_id":         "",
+						"timestamp":       timeNow.Format(time.RFC3339Nano),
+						"trace":           "",
+						"trace_sampled":   false,
+					},
+				},
+				Resource: &domain.Resource{
+					ProviderType: s.validProvider.Type,
+					ProviderURN:  s.validProvider.URN,
+					Type:         "dataset",
+					URN:          "test-project-id:test-dataset-id",
+					Name:         "test-dataset-id",
+				},
+			},
+		}
+
+		activities, err := s.provider.ListActivities(context.Background(), *s.validProvider, domain.ListActivitiesFilter{
+			AccountIDs: []string{"user@example.com", "user2@example.com"},
+		})
+
+		s.NoError(err)
+		s.Empty(cmp.Diff(expectedActivities, activities))
+	})
+
+	s.Run("should return error if specified time range is more than the log bucket's retention period", func() {
+		s.mockCloudLoggingClient.EXPECT().
+			GetLogBucket(mock.AnythingOfType("*context.emptyCtx"), fmt.Sprintf("projects/%s/locations/global/buckets/_Default", s.dummyProjectID)).
+			Return(&logging.LogBucket{
+				RetentionDays: 30,
+			}, nil).Once()
+
+		timestampGte := timeNow.Add(-32 * 24 * time.Hour)
+		_, err := s.provider.ListActivities(context.Background(), *s.validProvider, domain.ListActivitiesFilter{
+			TimestampGte: &timestampGte,
+		})
+
+		s.mockCloudLoggingClient.AssertExpectations(s.T())
+		s.ErrorIs(err, bigquery.ErrInvalidTimeRange)
+	})
+
+	s.Run("should return error if credentials doesn't have bigquery.privateLogViewer permission", func() {
+		s.mockCloudLoggingClient.EXPECT().
+			GetLogBucket(mock.AnythingOfType("*context.emptyCtx"), fmt.Sprintf("projects/%s/locations/global/buckets/_Default", s.dummyProjectID)).
+			Return(&logging.LogBucket{
+				RetentionDays: 30,
+			}, nil).Once()
+		s.mockBigQueryClient.EXPECT().
+			CheckGrantedPermission(mock.AnythingOfType("*context.emptyCtx"), []string{bigquery.PrivateLogViewerPermission}).
+			Return([]string{}, nil).Once()
+
+		_, err := s.provider.ListActivities(context.Background(), *s.validProvider, domain.ListActivitiesFilter{})
+
+		s.mockCloudLoggingClient.AssertExpectations(s.T())
+		s.ErrorIs(err, bigquery.ErrPrivateLogViewerAccessNotGranted)
 	})
 }
 

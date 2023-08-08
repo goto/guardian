@@ -20,7 +20,7 @@ var (
 )
 
 const (
-	privateLogViewerPermission = "logging.privateLogEntries.list"
+	PrivateLogViewerPermission = "logging.privateLogEntries.list"
 )
 
 type auditLog struct {

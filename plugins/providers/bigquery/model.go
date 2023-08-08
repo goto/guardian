@@ -20,27 +20,6 @@ const (
 	resourceTypeUnknown = "unknown"
 )
 
-// ResourceURN is Guardian representation of BigQuery resource's relative resource name
-// Example:
-// - Dataset: "project-id:dataset_name"
-// - Table: "project-id:dataset_name.table_name"
-type ResourceURN string
-
-// Type returns "dataset", "table", or "unknown"
-func (urn ResourceURN) Type() string {
-	u := strings.Replace(string(urn), ":", " ", 1)
-	u = strings.Replace(u, ".", " ", 1)
-	u = strings.TrimSpace(u)
-	items := strings.Split(u, " ")
-
-	if len(items) == 2 {
-		return ResourceTypeDataset
-	} else if len(items) == 3 {
-		return ResourceTypeTable
-	}
-	return resourceTypeUnknown
-}
-
 // Dataset is a reference to a BigQuery dataset
 type Dataset struct {
 	ProjectID string

@@ -417,17 +417,17 @@ func (p *Provider) ListActivities(ctx context.Context, pd domain.Provider, filte
 		return nil, fmt.Errorf("invalid bucket's retention period: %q: %w", logBucket.RetentionDays, err)
 	}
 	if filter.TimestampGte != nil && time.Since(*filter.TimestampGte) > retentionDuration {
-		return nil, fmt.Errorf("%w: log bucket's retention in days: %q", ErrActivityLogRetentionPeriodExceeded, logBucket.RetentionDays)
+		return nil, fmt.Errorf("%w: log bucket's retention in days: %q", ErrInvalidTimeRange, logBucket.RetentionDays)
 	} else {
 		t := time.Now().Add(-retentionDuration)
 		filter.TimestampGte = &t
 	}
 
 	// check private log viewer access is granted
-	if grantedPermissions, err := bqClient.CheckGrantedPermission(ctx, []string{privateLogViewerPermission}); err != nil {
+	if grantedPermissions, err := bqClient.CheckGrantedPermission(ctx, []string{PrivateLogViewerPermission}); err != nil {
 		return nil, fmt.Errorf("checking granted permission: %w", err)
-	} else if !utils.ContainsString(grantedPermissions, privateLogViewerPermission) {
-		return nil, fmt.Errorf("%w: %q permissions is required", ErrPrivateLogViewerAccessNotGranted, privateLogViewerPermission)
+	} else if !utils.ContainsString(grantedPermissions, PrivateLogViewerPermission) {
+		return nil, fmt.Errorf("%w: %q permissions is required", ErrPrivateLogViewerAccessNotGranted, PrivateLogViewerPermission)
 	}
 
 	filters := []string{
