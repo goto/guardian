@@ -486,7 +486,7 @@ func (s *Service) ImportFromProvider(ctx context.Context, criteria ImportFromPro
 
 func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyCheckCriteria) error {
 	if err := criteria.Validate(); err != nil {
-		return fmt.Errorf("invalid dormany check criteria: %w", err)
+		return fmt.Errorf("invalid dormancy check criteria: %w", err)
 	}
 	startDate := time.Now().Add(-criteria.Period)
 
@@ -545,6 +545,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 			g.ExpirationDateReason = fmt.Sprintf("%s: %s", domain.GrantExpirationReasonDormant, criteria.RetainDuration)
 			newExpDate := time.Now().Add(criteria.RetainDuration)
 			g.ExpirationDate = &newExpDate
+			g.IsPermanent = false
 
 			dormantGrants = append(dormantGrants, g)
 			dormantGrantsIDs = append(dormantGrantsIDs, g.ID)
