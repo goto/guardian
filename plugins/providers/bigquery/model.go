@@ -16,8 +16,6 @@ const (
 	ResourceTypeDataset = "dataset"
 	// ResourceTypeTable is the resource type name for BigQuery table
 	ResourceTypeTable = "table"
-
-	resourceTypeUnknown = "unknown"
 )
 
 // Dataset is a reference to a BigQuery dataset
