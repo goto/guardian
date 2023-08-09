@@ -10,6 +10,7 @@ import (
 	"github.com/goto/guardian/plugins/providers/gcloudiam/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/api/iam/v1"
 )
 
 func TestCreateConfig(t *testing.T) {
@@ -96,9 +97,11 @@ func TestCreateConfig(t *testing.T) {
 		}
 
 		testcases := []struct {
-			pc *domain.ProviderConfig
+			name string
+			pc   *domain.ProviderConfig
 		}{
 			{
+				name: "empty resource config",
 				pc: &domain.ProviderConfig{
 					Credentials: gcloudiam.Credentials{
 						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
@@ -107,6 +110,7 @@ func TestCreateConfig(t *testing.T) {
 				},
 			},
 			{
+				name: "invalid resource type",
 				pc: &domain.ProviderConfig{
 					Credentials: gcloudiam.Credentials{
 						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
@@ -120,6 +124,39 @@ func TestCreateConfig(t *testing.T) {
 				},
 			},
 			{
+				name: "duplicate resource types",
+				pc: &domain.ProviderConfig{
+					Credentials: gcloudiam.Credentials{
+						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+						ResourceName:      "projects/test-resource-name",
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: gcloudiam.ResourceTypeProject,
+						},
+						{
+							Type: gcloudiam.ResourceTypeProject,
+						},
+					},
+				},
+			},
+			{
+				name: "service_account resource type in organization-level provider",
+				pc: &domain.ProviderConfig{
+					Credentials: gcloudiam.Credentials{
+						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
+						ResourceName:      "organizations/my-organization-id",
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: gcloudiam.ResourceTypeServiceAccount,
+						},
+					},
+					URN: providerURN,
+				},
+			},
+			{
+				name: "empty roles",
 				pc: &domain.ProviderConfig{
 					Credentials: gcloudiam.Credentials{
 						ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
@@ -152,16 +189,16 @@ func TestCreateConfig(t *testing.T) {
 
 		crypto.On("Encrypt", `{"type":"service_account"}`).Return("", expectedError)
 
-		gcloudRole1 := &gcloudiam.Role{
-			Name:        "roles/bigquery.admin",
-			Title:       "BigQuery Admin",
-			Description: "Administer all BigQuery resources and data",
+		gCloudRolesList := []*iam.Role{
+			{
+				Name:        "roles/bigquery.admin",
+				Title:       "BigQuery Admin",
+				Description: "Administer all BigQuery resources and data",
+			},
 		}
-
-		gCloudRolesList := []*gcloudiam.Role{}
-		gCloudRolesList = append(gCloudRolesList, gcloudRole1)
-
-		client.On("GetRoles").Return(gCloudRolesList, nil).Once()
+		client.EXPECT().
+			GetGrantableRoles(mock.AnythingOfType("*context.emptyCtx"), gcloudiam.ResourceTypeProject).
+			Return(gCloudRolesList, nil).Once()
 
 		pc := &domain.ProviderConfig{
 			Resources: []*domain.ResourceConfig{
@@ -197,16 +234,16 @@ func TestCreateConfig(t *testing.T) {
 			providerURN: client,
 		}
 
-		gcloudRole1 := &gcloudiam.Role{
-			Name:        "roles/bigquery.admin",
-			Title:       "BigQuery Admin",
-			Description: "Administer all BigQuery resources and data",
+		gCloudRolesList := []*iam.Role{
+			{
+				Name:        "roles/bigquery.admin",
+				Title:       "BigQuery Admin",
+				Description: "Administer all BigQuery resources and data",
+			},
 		}
-
-		gCloudRolesList := []*gcloudiam.Role{}
-		gCloudRolesList = append(gCloudRolesList, gcloudRole1)
-
-		client.On("GetRoles").Return(gCloudRolesList, nil).Once()
+		client.EXPECT().
+			GetGrantableRoles(mock.AnythingOfType("*context.emptyCtx"), gcloudiam.ResourceTypeProject).
+			Return(gCloudRolesList, nil).Once()
 
 		crypto.On("Encrypt", `{"type":"service_account"}`).Return(`{"type":"service_account"}`, nil)
 
@@ -274,22 +311,21 @@ func TestGetResources(t *testing.T) {
 			providerURN: client,
 		}
 
-		gcloudRole1 := &gcloudiam.Role{
-			Name:        "roles/bigquery.admin",
-			Title:       "BigQuery Admin",
-			Description: "Administer all BigQuery resources and data",
+		gCloudRolesList := []*iam.Role{
+			{
+				Name:        "roles/bigquery.admin",
+				Title:       "BigQuery Admin",
+				Description: "Administer all BigQuery resources and data",
+			},
+			{
+				Name:        "roles/apigateway.viewer",
+				Title:       "ApiGateway Viewer",
+				Description: "Read-only access to ApiGateway and related resources",
+			},
 		}
-
-		gcloudRole2 := &gcloudiam.Role{
-			Name:        "roles/apigateway.viewer",
-			Title:       "ApiGateway Viewer",
-			Description: "Read-only access to ApiGateway and related resources",
-		}
-		gCloudRolesList := []*gcloudiam.Role{}
-		gCloudRolesList = append(gCloudRolesList, gcloudRole1)
-		gCloudRolesList = append(gCloudRolesList, gcloudRole2)
-
-		client.On("GetRoles").Return(gCloudRolesList, nil).Once()
+		client.EXPECT().
+			GetGrantableRoles(mock.AnythingOfType("*context.emptyCtx"), gcloudiam.ResourceTypeProject).
+			Return(gCloudRolesList, nil).Once()
 
 		pc := &domain.ProviderConfig{
 			Type: domain.ProviderTypeGCloudIAM,
@@ -300,7 +336,7 @@ func TestGetResources(t *testing.T) {
 			},
 			Resources: []*domain.ResourceConfig{
 				{
-					Type: "project",
+					Type: gcloudiam.ResourceTypeProject,
 					Roles: []*domain.Role{
 						{
 							ID:          "role-1",
@@ -340,16 +376,17 @@ func TestGetResources(t *testing.T) {
 		p.Clients = map[string]gcloudiam.GcloudIamClient{
 			providerURN: client,
 		}
-		gcloudRole := &gcloudiam.Role{
-			Name:        "roles/organisation.admin",
-			Title:       "Organisation Admin",
-			Description: "Administer all Organisation resources and data",
+
+		gCloudRolesList := []*iam.Role{
+			{
+				Name:        "roles/organisation.admin",
+				Title:       "Organisation Admin",
+				Description: "Administer all Organisation resources and data",
+			},
 		}
-
-		gCloudRolesList := []*gcloudiam.Role{}
-		gCloudRolesList = append(gCloudRolesList, gcloudRole)
-
-		client.On("GetRoles").Return(gCloudRolesList, nil).Once()
+		client.EXPECT().
+			GetGrantableRoles(mock.AnythingOfType("*context.emptyCtx"), gcloudiam.ResourceTypeOrganization).
+			Return(gCloudRolesList, nil).Once()
 		pc := &domain.ProviderConfig{
 			Type: domain.ProviderTypeGCloudIAM,
 			URN:  providerURN,
@@ -358,7 +395,7 @@ func TestGetResources(t *testing.T) {
 			},
 			Resources: []*domain.ResourceConfig{
 				{
-					Type: "organization",
+					Type: gcloudiam.ResourceTypeOrganization,
 					Roles: []*domain.Role{
 						{
 							ID:          "role-1",

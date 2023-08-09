@@ -9,11 +9,12 @@ import (
 	"github.com/goto/guardian/domain"
 	"github.com/mitchellh/mapstructure"
 	"golang.org/x/net/context"
+	"google.golang.org/api/iam/v1"
 )
 
 //go:generate mockery --name=GcloudIamClient --exported --with-expecter
 type GcloudIamClient interface {
-	GetRoles() ([]*Role, error)
+	GetGrantableRoles(ctx context.Context, resourceType string) ([]*iam.Role, error)
 	GrantAccess(accountType, accountID, role string) error
 	RevokeAccess(accountType, accountID, role string) error
 	ListAccess(ctx context.Context, resources []*domain.Resource) (domain.MapResourceAccess, error)

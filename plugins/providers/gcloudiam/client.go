@@ -41,42 +41,43 @@ func newIamClient(credentialsJSON []byte, resourceName string) (*iamClient, erro
 	}, nil
 }
 
-func (c *iamClient) GetRoles() ([]*Role, error) {
-	var roles []*Role
-
-	ctx := context.TODO()
-	req := c.iamService.Roles.List()
-	if err := req.Pages(ctx, func(page *iam.ListRolesResponse) error {
-		for _, role := range page.Roles {
-			roles = append(roles, c.fromIamRole(role))
+func (c *iamClient) GetGrantableRoles(ctx context.Context, resourceType string) ([]*iam.Role, error) {
+	var fullResourceName string
+	if resourceType == ResourceTypeOrganization {
+		orgID := strings.Replace(c.resourceName, ResourceNameOrganizationPrefix, "", 1)
+		fullResourceName = fmt.Sprintf("//cloudresourcemanager.googleapis.com/organizations/%s", orgID)
+	} else if resourceType == ResourceTypeProject {
+		projectID := strings.Replace(c.resourceName, ResourceNameProjectPrefix, "", 1)
+		fullResourceName = fmt.Sprintf("//cloudresourcemanager.googleapis.com/projects/%s", projectID)
+	} else if resourceType == ResourceTypeServiceAccount {
+		projectID := strings.Replace(c.resourceName, ResourceNameProjectPrefix, "", 1)
+		res, err := c.iamService.Projects.ServiceAccounts.List(c.resourceName).PageSize(1).Context(ctx).Do()
+		if err != nil {
+			return nil, fmt.Errorf("getting a sample of service account: %w", err)
 		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	if strings.HasPrefix(c.resourceName, ResourceNameProjectPrefix) {
-		projectRolesReq := c.iamService.Projects.Roles.List(c.resourceName)
-		if err := projectRolesReq.Pages(ctx, func(page *iam.ListRolesResponse) error {
-			for _, role := range page.Roles {
-				roles = append(roles, c.fromIamRole(role))
-			}
-			return nil
-		}); err != nil {
-			return nil, err
+		if res.Accounts == nil || len(res.Accounts) == 0 {
+			return nil, fmt.Errorf("no service accounts found in project %s", projectID)
 		}
-	} else if strings.HasPrefix(c.resourceName, ResourceNameOrganizationPrefix) {
-		orgRolesReq := c.iamService.Organizations.Roles.List(c.resourceName)
-		if err := orgRolesReq.Pages(ctx, func(page *iam.ListRolesResponse) error {
-			for _, role := range page.Roles {
-				roles = append(roles, c.fromIamRole(role))
-			}
-			return nil
-		}); err != nil {
-			return nil, err
-		}
+		fullResourceName = fmt.Sprintf("//iam.googleapis.com/%s", res.Accounts[0].Name)
 	} else {
 		return nil, ErrInvalidResourceName
+	}
+
+	roles := []*iam.Role{}
+	nextPageToken := ""
+	for {
+		req := &iam.QueryGrantableRolesRequest{
+			FullResourceName: fullResourceName,
+			PageToken:        nextPageToken,
+		}
+		res, err := c.iamService.Roles.QueryGrantableRoles(req).Context(ctx).Do()
+		if err != nil {
+			return nil, err
+		}
+		roles = append(roles, res.Roles...)
+		if res.NextPageToken == "" {
+			break
+		}
 	}
 
 	return roles, nil
@@ -193,14 +194,6 @@ func (c *iamClient) setIamPolicy(ctx context.Context, policy *cloudresourcemanag
 			Context(ctx).Do()
 	}
 	return nil, ErrInvalidResourceName
-}
-
-func (c *iamClient) fromIamRole(r *iam.Role) *Role {
-	return &Role{
-		Name:        r.Name,
-		Title:       r.Title,
-		Description: r.Description,
-	}
 }
 
 func containsString(arr []string, v string) bool {
