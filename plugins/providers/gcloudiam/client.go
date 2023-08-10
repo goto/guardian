@@ -41,6 +41,14 @@ func newIamClient(credentialsJSON []byte, resourceName string) (*iamClient, erro
 	}, nil
 }
 
+func (c *iamClient) ListServiceAccounts(ctx context.Context) ([]*iam.ServiceAccount, error) {
+	res, err := c.iamService.Projects.ServiceAccounts.List(c.resourceName).Context(ctx).Do()
+	if err != nil {
+		return nil, err
+	}
+	return res.Accounts, nil
+}
+
 func (c *iamClient) GetGrantableRoles(ctx context.Context, resourceType string) ([]*iam.Role, error) {
 	var fullResourceName string
 	if resourceType == ResourceTypeOrganization {
@@ -137,6 +145,71 @@ func (c *iamClient) RevokeAccess(accountType, accountID, role string) error {
 
 	c.setIamPolicy(ctx, policy)
 	return err
+}
+
+func (c *iamClient) GrantServiceAccountAccess(ctx context.Context, sa, accountType, accountID, role string) error {
+	policy, err := c.iamService.Projects.ServiceAccounts.
+		GetIamPolicy(sa).Context(ctx).Do()
+	if err != nil {
+		return fmt.Errorf("getting IAM policy of service account %q: %w", sa, err)
+	}
+
+	member := fmt.Sprintf("%s:%s", accountType, accountID)
+	roleExists := false
+	for _, b := range policy.Bindings {
+		if b.Role == role {
+			if containsString(b.Members, member) {
+				return ErrPermissionAlreadyExists
+			}
+			b.Members = append(b.Members, member)
+		}
+	}
+	if !roleExists {
+		policy.Bindings = append(policy.Bindings, &iam.Binding{
+			Role:    role,
+			Members: []string{member},
+		})
+	}
+
+	if _, err := c.iamService.Projects.ServiceAccounts.
+		SetIamPolicy(sa, &iam.SetIamPolicyRequest{Policy: policy}).
+		Context(ctx).Do(); err != nil {
+		return fmt.Errorf("setting IAM policy of service account %q: %w", sa, err)
+	}
+
+	return nil
+}
+
+func (c *iamClient) RevokeServiceAccountAccess(ctx context.Context, sa, accountType, accountID, role string) error {
+	policy, err := c.iamService.Projects.ServiceAccounts.
+		GetIamPolicy(sa).Context(ctx).Do()
+	if err != nil {
+		return fmt.Errorf("getting IAM policy of service account %q: %w", sa, err)
+	}
+
+	member := fmt.Sprintf("%s:%s", accountType, accountID)
+	for _, b := range policy.Bindings {
+		if b.Role == role {
+			removeIndex := -1
+			for i, m := range b.Members {
+				if m == member {
+					removeIndex = i
+				}
+			}
+			if removeIndex == -1 {
+				return ErrPermissionNotFound
+			}
+			b.Members = append(b.Members[:removeIndex], b.Members[removeIndex+1:]...)
+		}
+	}
+
+	if _, err := c.iamService.Projects.ServiceAccounts.
+		SetIamPolicy(sa, &iam.SetIamPolicyRequest{Policy: policy}).
+		Context(ctx).Do(); err != nil {
+		return fmt.Errorf("setting IAM policy of service account %q: %w", sa, err)
+	}
+
+	return nil
 }
 
 func (c *iamClient) ListAccess(ctx context.Context, resources []*domain.Resource) (domain.MapResourceAccess, error) {

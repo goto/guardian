@@ -294,6 +294,9 @@ func TestGetResources(t *testing.T) {
 			Type:        domain.ProviderTypeGCloudIAM,
 			URN:         "test-project-id",
 			Credentials: "invalid-creds",
+			Resources: []*domain.ResourceConfig{
+				{Type: gcloudiam.ResourceTypeProject},
+			},
 		}
 
 		actualResources, actualError := p.GetResources(pc)
