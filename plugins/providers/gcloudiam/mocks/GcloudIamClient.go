@@ -124,6 +124,52 @@ func (_c *GcloudIamClient_GrantAccess_Call) RunAndReturn(run func(string, string
 	return _c
 }
 
+// GrantServiceAccountAccess provides a mock function with given fields: ctx, sa, accountType, accountID, roles
+func (_m *GcloudIamClient) GrantServiceAccountAccess(ctx context.Context, sa string, accountType string, accountID string, roles string) error {
+	ret := _m.Called(ctx, sa, accountType, accountID, roles)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) error); ok {
+		r0 = rf(ctx, sa, accountType, accountID, roles)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// GcloudIamClient_GrantServiceAccountAccess_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GrantServiceAccountAccess'
+type GcloudIamClient_GrantServiceAccountAccess_Call struct {
+	*mock.Call
+}
+
+// GrantServiceAccountAccess is a helper method to define mock.On call
+//   - ctx context.Context
+//   - sa string
+//   - accountType string
+//   - accountID string
+//   - roles string
+func (_e *GcloudIamClient_Expecter) GrantServiceAccountAccess(ctx interface{}, sa interface{}, accountType interface{}, accountID interface{}, roles interface{}) *GcloudIamClient_GrantServiceAccountAccess_Call {
+	return &GcloudIamClient_GrantServiceAccountAccess_Call{Call: _e.mock.On("GrantServiceAccountAccess", ctx, sa, accountType, accountID, roles)}
+}
+
+func (_c *GcloudIamClient_GrantServiceAccountAccess_Call) Run(run func(ctx context.Context, sa string, accountType string, accountID string, roles string)) *GcloudIamClient_GrantServiceAccountAccess_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(string))
+	})
+	return _c
+}
+
+func (_c *GcloudIamClient_GrantServiceAccountAccess_Call) Return(_a0 error) *GcloudIamClient_GrantServiceAccountAccess_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *GcloudIamClient_GrantServiceAccountAccess_Call) RunAndReturn(run func(context.Context, string, string, string, string) error) *GcloudIamClient_GrantServiceAccountAccess_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListAccess provides a mock function with given fields: ctx, resources
 func (_m *GcloudIamClient) ListAccess(ctx context.Context, resources []*domain.Resource) (domain.MapResourceAccess, error) {
 	ret := _m.Called(ctx, resources)
@@ -179,6 +225,60 @@ func (_c *GcloudIamClient_ListAccess_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
+// ListServiceAccounts provides a mock function with given fields: _a0
+func (_m *GcloudIamClient) ListServiceAccounts(_a0 context.Context) ([]*iam.ServiceAccount, error) {
+	ret := _m.Called(_a0)
+
+	var r0 []*iam.ServiceAccount
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]*iam.ServiceAccount, error)); ok {
+		return rf(_a0)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []*iam.ServiceAccount); ok {
+		r0 = rf(_a0)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*iam.ServiceAccount)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GcloudIamClient_ListServiceAccounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListServiceAccounts'
+type GcloudIamClient_ListServiceAccounts_Call struct {
+	*mock.Call
+}
+
+// ListServiceAccounts is a helper method to define mock.On call
+//   - _a0 context.Context
+func (_e *GcloudIamClient_Expecter) ListServiceAccounts(_a0 interface{}) *GcloudIamClient_ListServiceAccounts_Call {
+	return &GcloudIamClient_ListServiceAccounts_Call{Call: _e.mock.On("ListServiceAccounts", _a0)}
+}
+
+func (_c *GcloudIamClient_ListServiceAccounts_Call) Run(run func(_a0 context.Context)) *GcloudIamClient_ListServiceAccounts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *GcloudIamClient_ListServiceAccounts_Call) Return(_a0 []*iam.ServiceAccount, _a1 error) *GcloudIamClient_ListServiceAccounts_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *GcloudIamClient_ListServiceAccounts_Call) RunAndReturn(run func(context.Context) ([]*iam.ServiceAccount, error)) *GcloudIamClient_ListServiceAccounts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RevokeAccess provides a mock function with given fields: accountType, accountID, role
 func (_m *GcloudIamClient) RevokeAccess(accountType string, accountID string, role string) error {
 	ret := _m.Called(accountType, accountID, role)
@@ -219,6 +319,52 @@ func (_c *GcloudIamClient_RevokeAccess_Call) Return(_a0 error) *GcloudIamClient_
 }
 
 func (_c *GcloudIamClient_RevokeAccess_Call) RunAndReturn(run func(string, string, string) error) *GcloudIamClient_RevokeAccess_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RevokeServiceAccountAccess provides a mock function with given fields: ctx, sa, accountType, accountID, role
+func (_m *GcloudIamClient) RevokeServiceAccountAccess(ctx context.Context, sa string, accountType string, accountID string, role string) error {
+	ret := _m.Called(ctx, sa, accountType, accountID, role)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) error); ok {
+		r0 = rf(ctx, sa, accountType, accountID, role)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// GcloudIamClient_RevokeServiceAccountAccess_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RevokeServiceAccountAccess'
+type GcloudIamClient_RevokeServiceAccountAccess_Call struct {
+	*mock.Call
+}
+
+// RevokeServiceAccountAccess is a helper method to define mock.On call
+//   - ctx context.Context
+//   - sa string
+//   - accountType string
+//   - accountID string
+//   - role string
+func (_e *GcloudIamClient_Expecter) RevokeServiceAccountAccess(ctx interface{}, sa interface{}, accountType interface{}, accountID interface{}, role interface{}) *GcloudIamClient_RevokeServiceAccountAccess_Call {
+	return &GcloudIamClient_RevokeServiceAccountAccess_Call{Call: _e.mock.On("RevokeServiceAccountAccess", ctx, sa, accountType, accountID, role)}
+}
+
+func (_c *GcloudIamClient_RevokeServiceAccountAccess_Call) Run(run func(ctx context.Context, sa string, accountType string, accountID string, role string)) *GcloudIamClient_RevokeServiceAccountAccess_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(string))
+	})
+	return _c
+}
+
+func (_c *GcloudIamClient_RevokeServiceAccountAccess_Call) Return(_a0 error) *GcloudIamClient_RevokeServiceAccountAccess_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *GcloudIamClient_RevokeServiceAccountAccess_Call) RunAndReturn(run func(context.Context, string, string, string, string) error) *GcloudIamClient_RevokeServiceAccountAccess_Call {
 	_c.Call.Return(run)
 	return _c
 }
