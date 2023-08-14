@@ -314,7 +314,7 @@ func TestGetResources(t *testing.T) {
 			providerURN: client,
 		}
 
-		gCloudRolesList := []*iam.Role{
+		projectRoles := []*iam.Role{
 			{
 				Name:        "roles/bigquery.admin",
 				Title:       "BigQuery Admin",
@@ -326,9 +326,29 @@ func TestGetResources(t *testing.T) {
 				Description: "Read-only access to ApiGateway and related resources",
 			},
 		}
+		saRoles := []*iam.Role{
+			{
+				Name:        "roles/workstations.serviceAgent",
+				Title:       "Workstations Service Agent",
+				Description: "Grants the Workstations Service Account access to manage resources in consumer project.",
+			},
+		}
 		client.EXPECT().
 			GetGrantableRoles(mock.AnythingOfType("*context.emptyCtx"), gcloudiam.ResourceTypeProject).
-			Return(gCloudRolesList, nil).Once()
+			Return(projectRoles, nil).Once()
+		client.EXPECT().
+			GetGrantableRoles(mock.AnythingOfType("*context.emptyCtx"), gcloudiam.ResourceTypeServiceAccount).
+			Return(saRoles, nil).Once()
+
+		expectedServiceAccounts := []*iam.ServiceAccount{
+			{
+				Name:        "sa-name",
+				DisplayName: "sa-display-name",
+			},
+		}
+		client.EXPECT().
+			ListServiceAccounts(mock.AnythingOfType("*context.emptyCtx")).
+			Return(expectedServiceAccounts, nil).Once()
 
 		pc := &domain.ProviderConfig{
 			Type: domain.ProviderTypeGCloudIAM,
@@ -353,6 +373,15 @@ func TestGetResources(t *testing.T) {
 						},
 					},
 				},
+				{
+					Type: gcloudiam.ResourceTypeServiceAccount,
+					Roles: []*domain.Role{
+						{
+							ID:          "role-1",
+							Permissions: []interface{}{"roles/workstations.serviceAgent"},
+						},
+					},
+				},
 			},
 		}
 
@@ -363,6 +392,13 @@ func TestGetResources(t *testing.T) {
 				Type:         gcloudiam.ResourceTypeProject,
 				URN:          "project/test-resource-name",
 				Name:         "project/test-resource-name - GCP IAM",
+			},
+			{
+				ProviderType: pc.Type,
+				ProviderURN:  pc.URN,
+				Type:         gcloudiam.ResourceTypeServiceAccount,
+				URN:          "sa-name",
+				Name:         "sa-display-name",
 			},
 		}
 
@@ -562,7 +598,7 @@ func TestGrantAccess(t *testing.T) {
 			},
 			URN: providerURN,
 		}
-		a := domain.Grant{
+		g := domain.Grant{
 			Resource: &domain.Resource{
 				Type: gcloudiam.ResourceTypeProject,
 				URN:  "test-role",
@@ -575,9 +611,51 @@ func TestGrantAccess(t *testing.T) {
 			Permissions: []string{"roles/bigquery.admin"},
 		}
 
-		actualError := p.GrantAccess(pc, a)
+		actualError := p.GrantAccess(pc, g)
 
 		assert.Nil(t, actualError)
+	})
+
+	t.Run("successful grant access to a service account", func(t *testing.T) {
+		providerURN := "test-provider-urn"
+		crypto := new(mocks.Encryptor)
+		client := new(mocks.GcloudIamClient)
+		p := gcloudiam.NewProvider("", crypto)
+		p.Clients = map[string]gcloudiam.GcloudIamClient{
+			providerURN: client,
+		}
+
+		pc := &domain.ProviderConfig{
+			URN: providerURN,
+			Resources: []*domain.ResourceConfig{
+				{
+					Type: gcloudiam.ResourceTypeServiceAccount,
+					Roles: []*domain.Role{
+						{
+							ID:          "test-role",
+							Permissions: []interface{}{"test-permission"},
+						},
+					},
+				},
+			},
+		}
+		g := domain.Grant{
+			Resource: &domain.Resource{
+				Type: gcloudiam.ResourceTypeServiceAccount,
+				URN:  "sa-urn",
+			},
+			Role:        "test-role",
+			AccountType: "test-account-type",
+			AccountID:   "test-account-id",
+			Permissions: []string{"test-permission"},
+		}
+
+		client.EXPECT().
+			GrantServiceAccountAccess(mock.AnythingOfType("*context.emptyCtx"), g.Resource.URN, g.AccountType, g.AccountID, g.Permissions[0]).
+			Return(nil).Once()
+
+		err := p.GrantAccess(pc, g)
+		assert.NoError(t, err)
 	})
 }
 
@@ -707,6 +785,48 @@ func TestRevokeAccess(t *testing.T) {
 		actualError := p.RevokeAccess(pc, a)
 
 		assert.Nil(t, actualError)
+	})
+
+	t.Run("successful revoke access to a service account", func(t *testing.T) {
+		providerURN := "test-provider-urn"
+		crypto := new(mocks.Encryptor)
+		client := new(mocks.GcloudIamClient)
+		p := gcloudiam.NewProvider("", crypto)
+		p.Clients = map[string]gcloudiam.GcloudIamClient{
+			providerURN: client,
+		}
+
+		pc := &domain.ProviderConfig{
+			URN: providerURN,
+			Resources: []*domain.ResourceConfig{
+				{
+					Type: gcloudiam.ResourceTypeServiceAccount,
+					Roles: []*domain.Role{
+						{
+							ID:          "test-role",
+							Permissions: []interface{}{"test-permission"},
+						},
+					},
+				},
+			},
+		}
+		g := domain.Grant{
+			Resource: &domain.Resource{
+				Type: gcloudiam.ResourceTypeServiceAccount,
+				URN:  "sa-urn",
+			},
+			Role:        "test-role",
+			AccountType: "test-account-type",
+			AccountID:   "test-account-id",
+			Permissions: []string{"test-permission"},
+		}
+
+		client.EXPECT().
+			RevokeServiceAccountAccess(mock.AnythingOfType("*context.emptyCtx"), g.Resource.URN, g.AccountType, g.AccountID, g.Permissions[0]).
+			Return(nil).Once()
+
+		err := p.RevokeAccess(pc, g)
+		assert.NoError(t, err)
 	})
 }
 
