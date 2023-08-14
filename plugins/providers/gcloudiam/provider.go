@@ -98,6 +98,8 @@ func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, 
 				return nil, fmt.Errorf("listing service accounts: %w", err)
 			}
 
+			// TODO: filter
+
 			for _, sa := range serviceAccounts {
 				resources = append(resources, &domain.Resource{
 					ProviderType: pc.Type,
@@ -116,7 +118,7 @@ func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, 
 	return resources, nil
 }
 
-func (p *Provider) GrantAccess(pc *domain.ProviderConfig, a domain.Grant) error {
+func (p *Provider) GrantAccess(pc *domain.ProviderConfig, g domain.Grant) error {
 	// TODO: validate provider config and appeal
 
 	var creds Credentials
@@ -129,10 +131,10 @@ func (p *Provider) GrantAccess(pc *domain.ProviderConfig, a domain.Grant) error 
 		return err
 	}
 
-	switch a.Resource.Type {
+	switch g.Resource.Type {
 	case ResourceTypeProject, ResourceTypeOrganization:
-		for _, p := range a.Permissions {
-			if err := client.GrantAccess(a.AccountType, a.AccountID, p); err != nil {
+		for _, p := range g.Permissions {
+			if err := client.GrantAccess(g.AccountType, g.AccountID, p); err != nil {
 				if !errors.Is(err, ErrPermissionAlreadyExists) {
 					return err
 				}
@@ -141,8 +143,8 @@ func (p *Provider) GrantAccess(pc *domain.ProviderConfig, a domain.Grant) error 
 		return nil
 
 	case ResourceTypeServiceAccount:
-		for _, p := range a.Permissions {
-			if err := client.GrantServiceAccountAccess(context.TODO(), a.Resource.URN, a.AccountType, a.AccountID, p); err != nil {
+		for _, p := range g.Permissions {
+			if err := client.GrantServiceAccountAccess(context.TODO(), g.Resource.URN, g.AccountType, g.AccountID, p); err != nil {
 				if !errors.Is(err, ErrPermissionAlreadyExists) {
 					return err
 				}
@@ -155,7 +157,7 @@ func (p *Provider) GrantAccess(pc *domain.ProviderConfig, a domain.Grant) error 
 	}
 }
 
-func (p *Provider) RevokeAccess(pc *domain.ProviderConfig, a domain.Grant) error {
+func (p *Provider) RevokeAccess(pc *domain.ProviderConfig, g domain.Grant) error {
 	var creds Credentials
 	if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
 		return err
@@ -166,10 +168,10 @@ func (p *Provider) RevokeAccess(pc *domain.ProviderConfig, a domain.Grant) error
 		return err
 	}
 
-	switch a.Resource.Type {
+	switch g.Resource.Type {
 	case ResourceTypeProject, ResourceTypeOrganization:
-		for _, p := range a.Permissions {
-			if err := client.RevokeAccess(a.AccountType, a.AccountID, p); err != nil {
+		for _, p := range g.Permissions {
+			if err := client.RevokeAccess(g.AccountType, g.AccountID, p); err != nil {
 				if !errors.Is(err, ErrPermissionNotFound) {
 					return err
 				}
@@ -178,8 +180,8 @@ func (p *Provider) RevokeAccess(pc *domain.ProviderConfig, a domain.Grant) error
 		return nil
 
 	case ResourceTypeServiceAccount:
-		for _, p := range a.Permissions {
-			if err := client.RevokeServiceAccountAccess(context.TODO(), a.Resource.URN, a.AccountType, a.AccountID, p); err != nil {
+		for _, p := range g.Permissions {
+			if err := client.RevokeServiceAccountAccess(context.TODO(), g.Resource.URN, g.AccountType, g.AccountID, p); err != nil {
 				if !errors.Is(err, ErrPermissionNotFound) {
 					return err
 				}
