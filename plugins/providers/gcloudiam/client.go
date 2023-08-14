@@ -51,13 +51,16 @@ func (c *iamClient) ListServiceAccounts(ctx context.Context) ([]*iam.ServiceAcco
 
 func (c *iamClient) GetGrantableRoles(ctx context.Context, resourceType string) ([]*iam.Role, error) {
 	var fullResourceName string
-	if resourceType == ResourceTypeOrganization {
+	switch resourceType {
+	case ResourceTypeOrganization:
 		orgID := strings.Replace(c.resourceName, ResourceNameOrganizationPrefix, "", 1)
 		fullResourceName = fmt.Sprintf("//cloudresourcemanager.googleapis.com/organizations/%s", orgID)
-	} else if resourceType == ResourceTypeProject {
+
+	case ResourceTypeProject:
 		projectID := strings.Replace(c.resourceName, ResourceNameProjectPrefix, "", 1)
 		fullResourceName = fmt.Sprintf("//cloudresourcemanager.googleapis.com/projects/%s", projectID)
-	} else if resourceType == ResourceTypeServiceAccount {
+
+	case ResourceTypeServiceAccount:
 		projectID := strings.Replace(c.resourceName, ResourceNameProjectPrefix, "", 1)
 		res, err := c.iamService.Projects.ServiceAccounts.List(c.resourceName).PageSize(1).Context(ctx).Do()
 		if err != nil {
@@ -67,8 +70,9 @@ func (c *iamClient) GetGrantableRoles(ctx context.Context, resourceType string) 
 			return nil, fmt.Errorf("no service accounts found in project %s", projectID)
 		}
 		fullResourceName = fmt.Sprintf("//iam.googleapis.com/%s", res.Accounts[0].Name)
-	} else {
-		return nil, ErrInvalidResourceName
+
+	default:
+		return nil, fmt.Errorf("unknown resource type %s", resourceType)
 	}
 
 	roles := []*iam.Role{}
