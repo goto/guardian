@@ -526,6 +526,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 	if err != nil {
 		return fmt.Errorf("listing activities for provider %q: %w", provider.URN, err)
 	}
+	s.logger.Info(fmt.Sprintf("found %d activities for provider %q", len(activities), provider.URN))
 
 	grantsPointer := make([]*domain.Grant, len(grants))
 	for i, g := range grants {
