@@ -564,46 +564,44 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 		return fmt.Errorf("updating grants expiration date: %w", err)
 	}
 
-	go func() { // send notifications
-		var notifications []domain.Notification
-	prepare_notifications:
-		for owner, grants := range dormantGrantsByOwner {
-			var grantsMap []map[string]interface{}
-			var grantIDs []string
+	var notifications []domain.Notification
+prepare_notifications:
+	for owner, grants := range dormantGrantsByOwner {
+		var grantsMap []map[string]interface{}
+		var grantIDs []string
 
-			for _, g := range grants {
-				grantMap, err := utils.StructToMap(g)
-				if err != nil {
-					s.logger.Error("failed to convert grant to map", "error", err)
-					continue prepare_notifications
-				}
-				grantsMap = append(grantsMap, grantMap)
+		for _, g := range grants {
+			grantMap, err := utils.StructToMap(g)
+			if err != nil {
+				s.logger.Error("failed to convert grant to map", "error", err)
+				continue prepare_notifications
 			}
-
-			notifications = append(notifications, domain.Notification{
-				User: owner,
-				Labels: map[string]string{
-					"owner":     owner,
-					"grant_ids": strings.Join(grantIDs, ", "),
-				},
-				Message: domain.NotificationMessage{
-					Type: domain.NotificationTypeUnusedGrant,
-					Variables: map[string]interface{}{
-						"dormant_grants":       grantsMap,
-						"period":               criteria.Period.String(),
-						"retain_duration":      criteria.RetainDuration.String(),
-						"start_date_formatted": startDate.Format("Jan 02, 2006 15:04:05 UTC"),
-					},
-				},
-			})
+			grantsMap = append(grantsMap, grantMap)
 		}
 
-		if errs := s.notifier.Notify(notifications); errs != nil {
-			for _, err1 := range errs {
-				s.logger.Error("failed to send notifications", "error", err1.Error())
-			}
+		notifications = append(notifications, domain.Notification{
+			User: owner,
+			Labels: map[string]string{
+				"owner":     owner,
+				"grant_ids": strings.Join(grantIDs, ", "),
+			},
+			Message: domain.NotificationMessage{
+				Type: domain.NotificationTypeUnusedGrant,
+				Variables: map[string]interface{}{
+					"dormant_grants":       grantsMap,
+					"period":               criteria.Period.String(),
+					"retain_duration":      criteria.RetainDuration.String(),
+					"start_date_formatted": startDate.Format("Jan 02, 2006 15:04:05 UTC"),
+				},
+			},
+		})
+	}
+
+	if errs := s.notifier.Notify(notifications); errs != nil {
+		for _, err1 := range errs {
+			s.logger.Error("failed to send notifications", "error", err1.Error())
 		}
-	}()
+	}
 
 	return nil
 }
