@@ -495,7 +495,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 		return fmt.Errorf("getting provider details: %w", err)
 	}
 
-	s.logger.Info(fmt.Sprintf("getting active grants for provider %q", provider.URN))
+	s.logger.Info("getting active grants", "provider_urn", provider.URN)
 	grants, err := s.List(ctx, domain.ListGrantsFilter{
 		Statuses:      []string{string(domain.GrantStatusActive)}, // TODO: evaluate later to use status_in_provider
 		ProviderTypes: []string{provider.Type},
@@ -506,11 +506,11 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 		return fmt.Errorf("listing active grants: %w", err)
 	}
 	if len(grants) == 0 {
-		s.logger.Info(fmt.Sprintf("no active grants found for provider %q", provider.URN))
+		s.logger.Info("no active grants found", "provider_urn", provider.URN)
 		return nil
 	}
 	grantIDs := getGrantIDs(grants)
-	s.logger.Info(fmt.Sprintf("found %d active grants for provider %q", len(grants), provider.URN), "grant_ids", grantIDs)
+	s.logger.Info(fmt.Sprintf("found %d active grants", len(grants)), "grant_ids", grantIDs, "provider_urn", provider.URN)
 
 	var accountIDs []string
 	for _, g := range grants {
@@ -518,7 +518,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 	}
 	accountIDs = slices.UniqueStringSlice(accountIDs)
 
-	s.logger.Info(fmt.Sprintf("getting activities for provider %q", provider.URN))
+	s.logger.Info("getting activities", "provider_urn", provider.URN)
 	activities, err := s.providerService.ListActivities(ctx, *provider, domain.ListActivitiesFilter{
 		AccountIDs:   accountIDs,
 		TimestampGte: &startDate,
@@ -526,7 +526,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 	if err != nil {
 		return fmt.Errorf("listing activities for provider %q: %w", provider.URN, err)
 	}
-	s.logger.Info(fmt.Sprintf("found %d activities for provider %q", len(activities), provider.URN))
+	s.logger.Info(fmt.Sprintf("found %d activities", len(activities)), "provider_urn", provider.URN)
 
 	grantsPointer := make([]*domain.Grant, len(grants))
 	for i, g := range grants {
@@ -537,7 +537,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 		return fmt.Errorf("correlating grant activities: %w", err)
 	}
 
-	s.logger.Info("checking grants dormancy...")
+	s.logger.Info("checking grants dormancy...", "provider_urn", provider.URN)
 	var dormantGrants []*domain.Grant
 	var dormantGrantsIDs []string
 	var dormantGrantsByOwner = map[string][]*domain.Grant{}
@@ -554,10 +554,10 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 			dormantGrantsByOwner[g.Owner] = append(dormantGrantsByOwner[g.Owner], g)
 		}
 	}
-	s.logger.Info(fmt.Sprintf("found %d dormant grants for provider %q", len(dormantGrants), provider.URN), "grant_ids", dormantGrantsIDs)
+	s.logger.Info(fmt.Sprintf("found %d dormant grants", len(dormantGrants)), "grant_ids", dormantGrantsIDs, "provider_urn", provider.URN)
 
 	if criteria.DryRun {
-		s.logger.Info("dry run mode, skipping updating grants expiration date")
+		s.logger.Info("dry run mode, skipping updating grants expiration date", "provider_urn", provider.URN)
 		return nil
 	}
 
@@ -600,7 +600,7 @@ prepare_notifications:
 
 	if errs := s.notifier.Notify(notifications); errs != nil {
 		for _, err1 := range errs {
-			s.logger.Error("failed to send notifications", "error", err1.Error())
+			s.logger.Error("failed to send notifications", "error", err1.Error(), "provider_urn", provider.URN)
 		}
 	}
 
