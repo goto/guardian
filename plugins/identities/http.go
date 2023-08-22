@@ -37,8 +37,11 @@ type HTTPAuthConfig struct {
 
 	// google_idtoken
 	Audience string `mapstructure:"audience,omitempty" json:"audience,omitempty" yaml:"audience,omitempty" validate:"required_if=Type google_idtoken"`
-	// CredentialsJSON can be a JSON string or base64 encoded string of the credentials
-	CredentialsJSON string `mapstructure:"credentials_json,omitempty" json:"credentials_json,omitempty" yaml:"credentials_json,omitempty" validate:"required_if=Type google_idtoken"`
+	// CredentialsJSON accept a JSON stringified credentials
+	// Deprecated: CredentialsJSON is deprecated, use CredentialsJSONBase64 instead
+	CredentialsJSON string `mapstructure:"credentials_json,omitempty" json:"credentials_json,omitempty" yaml:"credentials_json,omitempty"`
+	// CredentialsJSONBase64 accept a base64 encoded JSON stringified credentials
+	CredentialsJSONBase64 string `mapstructure:"credentials_json_base64,omitempty" json:"credentials_json_base64,omitempty" yaml:"credentials_json_base64,omitempty"`
 }
 
 // HTTPClientConfig is the configuration required by iam.Client
@@ -89,6 +92,13 @@ func (c *HTTPClientConfig) Encrypt() error {
 			}
 			c.Auth.CredentialsJSON = encryptedValue
 		}
+		if c.Auth.CredentialsJSONBase64 != "" {
+			encryptedValue, err := c.crypto.Encrypt(c.Auth.CredentialsJSONBase64)
+			if err != nil {
+				return err
+			}
+			c.Auth.CredentialsJSONBase64 = encryptedValue
+		}
 	}
 
 	return nil
@@ -127,6 +137,13 @@ func (c *HTTPClientConfig) Decrypt() error {
 			}
 			c.Auth.CredentialsJSON = decryptedValue
 		}
+		if c.Auth.CredentialsJSONBase64 != "" {
+			decryptedValue, err := c.crypto.Decrypt(c.Auth.CredentialsJSONBase64)
+			if err != nil {
+				return err
+			}
+			c.Auth.CredentialsJSONBase64 = decryptedValue
+		}
 	}
 
 	return nil
@@ -152,9 +169,18 @@ func NewHTTPClient(config *HTTPClientConfig) (*HTTPClient, error) {
 	}
 
 	if config.Auth.Type == "google_idtoken" {
-		creds := []byte(config.Auth.CredentialsJSON)
-		if !isValidJSON(config.Auth.CredentialsJSON) {
-			creds, _ = base64.StdEncoding.DecodeString(config.Auth.CredentialsJSON)
+		var creds []byte
+		switch {
+		case config.Auth.CredentialsJSONBase64 != "":
+			v, err := base64.StdEncoding.DecodeString(config.Auth.CredentialsJSONBase64)
+			if err != nil {
+				return nil, fmt.Errorf("decoding credentials_json_base64: %w", err)
+			}
+			creds = v
+		case config.Auth.CredentialsJSON != "":
+			creds = []byte(config.Auth.CredentialsJSON)
+		default:
+			return nil, fmt.Errorf("missing credentials for google_idtoken auth")
 		}
 
 		ctx := context.Background()
