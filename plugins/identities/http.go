@@ -2,6 +2,7 @@ package identities
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,7 +37,7 @@ type HTTPAuthConfig struct {
 
 	// google_idtoken
 	Audience string `mapstructure:"audience,omitempty" json:"audience,omitempty" yaml:"audience,omitempty" validate:"required_if=Type google_idtoken"`
-	// TODO: allow base64 encoded credentials
+	// CredentialsJSON can be a JSON string or base64 encoded string of the credentials
 	CredentialsJSON string `mapstructure:"credentials_json,omitempty" json:"credentials_json,omitempty" yaml:"credentials_json,omitempty" validate:"required_if=Type google_idtoken"`
 }
 
@@ -151,8 +152,13 @@ func NewHTTPClient(config *HTTPClientConfig) (*HTTPClient, error) {
 	}
 
 	if config.Auth.Type == "google_idtoken" {
+		creds := []byte(config.Auth.CredentialsJSON)
+		if !isValidJSON(config.Auth.CredentialsJSON) {
+			creds, _ = base64.StdEncoding.DecodeString(config.Auth.CredentialsJSON)
+		}
+
 		ctx := context.Background()
-		ts, err := idtoken.NewTokenSource(ctx, config.Auth.Audience, idtoken.WithCredentialsJSON([]byte(config.Auth.CredentialsJSON)))
+		ts, err := idtoken.NewTokenSource(ctx, config.Auth.Audience, idtoken.WithCredentialsJSON(creds))
 		if err != nil {
 			return nil, err
 		}
@@ -235,4 +241,9 @@ func (c *HTTPClient) setAuth(req *http.Request) {
 		default:
 		}
 	}
+}
+
+func isValidJSON(s string) bool {
+	var v map[string]interface{}
+	return json.Unmarshal([]byte(s), &v) == nil
 }
