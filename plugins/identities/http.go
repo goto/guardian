@@ -56,7 +56,30 @@ type HTTPClientConfig struct {
 }
 
 func (c *HTTPClientConfig) Validate() error {
-	return c.validator.Struct(c)
+	if err := c.validator.Struct(c); err != nil {
+		return err
+	}
+
+	if c.Auth.Type == "google_idtoken" {
+		switch {
+		case c.Auth.CredentialsJSONBase64 != "":
+			v, err := base64.StdEncoding.DecodeString(c.Auth.CredentialsJSONBase64)
+			if err != nil {
+				return fmt.Errorf("invalid base64 value on credentials_json_base64: %w", err)
+			}
+			if !isValidJSON(string(v)) {
+				return fmt.Errorf("invalid json value on credentials_json_base64")
+			}
+		case c.Auth.CredentialsJSON != "":
+			if !isValidJSON(c.Auth.CredentialsJSON) {
+				return fmt.Errorf("invalid json value on credentials_json")
+			}
+		default:
+			return fmt.Errorf("missing credentials for google_idtoken auth")
+		}
+	}
+
+	return nil
 }
 
 func (c *HTTPClientConfig) Encrypt() error {
@@ -270,6 +293,6 @@ func (c *HTTPClient) setAuth(req *http.Request) {
 }
 
 func isValidJSON(s string) bool {
-	var v map[string]interface{}
+	var v interface{}
 	return json.Unmarshal([]byte(s), &v) == nil
 }
