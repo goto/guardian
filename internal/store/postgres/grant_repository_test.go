@@ -2,6 +2,7 @@ package postgres_test
 
 import (
 	"context"
+	"database/sql/driver"
 	"testing"
 	"time"
 
@@ -180,21 +181,30 @@ func (s *GrantRepositoryTestSuite) TestList() {
 		s.Nil(grants)
 	})
 	s.Run("Should return an array size and offset of n on success", func() {
-		appeals, err := s.repository.List(context.Background(), domain.ListGrantsFilter{
-			Size: 1,
-		})
+		testCases := []struct {
+			filters        domain.ListGrantsFilter
+			expectedArgs   []driver.Value
+			expectedResult []*domain.Grant
+		}{
+			{
+				filters: domain.ListGrantsFilter{
+					Size:   1,
+					Offset: 0,
+				},
+				expectedResult: []*domain.Grant{dummyGrants[0]},
+			},
+			{
+				filters: domain.ListGrantsFilter{
+					Offset: 1,
+				},
+				expectedResult: []*domain.Grant{dummyGrants[0]},
+			},
+		}
+		for _, tc := range testCases {
+			_, actualError := s.repository.List(context.Background(), tc.filters)
+			s.Nil(actualError)
+		}
 
-		s.NoError(err)
-		s.Len(appeals, 1)
-	})
-	s.Run("Should return an array size and offset of n on success", func() {
-		appeals, err := s.repository.List(context.Background(), domain.ListGrantsFilter{
-			Size:   1,
-			Offset: 0,
-		})
-
-		s.NoError(err)
-		s.Len(appeals, 1)
 	})
 }
 

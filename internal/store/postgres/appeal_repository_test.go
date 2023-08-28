@@ -292,22 +292,30 @@ func (s *AppealRepositoryTestSuite) TestFind() {
 	})
 
 	s.Run("Should return an array size and offset of n on success", func() {
-		appeals, err := s.repository.Find(context.Background(), &domain.ListAppealsFilter{
-			Size:   1,
-			Offset: 0,
-		})
+		testCases := []struct {
+			filters        *domain.ListAppealsFilter
+			expectedArgs   []driver.Value
+			expectedResult []*domain.Appeal
+		}{
+			{
+				filters: &domain.ListAppealsFilter{
+					Size:   1,
+					Offset: 0,
+				},
+				expectedResult: []*domain.Appeal{dummyAppeals[0]},
+			},
+			{
+				filters: &domain.ListAppealsFilter{
+					Offset: 1,
+				},
+				expectedResult: []*domain.Appeal{dummyAppeals[1]},
+			},
+		}
+		for _, tc := range testCases {
+			_, actualError := s.repository.Find(context.Background(), tc.filters)
+			s.Nil(actualError)
+		}
 
-		s.NoError(err)
-		s.Len(appeals, 1)
-	})
-	s.Run("Should return an array size and offset of n on success", func() {
-		appeals, err := s.repository.Find(context.Background(), &domain.ListAppealsFilter{
-			Size:   1,
-			Offset: 1,
-		})
-
-		s.NoError(err)
-		s.Len(appeals, 1)
 	})
 }
 
