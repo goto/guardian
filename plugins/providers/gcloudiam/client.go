@@ -87,7 +87,7 @@ func (c *iamClient) GetGrantableRoles(ctx context.Context, resourceType string) 
 			return nil, err
 		}
 		roles = append(roles, res.Roles...)
-		if res.NextPageToken == "" {
+		if nextPageToken = res.NextPageToken; nextPageToken == "" {
 			break
 		}
 	}
