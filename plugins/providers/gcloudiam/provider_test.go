@@ -342,8 +342,8 @@ func TestGetResources(t *testing.T) {
 
 		expectedServiceAccounts := []*iam.ServiceAccount{
 			{
-				Name:        "sa-name",
-				DisplayName: "sa-display-name",
+				Name:  "sa-name",
+				Email: "sa-email",
 			},
 		}
 		client.EXPECT().
@@ -398,7 +398,7 @@ func TestGetResources(t *testing.T) {
 				ProviderURN:  pc.URN,
 				Type:         gcloudiam.ResourceTypeServiceAccount,
 				URN:          "sa-name",
-				Name:         "sa-display-name",
+				Name:         "sa-email",
 			},
 		}
 

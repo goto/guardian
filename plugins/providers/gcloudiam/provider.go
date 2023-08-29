@@ -106,7 +106,7 @@ func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, 
 					ProviderURN:  pc.URN,
 					Type:         rc.Type,
 					URN:          sa.Name,
-					Name:         sa.DisplayName,
+					Name:         sa.Email,
 				})
 			}
 
