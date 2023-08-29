@@ -195,10 +195,6 @@ func (p *Provider) RevokeAccess(pc *domain.ProviderConfig, g domain.Grant) error
 }
 
 func (p *Provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*domain.Role, error) {
-	if resourceType != ResourceTypeProject && resourceType != ResourceTypeOrganization {
-		return nil, ErrInvalidResourceType
-	}
-
 	return provider.GetRoles(pc, resourceType)
 }
 
