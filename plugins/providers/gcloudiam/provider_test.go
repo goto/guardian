@@ -305,15 +305,15 @@ func TestGetResources(t *testing.T) {
 		assert.Error(t, actualError)
 	})
 
-	t.Run("should check for valid roles in provider config and return project resource object", func(t *testing.T) {
-		providerURN := "test-provider-urn"
-		crypto := new(mocks.Encryptor)
-		client := new(mocks.GcloudIamClient)
-		p := gcloudiam.NewProvider("", crypto)
-		p.Clients = map[string]gcloudiam.GcloudIamClient{
-			providerURN: client,
-		}
+	providerURN := "test-provider-urn"
+	crypto := new(mocks.Encryptor)
+	client := new(mocks.GcloudIamClient)
+	p := gcloudiam.NewProvider("", crypto)
+	p.Clients = map[string]gcloudiam.GcloudIamClient{
+		providerURN: client,
+	}
 
+	t.Run("should check for valid roles in provider config and return project resource object", func(t *testing.T) {
 		projectRoles := []*iam.Role{
 			{
 				Name:        "roles/bigquery.admin",
@@ -408,14 +408,6 @@ func TestGetResources(t *testing.T) {
 	})
 
 	t.Run("should return organization resource object", func(t *testing.T) {
-		providerURN := "test-provider-urn"
-		crypto := new(mocks.Encryptor)
-		client := new(mocks.GcloudIamClient)
-		p := gcloudiam.NewProvider("", crypto)
-		p.Clients = map[string]gcloudiam.GcloudIamClient{
-			providerURN: client,
-		}
-
 		gCloudRolesList := []*iam.Role{
 			{
 				Name:        "roles/organisation.admin",
@@ -460,6 +452,65 @@ func TestGetResources(t *testing.T) {
 
 		assert.Equal(t, expectedResources, actualResources)
 		assert.Nil(t, actualError)
+	})
+
+	t.Run("should return error if resource type in invalid", func(t *testing.T) {
+		pc := &domain.ProviderConfig{
+			Type: domain.ProviderTypeGCloudIAM,
+			URN:  providerURN,
+			Credentials: map[string]interface{}{
+				"resource_name": "project/test-resource-name",
+			},
+			Resources: []*domain.ResourceConfig{
+				{Type: "invalid-resource-type"},
+			},
+		}
+		_, err := p.GetResources(pc)
+
+		assert.ErrorIs(t, err, gcloudiam.ErrInvalidResourceType)
+	})
+
+	t.Run("get service accounts resources", func(t *testing.T) {
+		t.Run("should return error if client initialization failed", func(t *testing.T) {
+			pc := &domain.ProviderConfig{
+				Type: domain.ProviderTypeGCloudIAM,
+				URN:  providerURN,
+				Credentials: map[string]interface{}{
+					"resource_name": make(chan int),
+				},
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: gcloudiam.ResourceTypeServiceAccount,
+					},
+				},
+			}
+
+			_, actualError := p.GetResources(pc)
+
+			assert.Error(t, actualError)
+		})
+
+		t.Run("should return error if client returns an error", func(t *testing.T) {
+			expectedError := errors.New("client error")
+			client.On("ListServiceAccounts", mock.AnythingOfType("*context.emptyCtx")).Return(nil, expectedError).Once()
+
+			pc := &domain.ProviderConfig{
+				Type: domain.ProviderTypeGCloudIAM,
+				URN:  providerURN,
+				Credentials: map[string]interface{}{
+					"resource_name": "project/test-resource-name",
+				},
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: gcloudiam.ResourceTypeServiceAccount,
+					},
+				},
+			}
+
+			_, actualError := p.GetResources(pc)
+
+			assert.ErrorIs(t, actualError, expectedError)
+		})
 	})
 }
 
