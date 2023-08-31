@@ -570,49 +570,92 @@ func TestGrantAccess(t *testing.T) {
 	})
 
 	t.Run("should return error if there is an error in granting the access", func(t *testing.T) {
-		providerURN := "test-provider-urn"
-		expectedError := errors.New("client error")
-		crypto := new(mocks.Encryptor)
-		client := new(mocks.GcloudIamClient)
-		p := gcloudiam.NewProvider("", crypto)
-		p.Clients = map[string]gcloudiam.GcloudIamClient{
-			providerURN: client,
-		}
-		client.On("GrantAccess", mock.Anything, mock.Anything, mock.Anything).Return(expectedError).Once()
-
-		pc := &domain.ProviderConfig{
-			Resources: []*domain.ResourceConfig{
-				{
-					Type: gcloudiam.ResourceTypeProject,
-					Roles: []*domain.Role{
-						{
-							ID:          "role-1",
-							Name:        "BigQuery",
-							Permissions: []interface{}{"roles/bigquery.admin"},
-						},
-						{
-							ID:          "role-2",
-							Name:        "Api gateway",
-							Permissions: []interface{}{"roles/apigateway.viewer"},
-						},
-					},
+		expectedError := errors.New("client error in granting access")
+		testCases := []struct {
+			name               string
+			resourceType       string
+			expectedError      error
+			setExpectationFunc func(*mocks.GcloudIamClient)
+		}{
+			{
+				name:          "for project",
+				resourceType:  gcloudiam.ResourceTypeProject,
+				expectedError: expectedError,
+				setExpectationFunc: func(c *mocks.GcloudIamClient) {
+					c.EXPECT().
+						GrantAccess(mock.Anything, mock.Anything, mock.Anything).
+						Return(expectedError).Once()
 				},
 			},
-			URN: providerURN,
-		}
-		a := domain.Grant{
-			Resource: &domain.Resource{
-				Type: gcloudiam.ResourceTypeProject,
-				URN:  "999",
-				Name: "test-role",
+			{
+				name:          "for organization",
+				resourceType:  gcloudiam.ResourceTypeOrganization,
+				expectedError: expectedError,
+				setExpectationFunc: func(c *mocks.GcloudIamClient) {
+					c.EXPECT().
+						GrantAccess(mock.Anything, mock.Anything, mock.Anything).
+						Return(expectedError).Once()
+				},
 			},
-			Role:        "role-1",
-			Permissions: []string{"roles/bigquery.admin"},
+			{
+				name:          "for service account",
+				resourceType:  gcloudiam.ResourceTypeServiceAccount,
+				expectedError: expectedError,
+				setExpectationFunc: func(c *mocks.GcloudIamClient) {
+					c.EXPECT().
+						GrantServiceAccountAccess(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+						Return(expectedError).Once()
+				},
+			},
 		}
 
-		actualError := p.GrantAccess(pc, a)
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				providerURN := "test-provider-urn"
+				crypto := new(mocks.Encryptor)
+				client := new(mocks.GcloudIamClient)
+				p := gcloudiam.NewProvider("", crypto)
+				p.Clients = map[string]gcloudiam.GcloudIamClient{
+					providerURN: client,
+				}
 
-		assert.EqualError(t, actualError, expectedError.Error())
+				tc.setExpectationFunc(client)
+
+				pc := &domain.ProviderConfig{
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: tc.resourceType,
+							Roles: []*domain.Role{
+								{
+									ID:          "role-1",
+									Name:        "role-name-1",
+									Permissions: []interface{}{"permission-1"},
+								},
+								{
+									ID:          "role-2",
+									Name:        "role-name-2",
+									Permissions: []interface{}{"permission-2"},
+								},
+							},
+						},
+					},
+					URN: providerURN,
+				}
+				a := domain.Grant{
+					Resource: &domain.Resource{
+						Type: tc.resourceType,
+						URN:  "999",
+						Name: "test-role",
+					},
+					Role:        "role-1",
+					Permissions: []string{"permission-1"},
+				}
+
+				actualError := p.GrantAccess(pc, a)
+
+				assert.EqualError(t, actualError, tc.expectedError.Error())
+			})
+		}
 	})
 
 	t.Run("should return nil error if granting access is successful", func(t *testing.T) {
@@ -742,49 +785,92 @@ func TestRevokeAccess(t *testing.T) {
 	})
 
 	t.Run("should return error if there is an error in revoking the access", func(t *testing.T) {
-		providerURN := "test-provider-urn"
-		expectedError := errors.New("client error")
-		crypto := new(mocks.Encryptor)
-		client := new(mocks.GcloudIamClient)
-		p := gcloudiam.NewProvider("", crypto)
-		p.Clients = map[string]gcloudiam.GcloudIamClient{
-			providerURN: client,
-		}
-		client.On("RevokeAccess", mock.Anything, mock.Anything, mock.Anything).Return(expectedError).Once()
-
-		pc := &domain.ProviderConfig{
-			Resources: []*domain.ResourceConfig{
-				{
-					Type: gcloudiam.ResourceTypeProject,
-					Roles: []*domain.Role{
-						{
-							ID:          "role-1",
-							Name:        "BigQuery",
-							Permissions: []interface{}{"roles/bigquery.admin"},
-						},
-						{
-							ID:          "role-2",
-							Name:        "Api gateway",
-							Permissions: []interface{}{"roles/apigateway.viewer"},
-						},
-					},
+		expectedError := errors.New("client error in revoking access")
+		testCases := []struct {
+			name               string
+			resourceType       string
+			expectedError      error
+			setExpectationFunc func(*mocks.GcloudIamClient)
+		}{
+			{
+				name:          "for project",
+				resourceType:  gcloudiam.ResourceTypeProject,
+				expectedError: expectedError,
+				setExpectationFunc: func(c *mocks.GcloudIamClient) {
+					c.EXPECT().
+						RevokeAccess(mock.Anything, mock.Anything, mock.Anything).
+						Return(expectedError).Once()
 				},
 			},
-			URN: providerURN,
-		}
-		a := domain.Grant{
-			Resource: &domain.Resource{
-				Type: gcloudiam.ResourceTypeProject,
-				URN:  "999",
-				Name: "test-role",
+			{
+				name:          "for organization",
+				resourceType:  gcloudiam.ResourceTypeOrganization,
+				expectedError: expectedError,
+				setExpectationFunc: func(c *mocks.GcloudIamClient) {
+					c.EXPECT().
+						RevokeAccess(mock.Anything, mock.Anything, mock.Anything).
+						Return(expectedError).Once()
+				},
 			},
-			Role:        "role-1",
-			Permissions: []string{"roles/bigquery.admin"},
+			{
+				name:          "for service account",
+				resourceType:  gcloudiam.ResourceTypeServiceAccount,
+				expectedError: expectedError,
+				setExpectationFunc: func(c *mocks.GcloudIamClient) {
+					c.EXPECT().
+						RevokeServiceAccountAccess(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+						Return(expectedError).Once()
+				},
+			},
 		}
 
-		actualError := p.RevokeAccess(pc, a)
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				providerURN := "test-provider-urn"
+				crypto := new(mocks.Encryptor)
+				client := new(mocks.GcloudIamClient)
+				p := gcloudiam.NewProvider("", crypto)
+				p.Clients = map[string]gcloudiam.GcloudIamClient{
+					providerURN: client,
+				}
 
-		assert.EqualError(t, actualError, expectedError.Error())
+				tc.setExpectationFunc(client)
+
+				pc := &domain.ProviderConfig{
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: tc.resourceType,
+							Roles: []*domain.Role{
+								{
+									ID:          "role-1",
+									Name:        "role-name-1",
+									Permissions: []interface{}{"permission-1"},
+								},
+								{
+									ID:          "role-2",
+									Name:        "role-name-2",
+									Permissions: []interface{}{"permission-2"},
+								},
+							},
+						},
+					},
+					URN: providerURN,
+				}
+				a := domain.Grant{
+					Resource: &domain.Resource{
+						Type: tc.resourceType,
+						URN:  "999",
+						Name: "test-role",
+					},
+					Role:        "role-1",
+					Permissions: []string{"permission-1"},
+				}
+
+				actualError := p.RevokeAccess(pc, a)
+
+				assert.EqualError(t, actualError, tc.expectedError.Error())
+			})
+		}
 	})
 
 	t.Run("should return nil error if revoking access is successful", func(t *testing.T) {
