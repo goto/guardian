@@ -23,6 +23,10 @@ DB:
   SSLMODE: disable
 NOTIFIER:
   PROVIDER: slack
+  WORKSPACES:
+    - WORKSPACE: goto
+      ACCESS_TOKEN:
+      CRITERIA: "email contains '@goto'"
   ACCESS_TOKEN:
 JOBS:
   FETCH_RESOURCES:

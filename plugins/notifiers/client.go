@@ -21,7 +21,7 @@ type Config struct {
 	Provider string `mapstructure:"provider" validate:"omitempty,oneof=slack"`
 
 	// slack
-	AccessToken string `mapstructure:"access_token" validate:"required_if=Provider slack"`
+	Workspaces []slack.SlackWorkspace `mapstructure:"workspaces" validate:"required_if=Provider slack,dive"`
 
 	// custom messages
 	Messages domain.NotificationMessages
@@ -30,8 +30,8 @@ type Config struct {
 func NewClient(config *Config) (Client, error) {
 	if config.Provider == ProviderTypeSlack {
 		slackConfig := &slack.Config{
-			AccessToken: config.AccessToken,
-			Messages:    config.Messages,
+			Workspaces: config.Workspaces,
+			Messages:   config.Messages,
 		}
 		httpClient := &http.Client{Timeout: 10 * time.Second}
 		return slack.NewNotifier(slackConfig, httpClient), nil

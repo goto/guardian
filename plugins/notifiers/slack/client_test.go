@@ -26,14 +26,26 @@ type ClientTestSuite struct {
 
 func (s *ClientTestSuite) setup() {
 	s.mockHttpClient = new(mocks.HTTPClient)
+	workspaces := []slack.SlackWorkspace{
+		{
+			WorkspaceName: "ws-1",
+			AccessToken:   "XXXXX-TOKEN-1-XXXXX",
+			Criteria:      "$email contains '@abc'",
+		},
+		{
+			WorkspaceName: "ws-2",
+			AccessToken:   "XXXXX-TOKEN-2-XXXXX",
+			Criteria:      "$email contains '@xyz'",
+		},
+	}
 	s.accessToken = "XXXXX-TOKEN-XXXXX"
 	s.messages = domain.NotificationMessages{
 		AppealRejected: "[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"Your appeal to {{.resource_name}} with role {{.role}} has been rejected\"}}]",
 	}
 
 	conf := &slack.Config{
-		AccessToken: s.accessToken,
-		Messages:    s.messages,
+		Workspaces: workspaces,
+		Messages:   s.messages,
 	}
 
 	s.notifier = slack.NewNotifier(conf, s.mockHttpClient)
@@ -47,8 +59,8 @@ func (s *ClientTestSuite) TestNotify() {
 		resp := &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(slackAPIResponse)))}
 		s.mockHttpClient.On("Do", mock.Anything).Return(resp, nil)
 		expectedErrs := []error{
-			fmt.Errorf("[appeal_id=test-appeal-id] | %w", errors.New("error finding slack id for email test-user@abc.com - users_not_found")),
-			fmt.Errorf("[appeal_id=test-appeal-id] | error sending message to user:test-user@abc.com | %w", errors.New("EOF")),
+			fmt.Errorf("[appeal_id=test-appeal-id] | %w", errors.New("error finding slack id for email test-user@abc.com in workspace: ws-1 - users_not_found")),
+			fmt.Errorf("[appeal_id=test-appeal-id] | error sending message to user:test-user@abc.com in workspace: | %w", errors.New("EOF")),
 		}
 
 		notifications := []domain.Notification{
