@@ -87,10 +87,12 @@ func (n *Notifier) Notify(items []domain.Notification) []error {
 			ws, err := n.getSlackWorkspaceForUser(item.User)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("%v | %w", labelSlice, err))
+				continue
 			}
 			slackID, err = n.findSlackIDByEmail(item.User, ws)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("%v | %w", labelSlice, err))
+				continue
 			}
 
 			// cache
@@ -103,10 +105,12 @@ func (n *Notifier) Notify(items []domain.Notification) []error {
 		msg, err := ParseMessage(item.Message, n.Messages, n.defaultMessageFiles)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%v | error parsing message : %w", labelSlice, err))
+			continue
 		}
 
 		if err := n.sendMessage(ws, slackID, msg); err != nil {
 			errs = append(errs, fmt.Errorf("%v | error sending message to user:%s in workspace:%s | %w", labelSlice, item.User, ws.WorkspaceName, err))
+			continue
 		}
 	}
 
