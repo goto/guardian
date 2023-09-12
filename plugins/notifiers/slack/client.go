@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/goto/guardian/pkg/evaluator"
+	"github.com/goto/salt/log"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -51,6 +52,7 @@ type Notifier struct {
 	Messages            domain.NotificationMessages
 	httpClient          utils.HTTPClient
 	defaultMessageFiles embed.FS
+	logger              *log.Logrus
 }
 
 type slackIDCacheItem struct {
@@ -66,13 +68,14 @@ type Config struct {
 //go:embed templates/*
 var defaultTemplates embed.FS
 
-func NewNotifier(config *Config, httpClient utils.HTTPClient) *Notifier {
+func NewNotifier(config *Config, httpClient utils.HTTPClient, logger *log.Logrus) *Notifier {
 	return &Notifier{
 		workspaces:          config.Workspaces,
 		slackIDCache:        map[string]*slackIDCacheItem{},
 		Messages:            config.Messages,
 		httpClient:          httpClient,
 		defaultMessageFiles: defaultTemplates,
+		logger:              logger,
 	}
 }
 
@@ -111,6 +114,8 @@ func (n *Notifier) Notify(items []domain.Notification) []error {
 			errs = append(errs, fmt.Errorf("%v | no slack workspace found for user: %s", labelSlice, item.User))
 			continue
 		}
+
+		n.logger.Debug(fmt.Sprintf("%v | sending slack notification to user:%s in workspace:%s", labelSlice, item.User, slackWorkspace.WorkspaceName))
 
 		msg, err := ParseMessage(item.Message, n.Messages, n.defaultMessageFiles)
 		if err != nil {

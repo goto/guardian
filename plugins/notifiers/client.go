@@ -3,6 +3,7 @@ package notifiers
 import (
 	"errors"
 	"fmt"
+	"github.com/goto/salt/log"
 	"github.com/mitchellh/mapstructure"
 	"net/http"
 	"time"
@@ -38,7 +39,7 @@ type Config struct {
 	Messages domain.NotificationMessages
 }
 
-func NewClient(config *Config) (Client, error) {
+func NewClient(config *Config, logger *log.Logrus) (Client, error) {
 	if config.Provider == ProviderTypeSlack {
 
 		slackConfig, err := NewSlackConfig(config)
@@ -47,7 +48,7 @@ func NewClient(config *Config) (Client, error) {
 		}
 
 		httpClient := &http.Client{Timeout: 10 * time.Second}
-		return slack.NewNotifier(slackConfig, httpClient), nil
+		return slack.NewNotifier(slackConfig, httpClient, logger), nil
 	}
 
 	return nil, errors.New("invalid notifier provider type")
