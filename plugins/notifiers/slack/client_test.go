@@ -125,6 +125,41 @@ func (s *ClientTestSuite) TestParseMessage() {
 	})
 }
 
+func (s *ClientTestSuite) TestGetSlackWorkspaceForUser() {
+	s.setup()
+	s.Run("should return slack workspace 1 for user", func() {
+		userEmail := "example-user@abc.com"
+		expectedWs := &slack.SlackWorkspace{
+			WorkspaceName: "ws-1",
+			AccessToken:   "XXXXX-TOKEN-1-XXXXX",
+			Criteria:      "$email contains '@abc'",
+		}
+		actualWs, err := s.notifier.GetSlackWorkspaceForUser(userEmail)
+		s.Nil(err)
+		s.Equal(expectedWs, actualWs)
+	})
+
+	s.Run("should return slack workspace 2 for user", func() {
+		userEmail := "example-user@xyz.com"
+		expectedWs := &slack.SlackWorkspace{
+			WorkspaceName: "ws-2",
+			AccessToken:   "XXXXX-TOKEN-2-XXXXX",
+			Criteria:      "$email contains '@xyz'",
+		}
+		actualWs, err := s.notifier.GetSlackWorkspaceForUser(userEmail)
+		s.Nil(err)
+		s.Equal(expectedWs, actualWs)
+	})
+
+	s.Run("should return error if slack workspace not found for user", func() {
+		userEmail := "example-user@def.com"
+		expectedErr := fmt.Errorf("no slack workspace found for user: %s", userEmail)
+		_, actualErr := s.notifier.GetSlackWorkspaceForUser(userEmail)
+		s.Equal(expectedErr, actualErr)
+	})
+
+}
+
 func TestClient(t *testing.T) {
 	suite.Run(t, new(ClientTestSuite))
 }

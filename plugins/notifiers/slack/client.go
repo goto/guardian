@@ -84,12 +84,12 @@ func (n *Notifier) Notify(items []domain.Notification) []error {
 			slackID = n.slackIDCache[item.User].SlackID
 			ws = n.slackIDCache[item.User].Workspace
 		} else {
-			ws, err := n.getSlackWorkspaceForUser(item.User)
+			ws, err := n.GetSlackWorkspaceForUser(item.User)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("%v | %w", labelSlice, err))
 				continue
 			}
-			slackID, err = n.findSlackIDByEmail(item.User, ws)
+			slackID, err = n.findSlackIDByEmail(item.User, *ws)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("%v | %w", labelSlice, err))
 				continue
@@ -98,7 +98,7 @@ func (n *Notifier) Notify(items []domain.Notification) []error {
 			// cache
 			n.slackIDCache[item.User] = &slackIDCacheItem{
 				SlackID:   slackID,
-				Workspace: &ws,
+				Workspace: ws,
 			}
 		}
 
@@ -143,8 +143,8 @@ func (n *Notifier) sendMessage(workspace SlackWorkspace, channel, messageBlock s
 	return err
 }
 
-func (n *Notifier) getSlackWorkspaceForUser(email string) (SlackWorkspace, error) {
-	var ws SlackWorkspace
+func (n *Notifier) GetSlackWorkspaceForUser(email string) (*SlackWorkspace, error) {
+	var ws *SlackWorkspace
 	for _, workspace := range n.workspaces {
 		v, err := evaluator.Expression(workspace.Criteria).EvaluateWithVars(map[string]interface{}{
 			"email": email,
@@ -157,13 +157,13 @@ func (n *Notifier) getSlackWorkspaceForUser(email string) (SlackWorkspace, error
 		if match, ok := v.(bool); !ok {
 			return ws, errors.New("notifier expression did not evaluate to a boolean")
 		} else if match {
-			ws = workspace
+			ws = &workspace
 			break
 		}
 	}
 
-	if ws.WorkspaceName == "" {
-		return ws, errors.New(fmt.Sprintf("no workspace found for user %s", email))
+	if ws == nil {
+		return ws, errors.New(fmt.Sprintf("no slack workspace found for user: %s", email))
 	}
 
 	return ws, nil
