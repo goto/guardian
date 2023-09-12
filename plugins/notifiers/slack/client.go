@@ -75,14 +75,14 @@ func NewNotifier(config *Config, httpClient utils.HTTPClient) *Notifier {
 func (n *Notifier) Notify(items []domain.Notification) []error {
 	errs := make([]error, 0)
 	for _, item := range items {
-		var ws *SlackWorkspace
+		var slackWorkspace *SlackWorkspace
 		var slackID string
 		labelSlice := utils.MapToSlice(item.Labels)
 
 		// check cache
 		if n.slackIDCache[item.User] != nil {
 			slackID = n.slackIDCache[item.User].SlackID
-			ws = n.slackIDCache[item.User].Workspace
+			slackWorkspace = n.slackIDCache[item.User].Workspace
 		} else {
 			ws, err := n.GetSlackWorkspaceForUser(item.User)
 			if err != nil {
@@ -100,6 +100,12 @@ func (n *Notifier) Notify(items []domain.Notification) []error {
 				SlackID:   slackID,
 				Workspace: ws,
 			}
+			slackWorkspace = ws
+		}
+
+		if slackWorkspace == nil {
+			errs = append(errs, fmt.Errorf("%v | no slack workspace found for user: %s", labelSlice, item.User))
+			continue
 		}
 
 		msg, err := ParseMessage(item.Message, n.Messages, n.defaultMessageFiles)
@@ -108,8 +114,8 @@ func (n *Notifier) Notify(items []domain.Notification) []error {
 			continue
 		}
 
-		if err := n.sendMessage(*ws, slackID, msg); err != nil {
-			errs = append(errs, fmt.Errorf("%v | error sending message to user:%s in workspace:%s | %w", labelSlice, item.User, ws.WorkspaceName, err))
+		if err := n.sendMessage(*slackWorkspace, slackID, msg); err != nil {
+			errs = append(errs, fmt.Errorf("%v | error sending message to user:%s in workspace:%s | %w", labelSlice, item.User, slackWorkspace.WorkspaceName, err))
 			continue
 		}
 	}
