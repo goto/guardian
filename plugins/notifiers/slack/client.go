@@ -51,7 +51,7 @@ type Notifier struct {
 
 type slackIDCacheItem struct {
 	SlackID   string
-	Workspace SlackWorkspace
+	Workspace *SlackWorkspace
 }
 
 type Config struct {
@@ -75,7 +75,7 @@ func NewNotifier(config *Config, httpClient utils.HTTPClient) *Notifier {
 func (n *Notifier) Notify(items []domain.Notification) []error {
 	errs := make([]error, 0)
 	for _, item := range items {
-		var ws SlackWorkspace
+		var ws *SlackWorkspace
 		var slackID string
 		labelSlice := utils.MapToSlice(item.Labels)
 
@@ -98,7 +98,7 @@ func (n *Notifier) Notify(items []domain.Notification) []error {
 			// cache
 			n.slackIDCache[item.User] = &slackIDCacheItem{
 				SlackID:   slackID,
-				Workspace: ws,
+				Workspace: &ws,
 			}
 		}
 
@@ -108,7 +108,7 @@ func (n *Notifier) Notify(items []domain.Notification) []error {
 			continue
 		}
 
-		if err := n.sendMessage(ws, slackID, msg); err != nil {
+		if err := n.sendMessage(*ws, slackID, msg); err != nil {
 			errs = append(errs, fmt.Errorf("%v | error sending message to user:%s in workspace:%s | %w", labelSlice, item.User, ws.WorkspaceName, err))
 			continue
 		}
