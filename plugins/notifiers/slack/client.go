@@ -34,6 +34,10 @@ type userResponse struct {
 	Error string `json:"error"`
 }
 
+type WorkSpaceConfig struct {
+	Workspaces []SlackWorkspace `mapstructure:"workspaces"`
+}
+
 type SlackWorkspace struct {
 	WorkspaceName string `mapstructure:"workspace" validate:"required"`
 	AccessToken   string `mapstructure:"access_token" validate:"required"`
