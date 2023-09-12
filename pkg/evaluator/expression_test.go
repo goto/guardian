@@ -101,6 +101,7 @@ func TestEvaluate(t *testing.T) {
 			expectedResult: true,
 		},
 		{
+			// a complex test case to evaluate the expression where "the appeal role must either not contain viewer or (the resource type is gcloud_iam and the duration is 0h)
 			expression: "!($appeal.role contains 'viewer') || $appeal.resource.provider_type == 'gcloud_iam' && $appeal.options.duration in ['0h','']",
 			params: map[string]interface{}{
 				"appeal": map[string]interface{}{
@@ -116,6 +117,7 @@ func TestEvaluate(t *testing.T) {
 			expectedResult: true,
 		},
 		{
+			// a complex test case to evaluate the expression where "the appeal role must either not contain viewer or (the resource type is gcloud_iam and the duration is 0h and the role must contain viewer)
 			expression: "!($appeal.role contains 'viewer') || $appeal.resource.provider_type == 'gcloud_iam' && $appeal.options.duration in ['0h',''] && $appeal.role contains 'viewer'",
 			params: map[string]interface{}{
 				"appeal": map[string]interface{}{
@@ -131,6 +133,7 @@ func TestEvaluate(t *testing.T) {
 			expectedResult: true,
 		},
 		{
+			// a complex test case to evaluate the expression where "the appeal role must either not contain viewer or (the resource type is gcloud_iam and the duration is 0h and the role must contain viewer
 			expression: "!($appeal.role contains 'viewer') || $appeal.resource.provider_type == 'gcloud_iam' && $appeal.options.duration in ['0h',''] && $appeal.role contains 'viewer'",
 			params: map[string]interface{}{
 				"appeal": map[string]interface{}{
@@ -146,6 +149,7 @@ func TestEvaluate(t *testing.T) {
 			expectedResult: false,
 		},
 		{
+			// a complex test case to evaluate the expression where "the appeal role must either not contain admin_user or (the resource type is gcloud_iam and the duration is 0h and the role must contain admin_user)
 			expression: "!($appeal.role contains 'admin_user') || $appeal.resource.provider_type == 'gcloud_iam' && $appeal.options.duration in ['0h',''] && $appeal.role contains 'admin_user'",
 			params: map[string]interface{}{
 				"appeal": map[string]interface{}{
