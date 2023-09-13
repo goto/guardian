@@ -20,10 +20,10 @@ const (
 	ProviderTypeSlack = "slack"
 )
 
-// slackConfig is a map of workspace name to config
-type slackConfig map[string]interface{}
+// SlackConfig is a map of workspace name to config
+type SlackConfig map[string]interface{}
 
-func (c slackConfig) Decode(v interface{}) error {
+func (c SlackConfig) Decode(v interface{}) error {
 	return mapstructure.Decode(c, v)
 }
 
@@ -31,9 +31,9 @@ type Config struct {
 	Provider string `mapstructure:"provider" validate:"omitempty,oneof=slack"`
 
 	// slack
-	AccessToken string `mapstructure:"access_token" validate:"required_without=slackConfig"`
+	AccessToken string `mapstructure:"access_token" validate:"required_without=SlackConfig"`
 	//Workspaces      []slack.SlackWorkspace `mapstructure:"workspaces" validate:"required_without=AccessToken,dive"`
-	slackConfig slackConfig `mapstructure:"workspace_config" validate:"omitempty,dive"`
+	SlackConfig SlackConfig `mapstructure:"slack_config" validate:"required_without=AccessToken,dive"`
 
 	// custom messages
 	Messages domain.NotificationMessages
@@ -57,10 +57,10 @@ func NewClient(config *Config, logger *log.Logrus) (Client, error) {
 func NewSlackConfig(config *Config) (*slack.Config, error) {
 
 	// validation
-	if config.AccessToken == "" && config.slackConfig == nil {
+	if config.AccessToken == "" && config.SlackConfig == nil {
 		return nil, errors.New("slack access token or workSpaceConfig must be provided")
 	}
-	if config.AccessToken != "" && config.slackConfig != nil {
+	if config.AccessToken != "" && config.SlackConfig != nil {
 		return nil, errors.New("slack access token and workSpaceConfig cannot be provided at the same time")
 	}
 
@@ -81,7 +81,7 @@ func NewSlackConfig(config *Config) (*slack.Config, error) {
 	}
 
 	var workSpaceConfig slack.WorkSpaceConfig
-	if err := config.slackConfig.Decode(&workSpaceConfig); err != nil {
+	if err := config.SlackConfig.Decode(&workSpaceConfig); err != nil {
 		return nil, fmt.Errorf("invalid slack workspace config: %w", err)
 	}
 

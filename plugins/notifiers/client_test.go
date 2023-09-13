@@ -31,7 +31,7 @@ func TestNewSlackConfig(t *testing.T) {
 				config: &Config{
 					Provider:    ProviderTypeSlack,
 					AccessToken: "foo",
-					slackConfig: slackConfig{
+					SlackConfig: SlackConfig{
 						"workspaces": []slack.SlackWorkspace{
 							{
 								WorkspaceName: "default",
@@ -67,7 +67,7 @@ func TestNewSlackConfig(t *testing.T) {
 			args: args{
 				config: &Config{
 					Provider: ProviderTypeSlack,
-					slackConfig: slackConfig{
+					SlackConfig: SlackConfig{
 						"workspaces": []slack.SlackWorkspace{
 							{
 								WorkspaceName: "A",
