@@ -31,8 +31,7 @@ type Config struct {
 	Provider string `mapstructure:"provider" validate:"omitempty,oneof=slack"`
 
 	// slack
-	AccessToken string `mapstructure:"access_token" validate:"required_without=SlackConfig"`
-	//Workspaces      []slack.SlackWorkspace `mapstructure:"workspaces" validate:"required_without=AccessToken,dive"`
+	AccessToken string      `mapstructure:"access_token" validate:"required_without=SlackConfig"`
 	SlackConfig SlackConfig `mapstructure:"slack_config" validate:"required_without=AccessToken,dive"`
 
 	// custom messages
