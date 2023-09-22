@@ -51,7 +51,7 @@ func (r *ResourceRepository) GetResourcesTotalCount(ctx context.Context, filter 
 	db := r.db.WithContext(ctx)
 	db = applyResourceFilter(db, filter)
 	var count int64
-	err := db.Model(&model.Grant{}).Count(&count).Error
+	err := db.Model(&model.Resource{}).Count(&count).Error
 
 	return count, err
 }
