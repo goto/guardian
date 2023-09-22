@@ -225,6 +225,14 @@ func (s *ResourceRepositoryTestSuite) TestGetOne() {
 	})
 }
 
+func (s *ResourceRepositoryTestSuite) TestGetResourcesTotalCount() {
+	s.Run("should return 0", func() {
+		_, actualError := s.repository.GetResourcesTotalCount(context.Background(), domain.ListResourcesFilter{})
+
+		s.Nil(actualError)
+	})
+}
+
 func (s *ResourceRepositoryTestSuite) TestBulkUpsert() {
 	s.Run("should return records with existing or new IDs on insertion", func() {
 		resources := s.getTestResources()

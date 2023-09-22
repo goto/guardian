@@ -86,7 +86,7 @@ func (s *GrpcHandlersSuite) TestListResources() {
 			},
 		}
 		s.resourceService.EXPECT().Find(ctx, expectedFilters).Return(dummyResources, nil)
-
+		s.resourceService.EXPECT().GetResourcesTotalCount(ctx, expectedFilters).Return(int64(1), nil)
 		res, err := s.grpcServer.ListResources(ctx, req)
 
 		s.NoError(err)
