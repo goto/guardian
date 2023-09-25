@@ -1891,14 +1891,14 @@
             "in": "query",
             "required": false,
             "type": "integer",
-            "format": "uint32"
+            "format": "int64"
           },
           {
             "name": "offset",
             "in": "query",
             "required": false,
             "type": "integer",
-            "format": "uint32"
+            "format": "int64"
           }
         ],
         "tags": [
@@ -2879,7 +2879,7 @@
         },
         "total": {
           "type": "integer",
-          "format": "int32"
+          "format": "int64"
         }
       }
     },

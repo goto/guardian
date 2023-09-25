@@ -75,10 +75,10 @@ func (s *GRPCServer) listResources(ctx context.Context, filter domain.ListResour
 		return nil, 0, err
 	}
 	var resourceProtos []*guardianv1beta1.Resource
-	for i, a := range resources {
+	for i, r := range resources {
 		resourceProto, err := s.adapter.ToResourceProto(resources[i])
 		if err != nil {
-			return nil, 0, status.Errorf(codes.Internal, "failed to parse resource %v: %v", a.Name, err)
+			return nil, 0, status.Errorf(codes.Internal, "failed to parse resource %v: %v", r.Name, err)
 		}
 		resourceProtos = append(resourceProtos, resourceProto)
 	}
