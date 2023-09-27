@@ -59,6 +59,7 @@ func (c *bigQueryClient) GetDatasets(ctx context.Context) ([]*Dataset, error) {
 	var results []*Dataset
 
 	req := c.apiClient.Datasets.List(c.projectID)
+	req = req.MaxResults(500)
 	if err := req.Pages(ctx, func(page *bqApi.DatasetList) error {
 		for _, dataset := range page.Datasets {
 			d := &Dataset{
@@ -81,6 +82,7 @@ func (c *bigQueryClient) GetTables(ctx context.Context, datasetID string) ([]*Ta
 	var results []*Table
 
 	req := c.apiClient.Tables.List(c.projectID, datasetID)
+	req = req.MaxResults(500)
 	if err := req.Pages(ctx, func(page *bqApi.TableList) error {
 		for _, table := range page.Tables {
 			t := &Table{
