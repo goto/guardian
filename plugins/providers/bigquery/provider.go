@@ -127,7 +127,7 @@ func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, 
 
 	resources := []*domain.Resource{}
 	eg, ctx := errgroup.WithContext(context.TODO())
-	eg.SetLimit(10)
+	eg.SetLimit(20)
 	var mu sync.Mutex
 
 	datasets, err := client.GetDatasets(ctx)

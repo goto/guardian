@@ -59,7 +59,7 @@ func (c *bigQueryClient) GetDatasets(ctx context.Context) ([]*Dataset, error) {
 	var results []*Dataset
 
 	req := c.apiClient.Datasets.List(c.projectID)
-	req = req.MaxResults(500)
+	req = req.MaxResults(100)
 	if err := req.Pages(ctx, func(page *bqApi.DatasetList) error {
 		for _, dataset := range page.Datasets {
 			d := &Dataset{
