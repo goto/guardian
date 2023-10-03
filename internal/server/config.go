@@ -51,12 +51,11 @@ type Config struct {
 }
 
 type GRPCConfig struct {
-	Port int `mapstructure:"port" default:"8080"`
 	// TimeoutInSeconds is the maximum time in seconds a request can take before being cancelled. Default = 5
 	TimeoutInSeconds int `mapstructure:"timeout_in_seconds" default:"5"`
-	// MaxCallRecvMsgSize is the maximum message size the server can receive. Default = 1 << 25 (32MB)
+	// MaxCallRecvMsgSize is the maximum message size the server can receive in bytes. Default = 1 << 25 (32MB)
 	MaxCallRecvMsgSize int `mapstructure:"max_call_recv_msg_size" default:"33554432"`
-	// MaxCallSendMsgSize is the maximum message size the server can send. Default = 1 << 25 (32MB)
+	// MaxCallSendMsgSize is the maximum message size the server can send in bytes. Default = 1 << 25 (32MB)
 	MaxCallSendMsgSize int `mapstructure:"max_call_send_msg_size" default:"33554432"`
 }
 
