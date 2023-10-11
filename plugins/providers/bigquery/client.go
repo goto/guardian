@@ -365,6 +365,38 @@ func (c *bigQueryClient) CheckGrantedPermission(ctx context.Context, permissions
 	return res.Permissions, nil
 }
 
+func (c *bigQueryClient) getGrantableRolesForDataset(ctx context.Context) ([]string, error) {
+	var resourceName string
+	if err := c.apiClient.Datasets.List(c.projectID).Pages(ctx, func(page *bqApi.DatasetList) error {
+		for _, dataset := range page.Datasets {
+			resourceName = fmt.Sprintf("//bigquery.googleapis.com/projects/%v/datasets/%v", dataset.DatasetReference.ProjectId, dataset.DatasetReference.DatasetId)
+			break
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("getting a sample dataset, %w", err)
+	}
+	if resourceName == "" {
+		return nil, ErrEmptyResource
+	}
+
+	var grantableRoles []string
+
+	request := &iam.QueryGrantableRolesRequest{
+		FullResourceName: resourceName,
+	}
+	if err := c.iamService.Roles.QueryGrantableRoles(request).Pages(ctx, func(page *iam.QueryGrantableRolesResponse) error {
+		for _, role := range page.Roles {
+			grantableRoles = append(grantableRoles, role.Name)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return grantableRoles, nil
+}
+
 func (c *bigQueryClient) getGrantableRolesForTables() ([]string, error) {
 	var resourceName string
 	ctx := context.Background()

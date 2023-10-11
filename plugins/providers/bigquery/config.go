@@ -1,6 +1,7 @@
 package bigquery
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -199,7 +200,17 @@ func (c *Config) validatePermission(value interface{}, resourceType string, clie
 
 	if resourceType == ResourceTypeDataset {
 		if !utils.ContainsString([]string{DatasetRoleReader, DatasetRoleWriter, DatasetRoleOwner}, permision) {
-			return nil, fmt.Errorf("%v: %v", ErrInvalidDatasetPermission, permision)
+			grantableRoles, err := client.getGrantableRolesForDataset(context.TODO())
+			if err != nil {
+				if errors.Is(err, ErrEmptyResource) {
+					return nil, fmt.Errorf("cannot verify dataset permission: %v", permision)
+				}
+				return nil, err
+			}
+
+			if !utils.ContainsString(grantableRoles, permision) {
+				return nil, fmt.Errorf("%v: %v", ErrInvalidDatasetPermission, permision)
+			}
 		}
 	} else if resourceType == ResourceTypeTable {
 		roles, err := client.getGrantableRolesForTables()
