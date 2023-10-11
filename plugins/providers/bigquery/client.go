@@ -432,21 +432,26 @@ func (c *bigQueryClient) getSampleDataset(ctx context.Context) (*bqApi.DatasetRe
 }
 
 func (c *bigQueryClient) getSampleTable(ctx context.Context) (*bqApi.TableReference, error) {
-	sampleDataset, err := c.getSampleDataset(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting a sample dataset, %w", err)
-	}
-
 	var table *bqApi.TableReference
-	if err := c.apiClient.Tables.
-		List(c.projectID, sampleDataset.DatasetId).
-		Pages(ctx, func(page *bqApi.TableList) error {
-			for _, t := range page.Tables {
-				table = t.TableReference
+	if err := c.apiClient.Datasets.List(c.projectID).Pages(ctx, func(page *bqApi.DatasetList) error {
+		for _, d := range page.Datasets {
+			if err := c.apiClient.Tables.
+				List(c.projectID, d.DatasetReference.DatasetId).
+				Pages(ctx, func(page *bqApi.TableList) error {
+					for _, t := range page.Tables {
+						table = t.TableReference
+						break
+					}
+					return nil
+				}); err != nil {
+				return fmt.Errorf("getting a sample table, %w", err)
+			}
+			if table != nil {
 				break
 			}
-			return nil
-		}); err != nil {
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	if table == nil {
