@@ -255,7 +255,7 @@ func (c *Config) getGrantableRolesForTables(ctx context.Context, client *bigQuer
 		return c.cachedTableGrantableRoles, nil
 	}
 
-	roles, err := client.getGrantableRolesForTables()
+	roles, err := client.getGrantableRolesForTables(ctx)
 	if err != nil {
 		return nil, err
 	}

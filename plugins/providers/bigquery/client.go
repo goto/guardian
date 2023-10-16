@@ -387,9 +387,7 @@ func (c *bigQueryClient) getGrantableRolesForDataset(ctx context.Context) ([]str
 	return grantableRoles, nil
 }
 
-func (c *bigQueryClient) getGrantableRolesForTables() ([]string, error) {
-	ctx := context.TODO()
-
+func (c *bigQueryClient) getGrantableRolesForTables(ctx context.Context) ([]string, error) {
 	sampleTable, err := c.getSampleTable(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting a sample table, %w", err)
