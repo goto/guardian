@@ -131,7 +131,7 @@ func (c *bigQueryClient) RevokeDatasetAccess(ctx context.Context, d *Dataset, us
 
 	remainingAccessEntries := []*bq.AccessEntry{}
 	for _, a := range metadata.Access {
-		if a.Entity == user && a.Role == bq.AccessRole(role) {
+		if a.Entity == user && string(a.Role) == role {
 			continue
 		}
 		remainingAccessEntries = append(remainingAccessEntries, a)
