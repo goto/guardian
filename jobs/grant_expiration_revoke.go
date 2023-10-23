@@ -9,7 +9,7 @@ import (
 )
 
 func (h *handler) RevokeExpiredGrants(ctx context.Context, cfg Config) error {
-	h.logger.Info("running revoke expired grants job")
+	h.logger.Info(ctx, "running revoke expired grants job")
 
 	falseBool := false
 	filters := domain.ListGrantsFilter{
@@ -18,7 +18,7 @@ func (h *handler) RevokeExpiredGrants(ctx context.Context, cfg Config) error {
 		IsPermanent:            &falseBool,
 	}
 
-	h.logger.Info("retrieving active grant...")
+	h.logger.Info(ctx, "retrieving active grant...")
 	grants, err := h.grantService.List(ctx, filters)
 	if err != nil {
 		return err
@@ -27,11 +27,11 @@ func (h *handler) RevokeExpiredGrants(ctx context.Context, cfg Config) error {
 	successRevoke := []string{}
 	failedRevoke := []map[string]interface{}{}
 	for _, g := range grants {
-		h.logger.Info("revoking grant", "id", g.ID)
+		h.logger.Info(ctx, "revoking grant", "id", g.ID)
 
 		ctx = audit.WithActor(ctx, domain.SystemActorName)
 		if _, err := h.grantService.Revoke(ctx, g.ID, domain.SystemActorName, "Automatically revoked"); err != nil {
-			h.logger.Error("failed to revoke grant",
+			h.logger.Error(ctx, "failed to revoke grant",
 				"id", g.ID,
 				"error", err,
 			)
@@ -41,7 +41,7 @@ func (h *handler) RevokeExpiredGrants(ctx context.Context, cfg Config) error {
 				"error": err.Error(),
 			})
 		} else {
-			h.logger.Info("grant revoked", "id", g.ID)
+			h.logger.Info(ctx, "grant revoked", "id", g.ID)
 			successRevoke = append(successRevoke, g.ID)
 		}
 	}
@@ -50,9 +50,9 @@ func (h *handler) RevokeExpiredGrants(ctx context.Context, cfg Config) error {
 		return err
 	}
 
-	h.logger.Info("successful grant revocation", "count", len(successRevoke), "ids", successRevoke)
+	h.logger.Info(ctx, "successful grant revocation", "count", len(successRevoke), "ids", successRevoke)
 	if len(failedRevoke) > 0 {
-		h.logger.Info("failed grant revocation", "count", len(failedRevoke), "ids", failedRevoke)
+		h.logger.Info(ctx, "failed grant revocation", "count", len(failedRevoke), "ids", failedRevoke)
 	}
 
 	return nil

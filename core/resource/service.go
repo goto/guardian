@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/goto/guardian/domain"
-	"github.com/goto/salt/log"
+	"github.com/goto/guardian/pkg/log"
 	"github.com/imdario/mergo"
 )
 
@@ -79,7 +79,7 @@ func (s *Service) BulkUpsert(ctx context.Context, resources []*domain.Resource) 
 	}
 
 	if err := s.auditLogger.Log(ctx, AuditKeyResoruceBulkUpsert, resources); err != nil {
-		s.logger.Error("failed to record audit log", "error", err)
+		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
 
 	return nil
@@ -112,7 +112,7 @@ func (s *Service) Update(ctx context.Context, r *domain.Resource) error {
 	r.UpdatedAt = res.UpdatedAt
 
 	if err := s.auditLogger.Log(ctx, AuditKeyResourceUpdate, r); err != nil {
-		s.logger.Error("failed to record audit log", "error", err)
+		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
 
 	return nil
@@ -151,7 +151,7 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	}
 
 	if err := s.auditLogger.Log(ctx, AuditKeyResourceDelete, map[string]interface{}{"id": id}); err != nil {
-		s.logger.Error("failed to record audit log", "error", err)
+		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
 
 	return nil
@@ -163,7 +163,7 @@ func (s *Service) BatchDelete(ctx context.Context, ids []string) error {
 	}
 
 	if err := s.auditLogger.Log(ctx, AuditKeyResourceBatchDelete, map[string]interface{}{"ids": ids}); err != nil {
-		s.logger.Error("failed to record audit log", "error", err)
+		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
 
 	return nil

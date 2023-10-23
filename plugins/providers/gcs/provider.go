@@ -63,7 +63,7 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 	return nil
 }
 
-func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, error) {
+func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
 	client, err := p.getGCSClient(*pc)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (p *Provider) GetType() string {
 	return p.typeName
 }
 
-func (p *Provider) GrantAccess(pc *domain.ProviderConfig, a domain.Grant) error {
+func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a domain.Grant) error {
 	if err := validateProviderConfigAndAppealParams(pc, a); err != nil {
 		return fmt.Errorf("invalid provider/appeal config: %w", err)
 	}
@@ -127,7 +127,7 @@ func (p *Provider) GrantAccess(pc *domain.ProviderConfig, a domain.Grant) error 
 	return ErrInvalidResourceType
 }
 
-func (p *Provider) RevokeAccess(pc *domain.ProviderConfig, a domain.Grant) error {
+func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, a domain.Grant) error {
 	if err := validateProviderConfigAndAppealParams(pc, a); err != nil {
 		return fmt.Errorf("invalid provider/appeal config: %w", err)
 	}

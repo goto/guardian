@@ -17,10 +17,10 @@ import (
 	"github.com/goto/guardian/internal/store/postgres"
 	"github.com/goto/guardian/pkg/auth"
 	"github.com/goto/guardian/pkg/crypto"
+	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/pkg/tracing"
 	"github.com/goto/guardian/plugins/notifiers"
 	audit_repos "github.com/goto/salt/audit/repositories"
-	"github.com/goto/salt/log"
 	"github.com/goto/salt/mux"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -45,7 +45,7 @@ const (
 
 // RunServer runs the application server
 func RunServer(config *Config) error {
-	logger := log.NewLogrus(log.LogrusWithLevel(config.LogLevel))
+	logger := log.NewCtxLogger(config.LogLevel, config.AuditLogTraceIDHeaderKey)
 	crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 	validator := validator.New()
 	notifier, err := notifiers.NewClient(&config.Notifier, logger)
@@ -86,7 +86,7 @@ func RunServer(config *Config) error {
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			grpc_recovery.UnaryServerInterceptor(
 				grpc_recovery.WithRecoveryHandler(func(p interface{}) (err error) {
-					logger.Error(string(debug.Stack()))
+					logger.Error(context.Background(), string(debug.Stack()))
 					return status.Errorf(codes.Internal, "Internal error, please check log")
 				}),
 			),
@@ -163,7 +163,7 @@ func RunServer(config *Config) error {
 	})
 	baseMux.Handle("/api/", http.StripPrefix("/api", gwmux))
 
-	logger.Info(fmt.Sprintf("server running on %s", address))
+	logger.Info(runtimeCtx, fmt.Sprintf("server running on %s", address))
 
 	return mux.Serve(runtimeCtx, address,
 		mux.WithHTTP(baseMux),

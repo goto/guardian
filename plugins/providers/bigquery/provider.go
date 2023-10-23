@@ -14,9 +14,9 @@ import (
 
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
-	"github.com/goto/salt/log"
 	"github.com/mitchellh/mapstructure"
 	"github.com/patrickmn/go-cache"
 	"golang.org/x/sync/errgroup"
@@ -113,7 +113,7 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 }
 
 // GetResources returns BigQuery dataset and table resources
-func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, error) {
+func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
 	var creds Credentials
 	if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
 		return nil, err
@@ -153,7 +153,7 @@ func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, 
 				if datasetFilter != "" {
 					v, err := evaluator.Expression(datasetFilter).EvaluateWithStruct(dataset)
 					if err != nil {
-						p.logger.Error(fmt.Sprintf("evaluating filter expression %q for dataset %q: %v", datasetFilter, dataset.URN, err))
+						p.logger.Error(ctx, fmt.Sprintf("evaluating filter expression %q for dataset %q: %v", datasetFilter, dataset.URN, err))
 					}
 					if !reflect.ValueOf(v).IsZero() {
 						resources = append(resources, dataset)
@@ -193,7 +193,7 @@ func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, 
 	return resources, nil
 }
 
-func (p *Provider) GrantAccess(pc *domain.ProviderConfig, a domain.Grant) error {
+func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a domain.Grant) error {
 	if err := validateProviderConfigAndAppealParams(pc, a); err != nil {
 		return err
 	}
@@ -208,7 +208,6 @@ func (p *Provider) GrantAccess(pc *domain.ProviderConfig, a domain.Grant) error 
 	}
 
 	permissions := getPermissions(a)
-	ctx := context.TODO()
 	if a.Resource.Type == ResourceTypeDataset {
 		d := new(Dataset)
 		if err := d.FromDomain(a.Resource); err != nil {
@@ -246,7 +245,7 @@ func (p *Provider) GrantAccess(pc *domain.ProviderConfig, a domain.Grant) error 
 	return ErrInvalidResourceType
 }
 
-func (p *Provider) RevokeAccess(pc *domain.ProviderConfig, a domain.Grant) error {
+func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, a domain.Grant) error {
 	if err := validateProviderConfigAndAppealParams(pc, a); err != nil {
 		return err
 	}
@@ -261,7 +260,6 @@ func (p *Provider) RevokeAccess(pc *domain.ProviderConfig, a domain.Grant) error
 	}
 
 	permissions := getPermissions(a)
-	ctx := context.TODO()
 	if a.Resource.Type == ResourceTypeDataset {
 		d := new(Dataset)
 		if err := d.FromDomain(a.Resource); err != nil {
@@ -624,11 +622,11 @@ func (p *Provider) getGcloudRoles(ctx context.Context, pd domain.Provider) (map[
 func (p *Provider) getGcloudPermissions(ctx context.Context, pd domain.Provider, gcloudRole string) ([]string, error) {
 	roleID := translateDatasetRoleToBigQueryRole(gcloudRole)
 	if permissions, exists := p.rolesCache.Get(roleID); exists {
-		p.logger.Debug("getting permissions from cache", "role", roleID)
+		p.logger.Debug(ctx, "getting permissions from cache", "role", roleID)
 		return permissions.([]string), nil
 	}
 
-	p.logger.Debug("getting permissions from gcloud", "role", roleID)
+	p.logger.Debug(ctx, "getting permissions from gcloud", "role", roleID)
 	creds, err := ParseCredentials(pd.Config.Credentials, p.encryptor)
 	if err != nil {
 		return nil, fmt.Errorf("parsing credentials: %w", err)

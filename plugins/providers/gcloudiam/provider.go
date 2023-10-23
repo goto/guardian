@@ -6,7 +6,7 @@ import (
 
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
-	"github.com/goto/salt/log"
+	"github.com/goto/guardian/pkg/log"
 	"github.com/mitchellh/mapstructure"
 	"golang.org/x/net/context"
 	"google.golang.org/api/iam/v1"
@@ -72,7 +72,7 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 	return c.EncryptCredentials()
 }
 
-func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, error) {
+func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
 	resources := []*domain.Resource{}
 
 	for _, rc := range pc.Resources {
@@ -121,7 +121,7 @@ func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, 
 	return resources, nil
 }
 
-func (p *Provider) GrantAccess(pc *domain.ProviderConfig, g domain.Grant) error {
+func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
 	// TODO: validate provider config and appeal
 
 	var creds Credentials
@@ -160,7 +160,7 @@ func (p *Provider) GrantAccess(pc *domain.ProviderConfig, g domain.Grant) error 
 	}
 }
 
-func (p *Provider) RevokeAccess(pc *domain.ProviderConfig, g domain.Grant) error {
+func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
 	var creds Credentials
 	if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
 		return err
