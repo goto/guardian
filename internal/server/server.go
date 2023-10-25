@@ -113,6 +113,7 @@ func RunServer(config *Config) error {
 		services.GrantService,
 		protoAdapter,
 		authUserContextKey[config.Auth.Provider],
+		logger,
 	))
 
 	// init http proxy

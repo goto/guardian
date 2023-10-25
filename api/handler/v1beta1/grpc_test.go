@@ -1,6 +1,7 @@
 package v1beta1_test
 
 import (
+	"github.com/goto/guardian/pkg/log"
 	"testing"
 
 	"github.com/goto/guardian/api/handler/v1beta1"
@@ -21,6 +22,7 @@ type GrpcHandlersSuite struct {
 	approvalService *mocks.ApprovalService
 	grantService    *mocks.GrantService
 	grpcServer      *v1beta1.GRPCServer
+	logger          log.Logger
 }
 
 func TestGrpcHandler(t *testing.T) {
@@ -35,6 +37,7 @@ func (s *GrpcHandlersSuite) setup() {
 	s.appealService = new(mocks.AppealService)
 	s.approvalService = new(mocks.ApprovalService)
 	s.grantService = new(mocks.GrantService)
+	s.logger = log.NewNoop()
 	s.grpcServer = v1beta1.NewGRPCServer(
 		s.resourceService,
 		s.activityService,
@@ -45,5 +48,6 @@ func (s *GrpcHandlersSuite) setup() {
 		s.grantService,
 		v1beta1.NewAdapter(),
 		authEmailTestContextKey{},
+		s.logger,
 	)
 }
