@@ -114,11 +114,13 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 
 	accountTypes := c.GetAccountTypes()
 	if err := s.validateAccountTypes(p.Config, accountTypes); err != nil {
+		s.logger.Error(ctx, "failed to validate account types", "type", p.Type, "provider_urn", p.URN, "error", err)
 		return err
 	}
 
 	if p.Config.Appeal != nil {
 		if err := s.validateAppealConfig(p.Config.Appeal); err != nil {
+			s.logger.Error(ctx, "failed to validate appeal config", "type", p.Type, "provider_urn", p.URN, "error", err)
 			return err
 		}
 	}
@@ -126,6 +128,7 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 	if err := c.CreateConfig(p.Config); err != nil {
 		return err
 	}
+	s.logger.Debug(ctx, "provider config created", "provider_urn", p.URN)
 
 	dryRun := isDryRun(ctx)
 
@@ -137,6 +140,8 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 		if err := s.auditLogger.Log(ctx, AuditKeyCreate, p); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
+	} else {
+		s.logger.Info(ctx, "dry run enabled, skipping provider creation", "provider_urn", p.URN)
 	}
 
 	go func() {
@@ -146,6 +151,7 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 		if err != nil {
 			s.logger.Error(ctx, "failed to fetch resources", "error", err)
 		}
+		s.logger.Debug(ctx, "provider create fetched resources", "provider_urn", p.URN, "count", len(resources))
 		if !dryRun {
 			if err := s.resourceService.BulkUpsert(ctx, resources); err != nil {
 				s.logger.Error(ctx, "failed to insert resources to db", "error", err)
@@ -189,11 +195,13 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 
 	accountTypes := c.GetAccountTypes()
 	if err := s.validateAccountTypes(p.Config, accountTypes); err != nil {
+		s.logger.Error(ctx, "failed to validate account types", "type", p.Type, "provider_urn", p.URN, "error", err)
 		return err
 	}
 
 	if p.Config.Appeal != nil {
 		if err := s.validateAppealConfig(p.Config.Appeal); err != nil {
+			s.logger.Error(ctx, "failed to validate appeal config", "type", p.Type, "provider_urn", p.URN, "error", err)
 			return err
 		}
 	}
@@ -201,6 +209,7 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 	if err := c.CreateConfig(p.Config); err != nil {
 		return err
 	}
+	s.logger.Debug(ctx, "provider config created", "provider_urn", p.URN)
 
 	dryRun := isDryRun(ctx)
 
@@ -212,6 +221,8 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 		if err := s.auditLogger.Log(ctx, AuditKeyUpdate, p); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
+	} else {
+		s.logger.Info(ctx, "dry run enabled, skipping provider update", "provider_urn", p.URN)
 	}
 
 	go func() {
@@ -221,6 +232,7 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 		if err != nil {
 			s.logger.Error(ctx, "failed to fetch resources", "error", err)
 		}
+		s.logger.Debug(ctx, "provider create fetched resources", "provider_urn", p.URN, "count", len(resources))
 
 		if !dryRun {
 			if err := s.resourceService.BulkUpsert(ctx, resources); err != nil {
@@ -249,10 +261,7 @@ func (s *Service) FetchResources(ctx context.Context) error {
 			s.logger.Error(ctx, "failed to get resources", "error", err)
 			continue
 		}
-		s.logger.Info(ctx, "resources added",
-			"provider_urn", p.URN,
-			"count", len(flattenResources(resources)),
-		)
+		s.logger.Info(ctx, "resources added", "provider_urn", p.URN, "count", len(flattenResources(resources)))
 		if err := s.resourceService.BulkUpsert(ctx, resources); err != nil {
 			failedProviders = append(failedProviders, p.URN)
 			s.logger.Error(ctx, "failed to add resources", "provider_urn", p.URN)
