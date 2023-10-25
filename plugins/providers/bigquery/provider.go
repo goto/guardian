@@ -105,11 +105,12 @@ func (p *Provider) GetType() string {
 func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 	c := NewConfig(pc, p.encryptor)
 
-	if err := c.ParseAndValidate(); err != nil {
+	ctx := context.TODO()
+	if err := c.ParseAndValidate(ctx); err != nil {
 		return err
 	}
 
-	return c.EncryptCredentials()
+	return c.EncryptCredentials(ctx)
 }
 
 // GetResources returns BigQuery dataset and table resources
@@ -127,7 +128,7 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 	resourceTypes := pc.GetResourceTypes()
 
 	resources := []*domain.Resource{}
-	eg, ctx := errgroup.WithContext(context.TODO())
+	eg, ctx := errgroup.WithContext(ctx)
 	eg.SetLimit(20)
 	var mu sync.Mutex
 

@@ -586,6 +586,7 @@ func TestGrantAccess(t *testing.T) {
 
 	t.Run("should return error if there is an error in granting the access", func(t *testing.T) {
 		expectedError := errors.New("client error in granting access")
+		mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
 		testCases := []struct {
 			name               string
 			resourceType       string
@@ -598,7 +599,7 @@ func TestGrantAccess(t *testing.T) {
 				expectedError: expectedError,
 				setExpectationFunc: func(c *mocks.GcloudIamClient) {
 					c.EXPECT().
-						GrantAccess(mock.Anything, mock.Anything, mock.Anything).
+						GrantAccess(mockCtx, mock.Anything, mock.Anything, mock.Anything).
 						Return(expectedError).Once()
 				},
 			},
@@ -608,7 +609,7 @@ func TestGrantAccess(t *testing.T) {
 				expectedError: expectedError,
 				setExpectationFunc: func(c *mocks.GcloudIamClient) {
 					c.EXPECT().
-						GrantAccess(mock.Anything, mock.Anything, mock.Anything).
+						GrantAccess(mockCtx, mock.Anything, mock.Anything, mock.Anything).
 						Return(expectedError).Once()
 				},
 			},
@@ -618,7 +619,7 @@ func TestGrantAccess(t *testing.T) {
 				expectedError: expectedError,
 				setExpectationFunc: func(c *mocks.GcloudIamClient) {
 					c.EXPECT().
-						GrantServiceAccountAccess(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+						GrantServiceAccountAccess(mockCtx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 						Return(expectedError).Once()
 				},
 			},
@@ -687,7 +688,7 @@ func TestGrantAccess(t *testing.T) {
 		p.Clients = map[string]gcloudiam.GcloudIamClient{
 			providerURN: client,
 		}
-		client.On("GrantAccess", expectedAccountType, expectedAccountID, expectedPermission).Return(nil).Once()
+		client.On("GrantAccess", mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedAccountType, expectedAccountID, expectedPermission).Return(nil).Once()
 
 		pc := &domain.ProviderConfig{
 			Resources: []*domain.ResourceConfig{
@@ -806,6 +807,7 @@ func TestRevokeAccess(t *testing.T) {
 
 	t.Run("should return error if there is an error in revoking the access", func(t *testing.T) {
 		expectedError := errors.New("client error in revoking access")
+		mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
 		testCases := []struct {
 			name               string
 			resourceType       string
@@ -818,7 +820,7 @@ func TestRevokeAccess(t *testing.T) {
 				expectedError: expectedError,
 				setExpectationFunc: func(c *mocks.GcloudIamClient) {
 					c.EXPECT().
-						RevokeAccess(mock.Anything, mock.Anything, mock.Anything).
+						RevokeAccess(mockCtx, mock.Anything, mock.Anything, mock.Anything).
 						Return(expectedError).Once()
 				},
 			},
@@ -828,7 +830,7 @@ func TestRevokeAccess(t *testing.T) {
 				expectedError: expectedError,
 				setExpectationFunc: func(c *mocks.GcloudIamClient) {
 					c.EXPECT().
-						RevokeAccess(mock.Anything, mock.Anything, mock.Anything).
+						RevokeAccess(mockCtx, mock.Anything, mock.Anything, mock.Anything).
 						Return(expectedError).Once()
 				},
 			},
@@ -838,7 +840,7 @@ func TestRevokeAccess(t *testing.T) {
 				expectedError: expectedError,
 				setExpectationFunc: func(c *mocks.GcloudIamClient) {
 					c.EXPECT().
-						RevokeServiceAccountAccess(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+						RevokeServiceAccountAccess(mockCtx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 						Return(expectedError).Once()
 				},
 			},
