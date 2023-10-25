@@ -2,8 +2,9 @@ package v1beta1
 
 import (
 	"context"
-	"github.com/goto/guardian/pkg/log"
 	"strings"
+
+	"github.com/goto/guardian/pkg/log"
 
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/core/grant"

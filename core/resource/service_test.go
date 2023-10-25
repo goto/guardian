@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/goto/guardian/pkg/log"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/goto/guardian/core/resource"
@@ -19,6 +21,7 @@ type ServiceTestSuite struct {
 	mockRepository  *mocks.Repository
 	mockAuditLogger *mocks.AuditLogger
 	service         *resource.Service
+	logger          log.Logger
 
 	authenticatedUserEmail string
 }
@@ -26,9 +29,11 @@ type ServiceTestSuite struct {
 func (s *ServiceTestSuite) SetupTest() {
 	s.mockRepository = new(mocks.Repository)
 	s.mockAuditLogger = new(mocks.AuditLogger)
+	s.logger = log.NewCtxLogger("info", "test")
 	s.service = resource.NewService(resource.ServiceDeps{
 		Repository:  s.mockRepository,
 		AuditLogger: s.mockAuditLogger,
+		Logger:      s.logger,
 	})
 	s.authenticatedUserEmail = "user@example.com"
 }

@@ -433,6 +433,7 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("getting provider details: %w", err)
 	}
 
+	s.logger.Info(ctx, "retrieving related resources", "provider", id)
 	resources, err := s.resourceService.Find(ctx, domain.ListResourcesFilter{
 		ProviderType: p.Type,
 		ProviderURN:  p.URN,
@@ -444,6 +445,8 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	for _, r := range resources {
 		resourceIds = append(resourceIds, r.ID)
 	}
+	s.logger.Info(ctx, "deleting resources", "provider", id, "count", len(resourceIds))
+
 	// TODO: execute in transaction
 	if err := s.resourceService.BatchDelete(ctx, resourceIds); err != nil {
 		return fmt.Errorf("batch deleting resources: %w", err)
@@ -452,6 +455,7 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	if err := s.repository.Delete(ctx, id); err != nil {
 		return err
 	}
+	s.logger.Info(ctx, "provider deleted", "provider", id)
 
 	if err := s.auditLogger.Log(ctx, AuditKeyDelete, p); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)

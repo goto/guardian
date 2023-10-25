@@ -1,8 +1,9 @@
 package v1beta1_test
 
 import (
-	"github.com/goto/guardian/pkg/log"
 	"testing"
+
+	"github.com/goto/guardian/pkg/log"
 
 	"github.com/goto/guardian/api/handler/v1beta1"
 	"github.com/goto/guardian/api/handler/v1beta1/mocks"
