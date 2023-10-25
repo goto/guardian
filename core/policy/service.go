@@ -317,7 +317,8 @@ func (s *Service) validateApprover(expr string) error {
 		return nil
 	}
 
-	// skip validation if expression is accessing arbitrary value
+	// skip validate approver step in case the expression uses arbitrary appeal values
+	// which are only available at the time of appeal creation.
 	if strings.Contains(expr, "$appeal.resource") ||
 		strings.Contains(expr, "$appeal.creator") ||
 		strings.Contains(expr, "$appeal.role") ||
