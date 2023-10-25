@@ -129,6 +129,7 @@ func (s *Service) Update(ctx context.Context, payload *domain.Grant) error {
 	grantDetails.Owner = updatedGrant.Owner
 	grantDetails.UpdatedAt = updatedGrant.UpdatedAt
 	*payload = *grantDetails
+	s.logger.Info(ctx, "grant updated", "grant_id", grantDetails.ID, "updatedGrant", updatedGrant)
 
 	if err := s.auditLogger.Log(ctx, AuditKeyUpdate, map[string]interface{}{
 		"grant_id":      grantDetails.ID,
@@ -239,6 +240,8 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 			}
 		}
 	}
+
+	s.logger.Info(ctx, "grant revoked", "grant_id", id)
 
 	if err := s.auditLogger.Log(ctx, AuditKeyRevoke, map[string]interface{}{
 		"grant_id": id,

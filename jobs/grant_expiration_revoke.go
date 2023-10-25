@@ -18,11 +18,12 @@ func (h *handler) RevokeExpiredGrants(ctx context.Context, cfg Config) error {
 		IsPermanent:            &falseBool,
 	}
 
-	h.logger.Info(ctx, "retrieving active grant...")
+	h.logger.Info(ctx, "retrieving active grants...")
 	grants, err := h.grantService.List(ctx, filters)
 	if err != nil {
 		return err
 	}
+	h.logger.Info(ctx, "retrieved active grants", "count", len(grants))
 
 	successRevoke := []string{}
 	failedRevoke := []map[string]interface{}{}

@@ -32,6 +32,7 @@ func (h *handler) GrantExpirationReminder(ctx context.Context, cfg Config) error
 			)
 			continue
 		}
+		h.logger.Info(ctx, "retrieved active grants", "count", len(grants), "expiration_window_in_days", d)
 
 		// TODO: group notifications by username
 		var notifications []domain.Notification

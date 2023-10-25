@@ -1141,6 +1141,8 @@ func (s *Service) addCreatorDetails(ctx context.Context, a *domain.Appeal, p *do
 	}
 
 	a.Creator = creator
+	s.logger.Debug(ctx, "added creator details", "creator", creator)
+
 	return nil
 }
 
