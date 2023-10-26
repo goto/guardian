@@ -143,10 +143,11 @@ func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, 
 			dataset := d.ToDomain()
 			dataset.ProviderType = pc.Type
 			dataset.ProviderURN = pc.URN
-			var fetchTables bool
+			fetchTables := true
 
 			if containsString(resourceTypes, ResourceTypeDataset) {
 				mu.Lock()
+				fetchTables = false
 				defer mu.Unlock()
 				if datasetFilter != "" {
 					v, err := evaluator.Expression(datasetFilter).EvaluateWithStruct(dataset)
@@ -175,7 +176,11 @@ func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, 
 					table.ProviderURN = pc.URN
 					children[i] = table
 				}
-				dataset.Children = children
+				if containsString(resourceTypes, ResourceTypeDataset) {
+					dataset.Children = children
+				} else {
+					resources = append(resources, children...)
+				}
 			}
 			return nil
 		})
