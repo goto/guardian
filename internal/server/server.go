@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/goto/guardian/domain"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -45,7 +46,7 @@ const (
 
 // RunServer runs the application server
 func RunServer(config *Config) error {
-	logger := log.NewCtxLogger(config.LogLevel, config.AuditLogTraceIDHeaderKey)
+	logger := log.NewCtxLogger(config.LogLevel, domain.TraceIDKey)
 	crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 	validator := validator.New()
 	notifier, err := notifiers.NewClient(&config.Notifier, logger)

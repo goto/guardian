@@ -87,7 +87,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 			if traceID == "" {
 				traceID = uuid.New().String()
 			}
-			md["trace_id"] = traceID
+			md[domain.TraceIDKey] = traceID
 
 			return md
 		}),
