@@ -144,7 +144,8 @@ func (p *Provider) GetResources(pc *domain.ProviderConfig) ([]*domain.Resource, 
 			dataset.ProviderType = pc.Type
 			dataset.ProviderURN = pc.URN
 			fetchTables := true
-
+			//setting fetchTables to true here so that even if we try to get only tables we can do that,
+			//previously it wasn't possible as fetchTables was getting set to true only from within the dataset code block below.
 			if containsString(resourceTypes, ResourceTypeDataset) {
 				mu.Lock()
 				fetchTables = false
