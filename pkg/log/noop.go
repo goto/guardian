@@ -23,6 +23,7 @@ func (n *Noop) Writer() io.Writer {
 }
 
 // NewNoop returns a no operation logger, useful in tests
+// to avoid printing logs to stdout.
 func NewNoop(opts ...Option) *Noop {
 	return &Noop{}
 }

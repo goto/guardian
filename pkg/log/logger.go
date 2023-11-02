@@ -41,10 +41,12 @@ type CtxLogger struct {
 	key string
 }
 
+// NewCtxLoggerWithSaltLogger returns a logger that will add context value to the log message, wrapped with saltLog.Logger
 func NewCtxLoggerWithSaltLogger(log saltLog.Logger, ctxKey string) *CtxLogger {
 	return &CtxLogger{log: log, key: ctxKey}
 }
 
+// NewCtxLogger returns a logger that will add context value to the log message
 func NewCtxLogger(logLevel string, ctxKey string) *CtxLogger {
 	saltLogger := saltLog.NewLogrus(saltLog.LogrusWithLevel(logLevel))
 	return NewCtxLoggerWithSaltLogger(saltLogger, ctxKey)
@@ -78,6 +80,7 @@ func (l *CtxLogger) Writer() io.Writer {
 	return l.log.Writer()
 }
 
+// addCtxToArgs adds context value to the existing args slice as key/value pair
 func (l *CtxLogger) addCtxToArgs(ctx context.Context, args ...interface{}) []interface{} {
 	if ctx == nil {
 		return args
