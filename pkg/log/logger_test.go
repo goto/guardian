@@ -2,8 +2,9 @@ package log
 
 import (
 	"context"
-	"github.com/goto/guardian/pkg/log/mocks"
 	"testing"
+
+	"github.com/goto/guardian/pkg/log/mocks"
 )
 
 func TestLogger(t *testing.T) {

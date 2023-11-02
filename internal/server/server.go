@@ -3,11 +3,12 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/goto/guardian/domain"
 	"net/http"
 	"runtime/debug"
 	"strings"
 	"time"
+
+	"github.com/goto/guardian/domain"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
