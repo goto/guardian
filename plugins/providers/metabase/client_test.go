@@ -22,7 +22,7 @@ import (
 func TestNewClient(t *testing.T) {
 	t.Run("should return error if config is invalid", func(t *testing.T) {
 		invalidConfig := &metabase.ClientConfig{}
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		actualClient, actualError := metabase.NewClient(invalidConfig, logger)
 
 		assert.Nil(t, actualClient)
@@ -35,7 +35,7 @@ func TestNewClient(t *testing.T) {
 			Password: "test-password",
 			Host:     "invalid-url",
 		}
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		actualClient, actualError := metabase.NewClient(invalidHostConfig, logger)
 
 		assert.Nil(t, actualClient)
@@ -50,7 +50,7 @@ func TestNewClient(t *testing.T) {
 			Host:       "http://localhost",
 			HTTPClient: mockHttpClient,
 		}
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		expectedError := errors.New("request error")
 		mockHttpClient.On("Do", mock.Anything).Return(nil, expectedError).Once()
 
@@ -70,7 +70,7 @@ func TestNewClient(t *testing.T) {
 			Host:       "http://localhost",
 			HTTPClient: mockHttpClient,
 		}
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 
 		sessionToken := "93df71b4-6887-46bd-b4bf-7ad3b94bd6fe"
 		responseJSON := `{"id":"` + sessionToken + `"}`

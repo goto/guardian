@@ -37,39 +37,39 @@ type Logger interface {
 }
 
 type CtxLogger struct {
-	log saltLog.Logger
-	key string
+	log  saltLog.Logger
+	keys []string
 }
 
 // NewCtxLoggerWithSaltLogger returns a logger that will add context value to the log message, wrapped with saltLog.Logger
-func NewCtxLoggerWithSaltLogger(log saltLog.Logger, ctxKey string) *CtxLogger {
-	return &CtxLogger{log: log, key: ctxKey}
+func NewCtxLoggerWithSaltLogger(log saltLog.Logger, ctxKeys []string) *CtxLogger {
+	return &CtxLogger{log: log, keys: ctxKeys}
 }
 
 // NewCtxLogger returns a logger that will add context value to the log message
-func NewCtxLogger(logLevel string, ctxKey string) *CtxLogger {
+func NewCtxLogger(logLevel string, ctxKeys []string) *CtxLogger {
 	saltLogger := saltLog.NewLogrus(saltLog.LogrusWithLevel(logLevel))
-	return NewCtxLoggerWithSaltLogger(saltLogger, ctxKey)
+	return NewCtxLoggerWithSaltLogger(saltLogger, ctxKeys)
 }
 
 func (l *CtxLogger) Debug(ctx context.Context, msg string, args ...interface{}) {
-	l.log.Debug(msg, l.addCtxToArgs(ctx, args...))
+	l.log.Debug(msg, l.addCtxToArgs(ctx, args)...)
 }
 
 func (l *CtxLogger) Info(ctx context.Context, msg string, args ...interface{}) {
-	l.log.Info(msg, l.addCtxToArgs(ctx, args...))
+	l.log.Info(msg, l.addCtxToArgs(ctx, args)...)
 }
 
 func (l *CtxLogger) Warn(ctx context.Context, msg string, args ...interface{}) {
-	l.log.Warn(msg, l.addCtxToArgs(ctx, args...))
+	l.log.Warn(msg, l.addCtxToArgs(ctx, args)...)
 }
 
 func (l *CtxLogger) Error(ctx context.Context, msg string, args ...interface{}) {
-	l.log.Error(msg, l.addCtxToArgs(ctx, args...))
+	l.log.Error(msg, l.addCtxToArgs(ctx, args)...)
 }
 
 func (l *CtxLogger) Fatal(ctx context.Context, msg string, args ...interface{}) {
-	l.log.Fatal(msg, l.addCtxToArgs(ctx, args...))
+	l.log.Fatal(msg, l.addCtxToArgs(ctx, args)...)
 }
 
 func (l *CtxLogger) Level() string {
@@ -81,12 +81,15 @@ func (l *CtxLogger) Writer() io.Writer {
 }
 
 // addCtxToArgs adds context value to the existing args slice as key/value pair
-func (l *CtxLogger) addCtxToArgs(ctx context.Context, args ...interface{}) []interface{} {
+func (l *CtxLogger) addCtxToArgs(ctx context.Context, args []interface{}) []interface{} {
 	if ctx == nil {
 		return args
 	}
-	if val, ok := ctx.Value(l.key).(string); ok {
-		args = append(args, l.key, val)
+
+	for _, key := range l.keys {
+		if val, ok := ctx.Value(key).(string); ok {
+			args = append(args, key, val)
+		}
 	}
 
 	return args

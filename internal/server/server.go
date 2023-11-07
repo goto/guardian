@@ -47,7 +47,7 @@ const (
 
 // RunServer runs the application server
 func RunServer(config *Config) error {
-	logger := log.NewCtxLogger(config.LogLevel, domain.TraceIDKey)
+	logger := log.NewCtxLogger(config.LogLevel, []string{domain.TraceIDKey})
 	crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 	validator := validator.New()
 	notifier, err := notifiers.NewClient(&config.Notifier, logger)

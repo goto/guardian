@@ -40,7 +40,7 @@ func TestGrantRepository(t *testing.T) {
 
 func (s *GrantRepositoryTestSuite) SetupSuite() {
 	var err error
-	logger := log.NewCtxLogger("debug", "test")
+	logger := log.NewCtxLogger("debug", []string{"test"})
 	s.store, s.pool, s.resource, err = newTestStore(logger)
 	if err != nil {
 		s.T().Fatal(err)

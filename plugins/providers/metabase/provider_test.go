@@ -18,7 +18,7 @@ import (
 func TestGetType(t *testing.T) {
 	t.Run("should return provider type name", func(t *testing.T) {
 		expectedTypeName := domain.ProviderTypeMetabase
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		crypto := new(mocks.Crypto)
 		p := metabase.NewProvider(expectedTypeName, crypto, logger)
 
@@ -33,7 +33,7 @@ func TestCreateConfig(t *testing.T) {
 		providerURN := "test-provider-urn"
 		crypto := new(mocks.Crypto)
 		client := new(mocks.MetabaseClient)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("", crypto, logger)
 		p.Clients = map[string]metabase.MetabaseClient{
 			providerURN: client,
@@ -72,7 +72,7 @@ func TestCreateConfig(t *testing.T) {
 		providerURN := "test-provider-urn"
 		crypto := new(mocks.Crypto)
 		client := new(mocks.MetabaseClient)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("", crypto, logger)
 		p.Clients = map[string]metabase.MetabaseClient{
 			providerURN: client,
@@ -127,7 +127,7 @@ func TestCreateConfig(t *testing.T) {
 		providerURN := "test-provider-urn"
 		crypto := new(mocks.Crypto)
 		client := new(mocks.MetabaseClient)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("", crypto, logger)
 		crypto.On("Encrypt", "test-password").Return("encrypted-test-pasword", nil)
 		p.Clients = map[string]metabase.MetabaseClient{
@@ -240,7 +240,7 @@ func TestGetResources(t *testing.T) {
 	ctx := context.Background()
 	t.Run("should return error if credentials is invalid", func(t *testing.T) {
 		crypto := new(mocks.Crypto)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("", crypto, logger)
 
 		pc := &domain.ProviderConfig{
@@ -255,7 +255,7 @@ func TestGetResources(t *testing.T) {
 
 	t.Run("should return error if there are any on client initialization", func(t *testing.T) {
 		crypto := new(mocks.Crypto)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("", crypto, logger)
 
 		expectedError := errors.New("decrypt error")
@@ -276,7 +276,7 @@ func TestGetResources(t *testing.T) {
 		providerURN := "test-provider-urn"
 		crypto := new(mocks.Crypto)
 		client := new(mocks.MetabaseClient)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("", crypto, logger)
 		p.Clients = map[string]metabase.MetabaseClient{
 			providerURN: client,
@@ -304,7 +304,7 @@ func TestGetResources(t *testing.T) {
 		providerURN := "test-provider-urn"
 		crypto := new(mocks.Crypto)
 		client := new(mocks.MetabaseClient)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("", crypto, logger)
 		p.Clients = map[string]metabase.MetabaseClient{
 			providerURN: client,
@@ -332,7 +332,7 @@ func TestGetResources(t *testing.T) {
 		providerURN := "test-provider-urn"
 		crypto := new(mocks.Crypto)
 		client := new(mocks.MetabaseClient)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("", crypto, logger)
 		p.Clients = map[string]metabase.MetabaseClient{
 			providerURN: client,
@@ -439,7 +439,7 @@ func TestGrantAccess(t *testing.T) {
 	ctx := context.Background()
 	t.Run("should return error if credentials is invalid", func(t *testing.T) {
 		crypto := new(mocks.Crypto)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("", crypto, logger)
 
 		pc := &domain.ProviderConfig{
@@ -469,7 +469,7 @@ func TestGrantAccess(t *testing.T) {
 
 	t.Run("should return decrypt error if there are any on client initialization", func(t *testing.T) {
 		crypto := new(mocks.Crypto)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("", crypto, logger)
 		expectedError := errors.New("decrypt error")
 		crypto.On("Decrypt", "test-password").Return("", expectedError).Once()
@@ -506,7 +506,7 @@ func TestGrantAccess(t *testing.T) {
 
 	t.Run("should return error if resource type in unknown", func(t *testing.T) {
 		crypto := new(mocks.Crypto)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("", crypto, logger)
 		expectedError := errors.New("invalid resource type")
 		crypto.On("Decrypt", "test-password").Return("", expectedError).Once()
@@ -548,7 +548,7 @@ func TestGrantAccess(t *testing.T) {
 			expectedError := errors.New("client error")
 			crypto := new(mocks.Crypto)
 			client := new(mocks.MetabaseClient)
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			p := metabase.NewProvider("", crypto, logger)
 			p.Clients = map[string]metabase.MetabaseClient{
 				providerURN: client,
@@ -599,7 +599,7 @@ func TestGrantAccess(t *testing.T) {
 		t.Run("should return nil error if granting access is successful", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			crypto := new(mocks.Crypto)
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			client := new(mocks.MetabaseClient)
 			expectedDatabase := &metabase.Database{
 				Name: "test-database",
@@ -663,7 +663,7 @@ func TestGrantAccess(t *testing.T) {
 			expectedError := errors.New("client error")
 			crypto := new(mocks.Crypto)
 			client := new(mocks.MetabaseClient)
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			p := metabase.NewProvider("", crypto, logger)
 			p.Clients = map[string]metabase.MetabaseClient{
 				providerURN: client,
@@ -721,7 +721,7 @@ func TestGrantAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := "viewer"
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			p := metabase.NewProvider("", crypto, logger)
 
 			p.Clients = map[string]metabase.MetabaseClient{
@@ -779,7 +779,7 @@ func TestGrantAccess(t *testing.T) {
 			expectedError := errors.New("client error")
 			crypto := new(mocks.Crypto)
 			client := new(mocks.MetabaseClient)
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			p := metabase.NewProvider("", crypto, logger)
 			p.Clients = map[string]metabase.MetabaseClient{
 				providerURN: client,
@@ -830,7 +830,7 @@ func TestGrantAccess(t *testing.T) {
 		t.Run("should return nil error if granting access is successful", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			crypto := new(mocks.Crypto)
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			client := new(mocks.MetabaseClient)
 			expectedGroupID := 999
 			expectedEmail := "test@email.com"
@@ -891,7 +891,7 @@ func TestGrantAccess(t *testing.T) {
 			expectedUser := "test@email.com"
 			crypto := new(mocks.Crypto)
 			client := new(mocks.MetabaseClient)
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			p := metabase.NewProvider("", crypto, logger)
 			p.Clients = map[string]metabase.MetabaseClient{
 				providerURN: client,
@@ -953,7 +953,7 @@ func TestGrantAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := "viewer"
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			p := metabase.NewProvider("", crypto, logger)
 
 			p.Clients = map[string]metabase.MetabaseClient{
@@ -1012,7 +1012,7 @@ func TestRevokeAccess(t *testing.T) {
 	ctx := context.Background()
 	t.Run("should return error if credentials is invalid", func(t *testing.T) {
 		crypto := new(mocks.Crypto)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("", crypto, logger)
 
 		pc := &domain.ProviderConfig{
@@ -1042,7 +1042,7 @@ func TestRevokeAccess(t *testing.T) {
 
 	t.Run("should return error if there are any on client initialization", func(t *testing.T) {
 		crypto := new(mocks.Crypto)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("", crypto, logger)
 		expectedError := errors.New("decrypt error")
 		crypto.On("Decrypt", "test-password").Return("", expectedError).Once()
@@ -1079,7 +1079,7 @@ func TestRevokeAccess(t *testing.T) {
 
 	t.Run("should return error if resource type in unknown", func(t *testing.T) {
 		crypto := new(mocks.Crypto)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("", crypto, logger)
 		expectedError := errors.New("invalid resource type")
 		crypto.On("Decrypt", "test-password").Return("", expectedError).Once()
@@ -1121,7 +1121,7 @@ func TestRevokeAccess(t *testing.T) {
 			expectedError := errors.New("client error")
 			crypto := new(mocks.Crypto)
 			client := new(mocks.MetabaseClient)
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			p := metabase.NewProvider("", crypto, logger)
 			p.Clients = map[string]metabase.MetabaseClient{
 				providerURN: client,
@@ -1165,7 +1165,7 @@ func TestRevokeAccess(t *testing.T) {
 		t.Run("should return nil error if revoking database access is successful", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			crypto := new(mocks.Crypto)
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			client := new(mocks.MetabaseClient)
 			expectedDatabase := &metabase.Database{
 				Name: "test-database",
@@ -1224,7 +1224,7 @@ func TestRevokeAccess(t *testing.T) {
 			expectedError := errors.New("client error")
 			crypto := new(mocks.Crypto)
 			client := new(mocks.MetabaseClient)
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			p := metabase.NewProvider("", crypto, logger)
 			p.Clients = map[string]metabase.MetabaseClient{
 				providerURN: client,
@@ -1275,7 +1275,7 @@ func TestRevokeAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := "viewer"
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			p := metabase.NewProvider("", crypto, logger)
 
 			p.Clients = map[string]metabase.MetabaseClient{
@@ -1328,7 +1328,7 @@ func TestRevokeAccess(t *testing.T) {
 			expectedError := errors.New("client error")
 			crypto := new(mocks.Crypto)
 			client := new(mocks.MetabaseClient)
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			p := metabase.NewProvider("", crypto, logger)
 			p.Clients = map[string]metabase.MetabaseClient{
 				providerURN: client,
@@ -1376,7 +1376,7 @@ func TestRevokeAccess(t *testing.T) {
 			expectedUser := "test@email.com"
 			crypto := new(mocks.Crypto)
 			client := new(mocks.MetabaseClient)
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			p := metabase.NewProvider("", crypto, logger)
 			p.Clients = map[string]metabase.MetabaseClient{
 				providerURN: client,
@@ -1431,7 +1431,7 @@ func TestRevokeAccess(t *testing.T) {
 			}
 			expectedUser := "test@email.com"
 			expectedRole := "viewer"
-			logger := log.NewCtxLogger("info", "test")
+			logger := log.NewCtxLogger("info", []string{"test"})
 			p := metabase.NewProvider("", crypto, logger)
 
 			p.Clients = map[string]metabase.MetabaseClient{
@@ -1482,7 +1482,7 @@ func TestRevokeAccess(t *testing.T) {
 func TestGetAccountTypes(t *testing.T) {
 	expectedAccountType := []string{"user"}
 	crypto := new(mocks.Crypto)
-	logger := log.NewCtxLogger("info", "test")
+	logger := log.NewCtxLogger("info", []string{"test"})
 	p := metabase.NewProvider("", crypto, logger)
 
 	actualAccountType := p.GetAccountTypes()
@@ -1493,7 +1493,7 @@ func TestGetAccountTypes(t *testing.T) {
 func TestGetRoles(t *testing.T) {
 	t.Run("should return error if resource type is invalid", func(t *testing.T) {
 		crypto := new(mocks.Crypto)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("metabase", crypto, logger)
 		validConfig := &domain.ProviderConfig{
 			Type:                "metabase",
@@ -1526,7 +1526,7 @@ func TestGetRoles(t *testing.T) {
 
 	t.Run("should return roles specified in the provider config", func(t *testing.T) {
 		crypto := new(mocks.Crypto)
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		p := metabase.NewProvider("metabase", crypto, logger)
 
 		expectedRoles := []*domain.Role{

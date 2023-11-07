@@ -29,7 +29,7 @@ type ServiceTestSuite struct {
 func (s *ServiceTestSuite) SetupTest() {
 	s.mockRepository = new(mocks.Repository)
 	s.mockAuditLogger = new(mocks.AuditLogger)
-	s.logger = log.NewCtxLogger("info", "test")
+	s.logger = log.NewCtxLogger("info", []string{"test"})
 	s.service = resource.NewService(resource.ServiceDeps{
 		Repository:  s.mockRepository,
 		AuditLogger: s.mockAuditLogger,

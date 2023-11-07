@@ -33,7 +33,7 @@ type ServiceTestSuite struct {
 }
 
 func (s *ServiceTestSuite) SetupTest() {
-	logger := log.NewCtxLogger("info", "test")
+	logger := log.NewCtxLogger("info", []string{"test"})
 	validator := validator.New()
 	s.mockProviderRepository = new(providermocks.Repository)
 	s.mockResourceService = new(providermocks.ResourceService)

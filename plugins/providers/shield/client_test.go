@@ -22,7 +22,7 @@ import (
 func TestNewClient(t *testing.T) {
 	t.Run("should return error if config is invalid", func(t *testing.T) {
 		invalidConfig := &shield.ClientConfig{}
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		actualClient, actualError := shield.NewClient(invalidConfig, logger)
 
 		assert.Nil(t, actualClient)
@@ -35,7 +35,7 @@ func TestNewClient(t *testing.T) {
 			AuthEmail:  "test-email",
 			Host:       "invalid-url",
 		}
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 		actualClient, actualError := shield.NewClient(invalidHostConfig, logger)
 
 		assert.Nil(t, actualClient)
@@ -51,7 +51,7 @@ func TestNewClient(t *testing.T) {
 			Host:       "http://localhost",
 			HTTPClient: mockHttpClient,
 		}
-		logger := log.NewCtxLogger("info", "test")
+		logger := log.NewCtxLogger("info", []string{"test"})
 
 		_, actualError := shield.NewClient(config, logger)
 		mockHttpClient.AssertExpectations(t)

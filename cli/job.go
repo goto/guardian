@@ -64,7 +64,7 @@ func runJobCmd() *cobra.Command {
 				return fmt.Errorf("loading config: %w", err)
 			}
 
-			logger := log.NewCtxLogger(config.LogLevel, config.AuditLogTraceIDHeaderKey)
+			logger := log.NewCtxLogger(config.LogLevel, []string{config.AuditLogTraceIDHeaderKey})
 			crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 			validator := validator.New()
 			notifier, err := notifiers.NewClient(&config.Notifier, logger)

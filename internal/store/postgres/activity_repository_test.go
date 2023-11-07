@@ -36,7 +36,7 @@ func TestActivityRepository(t *testing.T) {
 }
 
 func (s *ActivityRepositoryTestSuite) SetupSuite() {
-	logger := log.NewCtxLogger("info", "test")
+	logger := log.NewCtxLogger("info", []string{"test"})
 	store, pool, resource, err := newTestStore(logger)
 	if err != nil {
 		s.T().Fatal(err)
