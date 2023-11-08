@@ -88,6 +88,7 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 				Type:         rc.Type,
 				URN:          creds.ResourceName,
 				Name:         fmt.Sprintf("%s - GCP IAM", creds.ResourceName),
+				GlobalURN:    fmt.Sprintf("urn:gcloudiam:%s:%s:%s", pc.URN, rc.Type, creds.ResourceName),
 			})
 
 		case ResourceTypeServiceAccount:
@@ -110,6 +111,7 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 					Type:         rc.Type,
 					URN:          sa.Name,
 					Name:         sa.Email,
+					GlobalURN:    fmt.Sprintf("urn:gcloudiam:%s:%s:%s", pc.URN, rc.Type, sa.Email),
 				})
 			}
 

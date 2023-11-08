@@ -40,6 +40,8 @@ func (d *Dataset) ToDomain() *domain.Resource {
 		Type: ResourceTypeDataset,
 		Name: d.DatasetID,
 		URN:  fmt.Sprintf("%s:%s", d.ProjectID, d.DatasetID),
+		// urn:{source}:{scope}:{kind}:{identifier}
+		GlobalURN: fmt.Sprintf("urn:bigquery:%s:%s:%s", d.ProjectID, ResourceTypeDataset, d.DatasetID),
 	}
 
 	if d.Labels != nil {
@@ -79,9 +81,10 @@ func (t *Table) FromDomain(r *domain.Resource) error {
 
 func (t *Table) ToDomain() *domain.Resource {
 	r := &domain.Resource{
-		Type: ResourceTypeTable,
-		Name: t.TableID,
-		URN:  fmt.Sprintf("%s:%s.%s", t.ProjectID, t.DatasetID, t.TableID),
+		Type:      ResourceTypeTable,
+		Name:      t.TableID,
+		URN:       fmt.Sprintf("%s:%s.%s", t.ProjectID, t.DatasetID, t.TableID),
+		GlobalURN: fmt.Sprintf("urn:bigquery:%s:%s:%s.%s", t.ProjectID, ResourceTypeTable, t.DatasetID, t.TableID),
 	}
 
 	if t.Labels != nil {

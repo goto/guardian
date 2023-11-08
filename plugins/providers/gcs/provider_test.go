@@ -260,6 +260,7 @@ func TestGetResources(t *testing.T) {
 				Type:         gcs.ResourceTypeBucket,
 				URN:          "test-bucket-name",
 				Name:         "test-bucket-name",
+				GlobalURN:    "urn:gcs:test-resource-name:bucket:test-bucket-name",
 			},
 		}
 		actualResources, actualError := p.GetResources(ctx, pc)

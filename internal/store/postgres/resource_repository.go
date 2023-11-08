@@ -117,7 +117,7 @@ func (r *ResourceRepository) GetOne(ctx context.Context, id string) (*domain.Res
 	}
 
 	var m model.Resource
-	if err := r.db.WithContext(ctx).Where("id = ?", id).Take(&m).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).Or("global_urn = ?", id).Take(&m).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, resource.ErrRecordNotFound
 		}
@@ -180,7 +180,7 @@ func (r *ResourceRepository) Update(ctx context.Context, res *domain.Resource) e
 	}
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(m).Where("id = ?", m.ID).Updates(*m).Error; err != nil {
+		if err := tx.Model(m).Where("id = ?", m.ID).Or("global_urn = ?", m.ID).Updates(*m).Error; err != nil {
 			return err
 		}
 
@@ -200,7 +200,7 @@ func (r *ResourceRepository) Delete(ctx context.Context, id string) error {
 		return resource.ErrEmptyIDParam
 	}
 
-	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Resource{})
+	result := r.db.WithContext(ctx).Where("id = ?", id).Or("global_urn = ?", id).Delete(&model.Resource{})
 	if result.Error != nil {
 		return result.Error
 	}

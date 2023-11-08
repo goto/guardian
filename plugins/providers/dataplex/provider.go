@@ -76,6 +76,7 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			resource := policy.ToDomain()
 			resource.ProviderType = pc.Type
 			resource.ProviderURN = pc.URN
+			resource.GlobalURN = fmt.Sprintf("urn:dataplex:%s:%s:%s", pc.URN, ResourceTypeTag, policy.Name)
 			resources = append(resources, resource)
 		}
 	}

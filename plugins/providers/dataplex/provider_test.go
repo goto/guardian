@@ -302,6 +302,7 @@ func TestGetResources(t *testing.T) {
 					"description": "p_description",
 					"taxonomy":    "p_taxonomydisplayname",
 				},
+				GlobalURN: "urn:dataplex:policy-tag-urn:tag:p_name",
 			},
 		}
 		actualResources, actualError := p.GetResources(ctx, pc)

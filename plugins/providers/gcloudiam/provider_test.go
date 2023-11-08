@@ -457,6 +457,7 @@ func TestGetResources(t *testing.T) {
 				Type:         gcloudiam.ResourceTypeOrganization,
 				URN:          "organization/test-resource-name",
 				Name:         "organization/test-resource-name - GCP IAM",
+				GlobalURN:    "urn:gcloudiam:test-provider-urn:organization:organization/test-resource-name",
 			},
 		}
 

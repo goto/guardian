@@ -304,6 +304,7 @@ func TestGetResources(t *testing.T) {
 				ProviderURN: providerURN,
 				Name:        "db_1",
 				Details:     map[string]interface{}{},
+				GlobalURN:   "urn:grafana:test-provider-urn:dashboard:1",
 			},
 		}
 

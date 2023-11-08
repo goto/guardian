@@ -2,6 +2,7 @@ package metabase
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	pv "github.com/goto/guardian/core/provider"
@@ -157,6 +158,8 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			group := g.ToDomain()
 			group.ProviderType = pc.Type
 			group.ProviderURN = pc.URN
+			group.GlobalURN = fmt.Sprintf("urn:metabase:%s:%s:%d", pc.URN, ResourceTypeGroup, g.ID)
+
 			resources = append(resources, group)
 		}
 	}
@@ -169,6 +172,7 @@ func (p *provider) addCollection(pc *domain.ProviderConfig, collections []*Colle
 		db := c.ToDomain()
 		db.ProviderType = pc.Type
 		db.ProviderURN = pc.URN
+		db.GlobalURN = fmt.Sprintf("urn:metabase:%s:%s:%d", pc.URN, ResourceTypeCollection, c.ID)
 		resources = append(resources, db)
 	}
 	return resources
@@ -179,6 +183,8 @@ func (p *provider) addDatabases(pc *domain.ProviderConfig, databases []*Database
 		db := d.ToDomain()
 		db.ProviderType = pc.Type
 		db.ProviderURN = pc.URN
+		db.GlobalURN = fmt.Sprintf("urn:metabase:%s:%s:%d", pc.URN, ResourceTypeDatabase, d.ID)
+
 		resources = append(resources, db)
 	}
 	return resources
@@ -189,12 +195,15 @@ func (p *provider) addTables(pc *domain.ProviderConfig, databases []*Database, r
 		db := d.ToDomain()
 		db.ProviderType = pc.Type
 		db.ProviderURN = pc.URN
+		db.GlobalURN = fmt.Sprintf("urn:metabase:%s:%s:%d", pc.URN, ResourceTypeDatabase, d.ID)
 
 		for _, t := range d.Tables {
 			t.Database = db
 			table := t.ToDomain()
 			table.ProviderType = pc.Type
 			table.ProviderURN = pc.URN
+			table.GlobalURN = fmt.Sprintf("urn:metabase:%s:%s:%d", pc.URN, ResourceTypeTable, t.ID)
+
 			resources = append(resources, table)
 		}
 	}
