@@ -404,6 +404,7 @@ func TestGetResources(t *testing.T) {
 				Type:         gcloudiam.ResourceTypeProject,
 				URN:          "project/test-resource-name",
 				Name:         "project/test-resource-name - GCP IAM",
+				GlobalURN:    "urn:gcloudiam:test-provider-urn:project:project/test-resource-name",
 			},
 			{
 				ProviderType: pc.Type,
@@ -411,6 +412,7 @@ func TestGetResources(t *testing.T) {
 				Type:         gcloudiam.ResourceTypeServiceAccount,
 				URN:          "sa-name",
 				Name:         "sa-email",
+				GlobalURN:    "urn:gcloudiam:test-provider-urn:service_account:sa-email",
 			},
 		}
 
