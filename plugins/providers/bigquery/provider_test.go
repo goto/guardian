@@ -423,7 +423,7 @@ func TestGetResources(t *testing.T) {
 			},
 		}
 		expectedResources := append(resources, children...)
-		actualResources, actualError := p.GetResources(pc)
+		actualResources, actualError := p.GetResources(context.Background(), pc)
 
 		assert.Equal(t, expectedResources, actualResources)
 		assert.Nil(t, actualError)
