@@ -180,7 +180,7 @@ func (r *ResourceRepository) Update(ctx context.Context, res *domain.Resource) e
 	}
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(m).Where("id = ?", m.ID).Or("global_urn = ?", m.ID).Updates(*m).Error; err != nil {
+		if err := tx.Model(m).Where("id = ?", m.ID).Or("global_urn = ?", res.ID).Updates(*m).Error; err != nil {
 			return err
 		}
 

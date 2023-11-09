@@ -7,6 +7,7 @@ import (
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/goto/guardian/utils"
 	"github.com/mitchellh/mapstructure"
 	"golang.org/x/net/context"
 	"google.golang.org/api/iam/v1"
@@ -88,7 +89,7 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 				Type:         rc.Type,
 				URN:          creds.ResourceName,
 				Name:         fmt.Sprintf("%s - GCP IAM", creds.ResourceName),
-				GlobalURN:    fmt.Sprintf("urn:gcloudiam:%s:%s:%s", pc.URN, rc.Type, creds.ResourceName),
+				GlobalURN:    utils.GetGlobalURN("gcloudiam", pc.URN, rc.Type, creds.ResourceName),
 			})
 
 		case ResourceTypeServiceAccount:
@@ -111,7 +112,7 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 					Type:         rc.Type,
 					URN:          sa.Name,
 					Name:         sa.Email,
-					GlobalURN:    fmt.Sprintf("urn:gcloudiam:%s:%s:%s", pc.URN, rc.Type, sa.Email),
+					GlobalURN:    utils.GetGlobalURN("gcloudiam", pc.URN, rc.Type, sa.Email),
 				})
 			}
 

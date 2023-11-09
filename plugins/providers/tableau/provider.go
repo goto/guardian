@@ -2,10 +2,10 @@ package tableau
 
 import (
 	"context"
-	"fmt"
 
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/utils"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -63,7 +63,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			wb := w.ToDomain()
 			wb.ProviderType = pc.Type
 			wb.ProviderURN = pc.URN
-			wb.GlobalURN = fmt.Sprintf("urn:tableau:%s:%s:%s", pc.URN, ResourceTypeWorkbook, w.ID)
+			wb.GlobalURN = utils.GetGlobalURN("tableau", pc.URN, ResourceTypeWorkbook, w.ID)
 			resources = append(resources, wb)
 		}
 	}
@@ -77,7 +77,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			fl := f.ToDomain()
 			fl.ProviderType = pc.Type
 			fl.ProviderURN = pc.URN
-			fl.GlobalURN = fmt.Sprintf("urn:tableau:%s:%s:%s", pc.URN, ResourceTypeFlow, f.ID)
+			fl.GlobalURN = utils.GetGlobalURN("tableau", pc.URN, ResourceTypeFlow, f.ID)
 			resources = append(resources, fl)
 		}
 	}
@@ -91,7 +91,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			ds := d.ToDomain()
 			ds.ProviderType = pc.Type
 			ds.ProviderURN = pc.URN
-			ds.GlobalURN = fmt.Sprintf("urn:tableau:%s:%s:%s", pc.URN, ResourceTypeDataSource, d.ID)
+			ds.GlobalURN = utils.GetGlobalURN("tableau", pc.URN, ResourceTypeDataSource, d.ID)
 			resources = append(resources, ds)
 		}
 	}
@@ -105,7 +105,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			vs := v.ToDomain()
 			vs.ProviderType = pc.Type
 			vs.ProviderURN = pc.URN
-			vs.GlobalURN = fmt.Sprintf("urn:tableau:%s:%s:%s", pc.URN, ResourceTypeView, v.ID)
+			vs.GlobalURN = utils.GetGlobalURN("tableau", pc.URN, ResourceTypeView, v.ID)
 			resources = append(resources, vs)
 		}
 	}
@@ -119,7 +119,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			mt := m.ToDomain()
 			mt.ProviderType = pc.Type
 			mt.ProviderURN = pc.URN
-			mt.GlobalURN = fmt.Sprintf("urn:tableau:%s:%s:%s", pc.URN, ResourceTypeMetric, m.ID)
+			mt.GlobalURN = utils.GetGlobalURN("tableau", pc.URN, ResourceTypeMetric, m.ID)
 			resources = append(resources, mt)
 		}
 	}

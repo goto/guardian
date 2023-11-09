@@ -2,11 +2,11 @@ package shield
 
 import (
 	"context"
-	"fmt"
 
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/goto/guardian/utils"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -96,7 +96,7 @@ func (p *provider) addTeams(pc *domain.ProviderConfig, teams []*Team, resources 
 		t := c.ToDomain()
 		t.ProviderType = pc.Type
 		t.ProviderURN = pc.URN
-		t.GlobalURN = fmt.Sprintf("urn:shield:%s:%s:%s", pc.URN, ResourceTypeTeam, c.ID)
+		t.GlobalURN = utils.GetGlobalURN("shield", pc.URN, ResourceTypeTeam, c.ID)
 		resources = append(resources, t)
 	}
 
@@ -108,7 +108,7 @@ func (p *provider) addProjects(pc *domain.ProviderConfig, projects []*Project, r
 		t := c.ToDomain()
 		t.ProviderType = pc.Type
 		t.ProviderURN = pc.URN
-		t.GlobalURN = fmt.Sprintf("urn:shield:%s:%s:%s", pc.URN, ResourceTypeProject, c.ID)
+		t.GlobalURN = utils.GetGlobalURN("shield", pc.URN, ResourceTypeProject, c.ID)
 		resources = append(resources, t)
 	}
 	return resources
@@ -119,7 +119,7 @@ func (p *provider) addOrganizations(pc *domain.ProviderConfig, organizations []*
 		t := c.ToDomain()
 		t.ProviderType = pc.Type
 		t.ProviderURN = pc.URN
-		t.GlobalURN = fmt.Sprintf("urn:shield:%s:%s:%s", pc.URN, ResourceTypeOrganization, c.ID)
+		t.GlobalURN = utils.GetGlobalURN("shield", pc.URN, ResourceTypeOrganization, c.ID)
 		resources = append(resources, t)
 	}
 	return resources
