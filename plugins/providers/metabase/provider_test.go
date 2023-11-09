@@ -407,7 +407,7 @@ func TestGetResources(t *testing.T) {
 					"native_permissions":          "",
 					"timezone":                    "",
 				},
-				GlobalURN: "urn:metabase:test-provider-urn:table:2",
+				GlobalURN: "urn:metabase:test-provider-urn:table:1",
 			},
 			{
 				Type:        metabase.ResourceTypeCollection,
