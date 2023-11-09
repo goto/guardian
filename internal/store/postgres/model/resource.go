@@ -23,6 +23,7 @@ type Resource struct {
 	Name         string
 	Details      datatypes.JSON
 	Labels       datatypes.JSON
+	GlobalURN    string
 
 	Children []Resource `gorm:"ForeignKey:ParentID;References:ID"`
 	Provider Provider   `gorm:"ForeignKey:ProviderType,ProviderURN;References:Type,URN"`
@@ -66,10 +67,9 @@ func (m *Resource) FromDomain(r *domain.Resource) error {
 
 	if r.ID != "" {
 		uuid, err := uuid.Parse(r.ID)
-		if err != nil {
-			return fmt.Errorf("parsing uuid: %w", err)
+		if err == nil {
+			m.ID = uuid
 		}
-		m.ID = uuid
 	}
 
 	m.ParentID = r.ParentID

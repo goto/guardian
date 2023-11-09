@@ -7,6 +7,7 @@ import (
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/goto/guardian/utils"
 )
 
 var (
@@ -77,6 +78,7 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			Type:         ResourceTypeNoOp,
 			URN:          pc.URN,
 			Name:         pc.URN,
+			GlobalURN:    utils.GetGlobalURN("noop", pc.URN, ResourceTypeNoOp, pc.URN),
 		},
 	}, nil
 }
