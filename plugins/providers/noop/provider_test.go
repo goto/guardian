@@ -211,6 +211,7 @@ func TestGetResources(t *testing.T) {
 			Type:         noop.ResourceTypeNoOp,
 			URN:          validConfig.URN,
 			Name:         validConfig.URN,
+			GlobalURN:    "urn:noop:test-noop:noop:test-noop",
 		}
 
 		actualResources, actualError := p.GetResources(context.TODO(), validConfig)
