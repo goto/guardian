@@ -422,6 +422,7 @@ func TestGetResources(t *testing.T) {
 				Name:         "t_id",
 				URN:          "p_id:d_id.t_id",
 				Type:         "table",
+				GlobalURN:    "urn:bigquery:p_id:table:p_id:d_id.t_id",
 			},
 		}
 		expectedResources := append(resources, children...)
