@@ -23,7 +23,7 @@ type Resource struct {
 	Name         string
 	Details      datatypes.JSON
 	Labels       datatypes.JSON
-	GlobalURN    string `gorm:"uniqueIndex:resource_global_urn"`
+	GlobalURN    string
 
 	Children []Resource `gorm:"ForeignKey:ParentID;References:ID"`
 	Provider Provider   `gorm:"ForeignKey:ProviderType,ProviderURN;References:Type,URN"`
