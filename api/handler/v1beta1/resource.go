@@ -7,6 +7,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/google/uuid"
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/resource"
 	"github.com/goto/guardian/domain"
@@ -110,7 +111,12 @@ func (s *GRPCServer) GetResource(ctx context.Context, req *guardianv1beta1.GetRe
 
 func (s *GRPCServer) UpdateResource(ctx context.Context, req *guardianv1beta1.UpdateResourceRequest) (*guardianv1beta1.UpdateResourceResponse, error) {
 	r := s.adapter.FromResourceProto(req.GetResource())
-	r.ID = req.GetId()
+
+	if _, err := uuid.Parse(r.ID); err != nil {
+		r.GlobalURN = req.GetId()
+	} else {
+		r.ID = req.GetId()
+	}
 
 	if err := s.resourceService.Update(ctx, r); err != nil {
 		if errors.Is(err, resource.ErrRecordNotFound) {

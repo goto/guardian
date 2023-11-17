@@ -185,13 +185,8 @@ func (r *ResourceRepository) Update(ctx context.Context, res *domain.Resource) e
 		return err
 	}
 
-	whereClause := `"id" = ?`
-	if _, err := uuid.Parse(res.ID); err != nil {
-		whereClause = `"global_urn" = ?`
-	}
-
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(m).Where(whereClause, res.ID).Updates(*m).Error; err != nil {
+		if err := tx.Model(m).Where(`"id" = ?`, res.ID).Updates(*m).Error; err != nil {
 			return err
 		}
 

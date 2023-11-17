@@ -87,7 +87,12 @@ func (s *Service) BulkUpsert(ctx context.Context, resources []*domain.Resource) 
 
 // Update updates only details and labels of a resource by ID
 func (s *Service) Update(ctx context.Context, r *domain.Resource) error {
-	existingResource, err := s.GetOne(ctx, r.ID)
+	filterBy := r.ID
+	if r.ID == "" {
+		filterBy = r.GlobalURN
+	}
+
+	existingResource, err := s.GetOne(ctx, filterBy)
 	if err != nil {
 		return err
 	}
