@@ -112,7 +112,7 @@ func (s *GRPCServer) GetResource(ctx context.Context, req *guardianv1beta1.GetRe
 func (s *GRPCServer) UpdateResource(ctx context.Context, req *guardianv1beta1.UpdateResourceRequest) (*guardianv1beta1.UpdateResourceResponse, error) {
 	r := s.adapter.FromResourceProto(req.GetResource())
 
-	if _, err := uuid.Parse(r.ID); err != nil {
+	if _, err := uuid.Parse(req.GetId()); err != nil {
 		r.GlobalURN = req.GetId()
 	} else {
 		r.ID = req.GetId()

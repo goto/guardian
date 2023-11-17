@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/resource"
 	"github.com/goto/guardian/domain"
@@ -218,7 +219,7 @@ func (s *GrpcHandlersSuite) TestUpdateResource() {
 		s.setup()
 		timeNow := time.Now()
 
-		expectedID := "test-id"
+		expectedID := uuid.New().String()
 		expectedResource := &domain.Resource{
 			ID:   expectedID,
 			Name: "new-name",
