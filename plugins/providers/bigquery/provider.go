@@ -148,20 +148,24 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			//setting fetchTables to true here so that even if we try to get only tables we can do that,
 			//previously it wasn't possible as fetchTables was getting set to true only from within the dataset code block below.
 			if containsString(resourceTypes, ResourceTypeDataset) {
-				mu.Lock()
 				fetchTables = false
-				defer mu.Unlock()
 				if datasetFilter != "" {
 					v, err := evaluator.Expression(datasetFilter).EvaluateWithStruct(dataset)
 					if err != nil {
 						p.logger.Error(ctx, fmt.Sprintf("evaluating filter expression %q for dataset %q: %v", datasetFilter, dataset.URN, err))
 					}
 					if !reflect.ValueOf(v).IsZero() {
+						// resources list is not concurrent safe since we are appending to it from multiple goroutines concurrently,
+						// so we need to lock it before appending
+						mu.Lock()
 						resources = append(resources, dataset)
+						mu.Unlock()
 						fetchTables = true
 					}
 				} else {
+					mu.Lock()
 					resources = append(resources, dataset)
+					mu.Unlock()
 					fetchTables = true
 				}
 			}
@@ -181,7 +185,9 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 				if containsString(resourceTypes, ResourceTypeDataset) {
 					dataset.Children = children
 				} else {
+					mu.Lock()
 					resources = append(resources, children...)
+					mu.Unlock()
 				}
 			}
 			return nil
