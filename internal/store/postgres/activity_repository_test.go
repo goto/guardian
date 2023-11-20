@@ -12,6 +12,7 @@ import (
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/goto/guardian/utils"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -70,6 +71,7 @@ func (s *ActivityRepositoryTestSuite) SetupSuite() {
 		ID:           uuid.NewString(),
 		ProviderType: s.dummyProvider.Type,
 		ProviderURN:  s.dummyProvider.URN,
+		GlobalURN:    utils.GetGlobalURN(s.dummyProvider.Type, s.dummyProvider.URN, "", ""),
 	}
 	err = s.resourceRepository.BulkUpsert(context.Background(), []*domain.Resource{s.dummyResource})
 	s.Require().NoError(err)

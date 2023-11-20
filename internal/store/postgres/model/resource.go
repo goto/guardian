@@ -74,10 +74,9 @@ func (m *Resource) FromDomain(r *domain.Resource) error {
 
 	if r.ID != "" {
 		uuid, err := uuid.Parse(r.ID)
-		if err != nil {
-			return fmt.Errorf("parsing uuid: %w", err)
+		if err == nil {
+			m.ID = uuid
 		}
-		m.ID = uuid
 	}
 
 	m.ParentID = r.ParentID
