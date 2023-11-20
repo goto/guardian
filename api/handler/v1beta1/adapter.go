@@ -535,11 +535,14 @@ func (a *adapter) ToResourceProto(r *domain.Resource) (*guardianv1beta1.Resource
 		Name:         r.Name,
 		Labels:       r.Labels,
 		IsDeleted:    r.IsDeleted,
-		GlobalUrn:    r.GlobalURN,
 	}
 
 	if r.ParentID != nil {
 		resourceProto.ParentId = *r.ParentID
+	}
+
+	if r.GlobalURN != "" {
+		resourceProto.GlobalUrn = r.GlobalURN
 	}
 
 	if r.Children != nil {

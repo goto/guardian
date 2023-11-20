@@ -111,7 +111,10 @@ func (m *Resource) ToDomain() (*domain.Resource, error) {
 		CreatedAt:    m.CreatedAt,
 		UpdatedAt:    m.UpdatedAt,
 		IsDeleted:    m.IsDeleted,
-		GlobalURN:    m.GlobalURN,
+	}
+
+	if m.GlobalURN != "" {
+		r.GlobalURN = m.GlobalURN
 	}
 
 	if m.Details != nil {

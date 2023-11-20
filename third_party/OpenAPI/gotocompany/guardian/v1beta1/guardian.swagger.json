@@ -2275,6 +2275,9 @@
             "type": "object",
             "$ref": "#/definitions/guardianv1beta1Resource"
           }
+        },
+        "globalUrn": {
+          "type": "string"
         }
       },
       "title": "Resource contains information of resource from providers"
