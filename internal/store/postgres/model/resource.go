@@ -46,6 +46,12 @@ func (r *Resource) BeforeCreate(tx *gorm.DB) error {
 			{Name: "provider_urn"},
 			{Name: "type"},
 			{Name: "urn"},
+		},
+		DoUpdates: clause.AssignmentColumns([]string{"name", "details", "updated_at", "is_deleted", "parent_id"}),
+	})
+
+	tx.Statement.AddClause(clause.OnConflict{
+		Columns: []clause.Column{
 			{Name: "global_urn"},
 		},
 		DoUpdates: clause.AssignmentColumns([]string{"name", "details", "updated_at", "is_deleted", "parent_id"}),
