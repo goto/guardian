@@ -40,23 +40,15 @@ func (Resource) TableName() string {
 }
 
 func (r *Resource) BeforeCreate(tx *gorm.DB) error {
-	tx.Clauses(
-		clause.OnConflict{
-			Columns: []clause.Column{
-				{Name: "provider_type"},
-				{Name: "provider_urn"},
-				{Name: "type"},
-				{Name: "urn"},
-			},
-			DoUpdates: clause.AssignmentColumns([]string{"name", "details", "updated_at", "is_deleted", "parent_id"}),
+	tx.Statement.AddClause(clause.OnConflict{
+		Columns: []clause.Column{
+			{Name: "provider_type"},
+			{Name: "provider_urn"},
+			{Name: "type"},
+			{Name: "urn"},
 		},
-		clause.OnConflict{
-			Columns: []clause.Column{
-				{Name: "global_urn"},
-			},
-			DoUpdates: clause.AssignmentColumns([]string{"name", "details", "updated_at", "is_deleted", "parent_id"}),
-		},
-	)
+		DoUpdates: clause.AssignmentColumns([]string{"name", "details", "updated_at", "is_deleted", "parent_id"}),
+	})
 
 	return nil
 }
