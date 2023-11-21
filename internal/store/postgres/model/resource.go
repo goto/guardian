@@ -23,7 +23,7 @@ type Resource struct {
 	Name         string
 	Details      datatypes.JSON
 	Labels       datatypes.JSON
-	GlobalURN    string `gorm:"uniqueIndex:resource_global_urn"`
+	GlobalURN    *string `gorm:"uniqueIndex:resource_global_urn"`
 
 	Children []Resource `gorm:"ForeignKey:ParentID;References:ID"`
 	Provider Provider   `gorm:"ForeignKey:ProviderType,ProviderURN;References:Type,URN"`
@@ -83,7 +83,9 @@ func (m *Resource) FromDomain(r *domain.Resource) error {
 	m.CreatedAt = r.CreatedAt
 	m.UpdatedAt = r.UpdatedAt
 	m.IsDeleted = r.IsDeleted
-	m.GlobalURN = r.GlobalURN
+	if r.GlobalURN != "" {
+		m.GlobalURN = &r.GlobalURN
+	}
 
 	if r.Children != nil && len(r.Children) > 0 {
 		m.Children = make([]Resource, len(r.Children))
@@ -112,8 +114,8 @@ func (m *Resource) ToDomain() (*domain.Resource, error) {
 		IsDeleted:    m.IsDeleted,
 	}
 
-	if m.GlobalURN != "" {
-		r.GlobalURN = m.GlobalURN
+	if m.GlobalURN != nil {
+		r.GlobalURN = *m.GlobalURN
 	}
 
 	if m.Details != nil {
