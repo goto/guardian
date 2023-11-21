@@ -3,6 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/goto/guardian/core"
+	"google.golang.org/grpc/metadata"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -47,7 +50,10 @@ const (
 
 // RunServer runs the application server
 func RunServer(config *Config) error {
-	logger := log.NewCtxLogger(config.LogLevel, []string{domain.TraceIDKey})
+
+	logger := log.NewCtxLogger(config.LogLevel, []string{domain.TraceIDKey},
+		log.WithMetadataExtractor(defaultMetadataExtractor(config)),
+	)
 	crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 	validator := validator.New()
 	notifier, err := notifiers.NewClient(&config.Notifier, logger)
@@ -230,4 +236,27 @@ func getAuthInterceptor(config *Config) (grpc.UnaryServerInterceptor, error) {
 	}
 
 	return authInterceptor, nil
+}
+
+func defaultMetadataExtractor(config *Config) func(context.Context) map[string]interface{} {
+	return func(ctx context.Context) map[string]interface{} {
+		md := map[string]interface{}{
+			"app_name":    "guardian",
+			"app_version": core.Version,
+		}
+
+		// trace id
+		var traceID string
+		if md, ok := metadata.FromIncomingContext(ctx); ok {
+			if rawTraceID := md.Get(config.AuditLogTraceIDHeaderKey); len(rawTraceID) > 0 {
+				traceID = rawTraceID[0]
+			}
+		}
+		if traceID == "" {
+			traceID = uuid.New().String()
+		}
+		md[domain.TraceIDKey] = traceID
+
+		return md
+	}
 }

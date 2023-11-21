@@ -6,8 +6,6 @@ import (
 	"github.com/goto/guardian/plugins/providers/dataplex"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
-	"github.com/goto/guardian/core"
 	"github.com/goto/guardian/core/activity"
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/core/approval"
@@ -31,7 +29,6 @@ import (
 	"github.com/goto/guardian/plugins/providers/tableau"
 	"github.com/goto/salt/audit"
 	audit_repos "github.com/goto/salt/audit/repositories"
-	"google.golang.org/grpc/metadata"
 )
 
 type Services struct {
@@ -71,26 +68,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 
 	auditLogger := audit.New(
 		audit.WithRepository(auditRepository),
-		audit.WithMetadataExtractor(func(ctx context.Context) map[string]interface{} {
-			md := map[string]interface{}{
-				"app_name":    "guardian",
-				"app_version": core.Version,
-			}
-
-			// trace id
-			var traceID string
-			if md, ok := metadata.FromIncomingContext(ctx); ok {
-				if rawTraceID := md.Get(deps.Config.AuditLogTraceIDHeaderKey); len(rawTraceID) > 0 {
-					traceID = rawTraceID[0]
-				}
-			}
-			if traceID == "" {
-				traceID = uuid.New().String()
-			}
-			md[domain.TraceIDKey] = traceID
-
-			return md
-		}),
+		audit.WithMetadataExtractor(defaultMetadataExtractor(deps.Config)),
 		actorExtractor,
 	)
 
