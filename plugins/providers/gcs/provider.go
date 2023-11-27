@@ -83,6 +83,7 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 		bucketResource := b.toDomain()
 		bucketResource.ProviderType = pc.Type
 		bucketResource.ProviderURN = pc.URN
+		bucketResource.GlobalURN = fmt.Sprintf("urn:gcs:%s:%s:%s", pc.URN, ResourceTypeBucket, b.Name)
 		if utils.ContainsString(resourceTypes, ResourceTypeBucket) {
 			resources = append(resources, bucketResource)
 		}

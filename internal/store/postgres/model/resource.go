@@ -23,6 +23,7 @@ type Resource struct {
 	Name         string
 	Details      datatypes.JSON
 	Labels       datatypes.JSON
+	GlobalURN    *string `gorm:"uniqueIndex:resource_global_urn"`
 
 	Children []Resource `gorm:"ForeignKey:ParentID;References:ID"`
 	Provider Provider   `gorm:"ForeignKey:ProviderType,ProviderURN;References:Type,URN"`
@@ -46,7 +47,7 @@ func (r *Resource) BeforeCreate(tx *gorm.DB) error {
 			{Name: "type"},
 			{Name: "urn"},
 		},
-		DoUpdates: clause.AssignmentColumns([]string{"name", "details", "updated_at", "is_deleted", "parent_id"}),
+		DoUpdates: clause.AssignmentColumns([]string{"name", "details", "updated_at", "is_deleted", "parent_id", "global_urn"}),
 	})
 
 	return nil
@@ -66,10 +67,9 @@ func (m *Resource) FromDomain(r *domain.Resource) error {
 
 	if r.ID != "" {
 		uuid, err := uuid.Parse(r.ID)
-		if err != nil {
-			return fmt.Errorf("parsing uuid: %w", err)
+		if err == nil {
+			m.ID = uuid
 		}
-		m.ID = uuid
 	}
 
 	m.ParentID = r.ParentID
@@ -83,6 +83,9 @@ func (m *Resource) FromDomain(r *domain.Resource) error {
 	m.CreatedAt = r.CreatedAt
 	m.UpdatedAt = r.UpdatedAt
 	m.IsDeleted = r.IsDeleted
+	if r.GlobalURN != "" {
+		m.GlobalURN = &r.GlobalURN
+	}
 
 	if r.Children != nil && len(r.Children) > 0 {
 		m.Children = make([]Resource, len(r.Children))
@@ -109,6 +112,10 @@ func (m *Resource) ToDomain() (*domain.Resource, error) {
 		CreatedAt:    m.CreatedAt,
 		UpdatedAt:    m.UpdatedAt,
 		IsDeleted:    m.IsDeleted,
+	}
+
+	if m.GlobalURN != nil {
+		r.GlobalURN = *m.GlobalURN
 	}
 
 	if m.Details != nil {

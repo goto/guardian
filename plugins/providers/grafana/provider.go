@@ -2,9 +2,11 @@ package grafana
 
 import (
 	"context"
+	"fmt"
 
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/utils"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -65,6 +67,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			db := d.ToDomain()
 			db.ProviderType = pc.Type
 			db.ProviderURN = pc.URN
+			db.GlobalURN = utils.GetGlobalURN("grafana", pc.URN, ResourceTypeDashboard, fmt.Sprintf("%d", d.ID))
 			resources = append(resources, db)
 		}
 	}

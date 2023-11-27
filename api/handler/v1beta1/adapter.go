@@ -541,6 +541,10 @@ func (a *adapter) ToResourceProto(r *domain.Resource) (*guardianv1beta1.Resource
 		resourceProto.ParentId = *r.ParentID
 	}
 
+	if r.GlobalURN != "" {
+		resourceProto.GlobalUrn = r.GlobalURN
+	}
+
 	if r.Children != nil {
 		for _, c := range r.Children {
 			childProto, err := a.ToResourceProto(c)

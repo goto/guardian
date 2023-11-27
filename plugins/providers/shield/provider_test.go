@@ -344,6 +344,7 @@ func TestGetResources(t *testing.T) {
 						Slack:   "team_1_slack",
 					},
 				},
+				GlobalURN: "urn:shield:test-provider-urn:team:team_id",
 			}, {
 				Type:        shield.ResourceTypeProject,
 				URN:         "project:project_id",
@@ -354,6 +355,7 @@ func TestGetResources(t *testing.T) {
 					"orgId":  "org_id",
 					"admins": []string{"testProjectAdmin@gmail.com"},
 				},
+				GlobalURN: "urn:shield:test-provider-urn:project:project_id",
 			},
 			{
 				Type:        shield.ResourceTypeOrganization,
@@ -364,6 +366,7 @@ func TestGetResources(t *testing.T) {
 					"id":     "org_id",
 					"admins": []string{"testOrganizationAdmin@gmail.com"},
 				},
+				GlobalURN: "urn:shield:test-provider-urn:organization:org_id",
 			},
 		}
 

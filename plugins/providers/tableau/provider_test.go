@@ -568,6 +568,7 @@ func TestGetResources(t *testing.T) {
 					"tags":            nil,
 					"show_tabs":       "",
 				},
+				GlobalURN: "urn:tableau:test-provider-urn:workbook:workbook-1",
 			},
 			{
 				Type:        tableau.ResourceTypeFlow,
@@ -582,6 +583,7 @@ func TestGetResources(t *testing.T) {
 					"tags":         nil,
 					"fileType":     "",
 				},
+				GlobalURN: "urn:tableau:test-provider-urn:flow:flow-1",
 			},
 			{
 				Type:        tableau.ResourceTypeDataSource,
@@ -601,6 +603,7 @@ func TestGetResources(t *testing.T) {
 					"type":                "",
 					"useRemoteQueryAgent": false,
 				},
+				GlobalURN: "urn:tableau:test-provider-urn:datasource:datasource-1",
 			}, {
 				Type:        tableau.ResourceTypeView,
 				URN:         "view-1",
@@ -616,6 +619,7 @@ func TestGetResources(t *testing.T) {
 					"tags":         nil,
 					"viewUrlName":  "",
 				},
+				GlobalURN: "urn:tableau:test-provider-urn:view:view-1",
 			}, {
 				Type:        tableau.ResourceTypeMetric,
 				URN:         "metric-1",
@@ -631,6 +635,7 @@ func TestGetResources(t *testing.T) {
 					"underlyingView": tableau.UnderlyingView{ID: ""},
 					"suspended":      false,
 				},
+				GlobalURN: "urn:tableau:test-provider-urn:metric:metric-1",
 			},
 		}
 

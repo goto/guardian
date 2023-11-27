@@ -1,6 +1,10 @@
 package utils
 
-import "github.com/google/uuid"
+import (
+	"fmt"
+
+	"github.com/google/uuid"
+)
 
 func IsInteger(val float64) bool {
 	return val == float64(int(val))
@@ -26,4 +30,10 @@ func MapToSlice(m map[string]string) []string {
 func IsValidUUID(u string) bool {
 	_, err := uuid.Parse(u)
 	return err == nil
+}
+
+// GetGlobalURN returns a GlobalURN for a given source, scope, kind and identifier
+// format is urn:<source>:<scope>:<kind>:<identifier>
+func GetGlobalURN(source, scope, kind, identifier string) string {
+	return fmt.Sprintf("urn:%s:%s:%s:%s", source, scope, kind, identifier)
 }

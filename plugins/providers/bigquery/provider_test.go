@@ -357,8 +357,10 @@ func TestGetResources(t *testing.T) {
 						Name:         "t_id",
 						URN:          "p_id:d_id.t_id",
 						Type:         "table",
+						GlobalURN:    "urn:bigquery:p_id:table:p_id:d_id.t_id",
 					},
 				},
+				GlobalURN: "urn:bigquery:p_id:dataset:p_id:d_id",
 			},
 		}
 		actualResources, actualError := p.GetResources(ctx, pc)
@@ -420,6 +422,7 @@ func TestGetResources(t *testing.T) {
 				Name:         "t_id",
 				URN:          "p_id:d_id.t_id",
 				Type:         "table",
+				GlobalURN:    "urn:bigquery:p_id:table:p_id:d_id.t_id",
 			},
 		}
 		expectedResources := append(resources, children...)

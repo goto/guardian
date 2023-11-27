@@ -17,6 +17,7 @@ type Resource struct {
 	IsDeleted    bool                   `json:"is_deleted,omitempty" yaml:"is_deleted,omitempty"`
 	ParentID     *string                `json:"parent_id,omitempty" yaml:"parent_id,omitempty"`
 	Children     []*Resource            `json:"children,omitempty" yaml:"children,omitempty"`
+	GlobalURN    string                 `json:"global_urn" yaml:"global_urn"`
 }
 
 func (r *Resource) GetFlattened() []*Resource {

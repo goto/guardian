@@ -393,6 +393,7 @@ func TestGetResources(t *testing.T) {
 					"timezone":                    "",
 					"groups":                      []map[string]interface{}{{"urn": "group:1", "permissions": []string{"read", "write"}}},
 				},
+				GlobalURN: "urn:metabase:test-provider-urn:database:1",
 			}, {
 				Type:        metabase.ResourceTypeTable,
 				URN:         "table:1.2",
@@ -406,6 +407,7 @@ func TestGetResources(t *testing.T) {
 					"native_permissions":          "",
 					"timezone":                    "",
 				},
+				GlobalURN: "urn:metabase:test-provider-urn:table:1",
 			},
 			{
 				Type:        metabase.ResourceTypeCollection,
@@ -415,6 +417,7 @@ func TestGetResources(t *testing.T) {
 				Details: map[string]interface{}{
 					"groups": []map[string]interface{}{{"urn": "group:1", "permissions": []string{"write"}}},
 				},
+				GlobalURN: "urn:metabase:test-provider-urn:collection:1",
 			},
 			{
 				Type:        metabase.ResourceTypeGroup,
@@ -425,6 +428,7 @@ func TestGetResources(t *testing.T) {
 					"collection": []*metabase.GroupResource{{Name: "col_1", Type: "collection", Urn: "collection:1", Permissions: []string{"read", "write"}}},
 					"database":   []*metabase.GroupResource{{Name: "db_1", Type: "database", Urn: "database:1", Permissions: []string{"read", "write"}}},
 				},
+				GlobalURN: "urn:metabase:test-provider-urn:group:0",
 			},
 		}
 

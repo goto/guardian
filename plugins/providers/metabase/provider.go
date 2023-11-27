@@ -2,11 +2,13 @@ package metabase
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/goto/guardian/utils"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -157,6 +159,8 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			group := g.ToDomain()
 			group.ProviderType = pc.Type
 			group.ProviderURN = pc.URN
+			group.GlobalURN = utils.GetGlobalURN("metabase", pc.URN, ResourceTypeGroup, fmt.Sprintf("%d", g.ID))
+
 			resources = append(resources, group)
 		}
 	}
@@ -169,6 +173,7 @@ func (p *provider) addCollection(pc *domain.ProviderConfig, collections []*Colle
 		db := c.ToDomain()
 		db.ProviderType = pc.Type
 		db.ProviderURN = pc.URN
+		db.GlobalURN = utils.GetGlobalURN("metabase", pc.URN, ResourceTypeCollection, fmt.Sprintf("%d", c.ID))
 		resources = append(resources, db)
 	}
 	return resources
@@ -179,6 +184,8 @@ func (p *provider) addDatabases(pc *domain.ProviderConfig, databases []*Database
 		db := d.ToDomain()
 		db.ProviderType = pc.Type
 		db.ProviderURN = pc.URN
+		db.GlobalURN = utils.GetGlobalURN("metabase", pc.URN, ResourceTypeDatabase, fmt.Sprintf("%d", d.ID))
+
 		resources = append(resources, db)
 	}
 	return resources
@@ -189,12 +196,15 @@ func (p *provider) addTables(pc *domain.ProviderConfig, databases []*Database, r
 		db := d.ToDomain()
 		db.ProviderType = pc.Type
 		db.ProviderURN = pc.URN
+		db.GlobalURN = utils.GetGlobalURN("metabase", pc.URN, ResourceTypeDatabase, fmt.Sprintf("%d", d.ID))
 
 		for _, t := range d.Tables {
 			t.Database = db
 			table := t.ToDomain()
 			table.ProviderType = pc.Type
 			table.ProviderURN = pc.URN
+			table.GlobalURN = utils.GetGlobalURN("metabase", pc.URN, ResourceTypeTable, fmt.Sprintf("%d", d.ID))
+
 			resources = append(resources, table)
 		}
 	}

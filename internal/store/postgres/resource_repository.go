@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/goto/guardian/core/resource"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres/model"
@@ -105,8 +106,13 @@ func (r *ResourceRepository) GetOne(ctx context.Context, id string) (*domain.Res
 		return nil, resource.ErrEmptyIDParam
 	}
 
+	whereClause := `"id" = ?`
+	if _, err := uuid.Parse(id); err != nil {
+		whereClause = `"global_urn" = ?`
+	}
+
 	var m model.Resource
-	if err := r.db.WithContext(ctx).Where("id = ?", id).Take(&m).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where(whereClause, id).Take(&m).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, resource.ErrRecordNotFound
 		}
@@ -169,7 +175,7 @@ func (r *ResourceRepository) Update(ctx context.Context, res *domain.Resource) e
 	}
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(m).Where("id = ?", m.ID).Updates(*m).Error; err != nil {
+		if err := tx.Model(m).Where(`"id" = ?`, res.ID).Updates(*m).Error; err != nil {
 			return err
 		}
 
@@ -188,8 +194,12 @@ func (r *ResourceRepository) Delete(ctx context.Context, id string) error {
 	if id == "" {
 		return resource.ErrEmptyIDParam
 	}
+	whereClause := `"id" = ?`
+	if _, err := uuid.Parse(id); err != nil {
+		whereClause = `"global_urn" = ?`
+	}
 
-	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Resource{})
+	result := r.db.WithContext(ctx).Where(whereClause, id).Delete(&model.Resource{})
 	if result.Error != nil {
 		return result.Error
 	}
