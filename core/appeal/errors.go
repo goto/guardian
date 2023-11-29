@@ -12,7 +12,6 @@ var (
 	ErrAppealStatusCanceled           = errors.New("appeal already canceled")
 	ErrAppealStatusApproved           = errors.New("appeal already approved")
 	ErrAppealStatusRejected           = errors.New("appeal already rejected")
-	ErrAppealStatusBlocked            = errors.New("approval is blocked")
 	ErrAppealStatusUnrecognized       = errors.New("unrecognized appeal status")
 	ErrAppealDuplicate                = errors.New("appeal with identical account_id, resource, and role already exists")
 	ErrAppealInvalidExtensionDuration = errors.New("invalid configured appeal extension duration")
@@ -20,9 +19,6 @@ var (
 	ErrGrantNotEligibleForExtension   = errors.New("grant not eligible for extension")
 	ErrCannotCreateAppealForOtherUser = errors.New("creating appeal for other individual user (account_type=\"user\") is not allowed")
 
-	ErrApprovalStatusApproved     = errors.New("approval already approved")
-	ErrApprovalStatusRejected     = errors.New("approval already rejected")
-	ErrApprovalStatusSkipped      = errors.New("approval already skipped")
 	ErrApprovalStatusUnrecognized = errors.New("unrecognized approval status")
 	ErrApprovalNotFound           = errors.New("approval not found")
 	ErrUnableToAddApprover        = errors.New("unable to add a new approver")
