@@ -83,13 +83,13 @@ func (s *GRPCServer) UpdateApproval(ctx context.Context, req *guardianv1beta1.Up
 			errors.Is(err, appeal.ErrInvalidUpdateApprovalParameter),
 			errors.Is(err, appeal.ErrAppealIDEmptyParam),
 			errors.Is(err, appeal.ErrActionInvalidValue):
-			return nil, status.Errorf(codes.InvalidArgument, err.Error())
+			return nil, s.invalidArgument(ctx, err.Error())
 		case
 			errors.Is(err, appeal.ErrAppealNotEligibleForApproval),
 			errors.Is(err, appeal.ErrAppealStatusUnrecognized),
 			errors.Is(err, appeal.ErrApprovalNotEligibleForAction),
 			errors.Is(err, appeal.ErrApprovalStatusUnrecognized):
-			return nil, status.Errorf(codes.FailedPrecondition, err.Error())
+			return nil, s.failedPrecondition(ctx, err.Error())
 		case errors.Is(err, appeal.ErrActionForbidden):
 			return nil, status.Error(codes.PermissionDenied, "permission denied")
 		case
@@ -118,7 +118,7 @@ func (s *GRPCServer) AddApprover(ctx context.Context, req *guardianv1beta1.AddAp
 		errors.Is(err, appeal.ErrApprovalIDEmptyParam),
 		errors.Is(err, appeal.ErrApproverEmail),
 		errors.Is(err, appeal.ErrUnableToAddApprover):
-		return nil, status.Errorf(codes.InvalidArgument, "unable to process the request: %s", err)
+		return nil, s.invalidArgument(ctx, "unable to process the request: %s", err)
 	case errors.Is(err, appeal.ErrAppealNotFound),
 		errors.Is(err, appeal.ErrApprovalNotFound):
 		return nil, status.Errorf(codes.NotFound, "resource not found: %s", err)
@@ -143,7 +143,7 @@ func (s *GRPCServer) DeleteApprover(ctx context.Context, req *guardianv1beta1.De
 		errors.Is(err, appeal.ErrApprovalIDEmptyParam),
 		errors.Is(err, appeal.ErrApproverEmail),
 		errors.Is(err, appeal.ErrUnableToDeleteApprover):
-		return nil, status.Errorf(codes.InvalidArgument, "unable to process the request: %s", err)
+		return nil, s.invalidArgument(ctx, "unable to process the request: %s", err)
 	case errors.Is(err, appeal.ErrAppealNotFound),
 		errors.Is(err, appeal.ErrApprovalNotFound):
 		return nil, status.Errorf(codes.NotFound, "resource not found: %s", err)

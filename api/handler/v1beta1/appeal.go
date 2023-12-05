@@ -111,8 +111,9 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 			errors.Is(err, provider.ErrAppealValidationMissingRequiredQuestion),
 			errors.Is(err, appeal.ErrDurationNotAllowed),
 			errors.Is(err, appeal.ErrCannotCreateAppealForOtherUser):
-			return nil, status.Errorf(codes.InvalidArgument, err.Error())
+			return nil, s.invalidArgument(ctx, err.Error())
 		case errors.Is(err, appeal.ErrAppealDuplicate):
+			s.logger.Error(ctx, err.Error())
 			return nil, status.Errorf(codes.AlreadyExists, err.Error())
 		case errors.Is(err, appeal.ErrResourceNotFound),
 			errors.Is(err, appeal.ErrResourceDeleted),
@@ -125,7 +126,7 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 			errors.Is(err, domain.ErrApproversNotFound),
 			errors.Is(err, domain.ErrUnexpectedApproverType),
 			errors.Is(err, domain.ErrInvalidApproverValue):
-			return nil, status.Errorf(codes.FailedPrecondition, err.Error())
+			return nil, s.failedPrecondition(ctx, err.Error())
 		default:
 			return nil, s.internalError(ctx, "failed to create appeal(s): %v", err)
 		}
@@ -151,7 +152,7 @@ func (s *GRPCServer) GetAppeal(ctx context.Context, req *guardianv1beta1.GetAppe
 	a, err := s.appealService.GetByID(ctx, id)
 	if err != nil {
 		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
-			return nil, status.Errorf(codes.InvalidArgument, err.Error())
+			return nil, s.invalidArgument(ctx, err.Error())
 		}
 		return nil, s.internalError(ctx, "failed to retrieve appeal: %v", err)
 	}
@@ -176,7 +177,7 @@ func (s *GRPCServer) CancelAppeal(ctx context.Context, req *guardianv1beta1.Canc
 	a, err := s.appealService.Cancel(ctx, id)
 	if err != nil {
 		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
-			return nil, status.Errorf(codes.InvalidArgument, err.Error())
+			return nil, s.invalidArgument(ctx, err.Error())
 		}
 
 		switch err {
@@ -186,7 +187,7 @@ func (s *GRPCServer) CancelAppeal(ctx context.Context, req *guardianv1beta1.Canc
 			appeal.ErrAppealStatusApproved,
 			appeal.ErrAppealStatusRejected,
 			appeal.ErrAppealStatusUnrecognized:
-			return nil, status.Errorf(codes.InvalidArgument, "unable to process the request: %v", err)
+			return nil, s.invalidArgument(ctx, "unable to process the request: %v", err)
 		default:
 			return nil, s.internalError(ctx, "failed to cancel appeal: %v", err)
 		}
