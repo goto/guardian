@@ -57,7 +57,7 @@ type policyService interface {
 	GetOne(context.Context, string, uint) (*domain.Policy, error)
 }
 
-//go:generate mockery --name=approvalService --exported --with-expe	cter
+//go:generate mockery --name=approvalService --exported --with-expecter
 type approvalService interface {
 	AddApprover(ctx context.Context, approvalID, email string) error
 	DeleteApprover(ctx context.Context, approvalID, email string) error
