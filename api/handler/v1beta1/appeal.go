@@ -6,6 +6,7 @@ import (
 
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/appeal"
+	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
@@ -96,21 +97,46 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 
 	appeals, err := s.adapter.FromCreateAppealProto(req, authenticatedUser)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "cannot deserialize payload: %v", err)
+		return nil, s.internalError(ctx, "cannot deserialize payload: %v", err)
 	}
 
 	if err := s.appealService.Create(ctx, appeals); err != nil {
-		if errors.Is(err, appeal.ErrAppealDuplicate) {
-			return nil, status.Errorf(codes.AlreadyExists, "appeal already exists: %v", err)
+		switch {
+		case errors.Is(err, provider.ErrAppealValidationInvalidAccountType),
+			errors.Is(err, provider.ErrAppealValidationInvalidRole),
+			errors.Is(err, provider.ErrAppealValidationDurationNotSpecified),
+			errors.Is(err, provider.ErrAppealValidationEmptyDuration),
+			errors.Is(err, provider.ErrAppealValidationInvalidDurationValue),
+			errors.Is(err, provider.ErrAppealValidationMissingRequiredParameter),
+			errors.Is(err, provider.ErrAppealValidationMissingRequiredQuestion),
+			errors.Is(err, appeal.ErrDurationNotAllowed),
+			errors.Is(err, appeal.ErrCannotCreateAppealForOtherUser):
+			return nil, s.invalidArgument(ctx, err.Error())
+		case errors.Is(err, appeal.ErrAppealDuplicate):
+			s.logger.Error(ctx, err.Error())
+			return nil, status.Errorf(codes.AlreadyExists, err.Error())
+		case errors.Is(err, appeal.ErrResourceNotFound),
+			errors.Is(err, appeal.ErrResourceDeleted),
+			errors.Is(err, appeal.ErrProviderNotFound),
+			errors.Is(err, appeal.ErrPolicyNotFound),
+			errors.Is(err, appeal.ErrInvalidResourceType),
+			errors.Is(err, appeal.ErrAppealInvalidExtensionDuration),
+			errors.Is(err, appeal.ErrGrantNotEligibleForExtension),
+			errors.Is(err, domain.ErrFailedToGetApprovers),
+			errors.Is(err, domain.ErrApproversNotFound),
+			errors.Is(err, domain.ErrUnexpectedApproverType),
+			errors.Is(err, domain.ErrInvalidApproverValue):
+			return nil, s.failedPrecondition(ctx, err.Error())
+		default:
+			return nil, s.internalError(ctx, "failed to create appeal(s): %v", err)
 		}
-		return nil, status.Errorf(codes.Internal, "failed to create appeal: %v", err)
 	}
 
 	appealProtos := []*guardianv1beta1.Appeal{}
 	for _, appeal := range appeals {
 		appealProto, err := s.adapter.ToAppealProto(appeal)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to parse appeal: %v", err)
+			return nil, s.internalError(ctx, "failed to parse appeal: %v", err)
 		}
 		appealProtos = append(appealProtos, appealProto)
 	}
@@ -126,9 +152,9 @@ func (s *GRPCServer) GetAppeal(ctx context.Context, req *guardianv1beta1.GetAppe
 	a, err := s.appealService.GetByID(ctx, id)
 	if err != nil {
 		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
-			return nil, status.Errorf(codes.InvalidArgument, err.Error())
+			return nil, s.invalidArgument(ctx, err.Error())
 		}
-		return nil, status.Errorf(codes.Internal, "failed to retrieve appeal: %v", err)
+		return nil, s.internalError(ctx, "failed to retrieve appeal: %v", err)
 	}
 
 	if a == nil {
@@ -137,7 +163,7 @@ func (s *GRPCServer) GetAppeal(ctx context.Context, req *guardianv1beta1.GetAppe
 
 	appealProto, err := s.adapter.ToAppealProto(a)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to parse appeal: %v", err)
+		return nil, s.internalError(ctx, "failed to parse appeal: %v", err)
 	}
 
 	return &guardianv1beta1.GetAppealResponse{
@@ -151,7 +177,7 @@ func (s *GRPCServer) CancelAppeal(ctx context.Context, req *guardianv1beta1.Canc
 	a, err := s.appealService.Cancel(ctx, id)
 	if err != nil {
 		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
-			return nil, status.Errorf(codes.InvalidArgument, err.Error())
+			return nil, s.invalidArgument(ctx, err.Error())
 		}
 
 		switch err {
@@ -161,15 +187,15 @@ func (s *GRPCServer) CancelAppeal(ctx context.Context, req *guardianv1beta1.Canc
 			appeal.ErrAppealStatusApproved,
 			appeal.ErrAppealStatusRejected,
 			appeal.ErrAppealStatusUnrecognized:
-			return nil, status.Errorf(codes.InvalidArgument, "unable to process the request: %v", err)
+			return nil, s.invalidArgument(ctx, "unable to process the request: %v", err)
 		default:
-			return nil, status.Errorf(codes.Internal, "failed to cancel appeal: %v", err)
+			return nil, s.internalError(ctx, "failed to cancel appeal: %v", err)
 		}
 	}
 
 	appealProto, err := s.adapter.ToAppealProto(a)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to parse appeal: %v", err)
+		return nil, s.internalError(ctx, "failed to parse appeal: %v", err)
 	}
 
 	return &guardianv1beta1.CancelAppealResponse{
@@ -185,7 +211,7 @@ func (s *GRPCServer) listAppeals(ctx context.Context, filters *domain.ListAppeal
 	eg.Go(func() error {
 		appealRecords, err := s.appealService.Find(ctx, filters)
 		if err != nil {
-			return status.Errorf(codes.Internal, "failed to get appeal list: %s", err)
+			return s.internalError(ctx, "failed to get appeal list: %s", err)
 		}
 		appeals = appealRecords
 		return nil
@@ -193,7 +219,7 @@ func (s *GRPCServer) listAppeals(ctx context.Context, filters *domain.ListAppeal
 	eg.Go(func() error {
 		totalRecord, err := s.appealService.GetAppealsTotalCount(ctx, filters)
 		if err != nil {
-			return status.Errorf(codes.Internal, "failed to get appeal total count: %s", err)
+			return s.internalError(ctx, "failed to get appeal total count: %s", err)
 		}
 		total = totalRecord
 		return nil
@@ -207,7 +233,7 @@ func (s *GRPCServer) listAppeals(ctx context.Context, filters *domain.ListAppeal
 	for _, a := range appeals {
 		appealProto, err := s.adapter.ToAppealProto(a)
 		if err != nil {
-			return nil, 0, status.Errorf(codes.Internal, "failed to parse appeal: %s", err)
+			return nil, 0, s.internalError(ctx, "failed to parse appeal: %s", err)
 		}
 		appealProtos = append(appealProtos, appealProto)
 	}

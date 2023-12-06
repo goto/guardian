@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/pkg/evaluator"
 	"github.com/goto/guardian/utils"
 )
@@ -28,7 +29,10 @@ const (
 )
 
 var (
-	ErrApproverInvalidType = errors.New("invalid approver type, expected an email string or array of email string")
+	ErrFailedToGetApprovers   = errors.New("failed to get approvers")
+	ErrApproversNotFound      = errors.New("approvers not found")
+	ErrUnexpectedApproverType = errors.New("unexpected approver type")
+	ErrInvalidApproverValue   = errors.New("approver value is not a valid email")
 )
 
 // AppealOptions
@@ -274,6 +278,22 @@ type ApprovalAction struct {
 	Actor        string `validate:"email" json:"actor"`
 	Action       string `validate:"required,oneof=approve reject" json:"action"`
 	Reason       string `json:"reason"`
+}
+
+func (a ApprovalAction) Validate() error {
+	if a.AppealID == "" {
+		return fmt.Errorf("appeal id is required")
+	}
+	if a.ApprovalName == "" {
+		return fmt.Errorf("approval name is required")
+	}
+	if validator.New().Var(a.Actor, "email") != nil {
+		return fmt.Errorf("actor is not a valid email: %q", a.Actor)
+	}
+	if a.Action != string(ApprovalActionApprove) && a.Action != string(ApprovalActionReject) {
+		return fmt.Errorf("invalid action: %q", a.Action)
+	}
+	return nil
 }
 
 type ListAppealsFilter struct {

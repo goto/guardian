@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -728,6 +729,71 @@ func TestAppeal_ApplyPolicy(t *testing.T) {
 				t.Errorf("Appeal.ApplyPolicy() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			assert.Equal(t, tt.appeal.Approvals, tt.wantApprovals)
+		})
+	}
+}
+
+func TestApprovalAction_Validate(t *testing.T) {
+	testCases := []struct {
+		name string
+		aa   domain.ApprovalAction
+		want error
+	}{
+		{
+			name: "PassingValidation",
+			aa: domain.ApprovalAction{
+				AppealID:     "appeal-1",
+				ApprovalName: "approval-1",
+				Actor:        "user@example.com",
+				Action:       "approve",
+			},
+			want: nil,
+		},
+		{
+			name: "EmptyAppealID",
+			aa: domain.ApprovalAction{
+				AppealID: "",
+			},
+			want: errors.New("appeal id is required"),
+		},
+		{
+			name: "EmptyApprovalName",
+			aa: domain.ApprovalAction{
+				AppealID:     "appeal-1",
+				ApprovalName: "",
+			},
+			want: errors.New("approval name is required"),
+		},
+		{
+			name: "InvalidActor",
+			aa: domain.ApprovalAction{
+				AppealID:     "appeal-1",
+				ApprovalName: "approval-1",
+				Actor:        "invalid-email",
+			},
+			want: errors.New(`actor is not a valid email: "invalid-email"`),
+		},
+		{
+			name: "InvalidAction",
+			aa: domain.ApprovalAction{
+				AppealID:     "appeal-1",
+				ApprovalName: "approval-1",
+				Actor:        "user@example.com",
+				Action:       "invalid-action",
+			},
+			want: errors.New(`invalid action: "invalid-action"`),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := tc.aa.Validate()
+			if tc.want == nil {
+				assert.NoError(t, actualError)
+			} else {
+				assert.Error(t, actualError)
+				assert.Equal(t, tc.want.Error(), actualError.Error())
+			}
 		})
 	}
 }
