@@ -282,7 +282,7 @@ func (s *ServiceTestSuite) TestRevoke() {
 						"account_type":  expectedGrantDetails.AccountType,
 						"account_id":    expectedGrantDetails.AccountID,
 						"requestor":     expectedGrantDetails.Owner,
-						"revoke_reason": expectedGrantDetails.RevokeReason,
+						"revoke_reason": reason,
 					},
 				},
 			}}).
