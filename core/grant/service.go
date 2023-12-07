@@ -232,6 +232,7 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 					"account_type":  grant.AccountType,
 					"account_id":    grant.AccountID,
 					"requestor":     grant.Owner,
+					"revoke_reason": grant.RevokeReason,
 				},
 			},
 		}}); errs != nil {
