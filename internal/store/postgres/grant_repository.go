@@ -215,7 +215,8 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) *gorm.DB {
 		db = db.Where(db.
 			Where(`"grants"."account_id" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
 			Or(`"grants"."role" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
-			Or(`"resources"."urn" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)),
+			Or(`"resources"."urn" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
+			Or(`"resources"."name" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)),
 		)
 	}
 	if filter.Size > 0 {
