@@ -264,7 +264,7 @@ func (s *Service) FetchResources(ctx context.Context) error {
 		s.logger.Info(ctx, "resources added", "provider_urn", p.URN, "count", len(flattenResources(resources)))
 		if err := s.resourceService.BulkUpsert(ctx, resources); err != nil {
 			failedProviders = append(failedProviders, p.URN)
-			s.logger.Error(ctx, "failed to add resources", "provider_urn", p.URN)
+			s.logger.Error(ctx, "failed to add resources", "provider_urn", p.URN, "error", err)
 		}
 	}
 
