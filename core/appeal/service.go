@@ -987,7 +987,7 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 					}
 					if err := s.Create(ctx, []*domain.Appeal{additionalAppeal}, CreateWithAdditionalAppeal()); err != nil {
 						if errors.Is(err, ErrAppealDuplicate) {
-							fmt.Println("creating additional appeals, duplicate appeal error log: %w", err)
+							s.logger.Warn(ctx, "creating additional appeals, duplicate appeal error log", "error", err)
 							return nil
 						}
 						return fmt.Errorf("creating additional appeals: %w", err)
