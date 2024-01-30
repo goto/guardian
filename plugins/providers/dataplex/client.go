@@ -44,6 +44,11 @@ func (p *policyTagClient) GetPolicies(ctx context.Context) ([]*Policy, error) {
 		if err == iterator.Done {
 			break
 		}
+
+		if err != nil {
+			return nil, err
+		}
+
 		tags := p.policyManager.ListPolicyTags(ctx, &pb.ListPolicyTagsRequest{
 			Parent: taxonomy.Name,
 		})
