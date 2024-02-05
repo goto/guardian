@@ -135,11 +135,6 @@ type Service struct {
 	TimeNow func() time.Time
 }
 
-type GormErr struct {
-	Number  int    `json:"Number"`
-	Message string `json:"Message"`
-}
-
 // NewService returns service struct
 func NewService(deps ServiceDeps) *Service {
 	return &Service{
