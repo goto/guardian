@@ -2,6 +2,7 @@ package appeal
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -133,6 +134,11 @@ type Service struct {
 	auditLogger auditLogger
 
 	TimeNow func() time.Time
+}
+
+type GormErr struct {
+	Number  int    `json:"Number"`
+	Message string `json:"Message"`
 }
 
 // NewService returns service struct
@@ -525,6 +531,14 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 		}
 
 		if err := s.Update(ctx, appeal); err != nil {
+
+			byteErr, _ := json.Marshal(err)
+			var newErr GormErr
+			json.Unmarshal((byteErr), &newErr)
+			if newErr.Number == 1062 {
+				return nil, fmt.Errorf("grant already exists: %w", err)
+			}
+
 			if err := s.providerService.RevokeAccess(ctx, *appeal.Grant); err != nil {
 				return nil, fmt.Errorf("revoking access: %w", err)
 			}
