@@ -2,7 +2,6 @@ package appeal
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -531,12 +530,8 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 		}
 
 		if err := s.Update(ctx, appeal); err != nil {
-
-			byteErr, _ := json.Marshal(err)
-			var newErr GormErr
-			json.Unmarshal((byteErr), &newErr)
-			if newErr.Number == 1062 {
-				return nil, fmt.Errorf("grant already exists: %w", err)
+			if errors.Is(err, grant.ErrDuplicateActiveGrant) {
+				return nil, fmt.Errorf("%w", grant.ErrDuplicateActiveGrant)
 			}
 
 			if err := s.providerService.RevokeAccess(ctx, *appeal.Grant); err != nil {

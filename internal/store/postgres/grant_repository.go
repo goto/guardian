@@ -95,6 +95,9 @@ func (r *GrantRepository) Update(ctx context.Context, a *domain.Grant) error {
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(m).Updates(*m).Error; err != nil {
+			if errors.Is(err, gorm.ErrDuplicatedKey) {
+				return grant.ErrDuplicateActiveGrant
+			}
 			return err
 		}
 
