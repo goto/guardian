@@ -132,10 +132,65 @@ func (s *GrantRepositoryTestSuite) TearDownSuite() {
 }
 
 func (s *GrantRepositoryTestSuite) TestGetGrantsTotalCount() {
+	dummyGrants := []*domain.Grant{
+		{
+			Status:      domain.GrantStatusActive,
+			AppealID:    s.dummyAppeal.ID,
+			AccountID:   s.dummyAppeal.AccountID,
+			AccountType: s.dummyAppeal.AccountType,
+			ResourceID:  s.dummyAppeal.ResourceID,
+			Role:        s.dummyAppeal.Role,
+			Permissions: s.dummyAppeal.Permissions,
+			CreatedBy:   s.dummyAppeal.CreatedBy,
+			IsPermanent: true,
+			Source:      domain.GrantSourceImport,
+		},
+		{
+			Status:      domain.GrantStatusInactive,
+			AppealID:    s.dummyAppeal.ID,
+			AccountID:   s.dummyAppeal.AccountID,
+			AccountType: s.dummyAppeal.AccountType,
+			ResourceID:  s.dummyAppeal.ResourceID,
+			Role:        s.dummyAppeal.Role,
+			Permissions: s.dummyAppeal.Permissions,
+			CreatedBy:   s.dummyAppeal.CreatedBy,
+			IsPermanent: true,
+			Source:      domain.GrantSourceAppeal,
+		},
+	}
+	err := s.repository.BulkInsert(context.Background(), dummyGrants)
+	s.Require().NoError(err)
+
 	s.Run("should return 0", func() {
 		_, actualError := s.repository.GetGrantsTotalCount(context.Background(), domain.ListGrantsFilter{})
 
 		s.Nil(actualError)
+	})
+	s.Run("Should return same total count on any size and any offset on success", func() {
+		testCases := []struct {
+			filters        domain.ListGrantsFilter
+			expectedResult int64
+		}{
+			{
+				filters: domain.ListGrantsFilter{
+					Size:   1,
+					Offset: 0,
+				},
+				expectedResult: 2,
+			},
+			{
+				filters: domain.ListGrantsFilter{
+					Size:   2,
+					Offset: 1,
+				},
+				expectedResult: 2,
+			},
+		}
+		for _, tc := range testCases {
+			total, actualError := s.repository.GetGrantsTotalCount(context.Background(), tc.filters)
+			s.Equal(total, tc.expectedResult)
+			s.Nil(actualError)
+		}
 	})
 }
 func (s *GrantRepositoryTestSuite) TestListUserRoles() {

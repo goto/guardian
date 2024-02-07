@@ -30,7 +30,7 @@ func NewGrantRepository(db *gorm.DB) *GrantRepository {
 
 func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilter) ([]domain.Grant, error) {
 	db := r.db.WithContext(ctx)
-	db = applyGrantFilter(db, filter)
+	db = applyGrantFilter(db, filter, true)
 
 	var models []model.Grant
 	if err := db.Joins("Resource").Joins("Appeal").Find(&models).Error; err != nil {
@@ -51,7 +51,7 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 
 func (r *GrantRepository) GetGrantsTotalCount(ctx context.Context, filter domain.ListGrantsFilter) (int64, error) {
 	db := r.db.WithContext(ctx)
-	db = applyGrantFilter(db, filter)
+	db = applyGrantFilter(db, filter, false)
 	var count int64
 	err := db.Model(&model.Grant{}).Count(&count).Error
 
@@ -207,7 +207,7 @@ func upsertResources(tx *gorm.DB, models []*model.Grant) error {
 	return nil
 }
 
-func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) *gorm.DB {
+func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter, enableSizeOffsetFilters bool) *gorm.DB {
 	db = db.Joins("JOIN resources ON grants.resource_id = resources.id")
 	if filter.Q != "" {
 		// NOTE: avoid adding conditions before this grouped where clause.
@@ -219,12 +219,16 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) *gorm.DB {
 			Or(`"resources"."name" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)),
 		)
 	}
-	if filter.Size > 0 {
-		db = db.Limit(filter.Size)
+
+	if enableSizeOffsetFilters {
+		if filter.Size > 0 {
+			db = db.Limit(filter.Size)
+		}
+		if filter.Offset > 0 {
+			db = db.Offset(filter.Offset)
+		}
 	}
-	if filter.Offset > 0 {
-		db = db.Offset(filter.Offset)
-	}
+
 	if filter.AccountIDs != nil {
 		db = db.Where(`"grants"."account_id" IN ?`, filter.AccountIDs)
 	}

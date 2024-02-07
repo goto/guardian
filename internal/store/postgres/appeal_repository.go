@@ -65,7 +65,7 @@ func (r *AppealRepository) Find(ctx context.Context, filters *domain.ListAppeals
 	}
 
 	db := r.db.WithContext(ctx)
-	db = applyAppealFilter(db, filters)
+	db = applyAppealFilter(db, filters, true)
 
 	var models []*model.Appeal
 	if err := db.Joins("Grant").Find(&models).Error; err != nil {
@@ -87,7 +87,7 @@ func (r *AppealRepository) Find(ctx context.Context, filters *domain.ListAppeals
 
 func (r *AppealRepository) GetAppealsTotalCount(ctx context.Context, filter *domain.ListAppealsFilter) (int64, error) {
 	db := r.db.WithContext(ctx)
-	db = applyAppealFilter(db, filter)
+	db = applyAppealFilter(db, filter, false)
 	var count int64
 	err := db.Model(&model.Appeal{}).Count(&count).Error
 
@@ -149,7 +149,7 @@ func (r *AppealRepository) Update(ctx context.Context, a *domain.Appeal) error {
 	})
 }
 
-func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) *gorm.DB {
+func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter, enableSizeOffsetFilters bool) *gorm.DB {
 	db = db.Joins("JOIN resources ON appeals.resource_id = resources.id")
 	if filters.Q != "" {
 		// NOTE: avoid adding conditions before this grouped where clause.
@@ -169,12 +169,16 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) *gorm.DB 
 	if filters.ResourceTypes != nil {
 		db = db.Where(`"resources"."type" IN ?`, filters.ResourceTypes)
 	}
-	if filters.Size > 0 {
-		db = db.Limit(filters.Size)
+
+	if enableSizeOffsetFilters {
+		if filters.Size > 0 {
+			db = db.Limit(filters.Size)
+		}
+		if filters.Offset > 0 {
+			db = db.Offset(filters.Offset)
+		}
 	}
-	if filters.Offset > 0 {
-		db = db.Offset(filters.Offset)
-	}
+
 	if filters.CreatedBy != "" {
 		db = db.Where(`"appeals"."created_by" = ?`, filters.CreatedBy)
 	}
