@@ -12,6 +12,12 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	ResourcesDefaultSort = []string{
+		"created_at:desc",
+	}
+)
+
 // ResourceRepository talks to the store/database to read/insert data
 type ResourceRepository struct {
 	db *gorm.DB
@@ -89,8 +95,12 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) *gorm.D
 	if filter.Size > 0 {
 		db = db.Limit(int(filter.Size))
 	}
-	if filter.Offset > 0 {
+	if filter.Offset >= 0 {
 		db = db.Offset(int(filter.Offset))
+		db = addOrderByClause(db, ResourcesDefaultSort, addOrderByClauseOptions{
+			statusColumnName: "",
+			statusesOrder:    []string{},
+		})
 	}
 
 	for path, v := range filter.Details {
