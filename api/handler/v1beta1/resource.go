@@ -38,6 +38,7 @@ func (s *GRPCServer) ListResources(ctx context.Context, req *guardianv1beta1.Lis
 		Details:      details,
 		Size:         req.GetSize(),
 		Offset:       req.GetOffset(),
+		OrderBy:      req.GetOrderBy(),
 	}
 
 	resources, total, err := s.listResources(ctx, filter)

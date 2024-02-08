@@ -95,9 +95,20 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) *gorm.D
 	if filter.Size > 0 {
 		db = db.Limit(int(filter.Size))
 	}
+
+	var sortOrder []string
+
 	if filter.Offset >= 0 {
 		db = db.Offset(int(filter.Offset))
-		db = addOrderByClause(db, ResourcesDefaultSort, addOrderByClauseOptions{
+		sortOrder = ResourcesDefaultSort
+	}
+
+	if filter.OrderBy != nil {
+		sortOrder = filter.OrderBy
+	}
+
+	if len(sortOrder) != 0 {
+		db = addOrderByClause(db, sortOrder, addOrderByClauseOptions{
 			statusColumnName: "",
 			statusesOrder:    []string{},
 		})
