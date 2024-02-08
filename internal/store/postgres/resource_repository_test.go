@@ -176,7 +176,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				filters: domain.ListResourcesFilter{
 					Size: 1,
 				},
-				expectedResult: []*domain.Resource{dummyResources[0]},
+				expectedResult: []*domain.Resource{dummyResources[1]},
 			},
 			{
 				name: "Order by created at desc",
