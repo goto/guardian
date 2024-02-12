@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	ResourcesDefaultSort = []string{
+	resourcesDefaultSort = []string{
 		"created_at:desc",
 	}
 )
@@ -96,11 +96,14 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) *gorm.D
 		db = db.Limit(int(filter.Size))
 	}
 
+	if filter.Offset > 0 {
+		db = db.Offset(int(filter.Offset))
+	}
+
 	var sortOrder []string
 
 	if filter.Offset >= 0 {
-		db = db.Offset(int(filter.Offset))
-		sortOrder = ResourcesDefaultSort
+		sortOrder = resourcesDefaultSort
 	}
 
 	if filter.OrderBy != nil {
