@@ -14,8 +14,10 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-const pgUniqueViolationErrorCode = "23505"
-const grantUniqueConstraintName = "unique_active_grants_index"
+const (
+	pgUniqueViolationErrorCode = "23505"
+	grantUniqueConstraintName  = "unique_active_grants_index"
+)
 
 var (
 	AppealStatusDefaultSort = []string{
