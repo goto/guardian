@@ -93,7 +93,13 @@ func (r *AppealRepository) Find(ctx context.Context, filters *domain.ListAppeals
 
 func (r *AppealRepository) GetAppealsTotalCount(ctx context.Context, filter *domain.ListAppealsFilter) (int64, error) {
 	db := r.db.WithContext(ctx)
-	db = applyAppealFilter(db, filter)
+
+	appealFilters := *filter
+	appealFilters.Size = 0
+	appealFilters.Offset = 0
+
+	db = applyAppealFilter(db, &appealFilters)
+
 	var count int64
 	err := db.Model(&model.Appeal{}).Count(&count).Error
 
@@ -179,12 +185,14 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) *gorm.DB 
 	if filters.ResourceTypes != nil {
 		db = db.Where(`"resources"."type" IN ?`, filters.ResourceTypes)
 	}
+
 	if filters.Size > 0 {
 		db = db.Limit(filters.Size)
 	}
 	if filters.Offset > 0 {
 		db = db.Offset(filters.Offset)
 	}
+
 	if filters.CreatedBy != "" {
 		db = db.Where(`"appeals"."created_by" = ?`, filters.CreatedBy)
 	}

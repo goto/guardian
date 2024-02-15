@@ -191,9 +191,51 @@ func (s *AppealRepositoryTestSuite) TestGetByID() {
 }
 
 func (s *AppealRepositoryTestSuite) TestGetAppealsTotalCount() {
+
+	dummyAppeals := []*domain.Appeal{
+		{
+			ResourceID:    s.dummyResource.ID,
+			PolicyID:      s.dummyPolicy.ID,
+			PolicyVersion: s.dummyPolicy.Version,
+			AccountID:     "user@example.com",
+			AccountType:   domain.DefaultAppealAccountType,
+			Role:          "role_test",
+			Status:        domain.AppealStatusApproved,
+			Permissions:   []string{"permission_test"},
+			CreatedBy:     "user@example.com",
+		},
+	}
+
+	err := s.repository.BulkUpsert(context.Background(), dummyAppeals)
+	s.Require().NoError(err)
+
 	s.Run("should return 0", func() {
 		_, actualError := s.repository.GetAppealsTotalCount(context.Background(), &domain.ListAppealsFilter{})
 		s.Nil(actualError)
+	})
+
+	s.Run("Should always return total count on any size and any offset on success", func() {
+		testCases := []struct {
+			filters domain.ListAppealsFilter
+		}{
+			{
+				filters: domain.ListAppealsFilter{
+					Size:   1,
+					Offset: 0,
+				},
+			},
+			{
+				filters: domain.ListAppealsFilter{
+					Size:   1,
+					Offset: 1,
+				},
+			},
+		}
+		for _, tc := range testCases {
+			total, actualError := s.repository.GetAppealsTotalCount(context.Background(), &tc.filters)
+			s.NotNil(total)
+			s.Nil(actualError)
+		}
 	})
 }
 

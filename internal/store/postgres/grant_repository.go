@@ -51,7 +51,12 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 
 func (r *GrantRepository) GetGrantsTotalCount(ctx context.Context, filter domain.ListGrantsFilter) (int64, error) {
 	db := r.db.WithContext(ctx)
-	db = applyGrantFilter(db, filter)
+
+	grantFilters := filter
+	grantFilters.Size = 0
+	grantFilters.Offset = 0
+
+	db = applyGrantFilter(db, grantFilters)
 	var count int64
 	err := db.Model(&model.Grant{}).Count(&count).Error
 
@@ -219,12 +224,14 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) *gorm.DB {
 			Or(`"resources"."name" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)),
 		)
 	}
+
 	if filter.Size > 0 {
 		db = db.Limit(filter.Size)
 	}
 	if filter.Offset > 0 {
 		db = db.Offset(filter.Offset)
 	}
+
 	if filter.AccountIDs != nil {
 		db = db.Where(`"grants"."account_id" IN ?`, filter.AccountIDs)
 	}
