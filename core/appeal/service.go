@@ -525,8 +525,10 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 		}
 
 		if err := s.Update(ctx, appeal); err != nil {
-			if err := s.providerService.RevokeAccess(ctx, *appeal.Grant); err != nil {
-				return nil, fmt.Errorf("revoking access: %w", err)
+			if !errors.Is(err, domain.ErrDuplicateActiveGrant) {
+				if err := s.providerService.RevokeAccess(ctx, *appeal.Grant); err != nil {
+					return nil, fmt.Errorf("revoking access: %w", err)
+				}
 			}
 			return nil, fmt.Errorf("updating appeal: %w", err)
 		}

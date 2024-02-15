@@ -20,6 +20,8 @@ const (
 	GrantExpirationReasonDormant = "grant/access hasn't been used for a while"
 )
 
+var ErrDuplicateActiveGrant = errors.New("grant already exists")
+
 type Grant struct {
 	ID                      string      `json:"id" yaml:"id"`
 	Status                  GrantStatus `json:"status" yaml:"status"`

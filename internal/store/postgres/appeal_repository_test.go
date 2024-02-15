@@ -18,10 +18,11 @@ import (
 
 type AppealRepositoryTestSuite struct {
 	suite.Suite
-	store      *postgres.Store
-	pool       *dockertest.Pool
-	resource   *dockertest.Resource
-	repository *postgres.AppealRepository
+	store           *postgres.Store
+	pool            *dockertest.Pool
+	resource        *dockertest.Resource
+	repository      *postgres.AppealRepository
+	grantRepository *postgres.GrantRepository
 
 	dummyProvider *domain.Provider
 	dummyPolicy   *domain.Policy
@@ -39,6 +40,8 @@ func (s *AppealRepositoryTestSuite) SetupSuite() {
 	ctx := context.Background()
 
 	s.repository = postgres.NewAppealRepository(s.store.DB())
+
+	s.grantRepository = postgres.NewGrantRepository(s.store.DB())
 
 	s.dummyPolicy = &domain.Policy{
 		ID:      "policy_test",
@@ -453,6 +456,46 @@ func (s *AppealRepositoryTestSuite) TestUpdate() {
 		actualError := s.repository.Update(context.Background(), invalidAppeal)
 
 		s.EqualError(actualError, "json: unsupported type: chan int")
+	})
+
+	s.Run("should return error if grant already exists", func() {
+		pendingAppeal := &domain.Appeal{
+			ID:            uuid.NewString(),
+			ResourceID:    s.dummyResource.ID,
+			PolicyID:      s.dummyPolicy.ID,
+			PolicyVersion: s.dummyPolicy.Version,
+			AccountID:     "user@example.com",
+			AccountType:   domain.DefaultAppealAccountType,
+			Role:          "role_test",
+			Permissions:   []string{"permission_test"},
+			CreatedBy:     "user@example.com",
+			Status:        domain.AppealStatusPending,
+		}
+		dummyAppealError := s.repository.BulkUpsert(context.Background(), []*domain.Appeal{pendingAppeal})
+		s.Require().NoError(dummyAppealError)
+
+		dummyGrants := &domain.Grant{
+			Status:      domain.GrantStatusActive,
+			AccountID:   "user@example.com",
+			ResourceID:  s.dummyResource.ID,
+			Permissions: []string{"permission_test"},
+		}
+
+		dummyGrantError := s.grantRepository.BulkUpsert(context.Background(), []*domain.Grant{dummyGrants})
+		s.Require().NoError(dummyGrantError)
+
+		appealApprovalErr := pendingAppeal.Approve()
+		s.Require().NoError(appealApprovalErr)
+
+		pendingAppeal.Grant = &domain.Grant{ //new duplicate grant
+			Status:      domain.GrantStatusActive,
+			AccountID:   "user@example.com",
+			ResourceID:  s.dummyResource.ID,
+			Permissions: []string{"permission_test"},
+		}
+
+		err := s.repository.Update(context.Background(), pendingAppeal)
+		s.ErrorIs(err, domain.ErrDuplicateActiveGrant)
 	})
 
 	s.Run("should return nil on success", func() {
