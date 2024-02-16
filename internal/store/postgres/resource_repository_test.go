@@ -80,6 +80,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				Details: map[string]interface{}{
 					"foo": "bar",
 				},
+				CreatedAt: time.Now(),
 			},
 			{
 				ProviderType: s.dummyProvider.Type,
@@ -87,6 +88,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				Type:         "test_type",
 				URN:          "test_urn_2",
 				Name:         "test_name_2",
+				CreatedAt:    time.Now().Add(10 * time.Minute),
 			},
 		}
 		err := s.repository.BulkUpsert(context.Background(), dummyResources)
@@ -157,16 +159,31 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				name: "filter by size and offset",
 				filters: domain.ListResourcesFilter{
 					Size:   1,
-					Offset: 1,
+					Offset: 0,
 				},
 				expectedResult: []*domain.Resource{dummyResources[1]},
+			},
+			{
+				name: "filter by size and offset 1",
+				filters: domain.ListResourcesFilter{
+					Size:   1,
+					Offset: 1,
+				},
+				expectedResult: []*domain.Resource{dummyResources[0]},
 			},
 			{
 				name: "filter by size only",
 				filters: domain.ListResourcesFilter{
 					Size: 1,
 				},
-				expectedResult: []*domain.Resource{dummyResources[0]},
+				expectedResult: []*domain.Resource{dummyResources[1]},
+			},
+			{
+				name: "Order by created at desc",
+				filters: domain.ListResourcesFilter{
+					OrderBy: []string{"created_at:desc"},
+				},
+				expectedResult: []*domain.Resource{dummyResources[1], dummyResources[0]},
 			},
 		}
 
