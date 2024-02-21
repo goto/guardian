@@ -40,6 +40,8 @@ type ProtoAdapter interface {
 	FromGrantProto(*guardianv1beta1.Grant) *domain.Grant
 
 	ToActivityProto(*domain.Activity) (*guardianv1beta1.ProviderActivity, error)
+
+	ToCommentProto(*domain.Comment) *guardianv1beta1.Comment
 }
 
 //go:generate mockery --name=resourceService --exported --with-expecter
@@ -116,6 +118,12 @@ type grantService interface {
 	ImportFromProvider(ctx context.Context, criteria grant.ImportFromProviderCriteria) ([]*domain.Grant, error)
 }
 
+//go:generate mockery --name=commentService --exported --with-expecter
+type commentService interface {
+	List(context.Context, domain.ListCommentsFilter) ([]*domain.Comment, error)
+	Create(context.Context, *domain.Comment) error
+}
+
 type GRPCServer struct {
 	resourceService resourceService
 	activityService activityService
@@ -124,6 +132,7 @@ type GRPCServer struct {
 	appealService   appealService
 	approvalService approvalService
 	grantService    grantService
+	commentService  commentService
 	adapter         ProtoAdapter
 
 	authenticatedUserContextKey interface{}
@@ -140,6 +149,7 @@ func NewGRPCServer(
 	appealService appealService,
 	approvalService approvalService,
 	grantService grantService,
+	commentService commentService,
 	adapter ProtoAdapter,
 	authenticatedUserContextKey interface{},
 	logger log.Logger,
@@ -152,6 +162,7 @@ func NewGRPCServer(
 		appealService:               appealService,
 		approvalService:             approvalService,
 		grantService:                grantService,
+		commentService:              commentService,
 		adapter:                     adapter,
 		authenticatedUserContextKey: authenticatedUserContextKey,
 		logger:                      logger,

@@ -22,6 +22,7 @@ type GrpcHandlersSuite struct {
 	appealService   *mocks.AppealService
 	approvalService *mocks.ApprovalService
 	grantService    *mocks.GrantService
+	commentService  *mocks.CommentService
 	grpcServer      *v1beta1.GRPCServer
 	logger          log.Logger
 }
@@ -38,6 +39,7 @@ func (s *GrpcHandlersSuite) setup() {
 	s.appealService = new(mocks.AppealService)
 	s.approvalService = new(mocks.ApprovalService)
 	s.grantService = new(mocks.GrantService)
+	s.commentService = new(mocks.CommentService)
 	s.logger = log.NewNoop()
 	s.grpcServer = v1beta1.NewGRPCServer(
 		s.resourceService,
@@ -47,6 +49,7 @@ func (s *GrpcHandlersSuite) setup() {
 		s.appealService,
 		s.approvalService,
 		s.grantService,
+		s.commentService,
 		v1beta1.NewAdapter(),
 		authEmailTestContextKey{},
 		s.logger,

@@ -12,6 +12,7 @@ import (
 	"github.com/goto/guardian/core/activity"
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/core/approval"
+	"github.com/goto/guardian/core/comment"
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/core/policy"
 	"github.com/goto/guardian/core/provider"
@@ -43,6 +44,7 @@ type Services struct {
 	ApprovalService *approval.Service
 	AppealService   *appeal.Service
 	GrantService    *grant.Service
+	CommentService  *comment.Service
 }
 
 type ServiceDeps struct {
@@ -102,6 +104,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 	appealRepository := postgres.NewAppealRepository(store.DB())
 	approvalRepository := postgres.NewApprovalRepository(store.DB())
 	grantRepository := postgres.NewGrantRepository(store.DB())
+	commentRepository := postgres.NewCommentRepository(store.DB())
 
 	providerClients := []provider.Client{
 		bigquery.NewProvider(domain.ProviderTypeBigQuery, deps.Crypto, deps.Logger),
@@ -174,6 +177,13 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		Logger:          deps.Logger,
 		AuditLogger:     auditLogger,
 	})
+	commentService := comment.NewService(comment.ServiceDeps{
+		Repository:    commentRepository,
+		AppealService: appealService,
+		Notifier:      deps.Notifier,
+		Logger:        deps.Logger,
+		AuditLogger:   auditLogger,
+	})
 
 	return &Services{
 		resourceService,
@@ -183,6 +193,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		approvalService,
 		appealService,
 		grantService,
+		commentService,
 	}, nil
 }
 

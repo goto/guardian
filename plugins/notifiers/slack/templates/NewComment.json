@@ -1,0 +1,9 @@
+[
+  {
+    "type":"section",
+    "text":{
+      "type":"mrkdwn",
+      "text":"`{{.comment_created_by}}` commented on an appeal made by `{{.appeal_created_by}}`\n\n>*Appeal ID*: `{{.appeal_id}}`\n\n>*Requested resource*: `{{.resource_name}}`\n\n>*Comment*: `{{.body}}`"
+    }
+  }
+]
