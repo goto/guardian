@@ -60,10 +60,11 @@ type ServiceDeps struct {
 
 func NewService(deps ServiceDeps) *Service {
 	return &Service{
-		repo:        deps.Repository,
-		notifier:    deps.Notifier,
-		logger:      deps.Logger,
-		auditLogger: deps.AuditLogger,
+		repo:          deps.Repository,
+		appealService: deps.AppealService,
+		notifier:      deps.Notifier,
+		logger:        deps.Logger,
+		auditLogger:   deps.AuditLogger,
 	}
 }
 
@@ -98,6 +99,11 @@ func (s *Service) Create(ctx context.Context, c *domain.Comment) error {
 }
 
 func (s *Service) List(ctx context.Context, filter domain.ListCommentsFilter) ([]*domain.Comment, error) {
+	_, err := s.appealService.GetByID(ctx, filter.AppealID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get appeal details: %w", err)
+	}
+
 	if filter.OrderBy == nil {
 		defaultCommentOrder := "created_at"
 		filter.OrderBy = []string{defaultCommentOrder}
