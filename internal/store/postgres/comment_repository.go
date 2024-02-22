@@ -8,15 +8,15 @@ import (
 	"gorm.io/gorm"
 )
 
-type commentRepository struct {
+type CommentRepository struct {
 	db *gorm.DB
 }
 
-func NewCommentRepository(db *gorm.DB) *commentRepository {
-	return &commentRepository{db}
+func NewCommentRepository(db *gorm.DB) *CommentRepository {
+	return &CommentRepository{db}
 }
 
-func (r *commentRepository) Create(ctx context.Context, c *domain.Comment) error {
+func (r *CommentRepository) Create(ctx context.Context, c *domain.Comment) error {
 	m := &model.Comment{}
 	if err := m.FromDomain(c); err != nil {
 		return err
@@ -34,7 +34,7 @@ func (r *commentRepository) Create(ctx context.Context, c *domain.Comment) error
 	})
 }
 
-func (r *commentRepository) List(ctx context.Context, filter domain.ListCommentsFilter) ([]*domain.Comment, error) {
+func (r *CommentRepository) List(ctx context.Context, filter domain.ListCommentsFilter) ([]*domain.Comment, error) {
 	db := r.db.WithContext(ctx)
 	if filter.AppealID != "" {
 		db = db.Where("appeal_id = ?", filter.AppealID)
