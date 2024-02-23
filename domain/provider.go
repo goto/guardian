@@ -7,24 +7,16 @@ import (
 )
 
 const (
-	// ProviderTypeBigQuery is the type name for BigQuery provider
-	ProviderTypeBigQuery = "bigquery"
-	// ProviderTypeMetabase is the type name for Metabase provider
-	ProviderTypeMetabase = "metabase"
-	// ProviderTypeGrafana is the type name for Grafana provider
-	ProviderTypeGrafana = "grafana"
-	// ProviderTypeTableau is the type name for Tableau provider
-	ProviderTypeTableau = "tableau"
-	// ProviderTypeGCloudIAM is the type name for Google Cloud IAM provider
+	ProviderTypeBigQuery  = "bigquery"
+	ProviderTypeMetabase  = "metabase"
+	ProviderTypeGrafana   = "grafana"
+	ProviderTypeTableau   = "tableau"
 	ProviderTypeGCloudIAM = "gcloud_iam"
-	// ProviderTypeNoOp is the type name for No-Op provider
-	ProviderTypeNoOp = "noop"
-	//  ProviderTypeGCS is the type name for Google Cloud Storage provider
-	ProviderTypeGCS = "gcs"
-	// ProviderTypePolicyTag is the type name for Dataplex
+	ProviderTypeNoOp      = "noop"
+	ProviderTypeGCS       = "gcs"
 	ProviderTypePolicyTag = "dataplex"
-	//  ProviderTypeShield is the type name for Shield auth layer provider
-	ProviderTypeShield = "shield"
+	ProviderTypeShield    = "shield"
+	ProviderTypeGitlab    = "gitlab"
 )
 
 // Role is the configuration to define a role and mapping the permissions in the provider
@@ -64,8 +56,6 @@ type AppealConfig struct {
 	AllowPermanentAccess         bool   `json:"allow_permanent_access" yaml:"allow_permanent_access"`
 	AllowActiveAccessExtensionIn string `json:"allow_active_access_extension_in" yaml:"allow_active_access_extension_in" validate:"required"`
 }
-
-// ProviderConfig is the configuration for a data provider
 type ProviderConfig struct {
 	Type                string               `json:"type" yaml:"type" validate:"required,oneof=google_bigquery metabase grafana tableau gcloud_iam noop gcs"`
 	URN                 string               `json:"urn" yaml:"urn" validate:"required"`
@@ -101,7 +91,6 @@ func (pc ProviderConfig) GetFilterForResourceType(resourceType string) string {
 	return ""
 }
 
-// Provider domain structure
 type Provider struct {
 	ID        string          `json:"id" yaml:"id"`
 	Type      string          `json:"type" yaml:"type"`
