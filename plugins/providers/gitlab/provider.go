@@ -65,6 +65,11 @@ func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
 }
 
 func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
+	client, err := p.getClient(*pc)
+	if err != nil {
+		return nil, err
+	}
+
 	var resources []*domain.Resource
 	resourceTypes := pc.GetResourceTypes()
 
@@ -73,26 +78,46 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 
 	if utils.ContainsString(resourceTypes, resourceTypeGroup) {
 		eg.Go(func() error {
-			groups, err := p.fetchGroups(ctx, *pc)
+			groups, err := fetchResources(
+				func(opt gitlab.ListOptions) ([]*gitlab.Group, *gitlab.Response, error) {
+					return client.Groups.ListGroups(&gitlab.ListGroupsOptions{ListOptions: opt}, gitlab.WithContext(ctx))
+				},
+				func(g *gitlab.Group) *domain.Resource {
+					r := group{*g, pc.Type, pc.URN}.toResource()
+					return &r
+				},
+			)
 			if err != nil {
 				return fmt.Errorf("unable to fetch groups: %w", err)
 			}
+
 			mu.Lock()
 			resources = append(resources, groups...)
 			mu.Unlock()
+
 			return nil
 		})
 	}
 
 	if utils.ContainsString(resourceTypes, resourceTypeProject) {
 		eg.Go(func() error {
-			projects, err := p.fetchProjects(ctx, *pc)
+			projects, err := fetchResources(
+				func(opt gitlab.ListOptions) ([]*gitlab.Project, *gitlab.Response, error) {
+					return client.Projects.ListProjects(&gitlab.ListProjectsOptions{ListOptions: opt}, gitlab.WithContext(ctx))
+				},
+				func(p *gitlab.Project) *domain.Resource {
+					r := project{*p, pc.Type, pc.URN}.toResource()
+					return &r
+				},
+			)
 			if err != nil {
 				return fmt.Errorf("unable to fetch projects: %w", err)
 			}
+
 			mu.Lock()
 			resources = append(resources, projects...)
 			mu.Unlock()
+
 			return nil
 		})
 	}
