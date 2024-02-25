@@ -38,13 +38,13 @@ var (
 		roleOwner,
 	}
 	gitlabRoleMapping = map[string]gitlab.AccessLevelValue{
-		roleNoAccess:      gitlab.AccessLevelValue(gitlab.NoPermissions),
+		roleNoAccess:      gitlab.NoPermissions,
 		roleMinimalAccess: gitlab.AccessLevelValue(5),
-		roleGuest:         gitlab.AccessLevelValue(gitlab.GuestPermissions),
-		roleReporter:      gitlab.AccessLevelValue(gitlab.ReporterPermissions),
-		roleDeveloper:     gitlab.AccessLevelValue(gitlab.DeveloperPermissions),
-		roleMaintainer:    gitlab.AccessLevelValue(gitlab.MaintainerPermissions),
-		roleOwner:         gitlab.AccessLevelValue(gitlab.OwnerPermissions),
+		roleGuest:         gitlab.GuestPermissions,
+		roleReporter:      gitlab.ReporterPermissions,
+		roleDeveloper:     gitlab.DeveloperPermissions,
+		roleMaintainer:    gitlab.MaintainerPermissions,
+		roleOwner:         gitlab.OwnerPermissions,
 	}
 )
 
