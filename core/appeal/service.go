@@ -28,6 +28,7 @@ const (
 	AuditKeyDeleteApprover = "appeal.deleteApprover"
 
 	RevokeReasonForExtension = "Automatically revoked for grant extension"
+	RevokeReasonForOverride  = "Automatically revoked for grant override"
 )
 
 var TimeNow = time.Now
@@ -70,6 +71,7 @@ type providerService interface {
 	RevokeAccess(context.Context, domain.Grant) error
 	ValidateAppeal(context.Context, *domain.Appeal, *domain.Provider, *domain.Policy) error
 	GetPermissions(context.Context, *domain.ProviderConfig, string, string) ([]interface{}, error)
+	IsExclusiveRoleAssignment(context.Context, string, string) bool
 }
 
 //go:generate mockery --name=resourceService --exported --with-expecter
@@ -284,7 +286,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 				newGrant.Resource = appeal.Resource
 				appeal.Grant = newGrant
 				if revokedGrant != nil {
-					if _, err := s.grantService.Revoke(ctx, revokedGrant.ID, domain.SystemActorName, RevokeReasonForExtension,
+					if _, err := s.grantService.Revoke(ctx, revokedGrant.ID, domain.SystemActorName, revokedGrant.RevokeReason,
 						grant.SkipNotifications(),
 						grant.SkipRevokeAccessInProvider(),
 					); err != nil {
@@ -511,7 +513,7 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			newGrant.Resource = appeal.Resource
 			appeal.Grant = newGrant
 			if revokedGrant != nil {
-				if _, err := s.grantService.Revoke(ctx, revokedGrant.ID, domain.SystemActorName, RevokeReasonForExtension,
+				if _, err := s.grantService.Revoke(ctx, revokedGrant.ID, domain.SystemActorName, revokedGrant.RevokeReason,
 					grant.SkipNotifications(),
 					grant.SkipRevokeAccessInProvider(),
 				); err != nil {
@@ -1186,20 +1188,28 @@ func (s *Service) getPermissions(ctx context.Context, pc *domain.ProviderConfig,
 	return strPermissions, nil
 }
 
+// TODO(feature): add relation between new and revoked grant for traceability
 func (s *Service) prepareGrant(ctx context.Context, appeal *domain.Appeal) (newGrant *domain.Grant, deactivatedGrant *domain.Grant, err error) {
-	activeGrants, err := s.grantService.List(ctx, domain.ListGrantsFilter{
+	filter := domain.ListGrantsFilter{
 		AccountIDs:  []string{appeal.AccountID},
 		ResourceIDs: []string{appeal.ResourceID},
 		Statuses:    []string{string(domain.GrantStatusActive)},
 		Permissions: appeal.Permissions,
-	})
+	}
+	revocationReason := RevokeReasonForExtension
+	if s.providerService.IsExclusiveRoleAssignment(ctx, appeal.Resource.ProviderType, appeal.Resource.Type) {
+		filter.Permissions = nil
+		revocationReason = RevokeReasonForOverride
+	}
+
+	activeGrants, err := s.grantService.List(ctx, filter)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to retrieve existing active grants: %w", err)
 	}
 
 	if len(activeGrants) > 0 {
 		deactivatedGrant = &activeGrants[0]
-		if err := deactivatedGrant.Revoke(domain.SystemActorName, "Extended to a new grant"); err != nil {
+		if err := deactivatedGrant.Revoke(domain.SystemActorName, revocationReason); err != nil {
 			return nil, nil, fmt.Errorf("revoking previous grant: %w", err)
 		}
 	}

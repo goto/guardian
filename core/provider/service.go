@@ -54,6 +54,11 @@ type dormancyChecker interface {
 	CorrelateGrantActivities(context.Context, domain.Provider, []*domain.Grant, []*domain.Activity) error
 }
 
+//go:generate mockery --name=assignmentTyper --exported --with-expecter
+type assignmentTyper interface {
+	IsExclusiveRoleAssignment(context.Context) bool
+}
+
 //go:generate mockery --name=resourceService --exported --with-expecter
 type resourceService interface {
 	Find(context.Context, domain.ListResourcesFilter) ([]*domain.Resource, error)
@@ -532,6 +537,16 @@ func (s *Service) CorrelateGrantActivities(ctx context.Context, p domain.Provide
 		return fmt.Errorf("%w: %s", ErrGetActivityMethodNotSupported, p.Type)
 	}
 	return activityClient.CorrelateGrantActivities(ctx, p, grants, activities)
+}
+
+// IsExclusiveRoleAssignment returns true if the provider only supports exclusive role assignment
+// i.e. a user can only have one role per resource
+func (s *Service) IsExclusiveRoleAssignment(ctx context.Context, providerType, resourceType string) bool {
+	client := s.getClient(providerType)
+	if c, ok := client.(assignmentTyper); ok {
+		return c.IsExclusiveRoleAssignment(ctx)
+	}
+	return false
 }
 
 func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*domain.Resource, error) {
