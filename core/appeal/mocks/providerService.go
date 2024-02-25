@@ -176,6 +176,50 @@ func (_c *ProviderService_GrantAccess_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
+// IsExclusiveRoleAssignment provides a mock function with given fields: _a0, _a1, _a2
+func (_m *ProviderService) IsExclusiveRoleAssignment(_a0 context.Context, _a1 string, _a2 string) bool {
+	ret := _m.Called(_a0, _a1, _a2)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) bool); ok {
+		r0 = rf(_a0, _a1, _a2)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// ProviderService_IsExclusiveRoleAssignment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsExclusiveRoleAssignment'
+type ProviderService_IsExclusiveRoleAssignment_Call struct {
+	*mock.Call
+}
+
+// IsExclusiveRoleAssignment is a helper method to define mock.On call
+//   - _a0 context.Context
+//   - _a1 string
+//   - _a2 string
+func (_e *ProviderService_Expecter) IsExclusiveRoleAssignment(_a0 interface{}, _a1 interface{}, _a2 interface{}) *ProviderService_IsExclusiveRoleAssignment_Call {
+	return &ProviderService_IsExclusiveRoleAssignment_Call{Call: _e.mock.On("IsExclusiveRoleAssignment", _a0, _a1, _a2)}
+}
+
+func (_c *ProviderService_IsExclusiveRoleAssignment_Call) Run(run func(_a0 context.Context, _a1 string, _a2 string)) *ProviderService_IsExclusiveRoleAssignment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *ProviderService_IsExclusiveRoleAssignment_Call) Return(_a0 bool) *ProviderService_IsExclusiveRoleAssignment_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *ProviderService_IsExclusiveRoleAssignment_Call) RunAndReturn(run func(context.Context, string, string) bool) *ProviderService_IsExclusiveRoleAssignment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RevokeAccess provides a mock function with given fields: _a0, _a1
 func (_m *ProviderService) RevokeAccess(_a0 context.Context, _a1 domain.Grant) error {
 	ret := _m.Called(_a0, _a1)
