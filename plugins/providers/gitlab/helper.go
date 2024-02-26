@@ -40,7 +40,7 @@ func fetchResources[T *gitlab.Group | *gitlab.Project](
 		return nil, err
 	}
 
-	mappedRecords := make([]*domain.Resource, 0, len(records))
+	mappedRecords := make([]*domain.Resource, len(records))
 	for i, r := range records {
 		mappedRecords[i] = mapFunc(r)
 	}
