@@ -204,7 +204,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 	if res != nil && res.StatusCode == http.StatusNotFound {
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("unable to grant access: %w", err)
+		return fmt.Errorf("unable to revoke access: %w", err)
 	}
 
 	return nil
