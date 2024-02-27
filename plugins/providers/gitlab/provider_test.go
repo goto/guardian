@@ -2,7 +2,6 @@ package gitlab_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -135,31 +134,27 @@ func TestGetResources(t *testing.T) {
 	})
 
 	t.Run("pagination", func(t *testing.T) {
-		var groupFixtures []map[string]interface{}
-
 		mux := http.NewServeMux()
 		mux.HandleFunc(listGroupsEndpoint, func(w http.ResponseWriter, r *http.Request) {
-			page := r.URL.Query().Get("page")
+			idAfterParam := r.URL.Query().Get("id_after")
+			dummyIDAfter := "999"
 
 			var groups []byte
 			var err error
-			switch page {
-			case "1":
-				groups, err = readFixtures("testdata/groups/page_1.json")
-				w.Header().Set("X-Page", "1")
-				w.Header().Set("X-Next-Page", "2")
-			case "2":
+			switch idAfterParam {
+			case dummyIDAfter:
 				groups, err = readFixtures("testdata/groups/page_2.json")
-				w.Header().Set("X-Page", "2")
-			}
-			w.Header().Set("X-Total-Pages", "2")
-			require.NoError(t, err)
+			default:
+				groups, err = readFixtures("testdata/groups/page_1.json")
 
-			//
-			var records []map[string]interface{}
-			err = json.Unmarshal(groups, &records)
+				q := r.URL.Query()
+				q.Add("id_after", dummyIDAfter)
+				r.URL.RawQuery = q.Encode()
+				nextPageURL := fmt.Sprintf("http://%s/%s", r.Host, r.URL.String())
+				linkHeader := fmt.Sprintf(`<%s>; rel="next"`, nextPageURL)
+				w.Header().Set("Link", linkHeader)
+			}
 			require.NoError(t, err)
-			groupFixtures = append(groupFixtures, records...)
 
 			w.WriteHeader(http.StatusOK)
 			w.Write(groups)
@@ -173,6 +168,7 @@ func TestGetResources(t *testing.T) {
 
 		encryptor.EXPECT().Decrypt("encrypted-token").Return("test-token", nil)
 		defer encryptor.AssertExpectations(t)
+		expectedResourcesLen := 10 // 5 groups * 2 pages
 
 		pc := &domain.ProviderConfig{
 			Type: "gitlab",
@@ -194,7 +190,7 @@ func TestGetResources(t *testing.T) {
 		resources, err := gitlabProvider.GetResources(context.Background(), pc)
 
 		assert.NoError(t, err)
-		assert.Len(t, resources, len(groupFixtures))
+		assert.Len(t, resources, expectedResourcesLen)
 	})
 }
 

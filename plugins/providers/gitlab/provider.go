@@ -79,9 +79,9 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 
 	if utils.ContainsString(resourceTypes, resourceTypeGroup) {
 		eg.Go(func() error {
-			groups, err := fetchResources(
-				func(opt gitlab.ListOptions) ([]*gitlab.Group, *gitlab.Response, error) {
-					return client.Groups.ListGroups(&gitlab.ListGroupsOptions{ListOptions: opt}, gitlab.WithContext(ctx))
+			groups, err := fetchResources(ctx,
+				func(listOpt gitlab.ListOptions, reqOpts ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
+					return client.Groups.ListGroups(&gitlab.ListGroupsOptions{ListOptions: listOpt}, reqOpts...)
 				},
 				func(g *gitlab.Group) *domain.Resource {
 					r := group{*g, pc.Type, pc.URN}.toResource()
@@ -102,9 +102,9 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 
 	if utils.ContainsString(resourceTypes, resourceTypeProject) {
 		eg.Go(func() error {
-			projects, err := fetchResources(
-				func(opt gitlab.ListOptions) ([]*gitlab.Project, *gitlab.Response, error) {
-					return client.Projects.ListProjects(&gitlab.ListProjectsOptions{ListOptions: opt}, gitlab.WithContext(ctx))
+			projects, err := fetchResources(ctx,
+				func(listOpt gitlab.ListOptions, reqOpts ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error) {
+					return client.Projects.ListProjects(&gitlab.ListProjectsOptions{ListOptions: listOpt}, reqOpts...)
 				},
 				func(p *gitlab.Project) *domain.Resource {
 					r := project{*p, pc.Type, pc.URN}.toResource()
