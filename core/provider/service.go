@@ -260,6 +260,7 @@ func (s *Service) FetchResources(ctx context.Context) error {
 
 	failedProviders := make([]string, 0)
 	for _, p := range providers {
+		startTime := time.Now()
 		s.logger.Info(ctx, "fetching resources", "provider_urn", p.URN)
 		resources, err := s.getResources(ctx, p)
 		if err != nil {
@@ -271,6 +272,7 @@ func (s *Service) FetchResources(ctx context.Context) error {
 			failedProviders = append(failedProviders, p.URN)
 			s.logger.Error(ctx, "failed to add resources", "provider_urn", p.URN, "error", err)
 		}
+		s.logger.Info(ctx, "fetching resources completed", "provider_urn", p.URN, "duration", time.Since(startTime))
 	}
 
 	if len(failedProviders) == 0 {
