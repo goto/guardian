@@ -195,7 +195,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 	var res *gitlab.Response
 	switch g.Resource.Type {
 	case resourceTypeGroup:
-		res, err = client.GroupMembers.RemoveGroupMember(g.Resource.URN, userID, gitlab.WithContext(ctx))
+		res, err = client.GroupMembers.RemoveGroupMember(g.Resource.URN, userID, &gitlab.RemoveGroupMemberOptions{}, gitlab.WithContext(ctx))
 	case resourceTypeProject:
 		res, err = client.ProjectMembers.DeleteProjectMember(g.Resource.URN, userID, gitlab.WithContext(ctx))
 	default:
@@ -236,8 +236,10 @@ func (p *provider) getClient(pc domain.ProviderConfig) (*gitlab.Client, error) {
 		return nil, fmt.Errorf("unable to decrypt credentials: %w", err)
 	}
 
-	client := gitlab.NewClient(nil, creds.AccessToken)
-	client.SetBaseURL(creds.Host)
+	client, err := gitlab.NewClient(creds.AccessToken, gitlab.WithBaseURL(creds.Host))
+	if err != nil {
+		return nil, fmt.Errorf("unable to create gitlab client: %w", err)
+	}
 
 	p.mu.Lock()
 	p.clients[pc.URN] = client
