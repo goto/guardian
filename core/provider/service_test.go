@@ -364,7 +364,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 		for _, p := range providers {
 			s.mockProvider.On("GetResources", mockCtx, p.Config).Return([]*domain.Resource{}, nil).Once()
 		}
-		expectedError := errors.New("failed to add resources providers - [mock_provider]")
+		expectedError := errors.New("failed to add resources for providers: [mock_provider]")
 		s.mockResourceService.On("BulkUpsert", mock.Anything, mock.Anything).Return(expectedError).Once()
 		s.mockResourceService.On("Find", mock.Anything, mock.Anything).Return([]*domain.Resource{}, nil).Once()
 		actualError := s.service.FetchResources(context.Background())
