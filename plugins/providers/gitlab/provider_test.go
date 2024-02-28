@@ -2,6 +2,7 @@ package gitlab_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,10 +21,10 @@ import (
 
 var (
 	groupsEndpoint             = "/api/v4/groups"
+	groupProjectsEndpoint      = func(gID string) string { return fmt.Sprintf("/api/v4/groups/%s/projects", gID) }
 	groupMembersEndpoint       = func(gID string) string { return fmt.Sprintf("/api/v4/groups/%s/members", gID) }
 	groupMemberDetailsEndpoint = func(gID, uID string) string { return fmt.Sprintf("/api/v4/groups/%s/members/%s", gID, uID) }
 
-	projectsEndpoint             = "/api/v4/projects"
 	projectMembersEndpoint       = func(pID string) string { return fmt.Sprintf("/api/v4/projects/%s/members", pID) }
 	projectMemberDetailsEndpoint = func(pID, uID string) string { return fmt.Sprintf("/api/v4/projects/%s/members/%s", pID, uID) }
 )
@@ -78,34 +79,48 @@ func TestCreateConfig(t *testing.T) {
 
 func TestGetResources(t *testing.T) {
 	t.Run("should return gitlab resources on success", func(t *testing.T) {
-		mux := http.NewServeMux()
-		mux.HandleFunc(groupsEndpoint, func(w http.ResponseWriter, r *http.Request) {
+		dummyGroupsBytes, err := readFixtures("testdata/groups/page_1.json")
+		require.NoError(t, err)
+		var dummyGroups []map[string]interface{}
+		err = json.Unmarshal(dummyGroupsBytes, &dummyGroups)
+		require.NoError(t, err)
+
+		server := http.NewServeMux()
+		server.HandleFunc(groupsEndpoint, func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
 			case http.MethodGet:
-				groups, err := readFixtures("testdata/groups/page_1.json")
-				require.NoError(t, err)
 				w.WriteHeader(http.StatusOK)
-				w.Write(groups)
+				w.Write(dummyGroupsBytes)
 				return
 			default:
 				w.WriteHeader(http.StatusMethodNotAllowed)
 				w.Write(nil)
 			}
 		})
-		mux.HandleFunc(projectsEndpoint, func(w http.ResponseWriter, r *http.Request) {
-			switch r.Method {
-			case http.MethodGet:
-				groups, err := readFixtures("testdata/projects/page_1.json")
-				require.NoError(t, err)
-				w.WriteHeader(http.StatusOK)
-				w.Write(groups)
-				return
-			default:
-				w.WriteHeader(http.StatusMethodNotAllowed)
-				w.Write(nil)
-			}
-		})
-		ts := httptest.NewServer(mux)
+		for _, g := range dummyGroups {
+			gID := fmt.Sprintf("%v", g["id"])
+			server.HandleFunc(groupProjectsEndpoint(gID), func(w http.ResponseWriter, r *http.Request) {
+				withShared := r.URL.Query().Get("with_shared")
+				switch r.Method {
+				case http.MethodGet:
+					assert.Equal(t, "false", withShared)
+					if gID == "1" {
+						projects, err := readFixtures("testdata/projects/page_1.json")
+						require.NoError(t, err)
+						w.WriteHeader(http.StatusOK)
+						w.Write(projects)
+						return
+					}
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte("[]"))
+					return
+				default:
+					w.WriteHeader(http.StatusMethodNotAllowed)
+					w.Write(nil)
+				}
+			})
+		}
+		ts := httptest.NewServer(server)
 		defer ts.Close()
 
 		encryptor := new(mocks.Encryptor)

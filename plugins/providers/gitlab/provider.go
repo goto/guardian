@@ -71,58 +71,71 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 		return nil, err
 	}
 
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.SetLimit(20)
+
+	var mu sync.Mutex
 	var resources []*domain.Resource
 	resourceTypes := pc.GetResourceTypes()
 
-	var mu sync.Mutex
-	eg, ctx := errgroup.WithContext(ctx)
+	groups, err := fetchResources(ctx,
+		func(listOpt gitlab.ListOptions, reqOpts ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
+			return client.Groups.ListGroups(&gitlab.ListGroupsOptions{ListOptions: listOpt}, reqOpts...)
+		},
+		func(g *gitlab.Group) *domain.Resource {
+			r := group{*g, pc.Type, pc.URN}.toResource()
+			return &r
+		},
+	)
+	if err != nil {
+		p.logger.Error(ctx, "unable to fetch groups", "provider_urn", pc.URN, "error", err)
+		return nil, fmt.Errorf("unable to fetch groups: %w", err)
+	}
 
-	if utils.ContainsString(resourceTypes, resourceTypeGroup) {
+	for _, group := range groups {
+		group := group
 		eg.Go(func() error {
-			groups, err := fetchResources(ctx,
-				func(listOpt gitlab.ListOptions, reqOpts ...gitlab.RequestOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
-					return client.Groups.ListGroups(&gitlab.ListGroupsOptions{ListOptions: listOpt}, reqOpts...)
-				},
-				func(g *gitlab.Group) *domain.Resource {
-					r := group{*g, pc.Type, pc.URN}.toResource()
-					return &r
-				},
-			)
-			if err != nil {
-				return fmt.Errorf("unable to fetch groups: %w", err)
+			if utils.ContainsString(resourceTypes, resourceTypeProject) {
+				projects, err := fetchResources(ctx,
+					func(listOpt gitlab.ListOptions, reqOpts ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error) {
+						falseBool := false
+						return client.Groups.ListGroupProjects(
+							group.URN,
+							&gitlab.ListGroupProjectsOptions{
+								ListOptions: listOpt,
+								WithShared:  &falseBool,
+							},
+							reqOpts...,
+						)
+					},
+					func(p *gitlab.Project) *domain.Resource {
+						r := project{*p, pc.Type, pc.URN}.toResource()
+						return &r
+					},
+				)
+				if err != nil {
+					p.logger.Error(ctx, "unable to fetch projects under a group", "provider_urn", pc.URN, "group_id", group.URN, "error", err)
+					return fmt.Errorf("unable to fetch projects under group %q: %w", group.URN, err)
+				}
+
+				if utils.ContainsString(resourceTypes, resourceTypeGroup) {
+					group.Children = projects
+				} else {
+					mu.Lock()
+					resources = append(resources, projects...)
+					mu.Unlock()
+				}
 			}
 
-			mu.Lock()
-			resources = append(resources, groups...)
-			mu.Unlock()
-
+			// TODO: handle group <> sub-groups hierarchy
+			if utils.ContainsString(resourceTypes, resourceTypeGroup) {
+				mu.Lock()
+				resources = append(resources, group)
+				mu.Unlock()
+			}
 			return nil
 		})
 	}
-
-	if utils.ContainsString(resourceTypes, resourceTypeProject) {
-		eg.Go(func() error {
-			projects, err := fetchResources(ctx,
-				func(listOpt gitlab.ListOptions, reqOpts ...gitlab.RequestOptionFunc) ([]*gitlab.Project, *gitlab.Response, error) {
-					return client.Projects.ListProjects(&gitlab.ListProjectsOptions{ListOptions: listOpt}, reqOpts...)
-				},
-				func(p *gitlab.Project) *domain.Resource {
-					r := project{*p, pc.Type, pc.URN}.toResource()
-					return &r
-				},
-			)
-			if err != nil {
-				return fmt.Errorf("unable to fetch projects: %w", err)
-			}
-
-			mu.Lock()
-			resources = append(resources, projects...)
-			mu.Unlock()
-
-			return nil
-		})
-	}
-
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
