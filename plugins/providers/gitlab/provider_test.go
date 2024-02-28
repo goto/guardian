@@ -19,15 +19,13 @@ import (
 )
 
 var (
-	listGroupsEndpoint        = "/api/v4/groups"
-	addGroupMemberEndpoint    = func(gID string) string { return fmt.Sprintf("/api/v4/groups/%s/members", gID) }
-	editGroupMemberEndpoint   = func(gID, uID string) string { return fmt.Sprintf("/api/v4/groups/%s/members/%s", gID, uID) }
-	deleteGroupMemberEndpoint = func(gID, uID string) string { return fmt.Sprintf("/api/v4/groups/%s/members/%s", gID, uID) }
+	groupsEndpoint             = "/api/v4/groups"
+	groupMembersEndpoint       = func(gID string) string { return fmt.Sprintf("/api/v4/groups/%s/members", gID) }
+	groupMemberDetailsEndpoint = func(gID, uID string) string { return fmt.Sprintf("/api/v4/groups/%s/members/%s", gID, uID) }
 
-	listProjectsEndpoint        = "/api/v4/projects"
-	addProjectMemberEndpoint    = func(pID string) string { return fmt.Sprintf("/api/v4/projects/%s/members", pID) }
-	editProjectMemberEndpoint   = func(pID, uID string) string { return fmt.Sprintf("/api/v4/projects/%s/members/%s", pID, uID) }
-	deleteProjectMemberEndpoint = func(pID, uID string) string { return fmt.Sprintf("/api/v4/projects/%s/members/%s", pID, uID) }
+	projectsEndpoint             = "/api/v4/projects"
+	projectMembersEndpoint       = func(pID string) string { return fmt.Sprintf("/api/v4/projects/%s/members", pID) }
+	projectMemberDetailsEndpoint = func(pID, uID string) string { return fmt.Sprintf("/api/v4/projects/%s/members/%s", pID, uID) }
 )
 
 func TestGetType(t *testing.T) {
@@ -81,17 +79,31 @@ func TestCreateConfig(t *testing.T) {
 func TestGetResources(t *testing.T) {
 	t.Run("should return gitlab resources on success", func(t *testing.T) {
 		mux := http.NewServeMux()
-		mux.HandleFunc(listGroupsEndpoint, func(w http.ResponseWriter, r *http.Request) {
-			groups, err := readFixtures("testdata/groups/page_1.json")
-			require.NoError(t, err)
-			w.WriteHeader(http.StatusOK)
-			w.Write(groups)
+		mux.HandleFunc(groupsEndpoint, func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				groups, err := readFixtures("testdata/groups/page_1.json")
+				require.NoError(t, err)
+				w.WriteHeader(http.StatusOK)
+				w.Write(groups)
+				return
+			default:
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				w.Write(nil)
+			}
 		})
-		mux.HandleFunc(listProjectsEndpoint, func(w http.ResponseWriter, r *http.Request) {
-			groups, err := readFixtures("testdata/projects/page_1.json")
-			require.NoError(t, err)
-			w.WriteHeader(http.StatusOK)
-			w.Write(groups)
+		mux.HandleFunc(projectsEndpoint, func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				groups, err := readFixtures("testdata/projects/page_1.json")
+				require.NoError(t, err)
+				w.WriteHeader(http.StatusOK)
+				w.Write(groups)
+				return
+			default:
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				w.Write(nil)
+			}
 		})
 		ts := httptest.NewServer(mux)
 		defer ts.Close()
@@ -135,29 +147,36 @@ func TestGetResources(t *testing.T) {
 
 	t.Run("pagination", func(t *testing.T) {
 		mux := http.NewServeMux()
-		mux.HandleFunc(listGroupsEndpoint, func(w http.ResponseWriter, r *http.Request) {
-			idAfterParam := r.URL.Query().Get("id_after")
-			dummyIDAfter := "999"
+		mux.HandleFunc(groupsEndpoint, func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				idAfterParam := r.URL.Query().Get("id_after")
+				dummyIDAfter := "999"
 
-			var groups []byte
-			var err error
-			switch idAfterParam {
-			case dummyIDAfter:
-				groups, err = readFixtures("testdata/groups/page_2.json")
+				var groups []byte
+				var err error
+				switch idAfterParam {
+				case dummyIDAfter:
+					groups, err = readFixtures("testdata/groups/page_2.json")
+				default:
+					groups, err = readFixtures("testdata/groups/page_1.json")
+
+					q := r.URL.Query()
+					q.Add("id_after", dummyIDAfter)
+					r.URL.RawQuery = q.Encode()
+					nextPageURL := fmt.Sprintf("http://%s/%s", r.Host, r.URL.String())
+					linkHeader := fmt.Sprintf(`<%s>; rel="next"`, nextPageURL)
+					w.Header().Set("Link", linkHeader)
+				}
+				require.NoError(t, err)
+
+				w.WriteHeader(http.StatusOK)
+				w.Write(groups)
+				return
 			default:
-				groups, err = readFixtures("testdata/groups/page_1.json")
-
-				q := r.URL.Query()
-				q.Add("id_after", dummyIDAfter)
-				r.URL.RawQuery = q.Encode()
-				nextPageURL := fmt.Sprintf("http://%s/%s", r.Host, r.URL.String())
-				linkHeader := fmt.Sprintf(`<%s>; rel="next"`, nextPageURL)
-				w.Header().Set("Link", linkHeader)
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				w.Write(nil)
 			}
-			require.NoError(t, err)
-
-			w.WriteHeader(http.StatusOK)
-			w.Write(groups)
 		})
 		ts := httptest.NewServer(mux)
 		defer ts.Close()
@@ -209,9 +228,16 @@ func TestGrantAcccess(t *testing.T) {
 					Resource:    &domain.Resource{Type: "group", URN: "1"},
 				},
 				handlers: map[string]http.HandlerFunc{
-					addGroupMemberEndpoint("1"): func(w http.ResponseWriter, r *http.Request) {
-						w.WriteHeader(http.StatusCreated)
-						w.Write([]byte("{}"))
+					groupMembersEndpoint("1"): func(w http.ResponseWriter, r *http.Request) {
+						switch r.Method {
+						case http.MethodPost:
+							w.WriteHeader(http.StatusCreated)
+							w.Write([]byte("{}"))
+							return
+						default:
+							w.WriteHeader(http.StatusMethodNotAllowed)
+							w.Write(nil)
+						}
 					},
 				},
 			},
@@ -223,13 +249,26 @@ func TestGrantAcccess(t *testing.T) {
 					Resource:    &domain.Resource{Type: "group", URN: "1"},
 				},
 				handlers: map[string]http.HandlerFunc{
-					addGroupMemberEndpoint("1"): func(w http.ResponseWriter, r *http.Request) {
-						w.WriteHeader(http.StatusConflict)
-						w.Write([]byte(`{"message": "Member already exists"}`))
+					groupMembersEndpoint("1"): func(w http.ResponseWriter, r *http.Request) {
+						switch r.Method {
+						case http.MethodPost:
+							w.WriteHeader(http.StatusConflict)
+							w.Write([]byte(`{"message": "Member already exists"}`))
+							return
+						default:
+							w.WriteHeader(http.StatusMethodNotAllowed)
+							w.Write(nil)
+						}
 					},
-					editGroupMemberEndpoint("1", "99"): func(w http.ResponseWriter, r *http.Request) {
-						w.WriteHeader(http.StatusOK)
-						w.Write([]byte("{}"))
+					groupMemberDetailsEndpoint("1", "99"): func(w http.ResponseWriter, r *http.Request) {
+						switch r.Method {
+						case http.MethodPut:
+							w.WriteHeader(http.StatusOK)
+							w.Write([]byte("{}"))
+						default:
+							w.WriteHeader(http.StatusMethodNotAllowed)
+							w.Write(nil)
+						}
 					},
 				},
 			},
@@ -241,9 +280,16 @@ func TestGrantAcccess(t *testing.T) {
 					Resource:    &domain.Resource{Type: "project", URN: "1"},
 				},
 				handlers: map[string]http.HandlerFunc{
-					addProjectMemberEndpoint("1"): func(w http.ResponseWriter, r *http.Request) {
-						w.WriteHeader(http.StatusCreated)
-						w.Write([]byte("{}"))
+					projectMembersEndpoint("1"): func(w http.ResponseWriter, r *http.Request) {
+						switch r.Method {
+						case http.MethodPost:
+							w.WriteHeader(http.StatusCreated)
+							w.Write([]byte("{}"))
+							return
+						default:
+							w.WriteHeader(http.StatusMethodNotAllowed)
+							w.Write(nil)
+						}
 					},
 				},
 			},
@@ -255,13 +301,27 @@ func TestGrantAcccess(t *testing.T) {
 					Resource:    &domain.Resource{Type: "project", URN: "1"},
 				},
 				handlers: map[string]http.HandlerFunc{
-					addProjectMemberEndpoint("1"): func(w http.ResponseWriter, r *http.Request) {
-						w.WriteHeader(http.StatusConflict)
-						w.Write([]byte(`{"message": "Member already exists"}`))
+					projectMembersEndpoint("1"): func(w http.ResponseWriter, r *http.Request) {
+						switch r.Method {
+						case http.MethodPost:
+							w.WriteHeader(http.StatusConflict)
+							w.Write([]byte(`{"message": "Member already exists"}`))
+							return
+						default:
+							w.WriteHeader(http.StatusMethodNotAllowed)
+							w.Write(nil)
+						}
 					},
-					editProjectMemberEndpoint("1", "99"): func(w http.ResponseWriter, r *http.Request) {
-						w.WriteHeader(http.StatusOK)
-						w.Write([]byte("{}"))
+					projectMemberDetailsEndpoint("1", "99"): func(w http.ResponseWriter, r *http.Request) {
+						switch r.Method {
+						case http.MethodPut:
+							w.WriteHeader(http.StatusOK)
+							w.Write([]byte("{}"))
+							return
+						default:
+							w.WriteHeader(http.StatusMethodNotAllowed)
+							w.Write(nil)
+						}
 					},
 				},
 			},
@@ -330,14 +390,22 @@ func TestRevokeAccess(t *testing.T) {
 					Resource:    &domain.Resource{Type: "group", URN: "1"},
 				},
 				handlers: map[string]http.HandlerFunc{
-					deleteGroupMemberEndpoint("1", "99"): func(w http.ResponseWriter, r *http.Request) {
-						if r.Method != http.MethodDelete {
+					groupMemberDetailsEndpoint("1", "99"): func(w http.ResponseWriter, r *http.Request) {
+						switch r.Method {
+						case http.MethodGet: // check if member exists
+							w.WriteHeader(http.StatusOK)
+							w.Write([]byte(`{
+										"access_level": 30
+									}`))
+							return
+						case http.MethodDelete: // remove member
+							w.WriteHeader(http.StatusNoContent)
+							w.Write([]byte(""))
+							return
+						default:
 							w.WriteHeader(http.StatusMethodNotAllowed)
 							w.Write(nil)
-							return
 						}
-						w.WriteHeader(http.StatusNoContent)
-						w.Write([]byte(""))
 					},
 				},
 			},
@@ -349,14 +417,22 @@ func TestRevokeAccess(t *testing.T) {
 					Resource:    &domain.Resource{Type: "group", URN: "1"},
 				},
 				handlers: map[string]http.HandlerFunc{
-					deleteGroupMemberEndpoint("1", "99"): func(w http.ResponseWriter, r *http.Request) {
-						if r.Method != http.MethodDelete {
+					groupMemberDetailsEndpoint("1", "99"): func(w http.ResponseWriter, r *http.Request) {
+						switch r.Method {
+						case http.MethodGet: // check if member exists
+							w.WriteHeader(http.StatusOK)
+							w.Write([]byte(`{
+									"access_level": 30
+								}`))
+							return
+						case http.MethodDelete: // remove member
+							w.WriteHeader(http.StatusNotFound)
+							w.Write([]byte(`{"message": "404 Not found"}`))
+							return
+						default:
 							w.WriteHeader(http.StatusMethodNotAllowed)
 							w.Write(nil)
-							return
 						}
-						w.WriteHeader(http.StatusNotFound)
-						w.Write([]byte(`{"message": "404 Not found"}`))
 					},
 				},
 			},
@@ -368,14 +444,22 @@ func TestRevokeAccess(t *testing.T) {
 					Resource:    &domain.Resource{Type: "project", URN: "1"},
 				},
 				handlers: map[string]http.HandlerFunc{
-					deleteProjectMemberEndpoint("1", "99"): func(w http.ResponseWriter, r *http.Request) {
-						if r.Method != http.MethodDelete {
+					projectMemberDetailsEndpoint("1", "99"): func(w http.ResponseWriter, r *http.Request) {
+						switch r.Method {
+						case http.MethodGet: // check if member exists
+							w.WriteHeader(http.StatusOK)
+							w.Write([]byte(`{
+								"access_level": 30
+							}`))
+							return
+						case http.MethodDelete: // remove member
+							w.WriteHeader(http.StatusNoContent)
+							w.Write([]byte(""))
+							return
+						default:
 							w.WriteHeader(http.StatusMethodNotAllowed)
 							w.Write(nil)
-							return
 						}
-						w.WriteHeader(http.StatusNoContent)
-						w.Write([]byte(""))
 					},
 				},
 			},
@@ -387,14 +471,22 @@ func TestRevokeAccess(t *testing.T) {
 					Resource:    &domain.Resource{Type: "project", URN: "1"},
 				},
 				handlers: map[string]http.HandlerFunc{
-					deleteProjectMemberEndpoint("1", "99"): func(w http.ResponseWriter, r *http.Request) {
-						if r.Method != http.MethodDelete {
+					projectMemberDetailsEndpoint("1", "99"): func(w http.ResponseWriter, r *http.Request) {
+						switch r.Method {
+						case http.MethodGet: // check if member exists
+							w.WriteHeader(http.StatusOK)
+							w.Write([]byte(`{
+							"access_level": 30
+						}`))
+							return
+						case http.MethodDelete: // remove member
+							w.WriteHeader(http.StatusNotFound)
+							w.Write([]byte(`{"message": "404 Not found"}`))
+							return
+						default:
 							w.WriteHeader(http.StatusMethodNotAllowed)
 							w.Write(nil)
-							return
 						}
-						w.WriteHeader(http.StatusNotFound)
-						w.Write([]byte(`{"message": "404 Not found"}`))
 					},
 				},
 			},

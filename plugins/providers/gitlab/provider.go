@@ -140,42 +140,44 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 	if err != nil {
 		return fmt.Errorf("invalid user ID: %q: %w", g.AccountID, err)
 	}
-	for _, p := range g.Permissions {
-		accessLevel, ok := gitlabRoleMapping[p]
-		if !ok {
-			return fmt.Errorf("invalid grant permission: %q", p)
-		}
 
-		switch g.Resource.Type {
-		case resourceTypeGroup:
-			_, res, err := client.GroupMembers.AddGroupMember(g.Resource.URN, &gitlab.AddGroupMemberOptions{
-				UserID:      &userID,
+	if len(g.Permissions) != 1 {
+		return fmt.Errorf("unexpected number of permissions: %d", len(g.Permissions))
+	}
+	accessLevel, ok := gitlabRoleMapping[g.Permissions[0]]
+	if !ok {
+		return fmt.Errorf("invalid grant permission: %q", g.Permissions[0])
+	}
+
+	switch g.Resource.Type {
+	case resourceTypeGroup:
+		_, res, err := client.GroupMembers.AddGroupMember(g.Resource.URN, &gitlab.AddGroupMemberOptions{
+			UserID:      &userID,
+			AccessLevel: &accessLevel,
+		}, gitlab.WithContext(ctx))
+		if res != nil && res.StatusCode == http.StatusConflict {
+			_, _, err = client.GroupMembers.EditGroupMember(g.Resource.URN, userID, &gitlab.EditGroupMemberOptions{
 				AccessLevel: &accessLevel,
-			}, gitlab.WithContext(ctx))
-			if res != nil && res.StatusCode == http.StatusConflict {
-				_, _, err = client.GroupMembers.EditGroupMember(g.Resource.URN, userID, &gitlab.EditGroupMemberOptions{
-					AccessLevel: &accessLevel,
-				})
-			}
-			if err != nil {
-				return err
-			}
-		case resourceTypeProject:
-			_, res, err := client.ProjectMembers.AddProjectMember(g.Resource.URN, &gitlab.AddProjectMemberOptions{
-				UserID:      &userID,
-				AccessLevel: &accessLevel,
-			}, gitlab.WithContext(ctx))
-			if res != nil && res.StatusCode == http.StatusConflict {
-				_, _, err = client.ProjectMembers.EditProjectMember(g.Resource.URN, userID, &gitlab.EditProjectMemberOptions{
-					AccessLevel: &accessLevel,
-				})
-			}
-			if err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("invalid resource type: %q", g.Resource.Type)
+			})
 		}
+		if err != nil {
+			return err
+		}
+	case resourceTypeProject:
+		_, res, err := client.ProjectMembers.AddProjectMember(g.Resource.URN, &gitlab.AddProjectMemberOptions{
+			UserID:      &userID,
+			AccessLevel: &accessLevel,
+		}, gitlab.WithContext(ctx))
+		if res != nil && res.StatusCode == http.StatusConflict {
+			_, _, err = client.ProjectMembers.EditProjectMember(g.Resource.URN, userID, &gitlab.EditProjectMemberOptions{
+				AccessLevel: &accessLevel,
+			})
+		}
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("invalid resource type: %q", g.Resource.Type)
 	}
 
 	return nil
@@ -192,12 +194,28 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		return fmt.Errorf("invalid user ID: %q: %w", g.AccountID, err)
 	}
 
+	if len(g.Permissions) != 1 {
+		return fmt.Errorf("unexpected number of permissions: %d", len(g.Permissions))
+	}
+	accessLevel, ok := gitlabRoleMapping[g.Permissions[0]]
+	if !ok {
+		return fmt.Errorf("invalid grant permission: %q", g.Permissions[0])
+	}
+
 	var res *gitlab.Response
 	switch g.Resource.Type {
 	case resourceTypeGroup:
-		res, err = client.GroupMembers.RemoveGroupMember(g.Resource.URN, userID, &gitlab.RemoveGroupMemberOptions{}, gitlab.WithContext(ctx))
+		var member *gitlab.GroupMember
+		member, res, err = client.GroupMembers.GetGroupMember(g.Resource.URN, userID, gitlab.WithContext(ctx))
+		if member != nil && member.AccessLevel == accessLevel {
+			res, err = client.GroupMembers.RemoveGroupMember(g.Resource.URN, userID, &gitlab.RemoveGroupMemberOptions{}, gitlab.WithContext(ctx))
+		}
 	case resourceTypeProject:
-		res, err = client.ProjectMembers.DeleteProjectMember(g.Resource.URN, userID, gitlab.WithContext(ctx))
+		var member *gitlab.ProjectMember
+		member, res, err = client.ProjectMembers.GetProjectMember(g.Resource.URN, userID, gitlab.WithContext(ctx))
+		if member != nil && member.AccessLevel == accessLevel {
+			res, err = client.ProjectMembers.DeleteProjectMember(g.Resource.URN, userID, gitlab.WithContext(ctx))
+		}
 	default:
 		return fmt.Errorf("invalid resource type: %q", g.Resource.Type)
 	}
