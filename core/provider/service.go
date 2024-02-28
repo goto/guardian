@@ -258,7 +258,7 @@ func (s *Service) FetchResources(ctx context.Context) error {
 		return err
 	}
 
-	failedProviders := make([]string, 0)
+	failedProviders := map[string]error{}
 	for _, p := range providers {
 		startTime := time.Now()
 		s.logger.Info(ctx, "fetching resources", "provider_urn", p.URN)
@@ -269,16 +269,21 @@ func (s *Service) FetchResources(ctx context.Context) error {
 		}
 		s.logger.Info(ctx, "resources added", "provider_urn", p.URN, "count", len(flattenResources(resources)))
 		if err := s.resourceService.BulkUpsert(ctx, resources); err != nil {
-			failedProviders = append(failedProviders, p.URN)
+			failedProviders[p.URN] = err
 			s.logger.Error(ctx, "failed to add resources", "provider_urn", p.URN, "error", err)
 		}
 		s.logger.Info(ctx, "fetching resources completed", "provider_urn", p.URN, "duration", time.Since(startTime))
 	}
 
-	if len(failedProviders) == 0 {
-		return nil
+	if len(failedProviders) > 0 {
+		var urns []string
+		for providerURN, err := range failedProviders {
+			s.logger.Error(ctx, "failed to add resources for provider", "provider_urn", providerURN, "error", err)
+			urns = append(urns, providerURN)
+		}
+		return fmt.Errorf("failed to add resources for providers: %v", urns)
 	}
-	return fmt.Errorf("failed to add resources %s - %v", "providers", failedProviders)
+	return nil
 }
 
 func (s *Service) GetRoles(ctx context.Context, id string, resourceType string) ([]*domain.Role, error) {
@@ -596,7 +601,7 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 	existingProviderResources := map[string]bool{}
 	for _, r := range flattenedProviderResources {
 		for _, er := range existingGuardianResources {
-			if er.URN == r.URN {
+			if er.Type == r.Type && er.URN == r.URN {
 				if existingDetails := er.Details; existingDetails != nil {
 					if r.Details != nil {
 						for key, value := range existingDetails {
