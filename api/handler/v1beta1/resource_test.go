@@ -32,6 +32,7 @@ func (s *GrpcHandlersSuite) TestListResources() {
 				"key1:value1",
 				"key2.key3:value2",
 			},
+			Q: "test-query",
 		}
 
 		expectedDetails := map[string]interface{}{
@@ -69,6 +70,7 @@ func (s *GrpcHandlersSuite) TestListResources() {
 				"key1":      "value1",
 				"key2.key3": "value2",
 			},
+			Q: "test-query",
 		}
 		dummyResources := []*domain.Resource{
 			{

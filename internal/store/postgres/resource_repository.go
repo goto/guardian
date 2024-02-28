@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
@@ -64,6 +65,14 @@ func (r *ResourceRepository) GetResourcesTotalCount(ctx context.Context, filter 
 }
 
 func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) *gorm.DB {
+	if filter.Q != "" {
+		// NOTE: avoid adding conditions before this grouped where clause.
+		// Otherwise, it will be wrapped in parentheses and the query will be invalid.
+		db = db.Where(db.
+			Where(`LOWER("urn") LIKE ?`, fmt.Sprintf("%%%s%%", strings.ToLower(filter.Q))).
+			Or(`LOWER("name") LIKE ?`, fmt.Sprintf("%%%s%%", strings.ToLower(filter.Q))),
+		)
+	}
 	if filter.IDs != nil {
 		db = db.Where(filter.IDs)
 	}
