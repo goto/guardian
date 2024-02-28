@@ -42,6 +42,7 @@ type ListResourcesFilter struct {
 	Size          uint32            `mapstructure:"size" validate:"omitempty"`
 	Offset        uint32            `mapstructure:"offset" validate:"omitempty"`
 	OrderBy       []string          `mapstructure:"order_by" validate:"omitempty"`
+	Q             string            `mapstructure:"q" validate:"omitempty"`
 }
 
 type Resources []*Resource
