@@ -316,21 +316,6 @@ func (_c *ResourceService_GetOne_Call) RunAndReturn(run func(context.Context, st
 	return _c
 }
 
-// Update provides a mock function with given fields: _a0, _a1
-func (_m *ResourceService) Update(_a0 context.Context, _a1 *domain.Resource) error {
-	ret := _m.Called(_a0, _a1)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *domain.Resource) error); ok {
-		r0 = rf(_a0, _a1)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-
 // GetResourcesTotalCount provides a mock function with given fields: _a0, _a1
 func (_m *ResourceService) GetResourcesTotalCount(_a0 context.Context, _a1 domain.ListResourcesFilter) (int64, error) {
 	ret := _m.Called(_a0, _a1)
@@ -382,6 +367,20 @@ func (_c *ResourceService_GetResourcesTotalCount_Call) Return(_a0 int64, _a1 err
 func (_c *ResourceService_GetResourcesTotalCount_Call) RunAndReturn(run func(context.Context, domain.ListResourcesFilter) (int64, error)) *ResourceService_GetResourcesTotalCount_Call {
 	_c.Call.Return(run)
 	return _c
+}
+
+// Update provides a mock function with given fields: _a0, _a1
+func (_m *ResourceService) Update(_a0 context.Context, _a1 *domain.Resource) error {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.Resource) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // ResourceService_Update_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Update'
