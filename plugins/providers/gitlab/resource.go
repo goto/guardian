@@ -53,7 +53,7 @@ func (p project) toResource() domain.Resource {
 		Type:         resourceTypeProject,
 		URN:          strID,
 		GlobalURN:    utils.GetGlobalURN("gitlab", p.providerURN, resourceTypeProject, strID),
-		Name:         p.Name,
+		Name:         p.NameWithNamespace,
 		Details: map[string]interface{}{
 			resource.ReservedDetailsKeyMetadata: map[string]interface{}{
 				"description":         p.Description,
