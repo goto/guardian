@@ -107,6 +107,13 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 			{
 				name: "filter by ids",
 				filters: domain.ListResourcesFilter{
+					Q: "test_urn_1",
+				},
+				expectedResult: []*domain.Resource{dummyResources[0]},
+			},
+			{
+				name: "filter by ids",
+				filters: domain.ListResourcesFilter{
 					IDs: []string{dummyResources[0].ID},
 				},
 				expectedResult: []*domain.Resource{dummyResources[0]},
