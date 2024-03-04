@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/goto/guardian/plugins/providers/dataplex"
+	"github.com/goto/guardian/plugins/providers/gitlab"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -112,6 +113,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		gcs.NewProvider(domain.ProviderTypeGCS, deps.Crypto),
 		dataplex.NewProvider(domain.ProviderTypePolicyTag, deps.Crypto),
 		shield.NewProvider(domain.ProviderTypeShield, deps.Logger),
+		gitlab.NewProvider(domain.ProviderTypeGitlab, deps.Crypto, deps.Logger),
 	}
 
 	iamManager := identities.NewManager(deps.Crypto, deps.Validator)

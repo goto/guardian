@@ -1082,6 +1082,9 @@ func (s *ServiceTestSuite) TestCreate() {
 				Return(nil).Once()
 			s.mockNotifier.On("Notify", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(nil).Once()
 			s.mockAuditLogger.On("Log", mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
+			s.mockProviderService.EXPECT().
+				IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
+				Return(false).Once()
 			s.mockGrantService.On("List", mock.Anything, mock.Anything).Return([]domain.Grant{}, nil).Once()
 			s.mockGrantService.On("Prepare", mock.Anything, mock.Anything).Return(&domain.Grant{}, nil).Once()
 			s.mockPolicyService.On("GetOne", mock.Anything, mock.Anything, mock.Anything).Return(overriddingPolicy, nil).Once()
@@ -1315,6 +1318,9 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprov
 		}).
 		Return(expectedExistingGrants, nil).Once()
 	// duplicate call with slight change in filters but the code needs it in order to work. appeal create code needs to be refactored.
+	s.mockProviderService.EXPECT().
+		IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
+		Return(false).Once()
 	s.mockGrantService.EXPECT().
 		List(mock.MatchedBy(func(ctx context.Context) bool { return true }), domain.ListGrantsFilter{
 			Statuses:    []string{string(domain.GrantStatusActive)},
@@ -1330,6 +1336,9 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprov
 	s.mockIAMManager.On("GetClient", mock.Anything).Return(s.mockIAMClient, nil)
 	s.mockIAMClient.On("GetUser", accountID).Return(expectedCreatorUser, nil)
 
+	s.mockProviderService.EXPECT().
+		IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
+		Return(false).Once()
 	s.mockGrantService.EXPECT().
 		List(mock.MatchedBy(func(ctx context.Context) bool { return true }), domain.ListGrantsFilter{
 			AccountIDs:  []string{accountID},
@@ -1507,6 +1516,9 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithAdditionalAppeals() {
 	s.mockResourceService.EXPECT().Find(mock.AnythingOfType("*context.cancelCtx"), expectedResourceFilters).Return([]*domain.Resource{resources[1]}, nil).Once()
 	s.mockProviderService.EXPECT().Find(mock.AnythingOfType("*context.cancelCtx")).Return(providers, nil).Once()
 	s.mockPolicyService.EXPECT().Find(mock.AnythingOfType("*context.cancelCtx")).Return(policies, nil).Once()
+	s.mockProviderService.EXPECT().
+		IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
+		Return(false).Once()
 	s.mockGrantService.EXPECT().List(mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("domain.ListGrantsFilter")).Return([]domain.Grant{}, nil).Once().Run(func(args mock.Arguments) {
 		filter := args.Get(1).(domain.ListGrantsFilter)
 		s.Equal([]string{appealsPayload[0].AccountID}, filter.AccountIDs)
@@ -1521,6 +1533,9 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithAdditionalAppeals() {
 		s.Equal(targetResource.ID, appeal.ResourceID)
 	})
 	s.mockProviderService.EXPECT().GetPermissions(mock.AnythingOfType("*context.cancelCtx"), providers[0].Config, resourceType, targetRole).Return([]interface{}{"test-permission-1"}, nil).Once()
+	s.mockProviderService.EXPECT().
+		IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
+		Return(false).Once()
 	s.mockGrantService.EXPECT().List(mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("domain.ListGrantsFilter")).Return([]domain.Grant{}, nil).Once().Run(func(args mock.Arguments) {
 		filter := args.Get(1).(domain.ListGrantsFilter)
 		s.Equal([]string{appealsPayload[0].AccountID}, filter.AccountIDs)
@@ -1903,6 +1918,9 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			Return(appealDetails, nil).Once()
 
 		s.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(&domain.Policy{}, nil).Once()
+		s.mockProviderService.EXPECT().
+			IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
+			Return(false).Once()
 		s.mockGrantService.EXPECT().
 			List(mock.Anything, mock.Anything).Return(existingGrants, nil).Once()
 		expectedNewGrant := &domain.Grant{
@@ -2299,6 +2317,9 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					Return(tc.expectedAppealDetails, nil).Once()
 
 				if tc.expectedApprovalAction.Action == "approve" {
+					s.mockProviderService.EXPECT().
+						IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
+						Return(false).Once()
 					s.mockGrantService.EXPECT().
 						List(mock.Anything, domain.ListGrantsFilter{
 							AccountIDs:  []string{tc.expectedAppealDetails.AccountID},

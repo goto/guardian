@@ -54,6 +54,11 @@ type dormancyChecker interface {
 	CorrelateGrantActivities(context.Context, domain.Provider, []*domain.Grant, []*domain.Activity) error
 }
 
+//go:generate mockery --name=assignmentTyper --exported --with-expecter
+type assignmentTyper interface {
+	IsExclusiveRoleAssignment(context.Context) bool
+}
+
 //go:generate mockery --name=resourceService --exported --with-expecter
 type resourceService interface {
 	Find(context.Context, domain.ListResourcesFilter) ([]*domain.Resource, error)
@@ -253,8 +258,9 @@ func (s *Service) FetchResources(ctx context.Context) error {
 		return err
 	}
 
-	failedProviders := make([]string, 0)
+	failedProviders := map[string]error{}
 	for _, p := range providers {
+		startTime := time.Now()
 		s.logger.Info(ctx, "fetching resources", "provider_urn", p.URN)
 		resources, err := s.getResources(ctx, p)
 		if err != nil {
@@ -263,15 +269,21 @@ func (s *Service) FetchResources(ctx context.Context) error {
 		}
 		s.logger.Info(ctx, "resources added", "provider_urn", p.URN, "count", len(flattenResources(resources)))
 		if err := s.resourceService.BulkUpsert(ctx, resources); err != nil {
-			failedProviders = append(failedProviders, p.URN)
+			failedProviders[p.URN] = err
 			s.logger.Error(ctx, "failed to add resources", "provider_urn", p.URN, "error", err)
 		}
+		s.logger.Info(ctx, "fetching resources completed", "provider_urn", p.URN, "duration", time.Since(startTime))
 	}
 
-	if len(failedProviders) == 0 {
-		return nil
+	if len(failedProviders) > 0 {
+		var urns []string
+		for providerURN, err := range failedProviders {
+			s.logger.Error(ctx, "failed to add resources for provider", "provider_urn", providerURN, "error", err)
+			urns = append(urns, providerURN)
+		}
+		return fmt.Errorf("failed to add resources for providers: %v", urns)
 	}
-	return fmt.Errorf("failed to add resources %s - %v", "providers", failedProviders)
+	return nil
 }
 
 func (s *Service) GetRoles(ctx context.Context, id string, resourceType string) ([]*domain.Role, error) {
@@ -534,6 +546,16 @@ func (s *Service) CorrelateGrantActivities(ctx context.Context, p domain.Provide
 	return activityClient.CorrelateGrantActivities(ctx, p, grants, activities)
 }
 
+// IsExclusiveRoleAssignment returns true if the provider only supports exclusive role assignment
+// i.e. a user can only have one role per resource
+func (s *Service) IsExclusiveRoleAssignment(ctx context.Context, providerType, resourceType string) bool {
+	client := s.getClient(providerType)
+	if c, ok := client.(assignmentTyper); ok {
+		return c.IsExclusiveRoleAssignment(ctx)
+	}
+	return false
+}
+
 func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*domain.Resource, error) {
 	c := s.getClient(p.Type)
 	if c == nil {
@@ -579,7 +601,7 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 	existingProviderResources := map[string]bool{}
 	for _, r := range flattenedProviderResources {
 		for _, er := range existingGuardianResources {
-			if er.URN == r.URN {
+			if er.Type == r.Type && er.URN == r.URN {
 				if existingDetails := er.Details; existingDetails != nil {
 					if r.Details != nil {
 						for key, value := range existingDetails {
