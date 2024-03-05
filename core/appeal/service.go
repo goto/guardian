@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -850,14 +851,24 @@ func (s *Service) getPoliciesMap(ctx context.Context) (map[string]map[uint]*doma
 	if err != nil {
 		return nil, err
 	}
+
+	// make sure to sort policies with latest version desc
+	sort.Slice(policies, func(i, j int) bool {
+		return policies[i].Version > policies[j].Version
+	})
+
 	policiesMap := map[string]map[uint]*domain.Policy{}
-	for _, p := range policies {
+	for i, p := range policies {
 		id := p.ID
 		version := p.Version
 		if policiesMap[id] == nil {
 			policiesMap[id] = map[uint]*domain.Policy{}
 		}
 		policiesMap[id][version] = p
+		if i == 0 {
+			// set the map 0 as the latest version
+			policiesMap[id][0] = p
+		}
 	}
 
 	return policiesMap, nil
