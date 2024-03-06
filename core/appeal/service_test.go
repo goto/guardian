@@ -36,6 +36,10 @@ type ServiceTestSuite struct {
 	now     time.Time
 }
 
+var (
+	timeNow = time.Now()
+)
+
 func (s *ServiceTestSuite) setup() {
 	s.mockRepository = new(appealmocks.Repository)
 	s.mockApprovalService = new(appealmocks.ApprovalService)
@@ -141,10 +145,11 @@ func (s *ServiceTestSuite) TestFind() {
 }
 
 func (s *ServiceTestSuite) TestCreate() {
-	timeNow := time.Now()
 	appeal.TimeNow = func() time.Time {
 		return timeNow
 	}
+	accountID := "test@email.com"
+
 	s.Run("should return error if got error from resource service", func() {
 		expectedError := errors.New("resource service error")
 		s.mockResourceService.On("Find", mock.Anything, mock.Anything).Return(nil, expectedError).Once()
@@ -221,7 +226,6 @@ func (s *ServiceTestSuite) TestCreate() {
 				},
 			},
 		}
-		timeNow := time.Now()
 		expDate := timeNow.Add(24 * time.Hour)
 
 		testPolicies := []*domain.Policy{{ID: "policy_id", Version: 1}}
@@ -625,7 +629,6 @@ func (s *ServiceTestSuite) TestCreate() {
 	})
 
 	s.Run("should return appeals on success", func() {
-		accountID := "test@email.com"
 		resources := []*domain.Resource{
 			{
 				ID:           "1",
@@ -999,7 +1002,8 @@ func (s *ServiceTestSuite) TestCreate() {
 	})
 
 	s.Run("should return appeals on success with latest policy", func() {
-		accountID := "test@email.com"
+		expDate := timeNow.Add(23 * time.Hour)
+
 		resources := []*domain.Resource{
 			{
 				ID:           "1",
@@ -1036,22 +1040,6 @@ func (s *ServiceTestSuite) TestCreate() {
 						},
 					},
 				},
-			},
-		}
-		expDate := timeNow.Add(23 * time.Hour)
-		expectedExistingAppeals := []*domain.Appeal{}
-		expectedActiveGrants := []domain.Grant{
-			{
-				ID:         "99",
-				AccountID:  accountID,
-				ResourceID: "1",
-				Resource: &domain.Resource{
-					ID:  "1",
-					URN: "urn",
-				},
-				Role:           "role_id",
-				Status:         domain.GrantStatusActive,
-				ExpirationDate: &expDate,
 			},
 		}
 		policies := []*domain.Policy{
@@ -1129,6 +1117,21 @@ func (s *ServiceTestSuite) TestCreate() {
 			},
 		}
 
+		expectedExistingAppeals := []*domain.Appeal{}
+		expectedActiveGrants := []domain.Grant{
+			{
+				ID:         "99",
+				AccountID:  accountID,
+				ResourceID: "1",
+				Resource: &domain.Resource{
+					ID:  "1",
+					URN: "urn",
+				},
+				Role:           "role_id",
+				Status:         domain.GrantStatusActive,
+				ExpirationDate: &expDate,
+			},
+		}
 		expectedResult := []*domain.Appeal{
 			{
 				ID:            "1",
@@ -1166,15 +1169,15 @@ func (s *ServiceTestSuite) TestCreate() {
 				Description: "The answer is 42",
 			},
 		}
-
 		expectedResourceFilters := domain.ListResourcesFilter{IDs: []string{resources[0].ID}}
-		s.mockResourceService.On("Find", mock.Anything, expectedResourceFilters).Return(resources, nil).Once()
-		s.mockProviderService.On("Find", mock.Anything).Return(providers, nil).Once()
-		s.mockPolicyService.On("Find", mock.Anything).Return(policies, nil).Once()
 		expectedExistingAppealsFilters := &domain.ListAppealsFilter{
 			Statuses:   []string{domain.AppealStatusPending},
 			AccountIDs: []string{"addOnBehalfApprovedNotification-user"},
 		}
+
+		s.mockResourceService.On("Find", mock.Anything, expectedResourceFilters).Return(resources, nil).Once()
+		s.mockProviderService.On("Find", mock.Anything).Return(providers, nil).Once()
+		s.mockPolicyService.On("Find", mock.Anything).Return(policies, nil).Once()
 		s.mockRepository.EXPECT().
 			Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedExistingAppealsFilters).
 			Return(expectedExistingAppeals, nil).Once()
@@ -1329,7 +1332,6 @@ func (s *ServiceTestSuite) TestCreate() {
 func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprovalSteps() {
 	s.setup()
 
-	timeNow := time.Now()
 	appeal.TimeNow = func() time.Time {
 		return timeNow
 	}
@@ -1810,7 +1812,6 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithAdditionalAppeals() {
 }
 
 func (s *ServiceTestSuite) TestUpdateApproval() {
-	timeNow := time.Now()
 	appealID := uuid.New().String()
 	appeal.TimeNow = func() time.Time {
 		return timeNow
