@@ -854,21 +854,19 @@ func (s *Service) getPoliciesMap(ctx context.Context) (map[string]map[uint]*doma
 
 	// make sure to sort policies with latest version desc
 	sort.Slice(policies, func(i, j int) bool {
-		return policies[i].Version > policies[j].Version
+		return policies[i].Version < policies[j].Version
 	})
 
 	policiesMap := map[string]map[uint]*domain.Policy{}
-	for i, p := range policies {
+	for _, p := range policies {
 		id := p.ID
 		version := p.Version
 		if policiesMap[id] == nil {
 			policiesMap[id] = map[uint]*domain.Policy{}
 		}
 		policiesMap[id][version] = p
-		if i == 0 {
-			// set the map 0 as the latest version
-			policiesMap[id][0] = p
-		}
+		// always update the map 0 to each policy id to keep the latest policy
+		policiesMap[id][0] = p
 	}
 
 	return policiesMap, nil

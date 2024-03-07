@@ -1014,6 +1014,15 @@ func (s *ServiceTestSuite) TestCreate() {
 					"owner": []string{"resource.owner@email.com"},
 				},
 			},
+			{
+				ID:           "2",
+				Type:         "resource_type_2",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider1",
+				Details: map[string]interface{}{
+					"owner": []string{"resource.owner@email.com"},
+				},
+			},
 		}
 		providers := []*domain.Provider{
 			{
@@ -1029,7 +1038,20 @@ func (s *ServiceTestSuite) TestCreate() {
 						{
 							Type: "resource_type_1",
 							Policy: &domain.PolicyConfig{
-								ID: "policy_1",
+								ID:      "policy_1",
+								Version: 1,
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "role_id",
+									Permissions: []interface{}{"test-permission-1"},
+								},
+							},
+						},
+						{
+							Type: "resource_type_2",
+							Policy: &domain.PolicyConfig{
+								ID: "policy_2",
 							},
 							Roles: []*domain.Role{
 								{
@@ -1115,8 +1137,149 @@ func (s *ServiceTestSuite) TestCreate() {
 					AllowCreatorDetailsFailure: true,
 				},
 			},
+			{
+				ID:      "policy_2",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:     "step_1",
+						Strategy: "manual",
+						Approvers: []string{
+							"$appeal.resource.details.owner",
+						},
+					},
+					{
+						Name:     "step_2",
+						Strategy: "manual",
+						Approvers: []string{
+							"$appeal.creator.managers",
+						},
+					},
+				},
+				IAM: &domain.IAMConfig{
+					Provider: "http",
+					Config: map[string]interface{}{
+						"url": "http://localhost",
+					},
+					Schema: map[string]string{
+						"managers": `managers`,
+						"name":     "name",
+						"role":     `$response.roles[0].name`,
+						"roles":    `map($response.roles, {#.name})`,
+					},
+				},
+				AppealConfig: &domain.PolicyAppealConfig{
+					AllowOnBehalf: true,
+				},
+			}, {
+				ID:      "policy_2",
+				Version: 20,
+				Steps: []*domain.Step{
+					{
+						Name:     "step_1",
+						Strategy: "manual",
+						Approvers: []string{
+							"$appeal.resource.details.owner",
+						},
+					},
+					{
+						Name:     "step_2",
+						Strategy: "manual",
+						Approvers: []string{
+							"$appeal.creator.managers",
+						},
+					},
+				},
+				IAM: &domain.IAMConfig{
+					Provider: "http",
+					Config: map[string]interface{}{
+						"url": "http://localhost",
+					},
+					Schema: map[string]string{
+						"managers": `managers`,
+						"name":     "name",
+						"role":     `$response.roles[0].name`,
+						"roles":    `map($response.roles, {#.name})`,
+					},
+				},
+				AppealConfig: &domain.PolicyAppealConfig{
+					AllowOnBehalf: true,
+				},
+			},
 		}
 
+		expectedCreatorUser := map[string]interface{}{
+			"managers": []interface{}{"user.approver@email.com"},
+			"name":     "test-name",
+			"role":     "test-role-1",
+			"roles":    []interface{}{"test-role-1", "test-role-2"},
+		}
+		expectedAppealsInsertionParam := []*domain.Appeal{
+			{
+				ResourceID:    resources[0].ID,
+				Resource:      resources[0],
+				PolicyID:      "policy_1",
+				PolicyVersion: 1,
+				Status:        domain.AppealStatusPending,
+				AccountID:     "addOnBehalfApprovedNotification-user",
+				AccountType:   domain.DefaultAppealAccountType,
+				CreatedBy:     accountID,
+				Creator:       nil,
+				Role:          "role_id",
+				Permissions:   []string{"test-permission-1"},
+				Approvals: []*domain.Approval{
+					{
+						Name:          "step_1",
+						Index:         0,
+						Status:        domain.ApprovalStatusPending,
+						PolicyID:      "policy_1",
+						PolicyVersion: 1,
+						Approvers:     []string{"resource.owner@email.com"},
+					},
+					{
+						Name:          "step_2",
+						Index:         1,
+						Status:        domain.ApprovalStatusBlocked,
+						PolicyID:      "policy_1",
+						PolicyVersion: 1,
+						Approvers:     []string{"approver@example.com"},
+					},
+				},
+				Description: "The answer is 42",
+			},
+			{
+				ResourceID:    resources[1].ID,
+				Resource:      resources[1],
+				PolicyID:      "policy_2",
+				PolicyVersion: 20,
+				Status:        domain.AppealStatusPending,
+				AccountID:     accountID,
+				AccountType:   domain.DefaultAppealAccountType,
+				CreatedBy:     accountID,
+				Creator:       expectedCreatorUser,
+				Role:          "role_id",
+				Permissions:   []string{"test-permission-1"},
+				Approvals: []*domain.Approval{
+					{
+						Name:          "step_1",
+						Index:         0,
+						Status:        domain.ApprovalStatusPending,
+						PolicyID:      "policy_2",
+						PolicyVersion: 20,
+						Approvers:     []string{"resource.owner@email.com"},
+					},
+					{
+						Name:          "step_2",
+						Index:         1,
+						Status:        domain.ApprovalStatusBlocked,
+						PolicyID:      "policy_2",
+						PolicyVersion: 20,
+						Approvers:     []string{"user.approver@email.com"},
+					},
+				},
+				Description: "The answer is 42",
+			},
+		}
 		expectedExistingAppeals := []*domain.Appeal{}
 		expectedActiveGrants := []domain.Grant{
 			{
@@ -1138,7 +1301,7 @@ func (s *ServiceTestSuite) TestCreate() {
 				ResourceID:    "1",
 				Resource:      resources[0],
 				PolicyID:      "policy_1",
-				PolicyVersion: 2,
+				PolicyVersion: 1,
 				Status:        domain.AppealStatusPending,
 				AccountID:     "addOnBehalfApprovedNotification-user",
 				AccountType:   domain.DefaultAppealAccountType,
@@ -1153,7 +1316,7 @@ func (s *ServiceTestSuite) TestCreate() {
 						Index:         0,
 						Status:        domain.ApprovalStatusPending,
 						PolicyID:      "policy_1",
-						PolicyVersion: 2,
+						PolicyVersion: 1,
 						Approvers:     []string{"resource.owner@email.com"},
 					},
 					{
@@ -1162,17 +1325,52 @@ func (s *ServiceTestSuite) TestCreate() {
 						Index:         1,
 						Status:        domain.ApprovalStatusBlocked,
 						PolicyID:      "policy_1",
-						PolicyVersion: 2,
+						PolicyVersion: 1,
 						Approvers:     []string{"approver@example.com"},
 					},
 				},
 				Description: "The answer is 42",
 			},
+			{
+				ID:            "2",
+				ResourceID:    "2",
+				Resource:      resources[1],
+				PolicyID:      "policy_2",
+				PolicyVersion: 20,
+				Status:        domain.AppealStatusPending,
+				AccountID:     accountID,
+				AccountType:   domain.DefaultAppealAccountType,
+				CreatedBy:     accountID,
+				Creator:       expectedCreatorUser,
+				Role:          "role_id",
+				Permissions:   []string{"test-permission-1"},
+				Approvals: []*domain.Approval{
+					{
+						ID:            "1",
+						Name:          "step_1",
+						Index:         0,
+						Status:        domain.ApprovalStatusPending,
+						PolicyID:      "policy_2",
+						PolicyVersion: 20,
+						Approvers:     []string{"resource.owner@email.com"},
+					},
+					{
+						ID:            "2",
+						Name:          "step_2",
+						Index:         1,
+						Status:        domain.ApprovalStatusBlocked,
+						PolicyID:      "policy_2",
+						PolicyVersion: 20,
+						Approvers:     []string{"user.approver@email.com"},
+					},
+				},
+				Description: "The answer is 42",
+			},
 		}
-		expectedResourceFilters := domain.ListResourcesFilter{IDs: []string{resources[0].ID}}
+		expectedResourceFilters := domain.ListResourcesFilter{IDs: []string{resources[0].ID, resources[1].ID}}
 		expectedExistingAppealsFilters := &domain.ListAppealsFilter{
 			Statuses:   []string{domain.AppealStatusPending},
-			AccountIDs: []string{"addOnBehalfApprovedNotification-user"},
+			AccountIDs: []string{"addOnBehalfApprovedNotification-user", "test@email.com"},
 		}
 
 		s.mockResourceService.On("Find", mock.Anything, expectedResourceFilters).Return(resources, nil).Once()
@@ -1191,9 +1389,18 @@ func (s *ServiceTestSuite) TestCreate() {
 			Return([]interface{}{"test-permission-1"}, nil)
 		s.mockIAMManager.On("ParseConfig", mock.Anything, mock.Anything).Return(nil, nil)
 		s.mockIAMManager.On("GetClient", mock.Anything, mock.Anything).Return(s.mockIAMClient, nil)
+		expectedCreatorResponse := map[string]interface{}{
+			"managers": []interface{}{"user.approver@email.com"},
+			"name":     "test-name",
+			"roles": []map[string]interface{}{
+				{"name": "test-role-1"},
+				{"name": "test-role-2"},
+			},
+		}
 		s.mockIAMClient.On("GetUser", accountID).Return(nil, errors.New("404 not found")).Once()
+		s.mockIAMClient.On("GetUser", accountID).Return(expectedCreatorResponse, nil).Once()
 		s.mockRepository.EXPECT().
-			BulkUpsert(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
+			BulkUpsert(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedAppealsInsertionParam).
 			Return(nil).
 			Run(func(_a0 context.Context, appeals []*domain.Appeal) {
 				for i, a := range appeals {
@@ -1214,6 +1421,17 @@ func (s *ServiceTestSuite) TestCreate() {
 				ResourceID: "1",
 				Resource: &domain.Resource{
 					ID:  "1",
+					URN: "urn",
+				},
+				Role:        "role_id",
+				Description: "The answer is 42",
+			},
+			{
+				CreatedBy:  accountID,
+				AccountID:  accountID,
+				ResourceID: "2",
+				Resource: &domain.Resource{
+					ID:  "2",
 					URN: "urn",
 				},
 				Role:        "role_id",
