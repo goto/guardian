@@ -852,7 +852,7 @@ func (s *Service) getPoliciesMap(ctx context.Context) (map[string]map[uint]*doma
 		return nil, err
 	}
 
-	// make sure to sort policies with latest version desc
+	// make sure to sort policies with version asc
 	sort.Slice(policies, func(i, j int) bool {
 		return policies[i].Version < policies[j].Version
 	})
