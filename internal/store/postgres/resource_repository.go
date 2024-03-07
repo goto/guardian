@@ -57,7 +57,11 @@ func (r *ResourceRepository) Find(ctx context.Context, filter domain.ListResourc
 
 func (r *ResourceRepository) GetResourcesTotalCount(ctx context.Context, filter domain.ListResourcesFilter) (int64, error) {
 	db := r.db.WithContext(ctx)
-	db = applyResourceFilter(db, filter)
+
+	f := filter
+	f.Size = 0
+	f.Offset = 0
+	db = applyResourceFilter(db, f)
 	var count int64
 	err := db.Model(&model.Resource{}).Count(&count).Error
 
