@@ -21,6 +21,7 @@ const (
 
 	AccountTypeUser           = "user"
 	AccountTypeServiceAccount = "serviceAccount"
+	AccountTypeGroup          = "group"
 )
 
 // Credentials is the authentication configuration used by the bigquery client
