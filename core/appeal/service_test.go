@@ -1336,7 +1336,7 @@ func (s *ServiceTestSuite) TestCreate() {
 				ResourceID:    "2",
 				Resource:      resources[1],
 				PolicyID:      "policy_2",
-				PolicyVersion: 20,
+				PolicyVersion: 20, // result expected to be created with the latest policy
 				Status:        domain.AppealStatusPending,
 				AccountID:     accountID,
 				AccountType:   domain.DefaultAppealAccountType,
