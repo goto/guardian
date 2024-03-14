@@ -1050,7 +1050,7 @@ func (s *ServiceTestSuite) TestCreate() {
 						},
 						{
 							Type: "resource_type_2",
-							Policy: &domain.PolicyConfig{
+							Policy: &domain.PolicyConfig{ // specify policy without version (always use latest)
 								ID: "policy_2",
 							},
 							Roles: []*domain.Role{
