@@ -1037,7 +1037,7 @@ func (s *ServiceTestSuite) TestCreate() {
 					Resources: []*domain.ResourceConfig{
 						{
 							Type: "resource_type_1",
-							Policy: &domain.PolicyConfig{
+							Policy: &domain.PolicyConfig{ // specify policy with version
 								ID:      "policy_1",
 								Version: 1,
 							},
