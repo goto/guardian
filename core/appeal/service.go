@@ -189,14 +189,14 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		accountIDs = append(accountIDs, a.AccountID)
 	}
 
-	eg, ctx := errgroup.WithContext(ctx)
+	eg, egctx := errgroup.WithContext(ctx)
 	var resources map[string]*domain.Resource
 	var providers map[string]map[string]*domain.Provider
 	var policies map[string]map[uint]*domain.Policy
 	var pendingAppeals map[string]map[string]map[string]*domain.Appeal
 
 	eg.Go(func() error {
-		resourcesData, err := s.getResourcesMap(ctx, resourceIDs)
+		resourcesData, err := s.getResourcesMap(egctx, resourceIDs)
 		if err != nil {
 			return err
 		}
@@ -205,7 +205,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	})
 
 	eg.Go(func() error {
-		providersData, err := s.getProvidersMap(ctx)
+		providersData, err := s.getProvidersMap(egctx)
 		if err != nil {
 			return err
 		}
@@ -214,7 +214,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	})
 
 	eg.Go(func() error {
-		policiesData, err := s.getPoliciesMap(ctx)
+		policiesData, err := s.getPoliciesMap(egctx)
 		if err != nil {
 			return err
 		}
@@ -223,7 +223,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	})
 
 	eg.Go(func() error {
-		pendingAppealsData, err := s.getAppealsMap(ctx, &domain.ListAppealsFilter{
+		pendingAppealsData, err := s.getAppealsMap(egctx, &domain.ListAppealsFilter{
 			Statuses:   []string{domain.AppealStatusPending},
 			AccountIDs: accountIDs,
 		})
