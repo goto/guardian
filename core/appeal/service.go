@@ -190,10 +190,12 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	}
 
 	eg, egctx := errgroup.WithContext(ctx)
-	var resources map[string]*domain.Resource
-	var providers map[string]map[string]*domain.Provider
-	var policies map[string]map[uint]*domain.Policy
-	var pendingAppeals map[string]map[string]map[string]*domain.Appeal
+	var (
+	    resources map[string]*domain.Resource
+	    providers map[string]map[string]*domain.Provider
+	    policies map[string]map[uint]*domain.Policy
+	    pendingAppeals map[string]map[string]map[string]*domain.Appeal
+	)
 
 	eg.Go(func() error {
 		resourcesData, err := s.getResourcesMap(egctx, resourceIDs)
