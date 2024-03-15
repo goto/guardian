@@ -218,7 +218,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	eg.Go(func() error {
 		policiesData, err := s.getPoliciesMap(egctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting policies map: %w", err)
 		}
 		policies = policiesData
 		return nil
