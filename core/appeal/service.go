@@ -209,7 +209,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	eg.Go(func() error {
 		providersData, err := s.getProvidersMap(egctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting providers map: %w", err)
 		}
 		providers = providersData
 		return nil
