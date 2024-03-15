@@ -200,7 +200,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	eg.Go(func() error {
 		resourcesData, err := s.getResourcesMap(egctx, resourceIDs)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting resource map: %w", err)
 		}
 		resources = resourcesData
 		return nil
