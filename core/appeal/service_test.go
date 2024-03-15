@@ -146,7 +146,7 @@ func (s *ServiceTestSuite) TestCreate() {
 		return timeNow
 	}
 	s.Run("should return error if got error from resource service", func() {
-		expectedError := errors.New("resource service error")
+		expectedError := fmt.Errorf("error getting resource map: %w", errors.New("resource service error"))
 		expectedProviders := []*domain.Provider{}
 		expectedPolicies := []*domain.Policy{}
 		expectedAppeals := []*domain.Appeal{}
@@ -159,12 +159,12 @@ func (s *ServiceTestSuite) TestCreate() {
 
 		actualError := s.service.Create(context.Background(), []*domain.Appeal{})
 
-		s.EqualError(actualError, expectedError.Error())
+		s.ErrorIs(actualError, expectedError)
 	})
 
 	s.Run("should return error if got error from provider service", func() {
 		expectedResources := []*domain.Resource{}
-		expectedError := errors.New("provider service error")
+		expectedError := fmt.Errorf("error getting provider map: %w", errors.New("provider service error"))
 		expectedPolicies := []*domain.Policy{}
 		expectedAppeals := []*domain.Appeal{}
 		s.mockResourceService.On("Find", mock.Anything, mock.Anything).Return(expectedResources, nil).Once()
@@ -176,13 +176,13 @@ func (s *ServiceTestSuite) TestCreate() {
 
 		actualError := s.service.Create(context.Background(), []*domain.Appeal{})
 
-		s.EqualError(actualError, expectedError.Error())
+		s.ErrorIs(actualError, expectedError)
 	})
 
 	s.Run("should return error if got error from policy service", func() {
 		expectedResources := []*domain.Resource{}
 		expectedProviders := []*domain.Provider{}
-		expectedError := errors.New("policy service error")
+		expectedError := fmt.Errorf("error getting service map: %w", errors.New("service service error"))
 		expectedAppeals := []*domain.Appeal{}
 		s.mockResourceService.On("Find", mock.Anything, mock.Anything).Return(expectedResources, nil).Once()
 		s.mockProviderService.On("Find", mock.Anything).Return(expectedProviders, nil).Once()
@@ -193,7 +193,7 @@ func (s *ServiceTestSuite) TestCreate() {
 
 		actualError := s.service.Create(context.Background(), []*domain.Appeal{})
 
-		s.EqualError(actualError, expectedError.Error())
+		s.ErrorIs(actualError, expectedError)
 	})
 
 	s.Run("should return error if got error from appeal repository", func() {
