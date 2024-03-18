@@ -3360,7 +3360,7 @@ func (s *ServiceTestSuite) TestAddApprover() {
 						s.Equal(tc.newApprover, n.User)
 						s.Equal(domain.NotificationTypeApproverNotification, n.Message.Type)
 					}).
-					Return(nil).Once()
+					Return(nil)
 
 				actualAppeal, actualError := h.service.AddApprover(context.Background(), appealID, approvalID, newApprover)
 
