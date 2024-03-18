@@ -850,14 +850,18 @@ func (s *Service) getPoliciesMap(ctx context.Context) (map[string]map[uint]*doma
 	if err != nil {
 		return nil, err
 	}
+
 	policiesMap := map[string]map[uint]*domain.Policy{}
 	for _, p := range policies {
 		id := p.ID
-		version := p.Version
 		if policiesMap[id] == nil {
 			policiesMap[id] = map[uint]*domain.Policy{}
 		}
-		policiesMap[id][version] = p
+		policiesMap[id][p.Version] = p
+		// set policiesMap[id][0] to latest policy version
+		if policiesMap[id][0] == nil || p.Version > policiesMap[id][0].Version {
+			policiesMap[id][0] = p
+		}
 	}
 
 	return policiesMap, nil
