@@ -191,10 +191,10 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 
 	eg, egctx := errgroup.WithContext(ctx)
 	var (
-	    resources map[string]*domain.Resource
-	    providers map[string]map[string]*domain.Provider
-	    policies map[string]map[uint]*domain.Policy
-	    pendingAppeals map[string]map[string]map[string]*domain.Appeal
+		resources      map[string]*domain.Resource
+		providers      map[string]map[string]*domain.Provider
+		policies       map[string]map[uint]*domain.Policy
+		pendingAppeals map[string]map[string]map[string]*domain.Appeal
 	)
 
 	eg.Go(func() error {
@@ -392,11 +392,13 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	}
 
 	if len(notifications) > 0 {
-		if errs := s.notifier.Notify(ctx, notifications); errs != nil {
-			for _, err1 := range errs {
-				s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+		go func() {
+			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
+				for _, err1 := range errs {
+					s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+				}
 			}
-		}
+		}()
 	}
 
 	return nil
@@ -606,11 +608,13 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			notifications = append(notifications, s.getApprovalNotifications(ctx, appeal)...)
 		}
 		if len(notifications) > 0 {
-			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
-				for _, err1 := range errs {
-					s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+			go func() {
+				if errs := s.notifier.Notify(ctx, notifications); errs != nil {
+					for _, err1 := range errs {
+						s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+					}
 				}
-			}
+			}()
 		}
 
 		var auditKey string
@@ -718,37 +722,39 @@ func (s *Service) AddApprover(ctx context.Context, appealID, approvalID, email s
 		}
 	}
 
-	if errs := s.notifier.Notify(ctx, []domain.Notification{
-		{
-			User: email,
-			Labels: map[string]string{
-				"appeal_id": appeal.ID,
-			},
-			Message: domain.NotificationMessage{
-				Type: domain.NotificationTypeApproverNotification,
-				Variables: map[string]interface{}{
-					"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-					"role":          appeal.Role,
-					"requestor":     appeal.CreatedBy,
-					"appeal_id":     appeal.ID,
-					"account_id":    appeal.AccountID,
-					"account_type":  appeal.AccountType,
-					"provider_type": appeal.Resource.ProviderType,
-					"resource_type": appeal.Resource.Type,
-					"created_at":    appeal.CreatedAt,
-					"approval_step": approval.Name,
-					"actor":         email,
-					"details":       appeal.Details,
-					"duration":      duration,
-					"creator":       appeal.Creator,
+	go func() {
+		if errs := s.notifier.Notify(ctx, []domain.Notification{
+			{
+				User: email,
+				Labels: map[string]string{
+					"appeal_id": appeal.ID,
+				},
+				Message: domain.NotificationMessage{
+					Type: domain.NotificationTypeApproverNotification,
+					Variables: map[string]interface{}{
+						"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+						"role":          appeal.Role,
+						"requestor":     appeal.CreatedBy,
+						"appeal_id":     appeal.ID,
+						"account_id":    appeal.AccountID,
+						"account_type":  appeal.AccountType,
+						"provider_type": appeal.Resource.ProviderType,
+						"resource_type": appeal.Resource.Type,
+						"created_at":    appeal.CreatedAt,
+						"approval_step": approval.Name,
+						"actor":         email,
+						"details":       appeal.Details,
+						"duration":      duration,
+						"creator":       appeal.Creator,
+					},
 				},
 			},
-		},
-	}); errs != nil {
-		for _, err1 := range errs {
-			s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+		}); errs != nil {
+			for _, err1 := range errs {
+				s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+			}
 		}
-	}
+	}()
 
 	return appeal, nil
 }
