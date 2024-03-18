@@ -151,36 +151,54 @@ func (s *ServiceTestSuite) TestCreate() {
 	accountID := "test@email.com"
 
 	s.Run("should return error if got error from resource service", func() {
-		expectedError := errors.New("resource service error")
+		expectedError := fmt.Errorf("error getting resource map: %w", errors.New("resource service error"))
+		expectedProviders := []*domain.Provider{}
+		expectedPolicies := []*domain.Policy{}
+		expectedAppeals := []*domain.Appeal{}
 		s.mockResourceService.On("Find", mock.Anything, mock.Anything).Return(nil, expectedError).Once()
+		s.mockProviderService.On("Find", mock.Anything).Return(expectedProviders, nil).Once()
+		s.mockPolicyService.On("Find", mock.Anything).Return(expectedPolicies, nil).Once()
+		s.mockRepository.EXPECT().
+			Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
+			Return(expectedAppeals, nil).Once()
 
 		actualError := s.service.Create(context.Background(), []*domain.Appeal{})
 
-		s.EqualError(actualError, expectedError.Error())
+		s.ErrorIs(actualError, expectedError)
 	})
 
 	s.Run("should return error if got error from provider service", func() {
 		expectedResources := []*domain.Resource{}
+		expectedError := fmt.Errorf("error getting provider map: %w", errors.New("provider service error"))
+		expectedPolicies := []*domain.Policy{}
+		expectedAppeals := []*domain.Appeal{}
 		s.mockResourceService.On("Find", mock.Anything, mock.Anything).Return(expectedResources, nil).Once()
-		expectedError := errors.New("provider service error")
 		s.mockProviderService.On("Find", mock.Anything).Return(nil, expectedError).Once()
+		s.mockPolicyService.On("Find", mock.Anything).Return(expectedPolicies, nil).Once()
+		s.mockRepository.EXPECT().
+			Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
+			Return(expectedAppeals, nil).Once()
 
 		actualError := s.service.Create(context.Background(), []*domain.Appeal{})
 
-		s.EqualError(actualError, expectedError.Error())
+		s.ErrorIs(actualError, expectedError)
 	})
 
 	s.Run("should return error if got error from policy service", func() {
 		expectedResources := []*domain.Resource{}
 		expectedProviders := []*domain.Provider{}
+		expectedError := fmt.Errorf("error getting service map: %w", errors.New("service service error"))
+		expectedAppeals := []*domain.Appeal{}
 		s.mockResourceService.On("Find", mock.Anything, mock.Anything).Return(expectedResources, nil).Once()
 		s.mockProviderService.On("Find", mock.Anything).Return(expectedProviders, nil).Once()
-		expectedError := errors.New("policy service error")
 		s.mockPolicyService.On("Find", mock.Anything).Return(nil, expectedError).Once()
+		s.mockRepository.EXPECT().
+			Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
+			Return(expectedAppeals, nil).Once()
 
 		actualError := s.service.Create(context.Background(), []*domain.Appeal{})
 
-		s.EqualError(actualError, expectedError.Error())
+		s.ErrorIs(actualError, expectedError)
 	})
 
 	s.Run("should return error if got error from appeal repository", func() {

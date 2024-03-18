@@ -188,25 +188,56 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		resourceIDs = append(resourceIDs, a.ResourceID)
 		accountIDs = append(accountIDs, a.AccountID)
 	}
-	resources, err := s.getResourcesMap(ctx, resourceIDs)
-	if err != nil {
-		return err
-	}
-	providers, err := s.getProvidersMap(ctx)
-	if err != nil {
-		return err
-	}
-	policies, err := s.getPoliciesMap(ctx)
-	if err != nil {
-		return err
-	}
 
-	pendingAppeals, err := s.getAppealsMap(ctx, &domain.ListAppealsFilter{
-		Statuses:   []string{domain.AppealStatusPending},
-		AccountIDs: accountIDs,
+	eg, egctx := errgroup.WithContext(ctx)
+	var (
+	    resources map[string]*domain.Resource
+	    providers map[string]map[string]*domain.Provider
+	    policies map[string]map[uint]*domain.Policy
+	    pendingAppeals map[string]map[string]map[string]*domain.Appeal
+	)
+
+	eg.Go(func() error {
+		resourcesData, err := s.getResourcesMap(egctx, resourceIDs)
+		if err != nil {
+			return fmt.Errorf("error getting resource map: %w", err)
+		}
+		resources = resourcesData
+		return nil
 	})
-	if err != nil {
-		return fmt.Errorf("listing pending appeals: %w", err)
+
+	eg.Go(func() error {
+		providersData, err := s.getProvidersMap(egctx)
+		if err != nil {
+			return fmt.Errorf("error getting providers map: %w", err)
+		}
+		providers = providersData
+		return nil
+	})
+
+	eg.Go(func() error {
+		policiesData, err := s.getPoliciesMap(egctx)
+		if err != nil {
+			return fmt.Errorf("error getting policies map: %w", err)
+		}
+		policies = policiesData
+		return nil
+	})
+
+	eg.Go(func() error {
+		pendingAppealsData, err := s.getAppealsMap(egctx, &domain.ListAppealsFilter{
+			Statuses:   []string{domain.AppealStatusPending},
+			AccountIDs: accountIDs,
+		})
+		if err != nil {
+			return fmt.Errorf("listing pending appeals: %w", err)
+		}
+		pendingAppeals = pendingAppealsData
+		return nil
+	})
+
+	if err := eg.Wait(); err != nil {
+		return err
 	}
 
 	notifications := []domain.Notification{}
