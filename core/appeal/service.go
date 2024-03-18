@@ -681,6 +681,11 @@ func (s *Service) AddApprover(ctx context.Context, appealID, approvalID, email s
 	if appeal.Status != domain.AppealStatusPending {
 		return nil, fmt.Errorf("%w: can't add new approver to appeal with %q status", ErrUnableToAddApprover, appeal.Status)
 	}
+	for _, existingApprover := range approval.Approvers {
+		if email == existingApprover {
+			return nil, fmt.Errorf("%w: approver is already exist", ErrUnableToAddApprover)
+		}
+	}
 
 	switch approval.Status {
 	case domain.ApprovalStatusPending:
