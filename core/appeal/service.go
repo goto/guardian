@@ -683,7 +683,7 @@ func (s *Service) AddApprover(ctx context.Context, appealID, approvalID, email s
 	}
 	for _, existingApprover := range approval.Approvers {
 		if email == existingApprover {
-			return nil, fmt.Errorf("%w: approver is already exist", ErrUnableToAddApprover)
+			return nil, fmt.Errorf("%w: approver %q already exists", ErrUnableToAddApprover, email)
 		}
 	}
 
