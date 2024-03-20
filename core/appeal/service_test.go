@@ -3305,32 +3305,23 @@ func (s *ServiceTestSuite) TestAddApprover() {
 		approvalName := "test-approval-name"
 		newApprover := "user@example.com"
 
-		testCases := []struct {
+		tc := struct {
 			name, appealID, approvalID, newApprover string
+			expectedAppeal                          *domain.Appeal
+			expectedApproval                        *domain.Approval
 		}{
-			{
-				name:     "with approval ID",
-				appealID: appealID, approvalID: approvalID, newApprover: newApprover,
-			},
-			{
-				name:     "with approval name",
-				appealID: appealID, approvalID: approvalName, newApprover: newApprover,
-			},
-		}
-
-		for _, tc := range testCases {
-			s.Run(tc.name, func() {
-				expectedAppeal := &domain.Appeal{
-					ID:     appealID,
-					Status: domain.AppealStatusPending,
-					Approvals: []*domain.Approval{
-						{
-							ID:     approvalID,
-							Name:   approvalName,
-							Status: domain.ApprovalStatusPending,
-							Approvers: []string{
-								"existing.approver@example.com",
-							},
+			name:     "with approval ID",
+			appealID: appealID, approvalID: approvalID, newApprover: newApprover,
+			expectedAppeal: &domain.Appeal{
+				ID:     appealID,
+				Status: domain.AppealStatusPending,
+				Approvals: []*domain.Approval{
+					{
+						ID:     approvalID,
+						Name:   approvalName,
+						Status: domain.ApprovalStatusPending,
+						Approvers: []string{
+							"existing.approver@example.com",
 						},
 					},
 					Resource: &domain.Resource{},
@@ -3367,9 +3358,100 @@ func (s *ServiceTestSuite) TestAddApprover() {
 				time.Sleep(time.Second)
 				s.NoError(actualError)
 				s.Equal(expectedApproval, actualAppeal.Approvals[0])
-
-			})
+			},
 		}
+
+		s.mockRepository.EXPECT().
+			GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), appealID).
+			Return(tc.expectedAppeal, nil).Once()
+		s.mockApprovalService.EXPECT().
+			AddApprover(mock.MatchedBy(func(ctx context.Context) bool { return true }), approvalID, newApprover).
+			Return(nil).Once()
+		s.mockAuditLogger.EXPECT().
+			Log(mock.MatchedBy(func(ctx context.Context) bool { return true }), appeal.AuditKeyAddApprover, tc.expectedApproval).Return(nil).Once()
+		s.mockNotifier.EXPECT().
+			Notify(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
+			Run(func(ctx context.Context, notifications []domain.Notification) {
+				assert.Equal(s.T(), len(notifications), 1)
+				n := notifications[0]
+				ng := n
+				assert.Equal(s.T(), tc.newApprover, ng.User)
+				assert.Equal(s.T(), domain.NotificationTypeApproverNotification, ng.Message.Type)
+			}).
+			Return(nil).Once()
+
+		actualAppeal, actualError := s.service.AddApprover(context.Background(), appealID, approvalID, newApprover)
+
+		s.NoError(actualError)
+		s.Equal(tc.expectedApproval, actualAppeal.Approvals[0])
+		s.mockRepository.AssertExpectations(s.T())
+		s.mockApprovalService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return appeal on success with approval name", func() {
+		appealID := uuid.New().String()
+		approvalID := uuid.New().String()
+		approvalName := "test-approval-name"
+		newApprover := "user@example.com"
+
+		tc := struct {
+			name, appealID, approvalID, newApprover string
+			expectedAppeal                          *domain.Appeal
+			expectedApproval                        *domain.Approval
+		}{
+			name:     "with approval name",
+			appealID: appealID, approvalID: approvalName, newApprover: newApprover,
+			expectedAppeal: &domain.Appeal{
+				ID:     appealID,
+				Status: domain.AppealStatusPending,
+				Approvals: []*domain.Approval{
+					{
+						ID:     approvalID,
+						Name:   approvalName,
+						Status: domain.ApprovalStatusPending,
+						Approvers: []string{
+							"existing.approver@example.com",
+						},
+					},
+				},
+				Resource: &domain.Resource{},
+			},
+			expectedApproval: &domain.Approval{
+				ID:     approvalID,
+				Name:   approvalName,
+				Status: domain.ApprovalStatusPending,
+				Approvers: []string{
+					"existing.approver@example.com",
+					newApprover,
+				},
+			},
+		}
+
+		s.mockRepository.EXPECT().
+			GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), appealID).
+			Return(tc.expectedAppeal, nil).Once()
+		s.mockApprovalService.EXPECT().
+			AddApprover(mock.MatchedBy(func(ctx context.Context) bool { return true }), approvalID, newApprover).
+			Return(nil).Once()
+		s.mockAuditLogger.EXPECT().
+			Log(mock.MatchedBy(func(ctx context.Context) bool { return true }), appeal.AuditKeyAddApprover, tc.expectedApproval).Return(nil).Once()
+		s.mockNotifier.EXPECT().
+			Notify(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
+			Run(func(ctx context.Context, notifications []domain.Notification) {
+				assert.Equal(s.T(), len(notifications), 1)
+				n := notifications[0]
+				ng := n
+				assert.Equal(s.T(), tc.newApprover, ng.User)
+				assert.Equal(s.T(), domain.NotificationTypeApproverNotification, ng.Message.Type)
+			}).
+			Return(nil).Once()
+
+		actualAppeal, actualError := s.service.AddApprover(context.Background(), appealID, approvalID, newApprover)
+
+		s.NoError(actualError)
+		s.Equal(tc.expectedApproval, actualAppeal.Approvals[0])
+		s.mockRepository.AssertExpectations(s.T())
+		s.mockApprovalService.AssertExpectations(s.T())
 	})
 
 	s.Run("params validation", func() {
