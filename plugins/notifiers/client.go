@@ -4,9 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
-	"time"
 
+	"github.com/goto/guardian/pkg/http"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/mitchellh/mapstructure"
 
@@ -47,7 +46,7 @@ func NewClient(config *Config, logger log.Logger) (Client, error) {
 			return nil, err
 		}
 
-		httpClient := &http.Client{Timeout: 10 * time.Second}
+		httpClient := http.NewRetryableClient()
 
 		return slack.NewNotifier(slackConfig, httpClient, logger), nil
 	}
