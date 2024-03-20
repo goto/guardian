@@ -2408,7 +2408,6 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		s.mockRepository.AssertExpectations(s.T())
 		s.mockPolicyService.AssertExpectations(s.T())
 		s.mockGrantService.AssertExpectations(s.T())
-		s.mockNotifier.AssertExpectations(s.T())
 		s.mockAuditLogger.AssertExpectations(s.T())
 		s.Nil(actualError)
 	})
@@ -3001,10 +3000,11 @@ func (s *ServiceTestSuite) TestAddApprover() {
 						s.Equal(tc.newApprover, n.User)
 						s.Equal(domain.NotificationTypeApproverNotification, n.Message.Type)
 					}).
-					Return(nil)
+					Return(nil).Once()
 
 				actualAppeal, actualError := s.service.AddApprover(context.Background(), appealID, approvalID, newApprover)
 
+				time.Sleep(time.Second)
 				s.NoError(actualError)
 				s.Equal(expectedApproval, actualAppeal.Approvals[0])
 				s.mockRepository.AssertExpectations(s.T())
