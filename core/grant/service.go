@@ -220,25 +220,26 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 	}
 
 	if !options.skipNotification {
+		notifications := []domain.Notification{{
+			User: grant.CreatedBy,
+			Labels: map[string]string{
+				"appeal_id": grant.AppealID,
+				"grant_id":  grant.ID,
+			},
+			Message: domain.NotificationMessage{
+				Type: domain.NotificationTypeAccessRevoked,
+				Variables: map[string]interface{}{
+					"resource_name": fmt.Sprintf("%s (%s: %s)", grant.Resource.Name, grant.Resource.ProviderType, grant.Resource.URN),
+					"role":          grant.Role,
+					"account_type":  grant.AccountType,
+					"account_id":    grant.AccountID,
+					"requestor":     grant.Owner,
+					"revoke_reason": grant.RevokeReason,
+				},
+			},
+		}}
 		go func() {
-			if errs := s.notifier.Notify(ctx, []domain.Notification{{
-				User: grant.CreatedBy,
-				Labels: map[string]string{
-					"appeal_id": grant.AppealID,
-					"grant_id":  grant.ID,
-				},
-				Message: domain.NotificationMessage{
-					Type: domain.NotificationTypeAccessRevoked,
-					Variables: map[string]interface{}{
-						"resource_name": fmt.Sprintf("%s (%s: %s)", grant.Resource.Name, grant.Resource.ProviderType, grant.Resource.URN),
-						"role":          grant.Role,
-						"account_type":  grant.AccountType,
-						"account_id":    grant.AccountID,
-						"requestor":     grant.Owner,
-						"revoke_reason": grant.RevokeReason,
-					},
-				},
-			}}); errs != nil {
+			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
 				for _, err1 := range errs {
 					s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
 				}
