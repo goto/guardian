@@ -126,8 +126,6 @@ func (s *GrpcHandlersSuite) TestGetPolicy() {
 			CreatedAt: timeNow,
 			UpdatedAt: timeNow,
 		}
-		expectedIAMConfig, err := structpb.NewValue(dummyPolicy.IAM.Config)
-		s.Require().NoError(err)
 		expectedResponse := &guardianv1beta1.GetPolicyResponse{
 			Policy: &guardianv1beta1.Policy{
 				Id:          dummyPolicy.ID,
@@ -163,7 +161,6 @@ func (s *GrpcHandlersSuite) TestGetPolicy() {
 				},
 				Iam: &guardianv1beta1.Policy_IAM{
 					Provider: "slack",
-					Config:   expectedIAMConfig,
 					Schema:   dummyPolicy.IAM.Schema,
 				},
 				Appeal: &guardianv1beta1.PolicyAppealConfig{
@@ -210,27 +207,6 @@ func (s *GrpcHandlersSuite) TestGetPolicy() {
 		expectedError := errors.New("random error")
 		s.policyService.EXPECT().GetOne(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("string"), mock.AnythingOfType("uint")).
 			Return(nil, expectedError).Once()
-
-		req := &guardianv1beta1.GetPolicyRequest{}
-		res, err := s.grpcServer.GetPolicy(context.Background(), req)
-
-		s.Equal(codes.Internal, status.Code(err))
-		s.Nil(res)
-		s.policyService.AssertExpectations(s.T())
-	})
-
-	s.Run("should return internal error if there's an error when parsing policy", func() {
-		s.setup()
-
-		dummyPolicy := &domain.Policy{
-
-			ID: "test-policy",
-			IAM: &domain.IAMConfig{
-				Config: make(chan int), // invalid json
-			},
-		}
-		s.policyService.EXPECT().GetOne(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("string"), mock.AnythingOfType("uint")).
-			Return(dummyPolicy, nil).Once()
 
 		req := &guardianv1beta1.GetPolicyRequest{}
 		res, err := s.grpcServer.GetPolicy(context.Background(), req)
