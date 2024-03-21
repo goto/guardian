@@ -41,6 +41,7 @@ func (s *GRPCServer) GetPolicy(ctx context.Context, req *guardianv1beta1.GetPoli
 		}
 	}
 
+	p.IAM.Config = nil
 	policyProto, err := s.adapter.ToPolicyProto(p)
 	if err != nil {
 		return nil, s.internalError(ctx, "failed to parse policy: %v", err)

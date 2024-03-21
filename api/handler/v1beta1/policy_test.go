@@ -126,6 +126,8 @@ func (s *GrpcHandlersSuite) TestGetPolicy() {
 			CreatedAt: timeNow,
 			UpdatedAt: timeNow,
 		}
+		expectedIAMConfig, err := structpb.NewValue(nil)
+		s.Require().NoError(err)
 		expectedResponse := &guardianv1beta1.GetPolicyResponse{
 			Policy: &guardianv1beta1.Policy{
 				Id:          dummyPolicy.ID,
@@ -161,6 +163,7 @@ func (s *GrpcHandlersSuite) TestGetPolicy() {
 				},
 				Iam: &guardianv1beta1.Policy_IAM{
 					Provider: "slack",
+					Config:   expectedIAMConfig,
 					Schema:   dummyPolicy.IAM.Schema,
 				},
 				Appeal: &guardianv1beta1.PolicyAppealConfig{

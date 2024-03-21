@@ -432,8 +432,14 @@ func (a *adapter) ToPolicyProto(p *domain.Policy) (*guardianv1beta1.Policy, erro
 	}
 
 	if p.HasIAMConfig() {
+		config, err := structpb.NewValue(p.IAM.Config)
+		if err != nil {
+			return nil, err
+		}
+
 		policyProto.Iam = &guardianv1beta1.Policy_IAM{
 			Provider: string(p.IAM.Provider),
+			Config:   config,
 			Schema:   p.IAM.Schema,
 		}
 	}
