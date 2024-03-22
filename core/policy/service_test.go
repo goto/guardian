@@ -43,6 +43,7 @@ func (s *ServiceTestSuite) SetupTest() {
 		ResourceService: s.mockResourceService,
 		ProviderService: s.mockProviderService,
 		IAMManager:      iamManager,
+		Crypto:          &mocks.Crypto{},
 		AuditLogger:     s.mockAuditLogger,
 		Validator:       validator.New(),
 	})

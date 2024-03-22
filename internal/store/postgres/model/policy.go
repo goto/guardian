@@ -11,17 +11,18 @@ import (
 
 // Policy is the database model for policy
 type Policy struct {
-	ID           string `gorm:"primaryKey"`
-	Version      uint   `gorm:"primaryKey"`
-	Description  string
-	Steps        datatypes.JSON
-	AppealConfig datatypes.JSON
-	Labels       datatypes.JSON
-	Requirements datatypes.JSON
-	IAM          datatypes.JSON
-	CreatedAt    time.Time      `gorm:"autoCreateTime"`
-	UpdatedAt    time.Time      `gorm:"autoUpdateTime"`
-	DeletedAt    gorm.DeletedAt `gorm:"index"`
+	ID                    string `gorm:"primaryKey"`
+	Version               uint   `gorm:"primaryKey"`
+	Description           string
+	Steps                 datatypes.JSON
+	AppealConfig          datatypes.JSON
+	Labels                datatypes.JSON
+	Requirements          datatypes.JSON
+	IAM                   datatypes.JSON
+	AppealMetadataSources datatypes.JSON
+	CreatedAt             time.Time      `gorm:"autoCreateTime"`
+	UpdatedAt             time.Time      `gorm:"autoUpdateTime"`
+	DeletedAt             gorm.DeletedAt `gorm:"index"`
 }
 
 // TableName overrides the table name
@@ -56,6 +57,11 @@ func (m *Policy) FromDomain(p *domain.Policy) error {
 		return err
 	}
 
+	metadataSources, err := json.Marshal(p.AppealMetadataSources)
+	if err != nil {
+		return err
+	}
+
 	m.ID = p.ID
 	m.Version = p.Version
 	m.Description = p.Description
@@ -64,6 +70,7 @@ func (m *Policy) FromDomain(p *domain.Policy) error {
 	m.Labels = datatypes.JSON(labels)
 	m.Requirements = datatypes.JSON(requirements)
 	m.IAM = datatypes.JSON(iam)
+	m.AppealMetadataSources = datatypes.JSON(metadataSources)
 	m.CreatedAt = p.CreatedAt
 	m.UpdatedAt = p.UpdatedAt
 
@@ -99,6 +106,13 @@ func (m *Policy) ToDomain() (*domain.Policy, error) {
 	var iam *domain.IAMConfig
 	if m.IAM != nil {
 		if err := json.Unmarshal(m.IAM, &iam); err != nil {
+			return nil, err
+		}
+	}
+
+	var metadataSources map[string]*domain.AppealMetadataSource
+	if m.AppealMetadataSources != nil {
+		if err := json.Unmarshal(m.AppealMetadataSources, &metadataSources); err != nil {
 			return nil, err
 		}
 	}

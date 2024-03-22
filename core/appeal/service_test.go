@@ -28,7 +28,6 @@ type ServiceTestSuite struct {
 	mockPolicyService   *appealmocks.PolicyService
 	mockGrantService    *appealmocks.GrantService
 	mockIAMManager      *appealmocks.IamManager
-	mockMetadataManager *appealmocks.MetadataManager
 	mockIAMClient       *mocks.IAMClient
 	mockNotifier        *appealmocks.Notifier
 	mockAuditLogger     *appealmocks.AuditLogger
@@ -49,7 +48,6 @@ func (s *ServiceTestSuite) setup() {
 	s.mockPolicyService = new(appealmocks.PolicyService)
 	s.mockGrantService = new(appealmocks.GrantService)
 	s.mockIAMManager = new(appealmocks.IamManager)
-	s.mockMetadataManager = new(appealmocks.MetadataManager)
 	s.mockIAMClient = new(mocks.IAMClient)
 	s.mockNotifier = new(appealmocks.Notifier)
 	s.mockAuditLogger = new(appealmocks.AuditLogger)
@@ -63,7 +61,6 @@ func (s *ServiceTestSuite) setup() {
 		s.mockPolicyService,
 		s.mockGrantService,
 		s.mockIAMManager,
-		s.mockMetadataManager,
 		s.mockNotifier,
 		validator.New(),
 		log.NewNoop(),
