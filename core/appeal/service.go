@@ -2,6 +2,7 @@ package appeal
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,8 +12,8 @@ import (
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/evaluator"
+	"github.com/goto/guardian/pkg/http"
 	"github.com/goto/guardian/pkg/log"
-	"github.com/goto/guardian/plugins/identities"
 	"github.com/goto/guardian/plugins/notifiers"
 	"github.com/goto/guardian/utils"
 	"golang.org/x/sync/errgroup"
@@ -30,6 +31,8 @@ const (
 
 	RevokeReasonForExtension = "Automatically revoked for grant extension"
 	RevokeReasonForOverride  = "Automatically revoked for grant override"
+
+	PolicyMetadataKey = "__policy_metadata"
 )
 
 var TimeNow = time.Now
@@ -46,11 +49,6 @@ type repository interface {
 //go:generate mockery --name=iamManager --exported --with-expecter
 type iamManager interface {
 	domain.IAMManager
-}
-
-//go:generate mockery --name=metadataManager --exported --with-expecter
-type metadataManager interface {
-	domain.MetadataManager
 }
 
 //go:generate mockery --name=notifier --exported --with-expecter
@@ -118,7 +116,6 @@ type ServiceDeps struct {
 	PolicyService   policyService
 	GrantService    grantService
 	IAMManager      iamManager
-	MetadataManager metadataManager
 
 	Notifier    notifier
 	Validator   *validator.Validate
@@ -135,7 +132,6 @@ type Service struct {
 	policyService   policyService
 	grantService    grantService
 	iam             domain.IAMManager
-	metadata        domain.MetadataManager
 
 	notifier    notifier
 	validator   *validator.Validate
@@ -155,7 +151,6 @@ func NewService(deps ServiceDeps) *Service {
 		deps.PolicyService,
 		deps.GrantService,
 		deps.IAMManager,
-		deps.MetadataManager,
 
 		deps.Notifier,
 		deps.Validator,
@@ -1162,63 +1157,84 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 		return nil
 	}
 
+	eg, _ := errgroup.WithContext(ctx)
+
 	appealMetadata := map[string]interface{}{}
 	for key, metadata := range p.AppealMetadataSources {
-		if metadata.Type == "http" {
-			if metadata.Config.URL == "" {
-				return fmt.Errorf("URL cannot be empty for http type")
+		key, metadata := key, metadata
+		eg.Go(func() error {
+			switch metadata.Type {
+			case "http":
+				if metadata.Config.URL == "" {
+					return fmt.Errorf("URL cannot be empty for http type")
+				}
+
+				metadataCl, err := s.getMetadataClient(metadata.Config)
+				if err != nil {
+					return fmt.Errorf("key: %s, %w", key, err)
+				}
+
+				res, err := metadataCl.MakeRequest()
+				if err != nil || (res.StatusCode < 200 && res.StatusCode > 300) {
+					if !metadata.Config.AllowFailed {
+						return fmt.Errorf("error fetching resource: %w", err)
+					}
+				}
+
+				var responseBody interface{}
+				err = json.NewDecoder(res.Body).Decode(responseBody)
+				if err != nil {
+					return fmt.Errorf("error decoding response: %w", err)
+				}
+
+				responseMap := responseBody.(map[string]interface{})
+				params := map[string]interface{}{
+					"response": responseMap,
+					"appeal":   a,
+				}
+				value, err := s.getMetadataValue(metadata.Type, key, metadata.Value, params)
+				if err != nil {
+					return fmt.Errorf("error parsing value: %w", err)
+				}
+				appealMetadata[key] = value
+			case "static":
+				params := map[string]interface{}{
+					"appeal": a,
+				}
+				value, err := s.getMetadataValue(metadata.Type, key, metadata.Value, params)
+				if err != nil {
+					return fmt.Errorf("error parsing value: %w", err)
+				}
+				appealMetadata[key] = value
+			default:
+				return fmt.Errorf("invalid metadata source type")
 			}
 
-			metadataCl, err := s.getMetadataClient(metadata.Config)
-			if err != nil {
-				return fmt.Errorf("key: %s, %w", key, err)
-			}
-
-			res, err := metadataCl.GetResourceMetadata()
-			if err != nil && !metadata.Config.AllowFailed {
-				return fmt.Errorf("error fetching resource: %w", err)
-			}
-
-			responseMap := res.(map[string]interface{})
-			params := map[string]interface{}{
-				"response": responseMap,
-				"appeal":   a,
-			}
-			value, err := s.getMetadataValue(metadata.Type, key, metadata.Value, params)
-			if err != nil {
-				return fmt.Errorf("error parsing value: %w", err)
-			}
-			appealMetadata[key] = value
-
-		} else if metadata.Type == "static" {
-			params := map[string]interface{}{
-				"appeal": a,
-			}
-			value, err := s.getMetadataValue(metadata.Type, key, metadata.Value, params)
-			if err != nil {
-				return fmt.Errorf("error parsing value: %w", err)
-			}
-			appealMetadata[key] = value
-		}
+			return nil
+		})
 	}
 
-	a.Details["__policy_metadata"] = appealMetadata
+	if err := eg.Wait(); err == nil {
+		return err
+	}
+
+	a.Details[PolicyMetadataKey] = appealMetadata
 
 	return nil
 }
 
-func (s *Service) getMetadataClient(metadataCfg *domain.AppealMetadataConfig) (*identities.HTTPClient, error) {
-	metadataConfig, err := s.metadata.ParseMetadataConfig(metadataCfg)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing metadata config: %w", err)
+func (s *Service) getMetadataClient(metadataCfg *domain.AppealMetadataConfig) (*http.HTTPClient, error) {
+	authCfg, ok := metadataCfg.Auth.(http.HTTPAuthConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid auth config")
+	}
+	metadataConfig := http.HTTPClientConfig{
+		URL:     metadataCfg.URL,
+		Headers: metadataCfg.Headers,
+		Auth:    &authCfg,
 	}
 
-	clientConfig, ok := metadataConfig.(*identities.HTTPClientConfig)
-	if ok {
-		return nil, fmt.Errorf("invalid metadata config: %w", err)
-	}
-
-	metadataCl, err := identities.NewHTTPClient(clientConfig)
+	metadataCl, err := http.NewHTTPClient(&metadataConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing metadata client: %w", err)
 	}

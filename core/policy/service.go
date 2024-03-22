@@ -2,6 +2,7 @@ package policy
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -50,6 +51,7 @@ type Service struct {
 	providerService providerService
 	iam             domain.IAMManager
 
+	crypto      domain.Crypto
 	validator   *validator.Validate
 	logger      log.Logger
 	auditLogger auditLogger
@@ -61,6 +63,7 @@ type ServiceDeps struct {
 	ProviderService providerService
 	IAMManager      domain.IAMManager
 
+	Crypto      domain.Crypto
 	Validator   *validator.Validate
 	Logger      log.Logger
 	AuditLogger auditLogger
@@ -74,6 +77,7 @@ func NewService(deps ServiceDeps) *Service {
 		deps.ProviderService,
 		deps.IAMManager,
 
+		deps.Crypto,
 		deps.Validator,
 		deps.Logger,
 		deps.AuditLogger,
@@ -105,6 +109,13 @@ func (s *Service) Create(ctx context.Context, p *domain.Policy) error {
 		p.IAM.Config = sensitiveConfig
 	}
 
+	if p.HasAppealMetadataSources() {
+		err := s.encryptAppealMetadata(p)
+		if err != nil {
+			return err
+		}
+	}
+
 	if !isDryRun(ctx) {
 		if err := s.repository.Create(ctx, p); err != nil {
 			return err
@@ -119,6 +130,13 @@ func (s *Service) Create(ctx context.Context, p *domain.Policy) error {
 
 	if p.HasIAMConfig() {
 		if err := s.decryptAndDeserializeIAMConfig(p.IAM); err != nil {
+			return err
+		}
+	}
+
+	if p.HasAppealMetadataSources() {
+		err := s.decryptAppealMetadata(p)
+		if err != nil {
 			return err
 		}
 	}
@@ -139,6 +157,13 @@ func (s *Service) Find(ctx context.Context) ([]*domain.Policy, error) {
 				return nil, err
 			}
 		}
+
+		if p.AppealMetadataSources != nil {
+			err := s.decryptAppealMetadata(p)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 	return policies, nil
 }
@@ -154,6 +179,11 @@ func (s *Service) GetOne(ctx context.Context, id string, version uint) (*domain.
 		if err := s.decryptAndDeserializeIAMConfig(p.IAM); err != nil {
 			return nil, err
 		}
+	}
+
+	err = s.decryptAppealMetadata(p)
+	if err != nil {
+		return nil, err
 	}
 
 	return p, nil
@@ -191,6 +221,13 @@ func (s *Service) Update(ctx context.Context, p *domain.Policy) error {
 		p.IAM.Config = sensitiveConfig
 	}
 
+	if p.HasAppealMetadataSources() {
+		err := s.encryptAppealMetadata(p)
+		if err != nil {
+			return err
+		}
+	}
+
 	p.Version = latestPolicy.Version + 1
 
 	if !isDryRun(ctx) {
@@ -210,6 +247,49 @@ func (s *Service) Update(ctx context.Context, p *domain.Policy) error {
 			return err
 		}
 	}
+
+	if p.HasAppealMetadataSources() {
+		err := s.decryptAppealMetadata(p)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Service) encryptAppealMetadata(p *domain.Policy) error {
+	for key, metadataSourceCfg := range p.AppealMetadataSources {
+		metadataJson, err := json.Marshal(metadataSourceCfg.Config.Auth)
+		if err != nil {
+			return fmt.Errorf("error marshalling metadata into json")
+		}
+		encryptedAuth, err := s.crypto.Encrypt(string(metadataJson))
+		if err != nil {
+			return fmt.Errorf("error encrypting metadata config: %w", err)
+		}
+
+		p.AppealMetadataSources[key].Config.Auth = encryptedAuth
+	}
+	return nil
+}
+
+func (s *Service) decryptAppealMetadata(p *domain.Policy) error {
+	for key, metadataSourceCfg := range p.AppealMetadataSources {
+		decryptedAuth, err := s.crypto.Decrypt(metadataSourceCfg.Config.Auth.(string))
+		if err != nil {
+			return fmt.Errorf("error decrypting metadata config: %w", err)
+		}
+
+		var auth interface{}
+		err = json.Unmarshal([]byte(decryptedAuth), &auth)
+		if err != nil {
+			return fmt.Errorf("error marshalling metadata into json")
+		}
+
+		p.AppealMetadataSources[key].Config.Auth = auth
+	}
+
 	return nil
 }
 
@@ -266,6 +346,39 @@ func (s *Service) validatePolicy(ctx context.Context, p *domain.Policy, excluded
 				return err
 			}
 		}
+	}
+
+	if p.HasAppealMetadataSources() {
+		for key, metadataSource := range p.AppealMetadataSources {
+			if err := s.validateAppealMetadataSource(ctx, metadataSource); err != nil {
+				return fmt.Errorf("invalid appeal metadata source: %s : %w", key, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *Service) validateAppealMetadataSource(ctx context.Context, metadataSource *domain.AppealMetadataSource) error {
+	if metadataSource.Name == "" {
+		return fmt.Errorf("name should not be empty")
+	}
+
+	if metadataSource.Value == nil {
+		return fmt.Errorf("value should not be empty")
+	}
+
+	switch metadataSource.Type {
+	case "http":
+		if metadataSource.Config == nil {
+			return fmt.Errorf("config is required for type 'http'")
+		}
+	case "static":
+		if metadataSource.Config != nil {
+			return fmt.Errorf("config is not allowed for type 'static'")
+		}
+	default:
+		return fmt.Errorf("type of metadata source is invalid")
 	}
 
 	return nil
