@@ -12,6 +12,7 @@ import (
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/evaluator"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/goto/guardian/plugins/identities"
 	"github.com/goto/guardian/plugins/notifiers"
 	"github.com/goto/guardian/utils"
 	"golang.org/x/sync/errgroup"
@@ -45,6 +46,11 @@ type repository interface {
 //go:generate mockery --name=iamManager --exported --with-expecter
 type iamManager interface {
 	domain.IAMManager
+}
+
+//go:generate mockery --name=metadataManager --exported --with-expecter
+type metadataManager interface {
+	domain.MetadataManager
 }
 
 //go:generate mockery --name=notifier --exported --with-expecter
@@ -112,6 +118,7 @@ type ServiceDeps struct {
 	PolicyService   policyService
 	GrantService    grantService
 	IAMManager      iamManager
+	MetadataManager metadataManager
 
 	Notifier    notifier
 	Validator   *validator.Validate
@@ -128,6 +135,7 @@ type Service struct {
 	policyService   policyService
 	grantService    grantService
 	iam             domain.IAMManager
+	metadata        domain.MetadataManager
 
 	notifier    notifier
 	validator   *validator.Validate
@@ -147,6 +155,7 @@ func NewService(deps ServiceDeps) *Service {
 		deps.PolicyService,
 		deps.GrantService,
 		deps.IAMManager,
+		deps.MetadataManager,
 
 		deps.Notifier,
 		deps.Validator,
@@ -293,6 +302,10 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 
 		if err := validateAppealOnBehalf(appeal, policy); err != nil {
 			return err
+		}
+
+		if err := s.populateAppealMetadata(ctx, appeal, policy); err != nil {
+			return fmt.Errorf("getting appeal metadata: %w", err)
 		}
 
 		if err := s.addCreatorDetails(ctx, appeal, policy); err != nil {
@@ -1142,6 +1155,110 @@ func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[
 		return nil, fmt.Errorf("couldn't find details for policy %q: %w", fmt.Sprintf("%s@%v", policyConfig.ID, policyConfig.Version), ErrPolicyNotFound)
 	}
 	return policy, nil
+}
+
+func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, p *domain.Policy) error {
+	if p.AppealMetadataSources == nil {
+		return nil
+	}
+
+	appealMetadata := map[string]interface{}{}
+	for key, metadata := range p.AppealMetadataSources {
+		if metadata.Type == "http" {
+			if metadata.Config.URL == "" {
+				return fmt.Errorf("URL cannot be empty for http type")
+			}
+
+			metadataCl, err := s.getMetadataClient(metadata.Config)
+			if err != nil {
+				return fmt.Errorf("key: %s, %w", key, err)
+			}
+
+			res, err := metadataCl.GetResourceMetadata()
+			if err != nil && !metadata.Config.AllowFailed {
+				return fmt.Errorf("error fetching resource: %w", err)
+			}
+
+			responseMap := res.(map[string]interface{})
+			params := map[string]interface{}{
+				"response": responseMap,
+				"appeal":   a,
+			}
+			value, err := s.getMetadataValue(metadata.Type, key, metadata.Value, params)
+			if err != nil {
+				return fmt.Errorf("error parsing value: %w", err)
+			}
+			appealMetadata[key] = value
+
+		} else if metadata.Type == "static" {
+			params := map[string]interface{}{
+				"appeal": a,
+			}
+			value, err := s.getMetadataValue(metadata.Type, key, metadata.Value, params)
+			if err != nil {
+				return fmt.Errorf("error parsing value: %w", err)
+			}
+			appealMetadata[key] = value
+		}
+	}
+
+	a.Details["__policy_metadata"] = appealMetadata
+
+	return nil
+}
+
+func (s *Service) getMetadataClient(metadataCfg *domain.AppealMetadataConfig) (*identities.HTTPClient, error) {
+	metadataConfig, err := s.metadata.ParseMetadataConfig(metadataCfg)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing metadata config: %w", err)
+	}
+
+	clientConfig, ok := metadataConfig.(*identities.HTTPClientConfig)
+	if ok {
+		return nil, fmt.Errorf("invalid metadata config: %w", err)
+	}
+
+	metadataCl, err := identities.NewHTTPClient(clientConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing metadata client: %w", err)
+	}
+
+	return metadataCl, nil
+}
+
+func (s *Service) getMetadataValue(metadataType string, key string, value interface{}, params map[string]interface{}) (interface{}, error) {
+	result := make(map[string]interface{})
+
+	switch v := value.(type) {
+	case string:
+		if strings.HasPrefix(v, "$appeal") || (metadataType == "http" && strings.HasPrefix(v, "$response")) {
+			finalVal, err := evaluator.Expression(v).EvaluateWithVars(params)
+			if err != nil {
+				return nil, err
+			}
+			result[key] = finalVal
+		} else {
+			result[key] = v
+		}
+	case map[string]interface{}:
+		for key, val := range v {
+			processedVal, err := s.getMetadataValue(metadataType, key, val, params)
+			if err != nil {
+				return nil, err
+			}
+			result[key] = processedVal
+		}
+	case interface{}:
+		processedVal, err := s.getMetadataValue(metadataType, key, v, params)
+		if err != nil {
+			return nil, err
+		}
+		result[key] = processedVal
+	default:
+		return nil, fmt.Errorf("unsupported value type")
+	}
+
+	return result, nil
 }
 
 func (s *Service) addCreatorDetails(ctx context.Context, a *domain.Appeal, p *domain.Policy) error {
