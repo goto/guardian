@@ -2,7 +2,6 @@ package policy
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -255,37 +254,20 @@ func (s *Service) Update(ctx context.Context, p *domain.Policy) error {
 }
 
 func (s *Service) encryptAppealMetadata(p *domain.Policy) error {
-	for key, metadataSourceCfg := range p.AppealMetadataSources {
-		metadataJson, err := json.Marshal(metadataSourceCfg.Config.Auth)
-		if err != nil {
-			return fmt.Errorf("error marshalling metadata into json")
+	for _, sourceCfg := range p.AppealMetadataSources {
+		if err := sourceCfg.EncryptConfig(s.crypto); err != nil {
+			return err
 		}
-		encryptedAuth, err := s.crypto.Encrypt(string(metadataJson))
-		if err != nil {
-			return fmt.Errorf("error encrypting metadata config: %w", err)
-		}
-
-		p.AppealMetadataSources[key].Config.Auth = encryptedAuth
 	}
 	return nil
 }
 
 func (s *Service) decryptAppealMetadata(p *domain.Policy) error {
-	for key, metadataSourceCfg := range p.AppealMetadataSources {
-		decryptedAuth, err := s.crypto.Decrypt(metadataSourceCfg.Config.Auth.(string))
-		if err != nil {
-			return fmt.Errorf("error decrypting metadata config: %w", err)
+	for _, sourceCfg := range p.AppealMetadataSources {
+		if err := sourceCfg.DecryptConfig(s.crypto); err != nil {
+			return err
 		}
-
-		var auth interface{}
-		err = json.Unmarshal([]byte(decryptedAuth), &auth)
-		if err != nil {
-			return fmt.Errorf("error marshalling metadata into json")
-		}
-
-		p.AppealMetadataSources[key].Config.Auth = auth
 	}
-
 	return nil
 }
 

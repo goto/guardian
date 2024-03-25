@@ -23,16 +23,6 @@ func NewManager(crypto domain.Crypto, validator *validator.Validate) *manager {
 	return &manager{crypto, validator}
 }
 
-func (m *manager) ParseMetadataConfig(metadataConfig *domain.AppealMetadataConfig) (domain.SensitiveConfig, error) {
-	var clientConfig HTTPClientConfig
-	if err := mapstructure.Decode(metadataConfig, &clientConfig); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidConfig, err)
-	}
-	clientConfig.crypto = m.crypto
-	clientConfig.validator = m.validator
-	return &clientConfig, nil
-}
-
 func (m *manager) ParseConfig(iamConfig *domain.IAMConfig) (domain.SensitiveConfig, error) {
 	switch iamConfig.Provider {
 	case domain.IAMProviderTypeHTTP:

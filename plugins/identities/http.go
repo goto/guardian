@@ -257,26 +257,6 @@ func (c *HTTPClient) createRequest(userID string) (*http.Request, error) {
 	return req, nil
 }
 
-func (c *HTTPClient) GetResourceMetadata() (interface{}, error) {
-	req, err := http.NewRequest(http.MethodGet, c.config.URL, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	for k, v := range c.config.Headers {
-		req.Header.Set(k, v)
-	}
-	c.setAuth(req)
-
-	req.Header.Set("Accept", "application/json")
-	var res interface{}
-	if err := c.sendRequest(req, &res); err != nil {
-		return nil, err
-	}
-
-	return res, nil
-}
-
 func (c *HTTPClient) sendRequest(req *http.Request, v interface{}) error {
 	res, err := c.httpClient.Do(req)
 	if err != nil {

@@ -118,15 +118,16 @@ func (m *Policy) ToDomain() (*domain.Policy, error) {
 	}
 
 	return &domain.Policy{
-		ID:           m.ID,
-		Version:      m.Version,
-		Description:  m.Description,
-		Steps:        steps,
-		AppealConfig: appealConfig,
-		Labels:       labels,
-		Requirements: requirements,
-		IAM:          iam,
-		CreatedAt:    m.CreatedAt,
-		UpdatedAt:    m.UpdatedAt,
+		ID:                    m.ID,
+		Version:               m.Version,
+		Description:           m.Description,
+		Steps:                 steps,
+		AppealConfig:          appealConfig,
+		Labels:                labels,
+		Requirements:          requirements,
+		IAM:                   iam,
+		AppealMetadataSources: metadataSources,
+		CreatedAt:             m.CreatedAt,
+		UpdatedAt:             m.UpdatedAt,
 	}, nil
 }
