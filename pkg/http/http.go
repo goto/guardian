@@ -3,20 +3,14 @@ package http
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/goto/guardian/domain"
 	"github.com/mcuadros/go-defaults"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/idtoken"
 )
-
-var ErrFailedRequest = errors.New("request failed")
-
-const UserIDWildcard = "{user_id}"
 
 type HTTPAuthConfig struct {
 	Type string `mapstructure:"type" json:"type" yaml:"type" validate:"required,oneof=basic api_key bearer google_idtoken"`
@@ -35,9 +29,6 @@ type HTTPAuthConfig struct {
 
 	// google_idtoken
 	Audience string `mapstructure:"audience,omitempty" json:"audience,omitempty" yaml:"audience,omitempty" validate:"required_if=Type google_idtoken"`
-	// CredentialsJSON accept a JSON stringified credentials
-	// Deprecated: CredentialsJSON is deprecated, use CredentialsJSONBase64 instead
-	CredentialsJSON string `mapstructure:"credentials_json,omitempty" json:"credentials_json,omitempty" yaml:"credentials_json,omitempty"`
 	// CredentialsJSONBase64 accept a base64 encoded JSON stringified credentials
 	CredentialsJSONBase64 string `mapstructure:"credentials_json_base64,omitempty" json:"credentials_json_base64,omitempty" yaml:"credentials_json_base64,omitempty"`
 }
@@ -50,7 +41,6 @@ type HTTPClientConfig struct {
 
 	HTTPClient *http.Client `mapstructure:"-" json:"-" yaml:"-"`
 	Validator  *validator.Validate
-	Crypto     domain.Crypto
 }
 
 // HTTPClient wraps the http client for external approver resolver service
@@ -81,8 +71,6 @@ func NewHTTPClient(config *HTTPClientConfig) (*HTTPClient, error) {
 				return nil, fmt.Errorf("decoding credentials_json_base64: %w", err)
 			}
 			creds = v
-		case config.Auth.CredentialsJSON != "":
-			creds = []byte(config.Auth.CredentialsJSON)
 		default:
 			return nil, fmt.Errorf("missing credentials for google_idtoken auth")
 		}

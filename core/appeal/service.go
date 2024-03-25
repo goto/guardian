@@ -10,12 +10,14 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/core/grant"
+	"github.com/goto/guardian/core/policy"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/evaluator"
 	"github.com/goto/guardian/pkg/http"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/notifiers"
 	"github.com/goto/guardian/utils"
+	"github.com/mitchellh/mapstructure"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -1165,18 +1167,23 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 		eg.Go(func() error {
 			switch metadata.Type {
 			case "http":
-				if metadata.Config.URL == "" {
+				var cfg policy.AppealMetadataSourceConfigHTTP
+				if err := mapstructure.Decode(metadata.Config, &cfg); err != nil {
+					return fmt.Errorf("error decoding metadata config: %w", err)
+				}
+
+				if cfg.URL == "" {
 					return fmt.Errorf("URL cannot be empty for http type")
 				}
 
-				metadataCl, err := s.getMetadataClient(metadata.Config)
+				metadataCl, err := http.NewHTTPClient(&cfg.HTTPClientConfig)
 				if err != nil {
 					return fmt.Errorf("key: %s, %w", key, err)
 				}
 
 				res, err := metadataCl.MakeRequest()
 				if err != nil || (res.StatusCode < 200 && res.StatusCode > 300) {
-					if !metadata.Config.AllowFailed {
+					if !cfg.AllowFailed {
 						return fmt.Errorf("error fetching resource: %w", err)
 					}
 				}
@@ -1198,9 +1205,7 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 				}
 				appealMetadata[key] = value
 			case "static":
-				params := map[string]interface{}{
-					"appeal": a,
-				}
+				params := map[string]interface{}{"appeal": a}
 				value, err := s.getMetadataValue(metadata.Type, key, metadata.Value, params)
 				if err != nil {
 					return fmt.Errorf("error parsing value: %w", err)
@@ -1221,25 +1226,6 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 	a.Details[PolicyMetadataKey] = appealMetadata
 
 	return nil
-}
-
-func (s *Service) getMetadataClient(metadataCfg *domain.AppealMetadataConfig) (*http.HTTPClient, error) {
-	authCfg, ok := metadataCfg.Auth.(http.HTTPAuthConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid auth config")
-	}
-	metadataConfig := http.HTTPClientConfig{
-		URL:     metadataCfg.URL,
-		Headers: metadataCfg.Headers,
-		Auth:    &authCfg,
-	}
-
-	metadataCl, err := http.NewHTTPClient(&metadataConfig)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing metadata client: %w", err)
-	}
-
-	return metadataCl, nil
 }
 
 func (s *Service) getMetadataValue(metadataType string, key string, value interface{}, params map[string]interface{}) (interface{}, error) {
