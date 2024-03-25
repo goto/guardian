@@ -2072,6 +2072,22 @@
         }
       }
     },
+    "PolicyAppealMetadataSource": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "config": {},
+        "value": {}
+      }
+    },
     "PolicyApprovalStep": {
       "type": "object",
       "properties": {
@@ -3019,6 +3035,12 @@
         },
         "appeal": {
           "$ref": "#/definitions/v1beta1PolicyAppealConfig"
+        },
+        "appealMetadataSources": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/PolicyAppealMetadataSource"
+          }
         }
       },
       "title": "Policy is a configurable steps for appeal's approval"
