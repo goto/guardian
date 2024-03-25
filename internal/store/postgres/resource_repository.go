@@ -73,8 +73,9 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) *gorm.D
 		// NOTE: avoid adding conditions before this grouped where clause.
 		// Otherwise, it will be wrapped in parentheses and the query will be invalid.
 		db = db.Where(db.
-			Where(`LOWER("urn") LIKE ?`, fmt.Sprintf("%%%s%%", strings.ToLower(filter.Q))).
-			Or(`LOWER("name") LIKE ?`, fmt.Sprintf("%%%s%%", strings.ToLower(filter.Q))),
+			Where(`"urn" ILIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
+			Or(`"name" ILIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
+			Or(`"global_urn" ILIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)),
 		)
 	}
 	if filter.IDs != nil {

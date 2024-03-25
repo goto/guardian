@@ -81,6 +81,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 					"foo": "bar",
 				},
 				CreatedAt: time.Now(),
+				GlobalURN: "global_urn_1",
 			},
 			{
 				ProviderType: s.dummyProvider.Type,
@@ -89,6 +90,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				URN:          "test_urn_2",
 				Name:         "test_name_2",
 				CreatedAt:    time.Now().Add(10 * time.Minute),
+				GlobalURN:    "global_urn_2",
 			},
 		}
 		err := s.repository.BulkUpsert(context.Background(), dummyResources)
@@ -105,11 +107,16 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				expectedResult: dummyResources,
 			},
 			{
-				name: "filter by ids",
+				name: "search by urn",
 				filters: domain.ListResourcesFilter{
 					Q: "test_urn_1",
 				},
 				expectedResult: []*domain.Resource{dummyResources[0]},
+			},
+			{
+				name:           "search by global urn",
+				filters:        domain.ListResourcesFilter{Q: "GLOBAL_URN_2"},
+				expectedResult: []*domain.Resource{dummyResources[1]},
 			},
 			{
 				name: "filter by ids",
