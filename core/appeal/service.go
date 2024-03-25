@@ -1201,7 +1201,7 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 		})
 	}
 
-	if err := eg.Wait(); err == nil {
+	if err := eg.Wait(); err != nil {
 		return err
 	}
 
