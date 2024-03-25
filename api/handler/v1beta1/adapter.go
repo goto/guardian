@@ -338,6 +338,20 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 		}
 	}
 
+	if mdSources := p.GetAppealMetadataSources(); mdSources != nil {
+		policy.AppealMetadataSources = map[string]*domain.AppealMetadataSource{}
+
+		for key, mdSource := range p.GetAppealMetadataSources() {
+			policy.AppealMetadataSources[key] = &domain.AppealMetadataSource{
+				Name:        mdSource.GetName(),
+				Description: mdSource.GetDescription(),
+				Type:        mdSource.GetType(),
+				Config:      mdSource.GetConfig().AsInterface(),
+				Value:       mdSource.GetValue().AsInterface(),
+			}
+		}
+	}
+
 	if p.GetCreatedAt() != nil {
 		policy.CreatedAt = p.GetCreatedAt().AsTime()
 	}
@@ -445,6 +459,29 @@ func (a *adapter) ToPolicyProto(p *domain.Policy) (*guardianv1beta1.Policy, erro
 	}
 
 	policyProto.Appeal = a.ToPolicyAppealConfigProto(p)
+
+	if p.AppealMetadataSources != nil {
+		policyProto.AppealMetadataSources = map[string]*guardianv1beta1.Policy_AppealMetadataSource{}
+
+		for key, mdSource := range p.AppealMetadataSources {
+			cfg, err := structpb.NewValue(mdSource.Config)
+			if err != nil {
+				return nil, err
+			}
+			value, err := structpb.NewValue(mdSource.Value)
+			if err != nil {
+				return nil, err
+			}
+
+			policyProto.AppealMetadataSources[key] = &guardianv1beta1.Policy_AppealMetadataSource{
+				Name:        mdSource.Name,
+				Description: mdSource.Description,
+				Type:        mdSource.Type,
+				Config:      cfg,
+				Value:       value,
+			}
+		}
+	}
 
 	if !p.CreatedAt.IsZero() {
 		policyProto.CreatedAt = timestamppb.New(p.CreatedAt)
