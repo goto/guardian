@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -401,6 +402,7 @@ func (s *ServiceTestSuite) TestCreate() {
 		s.Nil(actualError)
 		s.Equal(expectedVersion, validPolicy.Version)
 		s.mockPolicyRepository.AssertExpectations(s.T())
+		time.Sleep(time.Millisecond)
 		s.mockAuditLogger.AssertExpectations(s.T())
 		s.mockCrypto.AssertExpectations(s.T())
 	})
@@ -418,6 +420,7 @@ func (s *ServiceTestSuite) TestCreate() {
 
 			s.Nil(actualError)
 			s.mockPolicyRepository.AssertNotCalled(s.T(), "Create")
+			time.Sleep(time.Millisecond)
 			s.mockAuditLogger.AssertNotCalled(s.T(), "Log")
 		})
 	})
@@ -868,6 +871,7 @@ func (s *ServiceTestSuite) TestUpdate() {
 
 		s.Equal(expectedNewVersion, p.Version)
 		s.mockPolicyRepository.AssertExpectations(s.T())
+		time.Sleep(time.Millisecond)
 		s.mockAuditLogger.AssertExpectations(s.T())
 		s.mockCrypto.AssertExpectations(s.T())
 	})

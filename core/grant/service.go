@@ -131,13 +131,15 @@ func (s *Service) Update(ctx context.Context, payload *domain.Grant) error {
 	*payload = *grantDetails
 	s.logger.Info(ctx, "grant updated", "grant_id", grantDetails.ID, "updatedGrant", updatedGrant)
 
-	if err := s.auditLogger.Log(ctx, AuditKeyUpdate, map[string]interface{}{
-		"grant_id":      grantDetails.ID,
-		"payload":       updatedGrant,
-		"updated_grant": payload,
-	}); err != nil {
-		s.logger.Error(ctx, "failed to record audit log", "error", err)
-	}
+	go func() {
+		if err := s.auditLogger.Log(ctx, AuditKeyUpdate, map[string]interface{}{
+			"grant_id":      grantDetails.ID,
+			"payload":       updatedGrant,
+			"updated_grant": payload,
+		}); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
 
 	if previousOwner != updatedGrant.Owner {
 		go func() {
@@ -251,12 +253,14 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 
 	s.logger.Info(ctx, "grant revoked", "grant_id", id)
 
-	if err := s.auditLogger.Log(ctx, AuditKeyRevoke, map[string]interface{}{
-		"grant_id": id,
-		"reason":   reason,
-	}); err != nil {
-		s.logger.Error(ctx, "failed to record audit log", "error", err)
-	}
+	go func() {
+		if err := s.auditLogger.Log(ctx, AuditKeyRevoke, map[string]interface{}{
+			"grant_id": id,
+			"reason":   reason,
+		}); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
 
 	return grant, nil
 }
