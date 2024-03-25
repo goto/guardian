@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -1186,13 +1187,23 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 					}
 				}
 
-				var responseBody interface{}
-				err = json.NewDecoder(res.Body).Decode(responseBody)
+				body, err := io.ReadAll(res.Body)
 				if err != nil {
-					return fmt.Errorf("error decoding response: %w", err)
+					return fmt.Errorf("error reading response body: %w", err)
+				}
+				res.Body.Close()
+				var jsonBody interface{}
+				err = json.Unmarshal(body, &jsonBody)
+				if err != nil {
+					return fmt.Errorf("error unmarshaling response body: %w", err)
 				}
 
-				responseMap := responseBody.(map[string]interface{})
+				responseMap := map[string]interface{}{
+					"status":      res.Status,
+					"status_code": res.StatusCode,
+					"headers":     res.Header,
+					"body":        jsonBody,
+				}
 				params := map[string]interface{}{
 					"response": responseMap,
 					"appeal":   a,
