@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -1143,7 +1144,7 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 	}
 
 	eg, _ := errgroup.WithContext(ctx)
-
+	var mu sync.Mutex
 	appealMetadata := map[string]interface{}{}
 	for key, metadata := range p.AppealMetadataSources {
 		key, metadata := key, metadata
@@ -1212,14 +1213,18 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 				if err != nil {
 					return fmt.Errorf("error parsing value: %w", err)
 				}
+				mu.Lock()
 				appealMetadata[key] = value
+				mu.Unlock()
 			case "static":
 				params := map[string]interface{}{"appeal": a}
 				value, err := metadata.EvaluateValue(params)
 				if err != nil {
 					return fmt.Errorf("error parsing value: %w", err)
 				}
+				mu.Lock()
 				appealMetadata[key] = value
+				mu.Unlock()
 			default:
 				return fmt.Errorf("invalid metadata source type")
 			}
