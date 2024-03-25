@@ -9,3 +9,7 @@ func TestAppealMetadataSource_EncryptConfig(t *testing.T) {
 func TestAppealMetadataSource_DecryptConfig(t *testing.T) {
 	t.Skip("TODO: implement")
 }
+
+func TestAppealMetadataSource_EvaluateValue(t *testing.T) {
+	t.Skip("TODO: implement")
+}

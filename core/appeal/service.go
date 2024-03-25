@@ -1208,14 +1208,14 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 					"response": responseMap,
 					"appeal":   a,
 				}
-				value, err := s.getMetadataValue(metadata.Value, params)
+				value, err := metadata.EvaluateValue(params)
 				if err != nil {
 					return fmt.Errorf("error parsing value: %w", err)
 				}
 				appealMetadata[key] = value
 			case "static":
 				params := map[string]interface{}{"appeal": a}
-				value, err := s.getMetadataValue(metadata.Value, params)
+				value, err := metadata.EvaluateValue(params)
 				if err != nil {
 					return fmt.Errorf("error parsing value: %w", err)
 				}
@@ -1235,43 +1235,6 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 	a.Details[PolicyMetadataKey] = appealMetadata
 
 	return nil
-}
-
-func (s *Service) getMetadataValue(value interface{}, params map[string]interface{}) (interface{}, error) {
-	switch value := value.(type) {
-	case string:
-		if strings.HasPrefix(value, "$appeal") || strings.HasPrefix(value, "$response") {
-			result, err := evaluator.Expression(value).EvaluateWithVars(params)
-			if err != nil {
-				return nil, err
-			}
-			return result, nil
-		} else {
-			return value, nil
-		}
-	case map[string]interface{}: // TODO: handle map[string]int and other types
-		mapResult := map[string]interface{}{}
-		for key, val := range value {
-			processedVal, err := s.getMetadataValue(val, params)
-			if err != nil {
-				return nil, err
-			}
-			mapResult[key] = processedVal
-		}
-		return mapResult, nil
-	case []interface{}: // TODO: handle []int and other types
-		arrayResult := make([]interface{}, len(value))
-		for i, val := range value {
-			processedVal, err := s.getMetadataValue(val, params)
-			if err != nil {
-				return nil, err
-			}
-			arrayResult[i] = processedVal
-		}
-		return arrayResult, nil
-	default:
-		return value, nil
-	}
 }
 
 func (s *Service) addCreatorDetails(ctx context.Context, a *domain.Appeal, p *domain.Policy) error {
