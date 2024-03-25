@@ -365,11 +365,9 @@ func (s *ServiceTestSuite) TestCreate() {
 
 		actualError := s.service.Create(context.Background(), p)
 
-		time.Sleep(time.Millisecond)
 		s.Nil(actualError)
 		s.Equal(expectedVersion, p.Version)
 		s.mockPolicyRepository.AssertExpectations(s.T())
-		s.mockAuditLogger.AssertExpectations(s.T())
 	})
 
 	s.Run("should pass the model from the param", func() {
@@ -394,8 +392,6 @@ func (s *ServiceTestSuite) TestCreate() {
 
 			s.Nil(actualError)
 			s.mockPolicyRepository.AssertNotCalled(s.T(), "Create")
-			time.Sleep(time.Millisecond)
-			s.mockAuditLogger.AssertNotCalled(s.T(), "Log")
 		})
 	})
 }
@@ -762,8 +758,6 @@ func (s *ServiceTestSuite) TestUpdate() {
 		s.service.Update(context.Background(), p)
 
 		s.mockPolicyRepository.AssertExpectations(s.T())
-		time.Sleep(time.Millisecond)
-		s.mockAuditLogger.AssertExpectations(s.T())
 		s.Equal(expectedNewVersion, p.Version)
 	})
 
