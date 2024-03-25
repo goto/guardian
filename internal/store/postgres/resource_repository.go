@@ -74,7 +74,8 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) *gorm.D
 		// Otherwise, it will be wrapped in parentheses and the query will be invalid.
 		db = db.Where(db.
 			Where(`LOWER("urn") LIKE ?`, fmt.Sprintf("%%%s%%", strings.ToLower(filter.Q))).
-			Or(`LOWER("name") LIKE ?`, fmt.Sprintf("%%%s%%", strings.ToLower(filter.Q))),
+			Or(`LOWER("name") LIKE ?`, fmt.Sprintf("%%%s%%", strings.ToLower(filter.Q))).
+			Or(`LOWER("global_urn") LIKE ?`, fmt.Sprintf("%%%s%%", strings.ToLower(filter.Q))),
 		)
 	}
 	if filter.IDs != nil {
