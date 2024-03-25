@@ -1143,7 +1143,7 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 		return nil
 	}
 
-	eg, _ := errgroup.WithContext(ctx)
+	eg, egctx := errgroup.WithContext(ctx)
 	var mu sync.Mutex
 	appealMetadata := map[string]interface{}{}
 	for key, metadata := range p.AppealMetadataSources {
@@ -1181,7 +1181,7 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 					return fmt.Errorf("key: %s, %w", key, err)
 				}
 
-				res, err := metadataCl.MakeRequest()
+				res, err := metadataCl.MakeRequest(egctx)
 				if err != nil || (res.StatusCode < 200 && res.StatusCode > 300) {
 					if !cfg.AllowFailed {
 						return fmt.Errorf("error fetching resource: %w", err)

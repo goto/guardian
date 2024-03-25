@@ -112,12 +112,12 @@ func (c *HTTPClient) setAuth(req *http.Request) {
 	}
 }
 
-func (c *HTTPClient) MakeRequest() (*http.Response, error) {
+func (c *HTTPClient) MakeRequest(ctx context.Context) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, c.config.URL, nil)
 	if err != nil {
 		return nil, err
 	}
-
+	req = req.WithContext(ctx)
 	req.Header.Set("Accept", "application/json")
 
 	for k, v := range c.config.Headers {
