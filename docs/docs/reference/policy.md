@@ -17,7 +17,7 @@ steps:
     strategy: manual
     approvers:
       - $appeal.resource.details.owner
-appeal_config:
+appeal:
   duration_options:
     - name: 1 Day
       value: 24h
@@ -68,7 +68,7 @@ requirements:
 | `id`            | `string`                                | Policy unique identifier                                              | YES      |
 | `version`       | `uint`                                  | Auto increment value. Keeping the                                     | NO       |
 | `steps`         | [`[]object(Step)`](#step)               | Sequence of approval steps                                            | YES      |
-| `appeal_config` | [`object(PolicyAppealConfig)`](#policyappealconfig)            | appeal configuration options                                          | NO       |
+| `appeal` | [`object(PolicyAppealConfig)`](#policyappealconfig)            | appeal configuration options                                          | NO       |
 | `iam`           | [`object(IAM)`](#iam)                   | Identity manager configuration for client and identity/creator schema | NO       |
 | `requirements`  | [`[]object(Requirement)`](#requirement) | Additional appeals                                                    | YES      |
 

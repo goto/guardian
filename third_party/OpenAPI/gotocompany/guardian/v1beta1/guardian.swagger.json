@@ -2055,6 +2055,22 @@
         }
       }
     },
+    "PolicyAppealConfigMetadataSource": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "config": {},
+        "value": {}
+      }
+    },
     "PolicyAppealConfigQuestion": {
       "type": "object",
       "properties": {
@@ -2070,22 +2086,6 @@
         "description": {
           "type": "string"
         }
-      }
-    },
-    "PolicyAppealMetadataSource": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string"
-        },
-        "config": {},
-        "value": {}
       }
     },
     "PolicyApprovalStep": {
@@ -3035,12 +3035,6 @@
         },
         "appeal": {
           "$ref": "#/definitions/v1beta1PolicyAppealConfig"
-        },
-        "appealMetadataSources": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/PolicyAppealMetadataSource"
-          }
         }
       },
       "title": "Policy is a configurable steps for appeal's approval"
@@ -3073,6 +3067,12 @@
         },
         "allowCreatorDetailsFailure": {
           "type": "boolean"
+        },
+        "metadataSources": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/PolicyAppealConfigMetadataSource"
+          }
         }
       }
     },

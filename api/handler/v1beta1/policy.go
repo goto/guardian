@@ -117,7 +117,10 @@ func (s *GRPCServer) GetPolicyPreferences(ctx context.Context, req *guardianv1be
 		}
 	}
 
-	appealConfigProto := s.adapter.ToPolicyAppealConfigProto(p)
+	appealConfigProto, err := s.adapter.ToPolicyAppealConfigProto(p)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to parse policy preferences: %v", err)
+	}
 
 	return &guardianv1beta1.GetPolicyPreferencesResponse{
 		Appeal: appealConfigProto,

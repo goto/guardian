@@ -311,6 +311,7 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 	if p.GetAppeal() != nil {
 		var durationOptions []domain.AppealDurationOption
 		var questions []domain.Question
+		var metadataSources map[string]*domain.AppealMetadataSource
 		for _, d := range p.GetAppeal().GetDurationOptions() {
 			option := domain.AppealDurationOption{
 				Name:  d.GetName(),
@@ -328,6 +329,19 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 			questions = append(questions, question)
 		}
 
+		if mds := p.GetAppeal().GetMetadataSources(); mds != nil {
+			metadataSources = make(map[string]*domain.AppealMetadataSource)
+			for key, metadataCfg := range mds {
+				metadataSources[key] = &domain.AppealMetadataSource{
+					Name:        metadataCfg.GetName(),
+					Description: metadataCfg.GetDescription(),
+					Type:        metadataCfg.GetType(),
+					Config:      metadataCfg.GetConfig().AsInterface(),
+					Value:       metadataCfg.GetValue().AsInterface(),
+				}
+			}
+		}
+
 		policy.AppealConfig = &domain.PolicyAppealConfig{
 			DurationOptions:              durationOptions,
 			AllowOnBehalf:                p.GetAppeal().GetAllowOnBehalf(),
@@ -335,20 +349,7 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 			AllowPermanentAccess:         p.GetAppeal().GetAllowPermanentAccess(),
 			AllowActiveAccessExtensionIn: p.GetAppeal().GetAllowActiveAccessExtensionIn(),
 			AllowCreatorDetailsFailure:   p.GetAppeal().GetAllowCreatorDetailsFailure(),
-		}
-	}
-
-	if mdSources := p.GetAppealMetadataSources(); mdSources != nil {
-		policy.AppealMetadataSources = map[string]*domain.AppealMetadataSource{}
-
-		for key, mdSource := range p.GetAppealMetadataSources() {
-			policy.AppealMetadataSources[key] = &domain.AppealMetadataSource{
-				Name:        mdSource.GetName(),
-				Description: mdSource.GetDescription(),
-				Type:        mdSource.GetType(),
-				Config:      mdSource.GetConfig().AsInterface(),
-				Value:       mdSource.GetValue().AsInterface(),
-			}
+			MetadataSources:              metadataSources,
 		}
 	}
 
@@ -458,30 +459,11 @@ func (a *adapter) ToPolicyProto(p *domain.Policy) (*guardianv1beta1.Policy, erro
 		}
 	}
 
-	policyProto.Appeal = a.ToPolicyAppealConfigProto(p)
-
-	if p.AppealMetadataSources != nil {
-		policyProto.AppealMetadataSources = map[string]*guardianv1beta1.Policy_AppealMetadataSource{}
-
-		for key, mdSource := range p.AppealMetadataSources {
-			cfg, err := structpb.NewValue(mdSource.Config)
-			if err != nil {
-				return nil, err
-			}
-			value, err := structpb.NewValue(mdSource.Value)
-			if err != nil {
-				return nil, err
-			}
-
-			policyProto.AppealMetadataSources[key] = &guardianv1beta1.Policy_AppealMetadataSource{
-				Name:        mdSource.Name,
-				Description: mdSource.Description,
-				Type:        mdSource.Type,
-				Config:      cfg,
-				Value:       value,
-			}
-		}
+	appealConfig, err := a.ToPolicyAppealConfigProto(p)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert appeal config to proto: %w", err)
 	}
+	policyProto.Appeal = appealConfig
 
 	if !p.CreatedAt.IsZero() {
 		policyProto.CreatedAt = timestamppb.New(p.CreatedAt)
@@ -493,9 +475,9 @@ func (a *adapter) ToPolicyProto(p *domain.Policy) (*guardianv1beta1.Policy, erro
 	return policyProto, nil
 }
 
-func (a *adapter) ToPolicyAppealConfigProto(p *domain.Policy) *guardianv1beta1.PolicyAppealConfig {
+func (a *adapter) ToPolicyAppealConfigProto(p *domain.Policy) (*guardianv1beta1.PolicyAppealConfig, error) {
 	if p.AppealConfig == nil {
-		return nil
+		return nil, nil
 	}
 
 	policyAppealConfigProto := &guardianv1beta1.PolicyAppealConfig{}
@@ -522,7 +504,29 @@ func (a *adapter) ToPolicyAppealConfigProto(p *domain.Policy) *guardianv1beta1.P
 			Description: q.Description,
 		})
 	}
-	return policyAppealConfigProto
+
+	for key, metadataSource := range p.AppealConfig.MetadataSources {
+		cfg, err := structpb.NewValue(metadataSource.Config)
+		if err != nil {
+			return nil, err
+		}
+		value, err := structpb.NewValue(metadataSource.Value)
+		if err != nil {
+			return nil, err
+		}
+		if policyAppealConfigProto.MetadataSources == nil {
+			policyAppealConfigProto.MetadataSources = make(map[string]*guardianv1beta1.PolicyAppealConfig_MetadataSource)
+		}
+		policyAppealConfigProto.MetadataSources[key] = &guardianv1beta1.PolicyAppealConfig_MetadataSource{
+			Name:        metadataSource.Name,
+			Description: metadataSource.Description,
+			Type:        metadataSource.Type,
+			Config:      cfg,
+			Value:       value,
+		}
+	}
+
+	return policyAppealConfigProto, nil
 }
 
 func (a *adapter) FromResourceProto(r *guardianv1beta1.Resource) *domain.Resource {

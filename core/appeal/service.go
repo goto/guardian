@@ -1139,14 +1139,14 @@ func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[
 }
 
 func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, p *domain.Policy) error {
-	if p.AppealMetadataSources == nil {
+	if !p.HasAppealMetadataSources() {
 		return nil
 	}
 
 	eg, egctx := errgroup.WithContext(ctx)
 	var mu sync.Mutex
 	appealMetadata := map[string]interface{}{}
-	for key, metadata := range p.AppealMetadataSources {
+	for key, metadata := range p.AppealConfig.MetadataSources {
 		key, metadata := key, metadata
 		eg.Go(func() error {
 			switch metadata.Type {

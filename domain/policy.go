@@ -285,17 +285,16 @@ type Requirement struct {
 
 // Policy is the approval policy configuration
 type Policy struct {
-	ID                    string                           `json:"id" yaml:"id" validate:"required"`
-	Version               uint                             `json:"version" yaml:"version" validate:"required"`
-	Description           string                           `json:"description" yaml:"description"`
-	Steps                 []*Step                          `json:"steps" yaml:"steps" validate:"required,min=1,dive"`
-	AppealConfig          *PolicyAppealConfig              `json:"appeal_config" yaml:"appeal_config" validate:"omitempty,dive"`
-	Requirements          []*Requirement                   `json:"requirements,omitempty" yaml:"requirements,omitempty" validate:"omitempty,min=1,dive"`
-	Labels                map[string]string                `json:"labels,omitempty" yaml:"labels,omitempty"`
-	IAM                   *IAMConfig                       `json:"iam,omitempty" yaml:"iam,omitempty" validate:"omitempty,dive"`
-	CreatedAt             time.Time                        `json:"created_at,omitempty" yaml:"created_at,omitempty"`
-	UpdatedAt             time.Time                        `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
-	AppealMetadataSources map[string]*AppealMetadataSource `json:"appeal_metadata_sources,omitempty" yaml:"appeal_metadata_sources,omitempty"`
+	ID           string              `json:"id" yaml:"id" validate:"required"`
+	Version      uint                `json:"version" yaml:"version" validate:"required"`
+	Description  string              `json:"description" yaml:"description"`
+	Steps        []*Step             `json:"steps" yaml:"steps" validate:"required,min=1,dive"`
+	AppealConfig *PolicyAppealConfig `json:"appeal" yaml:"appeal" validate:"omitempty,dive"`
+	Requirements []*Requirement      `json:"requirements,omitempty" yaml:"requirements,omitempty" validate:"omitempty,min=1,dive"`
+	Labels       map[string]string   `json:"labels,omitempty" yaml:"labels,omitempty"`
+	IAM          *IAMConfig          `json:"iam,omitempty" yaml:"iam,omitempty" validate:"omitempty,dive"`
+	CreatedAt    time.Time           `json:"created_at,omitempty" yaml:"created_at,omitempty"`
+	UpdatedAt    time.Time           `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
 }
 
 type PolicyAppealConfig struct {
@@ -309,7 +308,8 @@ type PolicyAppealConfig struct {
 	// value of `creator` field in the appeal will be nil.
 	// Note: any expression that tries to access `$appeal.creator.*` is still evaluated as usual, it might need to have
 	// proper nil checking to avoid accessing nil value.
-	AllowCreatorDetailsFailure bool `json:"allow_creator_details_failure" yaml:"allow_creator_details_failure"`
+	AllowCreatorDetailsFailure bool                             `json:"allow_creator_details_failure" yaml:"allow_creator_details_failure"`
+	MetadataSources            map[string]*AppealMetadataSource `json:"metadata_sources,omitempty" yaml:"metadata_sources,omitempty"`
 }
 
 type Question struct {
@@ -334,5 +334,5 @@ func (p *Policy) HasIAMConfig() bool {
 }
 
 func (p *Policy) HasAppealMetadataSources() bool {
-	return p.AppealMetadataSources != nil
+	return p.AppealConfig != nil && p.AppealConfig.MetadataSources != nil
 }
