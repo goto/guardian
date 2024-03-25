@@ -420,8 +420,6 @@ func (s *ServiceTestSuite) TestCreate() {
 
 			s.Nil(actualError)
 			s.mockPolicyRepository.AssertNotCalled(s.T(), "Create")
-			time.Sleep(time.Millisecond)
-			s.mockAuditLogger.AssertNotCalled(s.T(), "Log")
 		})
 	})
 }

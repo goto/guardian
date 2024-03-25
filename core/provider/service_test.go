@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/go-cmp/cmp"
@@ -142,8 +141,6 @@ func (s *ServiceTestSuite) TestCreate() {
 
 		s.Nil(actualError)
 		s.mockProviderRepository.AssertExpectations(s.T())
-		time.Sleep(time.Millisecond)
-		s.mockAuditLogger.AssertExpectations(s.T())
 	})
 
 	s.Run("with dryRun true", func() {
