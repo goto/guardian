@@ -115,7 +115,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 			},
 			{
 				name:           "search by global urn",
-				filters:        domain.ListResourcesFilter{Q: "global_urn_2"},
+				filters:        domain.ListResourcesFilter{Q: "GLOBAL_URN_2"},
 				expectedResult: []*domain.Resource{dummyResources[1]},
 			},
 			{
