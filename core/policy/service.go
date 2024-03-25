@@ -157,7 +157,7 @@ func (s *Service) Find(ctx context.Context) ([]*domain.Policy, error) {
 			}
 		}
 
-		if p.AppealMetadataSources != nil {
+		if p.HasAppealMetadataSources() {
 			err := s.decryptAppealMetadata(p)
 			if err != nil {
 				return nil, err
@@ -258,7 +258,10 @@ func (s *Service) Update(ctx context.Context, p *domain.Policy) error {
 }
 
 func (s *Service) encryptAppealMetadata(p *domain.Policy) error {
-	for _, sourceCfg := range p.AppealMetadataSources {
+	if p.AppealConfig == nil {
+		return nil
+	}
+	for _, sourceCfg := range p.AppealConfig.MetadataSources {
 		if err := sourceCfg.EncryptConfig(s.crypto); err != nil {
 			return err
 		}
@@ -267,7 +270,10 @@ func (s *Service) encryptAppealMetadata(p *domain.Policy) error {
 }
 
 func (s *Service) decryptAppealMetadata(p *domain.Policy) error {
-	for _, sourceCfg := range p.AppealMetadataSources {
+	if p.AppealConfig == nil {
+		return nil
+	}
+	for _, sourceCfg := range p.AppealConfig.MetadataSources {
 		if err := sourceCfg.DecryptConfig(s.crypto); err != nil {
 			return err
 		}
@@ -331,7 +337,7 @@ func (s *Service) validatePolicy(ctx context.Context, p *domain.Policy, excluded
 	}
 
 	if p.HasAppealMetadataSources() {
-		for key, metadataSource := range p.AppealMetadataSources {
+		for key, metadataSource := range p.AppealConfig.MetadataSources {
 			if err := s.validateAppealMetadataSource(ctx, metadataSource); err != nil {
 				return fmt.Errorf("invalid appeal metadata source: %s : %w", key, err)
 			}
