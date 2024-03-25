@@ -1208,14 +1208,14 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 					"response": responseMap,
 					"appeal":   a,
 				}
-				value, err := s.getMetadataValue(metadata.Type, key, metadata.Value, params)
+				value, err := s.getMetadataValue(metadata.Value, params)
 				if err != nil {
 					return fmt.Errorf("error parsing value: %w", err)
 				}
 				appealMetadata[key] = value
 			case "static":
 				params := map[string]interface{}{"appeal": a}
-				value, err := s.getMetadataValue(metadata.Type, key, metadata.Value, params)
+				value, err := s.getMetadataValue(metadata.Value, params)
 				if err != nil {
 					return fmt.Errorf("error parsing value: %w", err)
 				}
@@ -1237,39 +1237,41 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 	return nil
 }
 
-func (s *Service) getMetadataValue(metadataType string, key string, value interface{}, params map[string]interface{}) (interface{}, error) {
-	result := make(map[string]interface{})
-
-	switch v := value.(type) {
+func (s *Service) getMetadataValue(value interface{}, params map[string]interface{}) (interface{}, error) {
+	switch value := value.(type) {
 	case string:
-		if strings.HasPrefix(v, "$appeal") || (metadataType == "http" && strings.HasPrefix(v, "$response")) {
-			finalVal, err := evaluator.Expression(v).EvaluateWithVars(params)
+		if strings.HasPrefix(value, "$appeal") || strings.HasPrefix(value, "$response") {
+			result, err := evaluator.Expression(value).EvaluateWithVars(params)
 			if err != nil {
 				return nil, err
 			}
-			result[key] = finalVal
+			return result, nil
 		} else {
-			result[key] = v
+			return value, nil
 		}
-	case map[string]interface{}:
-		for key, val := range v {
-			processedVal, err := s.getMetadataValue(metadataType, key, val, params)
+	case map[string]interface{}: // TODO: handle map[string]int and other types
+		mapResult := map[string]interface{}{}
+		for key, val := range value {
+			processedVal, err := s.getMetadataValue(val, params)
 			if err != nil {
 				return nil, err
 			}
-			result[key] = processedVal
+			mapResult[key] = processedVal
 		}
-	case interface{}:
-		processedVal, err := s.getMetadataValue(metadataType, key, v, params)
-		if err != nil {
-			return nil, err
+		return mapResult, nil
+	case []interface{}: // TODO: handle []int and other types
+		arrayResult := make([]interface{}, len(value))
+		for i, val := range value {
+			processedVal, err := s.getMetadataValue(val, params)
+			if err != nil {
+				return nil, err
+			}
+			arrayResult[i] = processedVal
 		}
-		result[key] = processedVal
+		return arrayResult, nil
 	default:
-		return nil, fmt.Errorf("unsupported value type")
+		return value, nil
 	}
-
-	return result, nil
 }
 
 func (s *Service) addCreatorDetails(ctx context.Context, a *domain.Appeal, p *domain.Policy) error {
