@@ -25,7 +25,8 @@ func (s *GrpcHandlersSuite) TestListPolicies() {
 				{
 					Id: "test-policy",
 					Iam: &guardianv1beta1.Policy_IAM{
-						Config: expectedIAMConfig,
+						Config:   expectedIAMConfig,
+						Provider: "provider",
 					},
 				},
 			},
@@ -34,9 +35,31 @@ func (s *GrpcHandlersSuite) TestListPolicies() {
 			{
 				ID: "test-policy",
 				IAM: &domain.IAMConfig{
-					Config: map[string]interface{}{"foo": "bar"},
+					Config:   map[string]interface{}{"foo": "bar"},
+					Provider: "provider",
 				},
 			},
+		}
+		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(dummyPolicies, nil).Once()
+
+		req := &guardianv1beta1.ListPoliciesRequest{}
+		res, err := s.grpcServer.ListPolicies(context.Background(), req)
+
+		s.NoError(err)
+		s.Equal(expectedResponse, res)
+		s.policyService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return list of policies on success with IAM nil", func() {
+		s.setup()
+
+		expectedResponse := &guardianv1beta1.ListPoliciesResponse{
+			Policies: []*guardianv1beta1.Policy{
+				{Id: "test-policy"},
+			},
+		}
+		dummyPolicies := []*domain.Policy{
+			{ID: "test-policy"}, // iam is nil
 		}
 		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(dummyPolicies, nil).Once()
 
@@ -103,6 +126,119 @@ func (s *GrpcHandlersSuite) TestGetPolicy() {
 			IAM: &domain.IAMConfig{
 				Provider: "slack",
 				Config:   map[string]interface{}{"foo": "bar"},
+				Schema:   map[string]string{"foo": "bar"},
+			},
+			AppealConfig: &domain.PolicyAppealConfig{
+				DurationOptions: []domain.AppealDurationOption{
+					{Name: "1 Day", Value: "24h"},
+					{Name: "3 Days", Value: "72h"},
+				},
+			},
+			CreatedAt: timeNow,
+			UpdatedAt: timeNow,
+		}
+		expectedIAMConfig, err := structpb.NewValue(nil)
+		s.Require().NoError(err)
+		expectedResponse := &guardianv1beta1.GetPolicyResponse{
+			Policy: &guardianv1beta1.Policy{
+				Id:          dummyPolicy.ID,
+				Version:     uint32(dummyPolicy.Version),
+				Description: dummyPolicy.Description,
+				Steps: []*guardianv1beta1.Policy_ApprovalStep{
+					{
+						Name:            "test-approval-step",
+						Description:     "test-description",
+						Strategy:        "auto",
+						ApproveIf:       "true",
+						RejectionReason: "test-rejection-message",
+					},
+				},
+				Requirements: []*guardianv1beta1.Policy_Requirement{
+					{
+						On: &guardianv1beta1.Policy_Requirement_RequirementTrigger{
+							ProviderType: "test-provider-type",
+						},
+						Appeals: []*guardianv1beta1.Policy_Requirement_AdditionalAppeal{
+							{
+								Resource: &guardianv1beta1.Policy_Requirement_AdditionalAppeal_ResourceIdentifier{
+									Id: "test-resource-id",
+								},
+								Role: "test-role",
+								Policy: &guardianv1beta1.PolicyConfig{
+									Id:      "test-policy",
+									Version: 1,
+								},
+							},
+						},
+					},
+				},
+				Iam: &guardianv1beta1.Policy_IAM{
+					Provider: "slack",
+					Config:   expectedIAMConfig,
+					Schema:   dummyPolicy.IAM.Schema,
+				},
+				Appeal: &guardianv1beta1.PolicyAppealConfig{
+					DurationOptions: []*guardianv1beta1.PolicyAppealConfig_DurationOptions{
+						{Name: "1 Day", Value: "24h"},
+						{Name: "3 Days", Value: "72h"},
+					},
+				},
+				CreatedAt: timestamppb.New(timeNow),
+				UpdatedAt: timestamppb.New(timeNow),
+			},
+		}
+		s.policyService.EXPECT().GetOne(mock.MatchedBy(func(ctx context.Context) bool { return true }), "test-policy", uint(1)).
+			Return(dummyPolicy, nil).Once()
+
+		req := &guardianv1beta1.GetPolicyRequest{
+			Id:      "test-policy",
+			Version: 1,
+		}
+		res, err := s.grpcServer.GetPolicy(context.Background(), req)
+
+		s.NoError(err)
+		s.Equal(expectedResponse, res)
+		s.policyService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return policy details on success with IAM nil", func() {
+		s.setup()
+		timeNow := time.Now()
+
+		dummyPolicy := &domain.Policy{
+			ID:          "test-policy",
+			Version:     1,
+			Description: "test-description",
+			Steps: []*domain.Step{
+				{
+					Name:            "test-approval-step",
+					Description:     "test-description",
+					Strategy:        "auto",
+					ApproveIf:       "true",
+					RejectionReason: "test-rejection-message",
+				},
+			},
+			Requirements: []*domain.Requirement{
+				{
+					On: &domain.RequirementTrigger{
+						ProviderType: "test-provider-type",
+					},
+					Appeals: []*domain.AdditionalAppeal{
+						{
+							Resource: &domain.ResourceIdentifier{
+								ID: "test-resource-id",
+							},
+							Role: "test-role",
+							Policy: &domain.PolicyConfig{
+								ID:      "test-policy",
+								Version: 1,
+							},
+						},
+					},
+				},
+			},
+			IAM: &domain.IAMConfig{
+				Provider: "slack",
 				Schema:   map[string]string{"foo": "bar"},
 			},
 			AppealConfig: &domain.PolicyAppealConfig{
