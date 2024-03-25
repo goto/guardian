@@ -191,7 +191,6 @@ func (s *AppealRepositoryTestSuite) TestGetByID() {
 }
 
 func (s *AppealRepositoryTestSuite) TestGetAppealsTotalCount() {
-
 	dummyAppeals := []*domain.Appeal{
 		{
 			ResourceID:    s.dummyResource.ID,

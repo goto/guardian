@@ -36,7 +36,7 @@ func (c *AppealMetadataSource) DecryptConfig(dec Decryptor) error {
 	if !ok {
 		return fmt.Errorf("invalid config type: %T, expected string", c.Config)
 	}
-	decryptedConfig, err := dec.Decrypt(string(configStr))
+	decryptedConfig, err := dec.Decrypt(configStr)
 	if err != nil {
 		return err
 	}
