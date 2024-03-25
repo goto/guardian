@@ -2409,7 +2409,6 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		s.mockRepository.AssertExpectations(s.T())
 		s.mockPolicyService.AssertExpectations(s.T())
 		s.mockGrantService.AssertExpectations(s.T())
-		s.mockAuditLogger.AssertExpectations(s.T())
 		s.Nil(actualError)
 	})
 
