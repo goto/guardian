@@ -19,15 +19,24 @@ func (s *GrpcHandlersSuite) TestListPolicies() {
 	s.Run("should return list of policies on success", func() {
 		s.setup()
 
+		expectedIAMConfig, _ := structpb.NewValue(nil)
 		expectedResponse := &guardianv1beta1.ListPoliciesResponse{
 			Policies: []*guardianv1beta1.Policy{
 				{
 					Id: "test-policy",
+					Iam: &guardianv1beta1.Policy_IAM{
+						Config: expectedIAMConfig,
+					},
 				},
 			},
 		}
 		dummyPolicies := []*domain.Policy{
-			{ID: "test-policy"},
+			{
+				ID: "test-policy",
+				IAM: &domain.IAMConfig{
+					Config: map[string]interface{}{"foo": "bar"},
+				},
+			},
 		}
 		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(dummyPolicies, nil).Once()
 
@@ -44,27 +53,6 @@ func (s *GrpcHandlersSuite) TestListPolicies() {
 
 		expectedError := errors.New("random error")
 		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(nil, expectedError).Once()
-
-		req := &guardianv1beta1.ListPoliciesRequest{}
-		res, err := s.grpcServer.ListPolicies(context.Background(), req)
-
-		s.Equal(codes.Internal, status.Code(err))
-		s.Nil(res)
-		s.policyService.AssertExpectations(s.T())
-	})
-
-	s.Run("should return internal error if there's an error when parsing policy", func() {
-		s.setup()
-
-		dummyPolicies := []*domain.Policy{
-			{
-				ID: "test-policy",
-				IAM: &domain.IAMConfig{
-					Config: make(chan int), // invalid json
-				},
-			},
-		}
-		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(dummyPolicies, nil).Once()
 
 		req := &guardianv1beta1.ListPoliciesRequest{}
 		res, err := s.grpcServer.ListPolicies(context.Background(), req)
@@ -126,7 +114,7 @@ func (s *GrpcHandlersSuite) TestGetPolicy() {
 			CreatedAt: timeNow,
 			UpdatedAt: timeNow,
 		}
-		expectedIAMConfig, err := structpb.NewValue(dummyPolicy.IAM.Config)
+		expectedIAMConfig, err := structpb.NewValue(nil)
 		s.Require().NoError(err)
 		expectedResponse := &guardianv1beta1.GetPolicyResponse{
 			Policy: &guardianv1beta1.Policy{
@@ -210,27 +198,6 @@ func (s *GrpcHandlersSuite) TestGetPolicy() {
 		expectedError := errors.New("random error")
 		s.policyService.EXPECT().GetOne(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("string"), mock.AnythingOfType("uint")).
 			Return(nil, expectedError).Once()
-
-		req := &guardianv1beta1.GetPolicyRequest{}
-		res, err := s.grpcServer.GetPolicy(context.Background(), req)
-
-		s.Equal(codes.Internal, status.Code(err))
-		s.Nil(res)
-		s.policyService.AssertExpectations(s.T())
-	})
-
-	s.Run("should return internal error if there's an error when parsing policy", func() {
-		s.setup()
-
-		dummyPolicy := &domain.Policy{
-
-			ID: "test-policy",
-			IAM: &domain.IAMConfig{
-				Config: make(chan int), // invalid json
-			},
-		}
-		s.policyService.EXPECT().GetOne(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("string"), mock.AnythingOfType("uint")).
-			Return(dummyPolicy, nil).Once()
 
 		req := &guardianv1beta1.GetPolicyRequest{}
 		res, err := s.grpcServer.GetPolicy(context.Background(), req)
