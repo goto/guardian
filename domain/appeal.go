@@ -265,6 +265,10 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 	return nil
 }
 
+func (a *Appeal) ToMap() (map[string]interface{}, error) {
+	return utils.StructToMap(a)
+}
+
 type ApprovalActionType string
 
 const (

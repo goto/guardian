@@ -1157,6 +1157,22 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 				if cfg.URL == "" {
 					return fmt.Errorf("URL cannot be empty for http type")
 				}
+				if strings.Contains(cfg.URL, "$appeal") {
+					appealMap, err := a.ToMap()
+					if err != nil {
+						return fmt.Errorf("error converting appeal to map: %w", err)
+					}
+					params := map[string]interface{}{"appeal": appealMap}
+					url, err := evaluator.Expression(cfg.URL).EvaluateWithVars(params)
+					if err != nil {
+						return fmt.Errorf("error evaluating URL expression: %w", err)
+					}
+					urlStr, ok := url.(string)
+					if !ok {
+						return fmt.Errorf("URL expression must evaluate to a string")
+					}
+					cfg.URL = urlStr
+				}
 
 				metadataCl, err := http.NewHTTPClient(&cfg.HTTPClientConfig)
 				if err != nil {
