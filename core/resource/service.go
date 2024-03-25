@@ -78,9 +78,11 @@ func (s *Service) BulkUpsert(ctx context.Context, resources []*domain.Resource) 
 		return err
 	}
 
-	if err := s.auditLogger.Log(ctx, AuditKeyResoruceBulkUpsert, resources); err != nil {
-		s.logger.Error(ctx, "failed to record audit log", "error", err)
-	}
+	go func() {
+		if err := s.auditLogger.Log(ctx, AuditKeyResoruceBulkUpsert, resources); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
 
 	return nil
 }
@@ -119,9 +121,11 @@ func (s *Service) Update(ctx context.Context, r *domain.Resource) error {
 
 	r.UpdatedAt = res.UpdatedAt
 
-	if err := s.auditLogger.Log(ctx, AuditKeyResourceUpdate, r); err != nil {
-		s.logger.Error(ctx, "failed to record audit log", "error", err)
-	}
+	go func() {
+		if err := s.auditLogger.Log(ctx, AuditKeyResourceUpdate, r); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
 
 	return nil
 }
@@ -160,9 +164,11 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	}
 	s.logger.Info(ctx, "resource deleted", "resource", id)
 
-	if err := s.auditLogger.Log(ctx, AuditKeyResourceDelete, map[string]interface{}{"id": id}); err != nil {
-		s.logger.Error(ctx, "failed to record audit log", "error", err)
-	}
+	go func() {
+		if err := s.auditLogger.Log(ctx, AuditKeyResourceDelete, map[string]interface{}{"id": id}); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
 
 	return nil
 }
@@ -174,9 +180,11 @@ func (s *Service) BatchDelete(ctx context.Context, ids []string) error {
 	}
 	s.logger.Info(ctx, "resources deleted", "resources", len(ids))
 
-	if err := s.auditLogger.Log(ctx, AuditKeyResourceBatchDelete, map[string]interface{}{"ids": ids}); err != nil {
-		s.logger.Error(ctx, "failed to record audit log", "error", err)
-	}
+	go func() {
+		if err := s.auditLogger.Log(ctx, AuditKeyResourceBatchDelete, map[string]interface{}{"ids": ids}); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
 
 	return nil
 }
