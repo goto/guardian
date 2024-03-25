@@ -3177,6 +3177,30 @@ func (s *ServiceTestSuite) TestAddApprover() {
 		s.ErrorIs(err, expectedError)
 		s.mockRepository.AssertExpectations(s.T())
 	})
+
+	s.Run("should return error if the new approver is already exist on the current approval", func() {
+		expectedError := appeal.ErrUnableToAddApprover
+		approvalID := uuid.New().String()
+		expectedAppeal := &domain.Appeal{
+			Status: domain.AppealStatusPending,
+			Approvals: []*domain.Approval{
+				{
+					ID:        approvalID,
+					Status:    domain.ApprovalStatusPending,
+					Approvers: []string{"existing.approver@example.com"},
+				},
+			},
+		}
+		s.mockRepository.EXPECT().
+			GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
+			Return(expectedAppeal, nil).Once()
+
+		appeal, err := s.service.AddApprover(context.Background(), uuid.New().String(), approvalID, "existing.approver@example.com")
+
+		s.Nil(appeal)
+		s.ErrorIs(err, expectedError)
+		s.mockRepository.AssertExpectations(s.T())
+	})
 }
 
 func (s *ServiceTestSuite) TestDeleteApprover() {
