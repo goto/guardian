@@ -8,23 +8,12 @@ import (
 	"time"
 )
 
-const RetryCount = 3
-
-type retryableTransport struct {
-	transport http.RoundTripper
+type RetryableTransport struct {
+	Transport  http.RoundTripper
+	RetryCount int
 }
 
-func NewRetryableClient() *http.Client {
-	transport := &retryableTransport{
-		transport: &http.Transport{},
-	}
-
-	return &http.Client{
-		Transport: transport,
-	}
-}
-
-func (t *retryableTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *RetryableTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Clone the request body
 	var bodyBytes []byte
 	if req.Body != nil {
@@ -32,10 +21,10 @@ func (t *retryableTransport) RoundTrip(req *http.Request) (*http.Response, error
 		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 	}
 	// Send the request
-	resp, err := t.transport.RoundTrip(req)
+	resp, err := t.Transport.RoundTrip(req)
 	// Retry logic
 	retries := 0
-	for shouldRetry(err, resp) && retries < RetryCount {
+	for shouldRetry(err, resp) && retries < t.RetryCount {
 		// Wait for the specified backoff period
 		time.Sleep(backoff(retries))
 		// We're going to retry, consume any response to reuse the connection.
@@ -45,7 +34,7 @@ func (t *retryableTransport) RoundTrip(req *http.Request) (*http.Response, error
 			req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		}
 		// Retry the request
-		resp, err = t.transport.RoundTrip(req)
+		resp, err = t.Transport.RoundTrip(req)
 		retries++
 	}
 	// Return the response
