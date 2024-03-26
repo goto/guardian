@@ -33,6 +33,7 @@ type repository interface {
 //go:generate mockery --name=providerService --exported --with-expecter
 type providerService interface {
 	GetByID(context.Context, string) (*domain.Provider, error)
+	GrantAccess(context.Context, domain.Grant) error
 	RevokeAccess(context.Context, domain.Grant) error
 	ListAccess(context.Context, domain.Provider, []*domain.Resource) (domain.MapResourceAccess, error)
 	ListActivities(context.Context, domain.Provider, domain.ListActivitiesFilter) ([]*domain.Activity, error)
@@ -263,6 +264,26 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
 	}()
+
+	return grant, nil
+}
+
+func (s *Service) Restore(ctx context.Context, id string) (*domain.Grant, error) {
+	grant, err := s.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("getting grant details: %w", err)
+	}
+
+	grant.Status = domain.GrantStatusActive
+	grant.UpdatedAt = time.Now()
+
+	if err := s.providerService.GrantAccess(ctx, *grant); err != nil {
+		return nil, fmt.Errorf("granting access in provider: %w", err)
+	}
+
+	if err := s.repo.Update(ctx, grant); err != nil {
+		return nil, fmt.Errorf("updating grant record in db: %w", err)
+	}
 
 	return grant, nil
 }
