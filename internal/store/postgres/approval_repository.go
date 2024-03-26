@@ -65,10 +65,10 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 
 func (r *ApprovalRepository) GetApprovalsTotalCount(ctx context.Context, filter *domain.ListApprovalsFilter) (int64, error) {
 	db := r.db.WithContext(ctx)
-	f := filter
+	f := *filter
 	f.Size = 0
 	f.Offset = 0
-	db = applyFilter(db, f)
+	db = applyFilter(db, &f)
 
 	var count int64
 	if err := db.Model(&model.Approval{}).Count(&count).Error; err != nil {
