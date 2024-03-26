@@ -3,6 +3,7 @@ package domain
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/goto/guardian/pkg/evaluator"
@@ -55,30 +56,32 @@ func (c *AppealMetadataSource) EvaluateValue(params map[string]interface{}) (int
 }
 
 func (c *AppealMetadataSource) evaluateValue(value interface{}, params map[string]interface{}) (interface{}, error) {
-	switch value := value.(type) {
-	case string:
-		if strings.HasPrefix(value, "$appeal") || strings.HasPrefix(value, "$response") {
-			result, err := evaluator.Expression(value).EvaluateWithVars(params)
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.String:
+		if strings.Contains(v.String(), "$appeal") || strings.Contains(v.String(), "$response") {
+			result, err := evaluator.Expression(v.String()).EvaluateWithVars(params)
 			if err != nil {
 				return nil, err
 			}
 			return result, nil
-		} else {
-			return value, nil
 		}
-	case map[string]interface{}: // TODO: handle map[string]int and other types
+		return value, nil
+	case reflect.Map:
 		mapResult := map[string]interface{}{}
-		for key, val := range value {
+		for _, key := range v.MapKeys() {
+			val := v.MapIndex(key).Interface()
 			processedVal, err := c.evaluateValue(val, params)
 			if err != nil {
 				return nil, err
 			}
-			mapResult[key] = processedVal
+			mapResult[key.String()] = processedVal
 		}
 		return mapResult, nil
-	case []interface{}: // TODO: handle []int and other types
-		arrayResult := make([]interface{}, len(value))
-		for i, val := range value {
+	case reflect.Slice:
+		arrayResult := make([]interface{}, v.Len())
+		for i := 0; i < v.Len(); i++ {
+			val := v.Index(i).Interface()
 			processedVal, err := c.evaluateValue(val, params)
 			if err != nil {
 				return nil, err
@@ -87,6 +90,6 @@ func (c *AppealMetadataSource) evaluateValue(value interface{}, params map[strin
 		}
 		return arrayResult, nil
 	default:
-		return value, nil
+		return v.Interface(), nil
 	}
 }
