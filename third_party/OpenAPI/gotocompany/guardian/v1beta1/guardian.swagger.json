@@ -994,6 +994,49 @@
         ]
       }
     },
+    "/v1beta1/grants/{id}/restore": {
+      "post": {
+        "operationId": "GuardianService_RestoreGrant",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1RestoreGrantResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "reason": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
+      }
+    },
     "/v1beta1/grants/{id}/revoke": {
       "put": {
         "operationId": "GuardianService_RevokeGrant",
@@ -2851,6 +2894,16 @@
         },
         "owner": {
           "type": "string"
+        },
+        "restoreReason": {
+          "type": "string"
+        },
+        "restoredBy": {
+          "type": "string"
+        },
+        "restoredAt": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     },
@@ -3347,6 +3400,14 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1beta1RestoreGrantResponse": {
+      "type": "object",
+      "properties": {
+        "grant": {
+          "$ref": "#/definitions/v1beta1Grant"
         }
       }
     },
