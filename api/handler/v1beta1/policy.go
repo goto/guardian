@@ -18,9 +18,7 @@ func (s *GRPCServer) ListPolicies(ctx context.Context, req *guardianv1beta1.List
 
 	policyProtos := []*guardianv1beta1.Policy{}
 	for _, p := range policies {
-		if p.IAM != nil {
-			p.IAM.Config = nil
-		}
+		p.RemoveSensitiveValues()
 		policyProto, err := s.adapter.ToPolicyProto(p)
 		if err != nil {
 			return nil, s.internalError(ctx, "failed to parse policy %v: %v", p.ID, err)
@@ -44,9 +42,7 @@ func (s *GRPCServer) GetPolicy(ctx context.Context, req *guardianv1beta1.GetPoli
 		}
 	}
 
-	if p.IAM != nil {
-		p.IAM.Config = nil
-	}
+	p.RemoveSensitiveValues()
 	policyProto, err := s.adapter.ToPolicyProto(p)
 	if err != nil {
 		return nil, s.internalError(ctx, "failed to parse policy: %v", err)
@@ -116,6 +112,7 @@ func (s *GRPCServer) GetPolicyPreferences(ctx context.Context, req *guardianv1be
 		}
 	}
 
+	p.RemoveSensitiveValues()
 	appealConfigProto, err := s.adapter.ToPolicyAppealConfigProto(p)
 	if err != nil {
 		return nil, s.internalError(ctx, "failed to parse policy preferences: %v", err)

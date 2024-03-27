@@ -506,14 +506,6 @@ func (a *adapter) ToPolicyAppealConfigProto(p *domain.Policy) (*guardianv1beta1.
 	}
 
 	for key, metadataSource := range p.AppealConfig.MetadataSources {
-		cfg, err := structpb.NewValue(metadataSource.Config)
-		if err != nil {
-			return nil, err
-		}
-		value, err := structpb.NewValue(metadataSource.Value)
-		if err != nil {
-			return nil, err
-		}
 		if policyAppealConfigProto.MetadataSources == nil {
 			policyAppealConfigProto.MetadataSources = make(map[string]*guardianv1beta1.PolicyAppealConfig_MetadataSource)
 		}
@@ -521,8 +513,21 @@ func (a *adapter) ToPolicyAppealConfigProto(p *domain.Policy) (*guardianv1beta1.
 			Name:        metadataSource.Name,
 			Description: metadataSource.Description,
 			Type:        metadataSource.Type,
-			Config:      cfg,
-			Value:       value,
+		}
+
+		if metadataSource.Config != nil {
+			cfg, err := structpb.NewValue(metadataSource.Config)
+			if err != nil {
+				return nil, err
+			}
+			policyAppealConfigProto.MetadataSources[key].Config = cfg
+		}
+		if metadataSource.Value != nil {
+			value, err := structpb.NewValue(metadataSource.Value)
+			if err != nil {
+				return nil, err
+			}
+			policyAppealConfigProto.MetadataSources[key].Value = value
 		}
 	}
 
