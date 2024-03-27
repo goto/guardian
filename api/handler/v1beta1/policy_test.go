@@ -28,6 +28,13 @@ func (s *GrpcHandlersSuite) TestListPolicies() {
 						Config:   expectedIAMConfig,
 						Provider: "provider",
 					},
+					Appeal: &guardianv1beta1.PolicyAppealConfig{
+						MetadataSources: map[string]*guardianv1beta1.PolicyAppealConfig_MetadataSource{
+							"test-source": {
+								Name: "test-source",
+							},
+						},
+					},
 				},
 			},
 		}
@@ -37,6 +44,14 @@ func (s *GrpcHandlersSuite) TestListPolicies() {
 				IAM: &domain.IAMConfig{
 					Config:   map[string]interface{}{"foo": "bar"},
 					Provider: "provider",
+				},
+				AppealConfig: &domain.PolicyAppealConfig{
+					MetadataSources: map[string]*domain.AppealMetadataSource{
+						"test-source": {
+							Name:   "test-source",
+							Config: map[string]interface{}{"foo": "bar"},
+						},
+					},
 				},
 			},
 		}

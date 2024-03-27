@@ -297,6 +297,17 @@ type Policy struct {
 	UpdatedAt    time.Time           `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
 }
 
+func (p *Policy) RemoveSensitiveValues() {
+	if p.IAM != nil {
+		p.IAM.Config = nil
+	}
+	if p.AppealConfig != nil {
+		for key := range p.AppealConfig.MetadataSources {
+			p.AppealConfig.MetadataSources[key].Config = nil
+		}
+	}
+}
+
 type PolicyAppealConfig struct {
 	DurationOptions              []AppealDurationOption `json:"duration_options" yaml:"duration_options" validate:"omitempty,min=1,dive"`
 	AllowOnBehalf                bool                   `json:"allow_on_behalf" yaml:"allow_on_behalf"`
