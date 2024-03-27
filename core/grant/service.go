@@ -274,7 +274,15 @@ func (s *Service) Restore(ctx context.Context, id string) (*domain.Grant, error)
 		return nil, fmt.Errorf("getting grant details: %w", err)
 	}
 
+	if grant.ExpirationDate.Unix() > time.Now().Unix() {
+		return nil, fmt.Errorf("grant is already expired at: %s", grant.ExpirationDate)
+	}
+
 	grant.Status = domain.GrantStatusActive
+	grant.StatusInProvider = domain.GrantStatusActive
+	grant.RestoredAt = time.Now() //TBC
+	grant.RestoredBy = ""         //TBC
+	grant.RestoreReason = ""      //TBC
 	grant.UpdatedAt = time.Now()
 
 	if err := s.providerService.GrantAccess(ctx, *grant); err != nil {
@@ -283,6 +291,13 @@ func (s *Service) Restore(ctx context.Context, id string) (*domain.Grant, error)
 
 	if err := s.repo.Update(ctx, grant); err != nil {
 		return nil, fmt.Errorf("updating grant record in db: %w", err)
+	}
+
+	if err := s.auditLogger.Log(ctx, AuditKeyRevoke, map[string]interface{}{
+		"grant_id":       id,
+		"restore reason": "", //TBC
+	}); err != nil {
+		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
 
 	return grant, nil
