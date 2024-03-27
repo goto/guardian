@@ -20,7 +20,9 @@ type Client interface {
 }
 
 const (
-	ProviderTypeSlack = "slack"
+	ProviderTypeSlack       = "slack"
+	DefaultRetryCount       = 3
+	DefaultTimeoutInSeconds = 10
 )
 
 // SlackConfig is a map of workspace name to config
@@ -34,8 +36,10 @@ type Config struct {
 	Provider string `mapstructure:"provider" validate:"omitempty,oneof=slack"`
 
 	// slack
-	AccessToken string      `mapstructure:"access_token" validate:"required_without=SlackConfig"`
-	SlackConfig SlackConfig `mapstructure:"slack_config" validate:"required_without=AccessToken,dive"`
+	AccessToken      string      `mapstructure:"access_token" validate:"required_without=SlackConfig"`
+	SlackConfig      SlackConfig `mapstructure:"slack_config" validate:"required_without=AccessToken,dive"`
+	TimeoutInSeconds int         `mapstructure:"timeout_in_seconds"`
+	MaxRetryCount    int         `mapstructure:"max_retry_count"`
 
 	// custom messages
 	Messages domain.NotificationMessages
@@ -48,12 +52,22 @@ func NewClient(config *Config, logger log.Logger) (Client, error) {
 			return nil, err
 		}
 
+		retryCount := DefaultRetryCount
+		if config.MaxRetryCount > 0 {
+			retryCount = config.MaxRetryCount
+		}
+
+		timeout := DefaultTimeoutInSeconds
+		if config.TimeoutInSeconds > 0 {
+			timeout = config.TimeoutInSeconds
+		}
+
 		retryableTransport := &retryablehttp.RetryableTransport{
 			Transport:  &http.Transport{},
-			RetryCount: 3,
+			RetryCount: retryCount,
 		}
 		httpClient := &http.Client{
-			Timeout:   10 * time.Second,
+			Timeout:   time.Duration(timeout) * time.Second,
 			Transport: retryableTransport,
 		}
 
