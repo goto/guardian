@@ -47,12 +47,9 @@ func shouldRetry(err error, resp *http.Response) bool {
 		return true
 	}
 
-	if resp.StatusCode == http.StatusBadGateway ||
+	return resp.StatusCode == http.StatusBadGateway ||
 		resp.StatusCode == http.StatusServiceUnavailable ||
-		resp.StatusCode == http.StatusGatewayTimeout {
-		return true
-	}
-	return false
+		resp.StatusCode == http.StatusGatewayTimeout
 }
 
 func drainBody(resp *http.Response) {
