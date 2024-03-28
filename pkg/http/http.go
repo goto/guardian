@@ -62,7 +62,7 @@ func NewHTTPClient(config *HTTPClientConfig) (*HTTPClient, error) {
 		httpClient = http.DefaultClient
 	}
 
-	if config.Auth.Type == "google_idtoken" {
+	if config.Auth != nil && config.Auth.Type == "google_idtoken" {
 		var creds []byte
 		switch {
 		case config.Auth.CredentialsJSONBase64 != "":
