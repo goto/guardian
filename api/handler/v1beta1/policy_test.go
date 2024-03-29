@@ -418,10 +418,23 @@ func (s *GrpcHandlersSuite) TestCreatePolicy() {
 						Description: "Please provide the name of the team you are in",
 					},
 				},
+				MetadataSources: map[string]*domain.AppealMetadataSource{
+					"test-source": {
+						Name:        "test-source",
+						Description: "test-description",
+						Type:        "test-type",
+						Config:      map[string]interface{}{"foo": "bar"},
+						Value:       "test-value",
+					},
+				},
 			},
 		}
 		expectedVersion := uint(1)
 		expectedIAMConfig, err := structpb.NewValue(expectedPolicy.IAM.Config)
+		s.Require().NoError(err)
+		expectedMetadataSourceConfig, err := structpb.NewValue(expectedPolicy.AppealConfig.MetadataSources["test-source"].Config)
+		s.Require().NoError(err)
+		expectedMetadataSourceValue, err := structpb.NewValue(expectedPolicy.AppealConfig.MetadataSources["test-source"].Value)
 		s.Require().NoError(err)
 		expectedResponse := &guardianv1beta1.CreatePolicyResponse{
 			Policy: &guardianv1beta1.Policy{
@@ -477,6 +490,15 @@ func (s *GrpcHandlersSuite) TestCreatePolicy() {
 							Question:    "What team are you in?",
 							Required:    true,
 							Description: "Please provide the name of the team you are in",
+						},
+					},
+					MetadataSources: map[string]*guardianv1beta1.PolicyAppealConfig_MetadataSource{
+						"test-source": {
+							Name:        "test-source",
+							Description: "test-description",
+							Type:        "test-type",
+							Config:      expectedMetadataSourceConfig,
+							Value:       expectedMetadataSourceValue,
 						},
 					},
 				},
@@ -544,6 +566,15 @@ func (s *GrpcHandlersSuite) TestCreatePolicy() {
 							Question:    "What team are you in?",
 							Required:    true,
 							Description: "Please provide the name of the team you are in",
+						},
+					},
+					MetadataSources: map[string]*guardianv1beta1.PolicyAppealConfig_MetadataSource{
+						"test-source": {
+							Name:        "test-source",
+							Description: "test-description",
+							Type:        "test-type",
+							Config:      expectedMetadataSourceConfig,
+							Value:       expectedMetadataSourceValue,
 						},
 					},
 				},
@@ -807,6 +838,95 @@ func (s *GrpcHandlersSuite) TestUpdatePolicy() {
 
 		req := &guardianv1beta1.UpdatePolicyRequest{}
 		res, err := s.grpcServer.UpdatePolicy(context.Background(), req)
+
+		s.Equal(codes.Internal, status.Code(err))
+		s.Nil(res)
+		s.policyService.AssertExpectations(s.T())
+	})
+}
+
+func (s *GrpcHandlersSuite) TestGetPolicyPreferences() {
+	s.Run("should return policy preferences on success", func() {
+		s.setup()
+
+		dummyPolicy := &domain.Policy{
+			ID:      "test-policy",
+			Version: 1,
+			AppealConfig: &domain.PolicyAppealConfig{
+				AllowActiveAccessExtensionIn: "24h",
+				AllowPermanentAccess:         true,
+				MetadataSources: map[string]*domain.AppealMetadataSource{
+					"test-source": {
+						Name:   "test-source",
+						Config: map[string]interface{}{"foo": "bar"},
+					},
+				},
+			},
+		}
+
+		s.policyService.EXPECT().
+			GetOne(mock.MatchedBy(func(ctx context.Context) bool { return true }), dummyPolicy.ID, dummyPolicy.Version).
+			Return(dummyPolicy, nil).Once()
+		expectedResponse := &guardianv1beta1.GetPolicyPreferencesResponse{
+			Appeal: &guardianv1beta1.PolicyAppealConfig{
+				AllowActiveAccessExtensionIn: "24h",
+				AllowPermanentAccess:         true,
+				MetadataSources: map[string]*guardianv1beta1.PolicyAppealConfig_MetadataSource{
+					"test-source": {
+						Name: "test-source",
+					},
+				},
+			},
+		}
+
+		req := &guardianv1beta1.GetPolicyPreferencesRequest{
+			Id:      dummyPolicy.ID,
+			Version: uint32(dummyPolicy.Version),
+		}
+		res, err := s.grpcServer.GetPolicyPreferences(context.Background(), req)
+
+		s.NoError(err)
+		s.Equal(expectedResponse, res)
+		s.Nil(res.Appeal.MetadataSources["test-source"].Config) // config that might contain sensitive value should be removed
+		s.policyService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return not found error if policy not found", func() {
+		s.setup()
+
+		policyID := "test-policy"
+		policyVersion := uint(1)
+		expectedError := policy.ErrPolicyNotFound
+		s.policyService.EXPECT().
+			GetOne(mock.MatchedBy(func(ctx context.Context) bool { return true }), policyID, policyVersion).
+			Return(nil, expectedError).Once()
+
+		req := &guardianv1beta1.GetPolicyPreferencesRequest{
+			Id:      policyID,
+			Version: uint32(policyVersion),
+		}
+		res, err := s.grpcServer.GetPolicyPreferences(context.Background(), req)
+
+		s.Equal(codes.NotFound, status.Code(err))
+		s.Nil(res)
+		s.policyService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return internal error if policy service returns error", func() {
+		s.setup()
+
+		policyID := "test-policy"
+		policyVersion := uint(1)
+		expectedError := errors.New("random error")
+		s.policyService.EXPECT().
+			GetOne(mock.MatchedBy(func(ctx context.Context) bool { return true }), policyID, policyVersion).
+			Return(nil, expectedError).Once()
+
+		req := &guardianv1beta1.GetPolicyPreferencesRequest{
+			Id:      policyID,
+			Version: uint32(policyVersion),
+		}
+		res, err := s.grpcServer.GetPolicyPreferences(context.Background(), req)
 
 		s.Equal(codes.Internal, status.Code(err))
 		s.Nil(res)

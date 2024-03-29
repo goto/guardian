@@ -207,7 +207,7 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 		if approval.Status == ApprovalStatusPending {
 			stepConfig := policy.Steps[approval.Index]
 
-			appealMap, err := utils.StructToMap(a)
+			appealMap, err := a.ToMap()
 			if err != nil {
 				return fmt.Errorf("parsing appeal struct to map: %w", err)
 			}
