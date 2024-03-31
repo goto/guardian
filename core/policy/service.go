@@ -109,8 +109,7 @@ func (s *Service) Create(ctx context.Context, p *domain.Policy) error {
 	}
 
 	if p.HasAppealMetadataSources() {
-		err := s.encryptAppealMetadata(p)
-		if err != nil {
+		if err := s.encryptAppealMetadata(p); err != nil {
 			return err
 		}
 	}
@@ -134,8 +133,7 @@ func (s *Service) Create(ctx context.Context, p *domain.Policy) error {
 	}
 
 	if p.HasAppealMetadataSources() {
-		err := s.decryptAppealMetadata(p)
-		if err != nil {
+		if err := s.decryptAppealMetadata(p); err != nil {
 			return err
 		}
 	}
@@ -158,8 +156,7 @@ func (s *Service) Find(ctx context.Context) ([]*domain.Policy, error) {
 		}
 
 		if p.HasAppealMetadataSources() {
-			err := s.decryptAppealMetadata(p)
-			if err != nil {
+			if err := s.decryptAppealMetadata(p); err != nil {
 				return nil, err
 			}
 		}
@@ -180,9 +177,10 @@ func (s *Service) GetOne(ctx context.Context, id string, version uint) (*domain.
 		}
 	}
 
-	err = s.decryptAppealMetadata(p)
-	if err != nil {
-		return nil, err
+	if p.HasAppealMetadataSources() {
+		if err := s.decryptAppealMetadata(p); err != nil {
+			return nil, err
+		}
 	}
 
 	return p, nil
@@ -221,8 +219,7 @@ func (s *Service) Update(ctx context.Context, p *domain.Policy) error {
 	}
 
 	if p.HasAppealMetadataSources() {
-		err := s.encryptAppealMetadata(p)
-		if err != nil {
+		if err := s.encryptAppealMetadata(p); err != nil {
 			return err
 		}
 	}
@@ -248,8 +245,7 @@ func (s *Service) Update(ctx context.Context, p *domain.Policy) error {
 	}
 
 	if p.HasAppealMetadataSources() {
-		err := s.decryptAppealMetadata(p)
-		if err != nil {
+		if err := s.decryptAppealMetadata(p); err != nil {
 			return err
 		}
 	}
@@ -262,6 +258,9 @@ func (s *Service) encryptAppealMetadata(p *domain.Policy) error {
 		return nil
 	}
 	for _, sourceCfg := range p.AppealConfig.MetadataSources {
+		if sourceCfg.Config == nil {
+			continue
+		}
 		if err := sourceCfg.EncryptConfig(s.crypto); err != nil {
 			return err
 		}
@@ -274,6 +273,9 @@ func (s *Service) decryptAppealMetadata(p *domain.Policy) error {
 		return nil
 	}
 	for _, sourceCfg := range p.AppealConfig.MetadataSources {
+		if sourceCfg.Config == nil {
+			continue
+		}
 		if err := sourceCfg.DecryptConfig(s.crypto); err != nil {
 			return err
 		}
@@ -351,7 +353,6 @@ func (s *Service) validateAppealMetadataSource(ctx context.Context, metadataSour
 	if metadataSource.Name == "" {
 		return fmt.Errorf("name should not be empty")
 	}
-
 	if metadataSource.Value == nil {
 		return fmt.Errorf("value should not be empty")
 	}
@@ -359,17 +360,15 @@ func (s *Service) validateAppealMetadataSource(ctx context.Context, metadataSour
 	switch metadataSource.Type {
 	case "http":
 		if metadataSource.Config == nil {
-			return fmt.Errorf("config is required for type 'http'")
+			return fmt.Errorf(`"config" is required for type http`)
 		}
+		// TODO: validate http config
+		return nil
 	case "static":
-		if metadataSource.Config != nil {
-			return fmt.Errorf("config is not allowed for type 'static'")
-		}
+		return nil
 	default:
-		return fmt.Errorf("type of metadata source is invalid")
+		return fmt.Errorf("invalid metadata source type: %s", metadataSource.Type)
 	}
-
-	return nil
 }
 
 func (s *Service) validateRequirements(ctx context.Context, requirements []*domain.Requirement) error {
