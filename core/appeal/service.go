@@ -1237,6 +1237,9 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 		return err
 	}
 
+	if a.Details == nil {
+		a.Details = map[string]interface{}{}
+	}
 	a.Details[PolicyMetadataKey] = appealMetadata
 
 	return nil
