@@ -2065,7 +2065,7 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 	testServer.HandleFunc(fmt.Sprintf("/users/%s", accountID), func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		resp, _ := json.Marshal(expectedUserDetails)
-		w.Write([]byte(resp))
+		w.Write(resp)
 	})
 	ts := httptest.NewServer(testServer)
 
