@@ -4,15 +4,101 @@ import (
 	"testing"
 
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAppealMetadataSource_EncryptConfig(t *testing.T) {
-	t.Skip("TODO: implement")
+	t.Run("should encrypt config", func(t *testing.T) {
+		mockEncryptor := new(mocks.Crypto)
+		mockEncryptor.EXPECT().Encrypt(`{"key":"value"}`).Return("encrypted", nil)
+		defer mockEncryptor.AssertExpectations(t)
+
+		ms := &domain.AppealMetadataSource{
+			Config: map[string]interface{}{
+				"key": "value",
+			},
+		}
+		err := ms.EncryptConfig(mockEncryptor)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "encrypted", ms.Config)
+	})
+
+	t.Run("should return error if marshalling fails", func(t *testing.T) {
+		ms := &domain.AppealMetadataSource{
+			Config: make(chan int),
+		}
+		err := ms.EncryptConfig(nil)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("should return error if encryption fails", func(t *testing.T) {
+		mockEncryptor := new(mocks.Crypto)
+		mockEncryptor.EXPECT().Encrypt(`{"key":"value"}`).Return("", assert.AnError)
+		defer mockEncryptor.AssertExpectations(t)
+
+		ms := &domain.AppealMetadataSource{
+			Config: map[string]interface{}{
+				"key": "value",
+			},
+		}
+		err := ms.EncryptConfig(mockEncryptor)
+
+		assert.Error(t, err)
+	})
 }
 
 func TestAppealMetadataSource_DecryptConfig(t *testing.T) {
-	t.Skip("TODO: implement")
+	t.Run("should decrypt config", func(t *testing.T) {
+		mockDecryptor := new(mocks.Crypto)
+		mockDecryptor.EXPECT().Decrypt("encrypted").Return(`{"key":"value"}`, nil)
+		defer mockDecryptor.AssertExpectations(t)
+
+		ms := &domain.AppealMetadataSource{
+			Config: "encrypted",
+		}
+		err := ms.DecryptConfig(mockDecryptor)
+
+		assert.NoError(t, err)
+		assert.Equal(t, map[string]interface{}{"key": "value"}, ms.Config)
+	})
+
+	t.Run("should return error if config is not a string", func(t *testing.T) {
+		ms := &domain.AppealMetadataSource{
+			Config: 123,
+		}
+		err := ms.DecryptConfig(nil)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("should return error if decryption fails", func(t *testing.T) {
+		mockDecryptor := new(mocks.Crypto)
+		mockDecryptor.EXPECT().Decrypt("encrypted").Return("", assert.AnError)
+		defer mockDecryptor.AssertExpectations(t)
+
+		ms := &domain.AppealMetadataSource{
+			Config: "encrypted",
+		}
+		err := ms.DecryptConfig(mockDecryptor)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("should return error if unmarshalling fails", func(t *testing.T) {
+		mockDecryptor := new(mocks.Crypto)
+		mockDecryptor.EXPECT().Decrypt("encrypted").Return("invalid-json", nil)
+		defer mockDecryptor.AssertExpectations(t)
+
+		ms := &domain.AppealMetadataSource{
+			Config: "encrypted",
+		}
+		err := ms.DecryptConfig(mockDecryptor)
+
+		assert.Error(t, err)
+	})
 }
 
 func TestAppealMetadataSource_EvaluateValue(t *testing.T) {
