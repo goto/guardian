@@ -143,6 +143,7 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 		}
 
 		go func() {
+			ctx := context.WithoutCancel(ctx)
 			if err := s.auditLogger.Log(ctx, AuditKeyCreate, p); err != nil {
 				s.logger.Error(ctx, "failed to record audit log", "error", err)
 			}
@@ -226,6 +227,7 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 		}
 
 		go func() {
+			ctx := context.WithoutCancel(ctx)
 			if err := s.auditLogger.Log(ctx, AuditKeyUpdate, p); err != nil {
 				s.logger.Error(ctx, "failed to record audit log", "error", err)
 			}
@@ -475,6 +477,7 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	s.logger.Info(ctx, "provider deleted", "provider", id)
 
 	go func() {
+		ctx := context.WithoutCancel(ctx)
 		if err := s.auditLogger.Log(ctx, AuditKeyDelete, p); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}

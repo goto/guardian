@@ -368,6 +368,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	}
 
 	go func() {
+		ctx := context.WithoutCancel(ctx)
 		if err := s.auditLogger.Log(ctx, AuditKeyBulkInsert, appeals); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
@@ -641,6 +642,7 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 		}
 		if auditKey != "" {
 			go func() {
+				ctx := context.WithoutCancel(ctx)
 				if err := s.auditLogger.Log(ctx, auditKey, approvalAction); err != nil {
 					s.logger.Error(ctx, "failed to record audit log", "error", err)
 				}
@@ -683,6 +685,7 @@ func (s *Service) Cancel(ctx context.Context, id string) (*domain.Appeal, error)
 	}
 
 	go func() {
+		ctx := context.WithoutCancel(ctx)
 		if err := s.auditLogger.Log(ctx, AuditKeyCancel, map[string]interface{}{
 			"appeal_id": id,
 		}); err != nil {
@@ -731,6 +734,7 @@ func (s *Service) AddApprover(ctx context.Context, appealID, approvalID, email s
 	approval.Approvers = append(approval.Approvers, email)
 
 	go func() {
+		ctx := context.WithoutCancel(ctx)
 		if err := s.auditLogger.Log(ctx, AuditKeyAddApprover, approval); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
@@ -828,6 +832,7 @@ func (s *Service) DeleteApprover(ctx context.Context, appealID, approvalID, emai
 	approval.Approvers = newApprovers
 
 	go func() {
+		ctx := context.WithoutCancel(ctx)
 		if err := s.auditLogger.Log(ctx, AuditKeyDeleteApprover, approval); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
