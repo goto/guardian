@@ -20,8 +20,7 @@ type Client interface {
 }
 
 const (
-	ProviderTypeSlack       = "slack"
-	DefaultTimeoutInSeconds = 10
+	ProviderTypeSlack = "slack"
 )
 
 // SlackConfig is a map of workspace name to config
@@ -51,17 +50,12 @@ func NewClient(config *Config, logger log.Logger) (Client, error) {
 			return nil, err
 		}
 
-		timeout := DefaultTimeoutInSeconds
-		if config.TimeoutInSeconds > 0 {
-			timeout = config.TimeoutInSeconds
-		}
-
 		retryableTransport := &retryablehttp.RetryableTransport{
 			Transport:  &http.Transport{},
 			RetryCount: config.MaxRetryCount,
 		}
 		httpClient := &http.Client{
-			Timeout:   time.Duration(timeout) * time.Second,
+			Timeout:   time.Duration(config.TimeoutInSeconds) * time.Second,
 			Transport: retryableTransport,
 		}
 
