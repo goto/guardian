@@ -289,12 +289,23 @@ type Policy struct {
 	Version      uint                `json:"version" yaml:"version" validate:"required"`
 	Description  string              `json:"description" yaml:"description"`
 	Steps        []*Step             `json:"steps" yaml:"steps" validate:"required,min=1,dive"`
-	AppealConfig *PolicyAppealConfig `json:"appeal_config" yaml:"appeal_config" validate:"omitempty,dive"`
+	AppealConfig *PolicyAppealConfig `json:"appeal" yaml:"appeal" validate:"omitempty,dive"`
 	Requirements []*Requirement      `json:"requirements,omitempty" yaml:"requirements,omitempty" validate:"omitempty,min=1,dive"`
 	Labels       map[string]string   `json:"labels,omitempty" yaml:"labels,omitempty"`
 	IAM          *IAMConfig          `json:"iam,omitempty" yaml:"iam,omitempty" validate:"omitempty,dive"`
 	CreatedAt    time.Time           `json:"created_at,omitempty" yaml:"created_at,omitempty"`
 	UpdatedAt    time.Time           `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
+}
+
+func (p *Policy) RemoveSensitiveValues() {
+	if p.IAM != nil {
+		p.IAM.Config = nil
+	}
+	if p.AppealConfig != nil {
+		for key := range p.AppealConfig.MetadataSources {
+			p.AppealConfig.MetadataSources[key].Config = nil
+		}
+	}
 }
 
 type PolicyAppealConfig struct {
@@ -308,7 +319,8 @@ type PolicyAppealConfig struct {
 	// value of `creator` field in the appeal will be nil.
 	// Note: any expression that tries to access `$appeal.creator.*` is still evaluated as usual, it might need to have
 	// proper nil checking to avoid accessing nil value.
-	AllowCreatorDetailsFailure bool `json:"allow_creator_details_failure" yaml:"allow_creator_details_failure"`
+	AllowCreatorDetailsFailure bool                             `json:"allow_creator_details_failure" yaml:"allow_creator_details_failure"`
+	MetadataSources            map[string]*AppealMetadataSource `json:"metadata_sources,omitempty" yaml:"metadata_sources,omitempty"`
 }
 
 type Question struct {
@@ -330,4 +342,8 @@ type AppealDurationOption struct {
 
 func (p *Policy) HasIAMConfig() bool {
 	return p.IAM != nil
+}
+
+func (p *Policy) HasAppealMetadataSources() bool {
+	return p.AppealConfig != nil && p.AppealConfig.MetadataSources != nil
 }

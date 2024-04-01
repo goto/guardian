@@ -2,18 +2,24 @@ package appeal
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/core/grant"
+	"github.com/goto/guardian/core/policy"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/evaluator"
+	"github.com/goto/guardian/pkg/http"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/notifiers"
 	"github.com/goto/guardian/utils"
+	"github.com/mitchellh/mapstructure"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -29,6 +35,8 @@ const (
 
 	RevokeReasonForExtension = "Automatically revoked for grant extension"
 	RevokeReasonForOverride  = "Automatically revoked for grant override"
+
+	PolicyMetadataKey = "__policy_metadata"
 )
 
 var TimeNow = time.Now
@@ -293,6 +301,10 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 
 		if err := validateAppealOnBehalf(appeal, policy); err != nil {
 			return err
+		}
+
+		if err := s.populateAppealMetadata(ctx, appeal, policy); err != nil {
+			return fmt.Errorf("getting appeal metadata: %w", err)
 		}
 
 		if err := s.addCreatorDetails(ctx, appeal, policy); err != nil {
@@ -1142,6 +1154,113 @@ func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[
 		return nil, fmt.Errorf("couldn't find details for policy %q: %w", fmt.Sprintf("%s@%v", policyConfig.ID, policyConfig.Version), ErrPolicyNotFound)
 	}
 	return policy, nil
+}
+
+func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, p *domain.Policy) error {
+	if !p.HasAppealMetadataSources() {
+		return nil
+	}
+
+	eg, egctx := errgroup.WithContext(ctx)
+	var mu sync.Mutex
+	appealMetadata := map[string]interface{}{}
+	for key, metadata := range p.AppealConfig.MetadataSources {
+		key, metadata := key, metadata
+		eg.Go(func() error {
+			switch metadata.Type {
+			case "http":
+				var cfg policy.AppealMetadataSourceConfigHTTP
+				if err := mapstructure.Decode(metadata.Config, &cfg); err != nil {
+					return fmt.Errorf("error decoding metadata config: %w", err)
+				}
+
+				if cfg.URL == "" {
+					return fmt.Errorf("URL cannot be empty for http type")
+				}
+				if strings.Contains(cfg.URL, "$appeal") {
+					appealMap, err := a.ToMap()
+					if err != nil {
+						return fmt.Errorf("error converting appeal to map: %w", err)
+					}
+					params := map[string]interface{}{"appeal": appealMap}
+					url, err := evaluator.Expression(cfg.URL).EvaluateWithVars(params)
+					if err != nil {
+						return fmt.Errorf("error evaluating URL expression: %w", err)
+					}
+					urlStr, ok := url.(string)
+					if !ok {
+						return fmt.Errorf("URL expression must evaluate to a string")
+					}
+					cfg.URL = urlStr
+				}
+
+				metadataCl, err := http.NewHTTPClient(&cfg.HTTPClientConfig)
+				if err != nil {
+					return fmt.Errorf("key: %s, %w", key, err)
+				}
+
+				res, err := metadataCl.MakeRequest(egctx)
+				if err != nil || (res.StatusCode < 200 && res.StatusCode > 300) {
+					if !cfg.AllowFailed {
+						return fmt.Errorf("error fetching resource: %w", err)
+					}
+				}
+
+				body, err := io.ReadAll(res.Body)
+				if err != nil {
+					return fmt.Errorf("error reading response body: %w", err)
+				}
+				res.Body.Close()
+				var jsonBody interface{}
+				err = json.Unmarshal(body, &jsonBody)
+				if err != nil {
+					return fmt.Errorf("error unmarshaling response body: %w", err)
+				}
+
+				responseMap := map[string]interface{}{
+					"status":      res.Status,
+					"status_code": res.StatusCode,
+					"headers":     res.Header,
+					"body":        jsonBody,
+				}
+				params := map[string]interface{}{
+					"response": responseMap,
+					"appeal":   a,
+				}
+				value, err := metadata.EvaluateValue(params)
+				if err != nil {
+					return fmt.Errorf("error parsing value: %w", err)
+				}
+				mu.Lock()
+				appealMetadata[key] = value
+				mu.Unlock()
+			case "static":
+				params := map[string]interface{}{"appeal": a}
+				value, err := metadata.EvaluateValue(params)
+				if err != nil {
+					return fmt.Errorf("error parsing value: %w", err)
+				}
+				mu.Lock()
+				appealMetadata[key] = value
+				mu.Unlock()
+			default:
+				return fmt.Errorf("invalid metadata source type")
+			}
+
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return err
+	}
+
+	if a.Details == nil {
+		a.Details = map[string]interface{}{}
+	}
+	a.Details[PolicyMetadataKey] = appealMetadata
+
+	return nil
 }
 
 func (s *Service) addCreatorDetails(ctx context.Context, a *domain.Appeal, p *domain.Policy) error {

@@ -143,6 +143,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		ResourceService: resourceService,
 		ProviderService: providerService,
 		IAMManager:      iamManager,
+		Crypto:          deps.Crypto,
 		Validator:       deps.Validator,
 		Logger:          deps.Logger,
 		AuditLogger:     auditLogger,
