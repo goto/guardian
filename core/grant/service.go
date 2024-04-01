@@ -169,6 +169,7 @@ func (s *Service) Update(ctx context.Context, payload *domain.Grant) error {
 					Message: message,
 				})
 			}
+			ctx := context.WithoutCancel(ctx)
 			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
 				for _, err1 := range errs {
 					s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
@@ -241,6 +242,7 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 			},
 		}}
 		go func() {
+			ctx := context.WithoutCancel(ctx)
 			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
 				for _, err1 := range errs {
 					s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
@@ -581,6 +583,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 	}
 
 	go func() {
+		ctx := context.WithoutCancel(ctx)
 		var notifications []domain.Notification
 	prepare_notifications:
 		for owner, grants := range dormantGrantsByOwner {
