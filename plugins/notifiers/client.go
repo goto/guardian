@@ -21,7 +21,6 @@ type Client interface {
 
 const (
 	ProviderTypeSlack       = "slack"
-	DefaultRetryCount       = 3
 	DefaultTimeoutInSeconds = 10
 )
 
@@ -52,11 +51,6 @@ func NewClient(config *Config, logger log.Logger) (Client, error) {
 			return nil, err
 		}
 
-		retryCount := DefaultRetryCount
-		if config.MaxRetryCount > 0 {
-			retryCount = config.MaxRetryCount
-		}
-
 		timeout := DefaultTimeoutInSeconds
 		if config.TimeoutInSeconds > 0 {
 			timeout = config.TimeoutInSeconds
@@ -64,7 +58,7 @@ func NewClient(config *Config, logger log.Logger) (Client, error) {
 
 		retryableTransport := &retryablehttp.RetryableTransport{
 			Transport:  &http.Transport{},
-			RetryCount: retryCount,
+			RetryCount: config.MaxRetryCount,
 		}
 		httpClient := &http.Client{
 			Timeout:   time.Duration(timeout) * time.Second,
