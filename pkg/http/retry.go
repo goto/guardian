@@ -16,18 +16,24 @@ type RetryableTransport struct {
 
 func (t *RetryableTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	var bodyBytes []byte
-	bodyBytes, err := io.ReadAll(req.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading body: %w", err)
+	if req.Body != nil {
+		bodyBytes, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, fmt.Errorf("error reading body: %w", err)
+		}
+
+		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 	}
 
-	var resp *http.Response
+	resp, err := t.Transport.RoundTrip(req)
 	retries := -1
 	for shouldRetry(err, resp) && retries < t.RetryCount {
 		if retries > -1 {
 			time.Sleep(backoff(retries))
 			// consume any response to reuse the connection.
-			drainBody(resp)
+			if resp != nil {
+				drainBody(resp)
+			}
 		}
 
 		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
@@ -44,7 +50,7 @@ func backoff(retries int) time.Duration {
 }
 
 func shouldRetry(err error, resp *http.Response) bool {
-	if err != nil {
+	if err != nil || resp == nil {
 		return true
 	}
 
