@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+const (
+	DefaultRetryCount = 3
+)
+
 type RetryableTransport struct {
 	Transport  http.RoundTripper
 	RetryCount int
@@ -25,9 +29,14 @@ func (t *RetryableTransport) RoundTrip(req *http.Request) (*http.Response, error
 		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 	}
 
+	retryCount := t.RetryCount
+	if t.RetryCount <= 0 {
+		retryCount = DefaultRetryCount
+	}
+
 	resp, err := t.Transport.RoundTrip(req)
 	retries := -1
-	for shouldRetry(err, resp) && retries < t.RetryCount {
+	for shouldRetry(err, resp) && retries < retryCount {
 		if retries > -1 {
 			time.Sleep(backoff(retries))
 			// consume any response to reuse the connection.
