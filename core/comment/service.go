@@ -86,6 +86,7 @@ func (s *Service) Create(ctx context.Context, c *domain.Comment) error {
 	}
 
 	go func() {
+		ctx := context.WithoutCancel(ctx)
 		if err := s.notifyParticipants(ctx, appeal, c); err != nil {
 			s.logger.Error(ctx, "failed to notify participants", "error", err, "appeal_id", c.AppealID, "comment_id", c.ID)
 		}
@@ -108,6 +109,7 @@ func (s *Service) List(ctx context.Context, filter domain.ListCommentsFilter) ([
 		defaultCommentOrder := "created_at"
 		filter.OrderBy = []string{defaultCommentOrder}
 	}
+
 	return s.repo.List(ctx, filter)
 }
 
