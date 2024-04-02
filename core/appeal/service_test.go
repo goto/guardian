@@ -989,7 +989,7 @@ func (s *ServiceTestSuite) TestCreate() {
 			}).
 			Once()
 		s.mockNotifier.On("Notify", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(nil).Once()
-		s.mockAuditLogger.On("Log", mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
+		s.mockAuditLogger.On("Log", mock.MatchedBy(func(ctx context.Context) bool { return true }), appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 
 		appeals := []*domain.Appeal{
 			{
@@ -1434,7 +1434,7 @@ func (s *ServiceTestSuite) TestCreate() {
 			}).
 			Once()
 		s.mockNotifier.On("Notify", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(nil).Once()
-		s.mockAuditLogger.On("Log", mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
+		s.mockAuditLogger.On("Log", mock.MatchedBy(func(ctx context.Context) bool { return true }), appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 
 		appeals := []*domain.Appeal{
 			{
@@ -1551,7 +1551,7 @@ func (s *ServiceTestSuite) TestCreate() {
 				BulkUpsert(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
 				Return(nil).Once()
 			s.mockNotifier.On("Notify", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(nil).Once()
-			s.mockAuditLogger.On("Log", mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
+			s.mockAuditLogger.On("Log", mock.MatchedBy(func(ctx context.Context) bool { return true }), appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 			s.mockProviderService.EXPECT().
 				IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
 				Return(false).Once()
@@ -1849,7 +1849,7 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprov
 			}
 		}).Once()
 	s.mockNotifier.On("Notify", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(nil).Once()
-	s.mockAuditLogger.On("Log", mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
+	s.mockAuditLogger.On("Log", mock.MatchedBy(func(ctx context.Context) bool { return true }), appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 
 	actualError := s.service.Create(context.Background(), appeals)
 

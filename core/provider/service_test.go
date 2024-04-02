@@ -127,7 +127,7 @@ func (s *ServiceTestSuite) TestCreate() {
 		s.mockProvider.On("GetAccountTypes").Return([]string{"user"}).Once()
 		s.mockProvider.On("CreateConfig", mock.Anything).Return(nil).Once()
 		s.mockProviderRepository.EXPECT().Create(mockCtx, p).Return(nil).Once()
-		s.mockAuditLogger.On("Log", mock.Anything, provider.AuditKeyCreate, mock.Anything).Return(nil).Once()
+		s.mockAuditLogger.On("Log", mock.MatchedBy(func(ctx context.Context) bool { return true }), provider.AuditKeyCreate, mock.Anything).Return(nil).Once()
 
 		expectedResources := []*domain.Resource{}
 		s.mockResourceService.On("Find", mock.Anything, domain.ListResourcesFilter{
@@ -282,7 +282,7 @@ func (s *ServiceTestSuite) TestUpdate() {
 			s.mockProvider.On("GetAccountTypes").Return([]string{"user"}).Once()
 			s.mockProvider.On("CreateConfig", mock.Anything).Return(nil).Once()
 			s.mockProviderRepository.EXPECT().Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), tc.expectedNewProvider).Return(nil)
-			s.mockAuditLogger.On("Log", mock.Anything, provider.AuditKeyUpdate, mock.Anything).Return(nil).Once()
+			s.mockAuditLogger.On("Log", mock.MatchedBy(func(ctx context.Context) bool { return true }), provider.AuditKeyUpdate, mock.Anything).Return(nil).Once()
 
 			expectedResources := []*domain.Resource{}
 			s.mockResourceService.On("Find", mock.Anything, domain.ListResourcesFilter{
@@ -773,7 +773,7 @@ func (s *ServiceTestSuite) TestDelete() {
 		}).Return(dummyResources, nil).Once()
 		s.mockResourceService.On("BatchDelete", mockCtx, []string{"a", "b"}).Return(nil)
 		s.mockProviderRepository.EXPECT().Delete(mockCtx, testID).Return(nil).Once()
-		s.mockAuditLogger.On("Log", mock.Anything, provider.AuditKeyDelete, dummyProvider).Return(nil).Once()
+		s.mockAuditLogger.On("Log", mock.MatchedBy(func(ctx context.Context) bool { return true }), provider.AuditKeyDelete, dummyProvider).Return(nil).Once()
 
 		err := s.service.Delete(context.Background(), "test-provider")
 
