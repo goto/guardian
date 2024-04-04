@@ -189,9 +189,9 @@ func (s *ServiceTestSuite) TestCreate() {
 		expectedProviders := []*domain.Provider{}
 		expectedPolicies := []*domain.Policy{}
 		expectedAppeals := []*domain.Appeal{}
-		h.mockResourceService.On("Find", mock.Anything, mock.Anything).Return(nil, expectedError).Once()
-		h.mockProviderService.On("Find", mock.Anything).Return(expectedProviders, nil).Once()
-		h.mockPolicyService.On("Find", mock.Anything).Return(expectedPolicies, nil).Once()
+		h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(nil, expectedError).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything).Return(expectedProviders, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(expectedPolicies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
 			Return(expectedAppeals, nil).Once()
@@ -208,9 +208,9 @@ func (s *ServiceTestSuite) TestCreate() {
 		expectedError := fmt.Errorf("error getting provider map: %w", errors.New("provider service error"))
 		expectedPolicies := []*domain.Policy{}
 		expectedAppeals := []*domain.Appeal{}
-		h.mockResourceService.On("Find", mock.Anything, mock.Anything).Return(expectedResources, nil).Once()
-		h.mockProviderService.On("Find", mock.Anything).Return(nil, expectedError).Once()
-		h.mockPolicyService.On("Find", mock.Anything).Return(expectedPolicies, nil).Once()
+		h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedResources, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything).Return(nil, expectedError).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(expectedPolicies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
 			Return(expectedAppeals, nil).Once()
@@ -227,9 +227,9 @@ func (s *ServiceTestSuite) TestCreate() {
 		expectedProviders := []*domain.Provider{}
 		expectedError := fmt.Errorf("error getting service map: %w", errors.New("service service error"))
 		expectedAppeals := []*domain.Appeal{}
-		h.mockResourceService.On("Find", mock.Anything, mock.Anything).Return(expectedResources, nil).Once()
-		h.mockProviderService.On("Find", mock.Anything).Return(expectedProviders, nil).Once()
-		h.mockPolicyService.On("Find", mock.Anything).Return(nil, expectedError).Once()
+		h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedResources, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything).Return(expectedProviders, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(nil, expectedError).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
 			Return(expectedAppeals, nil).Once()
@@ -245,9 +245,9 @@ func (s *ServiceTestSuite) TestCreate() {
 		expectedResources := []*domain.Resource{}
 		expectedProviders := []*domain.Provider{}
 		expectedPolicies := []*domain.Policy{}
-		h.mockResourceService.On("Find", mock.Anything, mock.Anything).Return(expectedResources, nil).Once()
-		h.mockProviderService.On("Find", mock.Anything).Return(expectedProviders, nil).Once()
-		h.mockPolicyService.On("Find", mock.Anything).Return(expectedPolicies, nil).Once()
+		h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedResources, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything).Return(expectedProviders, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(expectedPolicies, nil).Once()
 		expectedError := errors.New("appeal repository error")
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
@@ -1615,30 +1615,30 @@ func (s *ServiceTestSuite) TestCreate() {
 				},
 			}
 
-			h.mockResourceService.On("Find", mock.Anything, mock.Anything).Return([]*domain.Resource{dummyResource}, nil).Once()
-			h.mockProviderService.On("Find", mock.Anything).Return([]*domain.Provider{dummyProvider}, nil).Once()
-			h.mockPolicyService.On("Find", mock.Anything).Return([]*domain.Policy{dummyPolicy, overriddingPolicy}, nil).Once()
+			h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Resource{dummyResource}, nil).Once()
+			h.mockProviderService.EXPECT().Find(mock.Anything).Return([]*domain.Provider{dummyProvider}, nil).Once()
+			h.mockPolicyService.EXPECT().Find(mock.Anything).Return([]*domain.Policy{dummyPolicy, overriddingPolicy}, nil).Once()
 			h.mockRepository.EXPECT().
 				Find(h.ctxMatcher, mock.Anything).
 				Return([]*domain.Appeal{}, nil).Once()
 			h.mockGrantService.EXPECT().
 				List(h.ctxMatcher, mock.AnythingOfType("domain.ListGrantsFilter")).
 				Return([]domain.Grant{}, nil).Once()
-			h.mockProviderService.On("ValidateAppeal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-			h.mockProviderService.On("GetPermissions", mock.Anything, dummyProvider.Config, dummyResource.Type, input.Role).
+			h.mockProviderService.EXPECT().ValidateAppeal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			h.mockProviderService.EXPECT().GetPermissions(mock.Anything, dummyProvider.Config, dummyResource.Type, input.Role).
 				Return(dummyProvider.Config.Resources[0].Roles[0].Permissions, nil)
 			h.mockRepository.EXPECT().
 				BulkUpsert(h.ctxMatcher, mock.Anything).
 				Return(nil).Once()
-			h.mockNotifier.On("Notify", h.ctxMatcher, mock.Anything).Return(nil).Once()
-			h.mockAuditLogger.On("Log", mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
+			h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
+			h.mockAuditLogger.EXPECT().Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 			h.mockProviderService.EXPECT().
 				IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
 				Return(false).Once()
-			h.mockGrantService.On("List", mock.Anything, mock.Anything).Return([]domain.Grant{}, nil).Once()
-			h.mockGrantService.On("Prepare", mock.Anything, mock.Anything).Return(&domain.Grant{}, nil).Once()
-			h.mockPolicyService.On("GetOne", mock.Anything, mock.Anything, mock.Anything).Return(overriddingPolicy, nil).Once()
-			h.mockProviderService.On("GrantAccess", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+			h.mockGrantService.EXPECT().List(mock.Anything, mock.Anything).Return([]domain.Grant{}, nil).Once()
+			h.mockGrantService.EXPECT().Prepare(mock.Anything, mock.Anything).Return(&domain.Grant{}, nil).Once()
+			h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(overriddingPolicy, nil).Once()
+			h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 
 			err := h.service.Create(context.Background(), []*domain.Appeal{input}, appeal.CreateWithAdditionalAppeal())
 
@@ -2896,7 +2896,7 @@ func (s *ServiceTestSuite) TestGrantAccessToProvider() {
 		defer h.assertExpectations(s.T())
 		expectedError := errors.New("retrieving policy: not found")
 
-		h.mockPolicyService.On("GetOne", mock.Anything, "policy_1", uint(1)).Return(nil, errors.New("not found")).Once()
+		h.mockPolicyService.EXPECT().GetOne(mock.Anything, "policy_1", uint(1)).Return(nil, errors.New("not found")).Once()
 
 		actualError := h.service.GrantAccessToProvider(context.Background(), &domain.Appeal{
 			PolicyID:      "policy_1",
