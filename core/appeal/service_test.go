@@ -42,6 +42,7 @@ type serviceTestHelper struct {
 }
 
 func (h *serviceTestHelper) assertExpectations(t *testing.T) {
+	t.Helper()
 	h.mockRepository.AssertExpectations(t)
 	h.mockApprovalService.AssertExpectations(t)
 	h.mockResourceService.AssertExpectations(t)
