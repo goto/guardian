@@ -14,6 +14,8 @@ import (
 
 const (
 	AuditKeyCreate = "comment.create"
+
+	DefaultCommentsOrderBy = "created_at"
 )
 
 var (
@@ -93,8 +95,7 @@ func (s *Service) List(ctx context.Context, filter domain.ListCommentsFilter) ([
 	}
 
 	if filter.OrderBy == nil {
-		defaultCommentOrder := "created_at"
-		filter.OrderBy = []string{defaultCommentOrder}
+		filter.OrderBy = []string{DefaultCommentsOrderBy}
 	}
 
 	return s.repo.List(ctx, filter)
