@@ -9,10 +9,11 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/goto/guardian/core/appeal"
-	appealmock "github.com/goto/guardian/core/appeal/mocks"
+	appealmocks "github.com/goto/guardian/core/appeal/mocks"
 	"github.com/goto/guardian/core/comment"
 	"github.com/goto/guardian/core/comment/mocks"
 	"github.com/goto/guardian/domain"
+	guardianmocks "github.com/goto/guardian/mocks"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -20,27 +21,27 @@ import (
 
 type ServiceTestSuite struct {
 	suite.Suite
-	mockAppealRepo  *appealmock.Repository
+	mockAppealRepo  *appealmocks.Repository
 	mockCommentRepo *mocks.Repository
-	mockNotifier    *mocks.Notifier
-	mockAuditLogger *mocks.AuditLogger
+	mockNotifier    *guardianmocks.Notifier
+	mockAuditLogger *guardianmocks.AuditLogger
 	service         *comment.Service
 }
 
 func (s *ServiceTestSuite) SetupTest() {
-	s.mockAppealRepo = new(appealmock.Repository)
+	s.mockAppealRepo = new(appealmocks.Repository)
 	s.mockCommentRepo = &mocks.Repository{}
-	s.mockNotifier = &mocks.Notifier{}
-	s.mockAuditLogger = &mocks.AuditLogger{}
+	s.mockNotifier = new(guardianmocks.Notifier)
+	s.mockAuditLogger = new(guardianmocks.AuditLogger)
 
 	appealService := appeal.NewService(appeal.ServiceDeps{
 		Repository:      s.mockAppealRepo,
-		ResourceService: new(appealmock.ResourceService),
-		ApprovalService: new(appealmock.ApprovalService),
-		ProviderService: new(appealmock.ProviderService),
-		PolicyService:   new(appealmock.PolicyService),
-		GrantService:    new(appealmock.GrantService),
-		IAMManager:      new(appealmock.IamManager),
+		ResourceService: new(appealmocks.ResourceService),
+		ApprovalService: new(appealmocks.ApprovalService),
+		ProviderService: new(appealmocks.ProviderService),
+		PolicyService:   new(appealmocks.PolicyService),
+		GrantService:    new(appealmocks.GrantService),
+		IAMManager:      new(appealmocks.IamManager),
 		Notifier:        s.mockNotifier,
 		Validator:       validator.New(),
 		Logger:          log.NewNoop(),

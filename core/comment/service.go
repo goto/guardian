@@ -7,6 +7,7 @@ import (
 
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/audit"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/notifiers"
 )
@@ -26,32 +27,22 @@ type repository interface {
 	List(context.Context, domain.ListCommentsFilter) ([]*domain.Comment, error)
 }
 
-//go:generate mockery --name=notifier --exported --with-expecter
-type notifier interface {
-	notifiers.Client
-}
-
-//go:generate mockery --name=auditLogger --exported --with-expecter
-type auditLogger interface {
-	Log(ctx context.Context, action string, data interface{}) error
-}
-
 type Service struct {
 	repo          repository
 	appealService *appeal.Service
 
-	notifier    notifier
+	notifier    notifiers.Client
 	logger      log.Logger
-	auditLogger auditLogger
+	auditLogger audit.AuditLogger
 }
 
 type ServiceDeps struct {
 	Repository    repository
 	AppealService *appeal.Service
 
-	Notifier    notifier
+	Notifier    notifiers.Client
 	Logger      log.Logger
-	AuditLogger auditLogger
+	AuditLogger audit.AuditLogger
 }
 
 func NewService(deps ServiceDeps) *Service {
