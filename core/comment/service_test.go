@@ -6,7 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/goto/guardian/core/appeal"
+	appealmock "github.com/goto/guardian/core/appeal/mocks"
 	"github.com/goto/guardian/core/comment"
 	"github.com/goto/guardian/core/comment/mocks"
 	"github.com/goto/guardian/domain"
@@ -17,21 +20,36 @@ import (
 
 type ServiceTestSuite struct {
 	suite.Suite
-	mockRepo          *mocks.Repository
-	mockAppealService *mocks.AppealService
-	mockNotifier      *mocks.Notifier
-	mockAuditLogger   *mocks.AuditLogger
-	service           *comment.Service
+	mockAppealRepo  *appealmock.Repository
+	mockCommentRepo *mocks.Repository
+	mockNotifier    *mocks.Notifier
+	mockAuditLogger *mocks.AuditLogger
+	service         *comment.Service
 }
 
 func (s *ServiceTestSuite) SetupTest() {
-	s.mockRepo = &mocks.Repository{}
-	s.mockAppealService = &mocks.AppealService{}
+	s.mockAppealRepo = new(appealmock.Repository)
+	s.mockCommentRepo = &mocks.Repository{}
 	s.mockNotifier = &mocks.Notifier{}
 	s.mockAuditLogger = &mocks.AuditLogger{}
+
+	appealService := appeal.NewService(appeal.ServiceDeps{
+		Repository:      s.mockAppealRepo,
+		ResourceService: new(appealmock.ResourceService),
+		ApprovalService: new(appealmock.ApprovalService),
+		ProviderService: new(appealmock.ProviderService),
+		PolicyService:   new(appealmock.PolicyService),
+		GrantService:    new(appealmock.GrantService),
+		IAMManager:      new(appealmock.IamManager),
+		Notifier:        s.mockNotifier,
+		Validator:       validator.New(),
+		Logger:          log.NewNoop(),
+		AuditLogger:     s.mockAuditLogger,
+	})
+
 	s.service = comment.NewService(comment.ServiceDeps{
-		Repository:    s.mockRepo,
-		AppealService: s.mockAppealService,
+		Repository:    s.mockCommentRepo,
+		AppealService: appealService,
 		Notifier:      s.mockNotifier,
 		AuditLogger:   s.mockAuditLogger,
 		Logger:        log.NewNoop(),
@@ -67,12 +85,12 @@ func (s *ServiceTestSuite) TestCreate() {
 			},
 			Resource: &domain.Resource{},
 		}
-		s.mockAppealService.EXPECT().
+		s.mockAppealRepo.EXPECT().
 			GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), appealID).
 			Return(dummyAppeal, nil)
-		defer s.mockAppealService.AssertExpectations(s.T())
+		defer s.mockAppealRepo.AssertExpectations(s.T())
 
-		s.mockRepo.EXPECT().
+		s.mockCommentRepo.EXPECT().
 			Create(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*domain.Comment")).
 			Return(nil).
 			Run(func(_a0 context.Context, _a1 *domain.Comment) {
@@ -90,7 +108,7 @@ func (s *ServiceTestSuite) TestCreate() {
 			{CreatedBy: commentParticipant},
 			newComment,
 		}
-		s.mockRepo.EXPECT().
+		s.mockCommentRepo.EXPECT().
 			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), domain.ListCommentsFilter{AppealID: appealID}).
 			Return(appealComments, nil)
 		// defer s.mockRepo.AssertExpectations(s.T())
@@ -137,7 +155,7 @@ func (s *ServiceTestSuite) TestCreate() {
 		s.NoError(actualErr)
 
 		time.Sleep(2 * time.Second) // wait for async actions to complete
-		s.mockRepo.AssertExpectations(s.T())
+		s.mockCommentRepo.AssertExpectations(s.T())
 		s.mockNotifier.AssertExpectations(s.T())
 		s.mockAuditLogger.AssertExpectations(s.T())
 	})
@@ -146,7 +164,7 @@ func (s *ServiceTestSuite) TestCreate() {
 func (s *ServiceTestSuite) TestList() {
 	s.Run("should return list of comments on success", func() {
 		appealID := uuid.New().String()
-		s.mockAppealService.EXPECT().
+		s.mockAppealRepo.EXPECT().
 			GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), appealID).
 			Return(&domain.Appeal{}, nil)
 
@@ -154,7 +172,7 @@ func (s *ServiceTestSuite) TestList() {
 			{ID: uuid.New().String(), AppealID: appealID, CreatedBy: "user1@example.com", Body: "comment 1"},
 			{ID: uuid.New().String(), AppealID: appealID, CreatedBy: "user2@example.com", Body: "comment 2"},
 		}
-		s.mockRepo.EXPECT().
+		s.mockCommentRepo.EXPECT().
 			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("domain.ListCommentsFilter")).
 			Return(expectedComments, nil).
 			Run(func(_a0 context.Context, filter domain.ListCommentsFilter) {

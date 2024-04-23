@@ -38,7 +38,7 @@ type auditLogger interface {
 
 type Service struct {
 	repo          repository
-	appealService appeal.Service
+	appealService *appeal.Service
 
 	notifier    notifier
 	logger      log.Logger
@@ -57,7 +57,7 @@ type ServiceDeps struct {
 func NewService(deps ServiceDeps) *Service {
 	return &Service{
 		repo:          deps.Repository,
-		appealService: *deps.AppealService,
+		appealService: deps.AppealService,
 		notifier:      deps.Notifier,
 		logger:        deps.Logger,
 		auditLogger:   deps.AuditLogger,
