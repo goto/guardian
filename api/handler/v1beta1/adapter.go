@@ -909,7 +909,7 @@ func (a *adapter) ToCommentProto(c *domain.Comment) *guardianv1beta1.Comment {
 
 	commentProto := &guardianv1beta1.Comment{
 		Id:        c.ID,
-		AppealId:  c.AppealID,
+		AppealId:  c.ParentID,
 		CreatedBy: c.CreatedBy,
 		Body:      c.Body,
 	}

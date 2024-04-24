@@ -36,8 +36,8 @@ func (r *CommentRepository) Create(ctx context.Context, c *domain.Comment) error
 
 func (r *CommentRepository) List(ctx context.Context, filter domain.ListCommentsFilter) ([]*domain.Comment, error) {
 	db := r.db.WithContext(ctx)
-	if filter.AppealID != "" {
-		db = db.Where("appeal_id = ?", filter.AppealID)
+	if filter.ParentID != "" {
+		db = db.Where("parent_id = ?", filter.ParentID)
 	}
 	if filter.OrderBy != nil {
 		for _, o := range filter.OrderBy {

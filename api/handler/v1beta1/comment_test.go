@@ -25,7 +25,7 @@ func (s *GrpcHandlersSuite) TestListComments() {
 		dummyComments := []*domain.Comment{
 			{
 				ID:        uuid.New().String(),
-				AppealID:  appealID,
+				ParentID:  appealID,
 				CreatedBy: "user1@example.com",
 				Body:      "comment 1",
 				CreatedAt: timeNow,
@@ -33,7 +33,7 @@ func (s *GrpcHandlersSuite) TestListComments() {
 			},
 			{
 				ID:        uuid.New().String(),
-				AppealID:  appealID,
+				ParentID:  appealID,
 				CreatedBy: "user2@example.com",
 				Body:      "comment 2",
 				CreatedAt: timeNow,
@@ -62,14 +62,14 @@ func (s *GrpcHandlersSuite) TestListComments() {
 		}
 		expectedOrderBy := []string{"created_at:desc"}
 
-		s.commentService.EXPECT().
-			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("domain.ListCommentsFilter")).
+		s.appealService.EXPECT().
+			ListComments(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("domain.ListCommentsFilter")).
 			Return(dummyComments, nil).
 			Run(func(_a0 context.Context, filter domain.ListCommentsFilter) {
-				s.Equal(appealID, filter.AppealID)
+				s.Equal(appealID, filter.ParentID)
 				s.Equal(expectedOrderBy, filter.OrderBy)
 			})
-		defer s.commentService.AssertExpectations(s.T())
+		defer s.appealService.AssertExpectations(s.T())
 
 		req := &guardianv1beta1.ListAppealCommentsRequest{
 			AppealId: appealID,
@@ -104,10 +104,10 @@ func (s *GrpcHandlersSuite) TestListComments() {
 				s.setup()
 
 				appealID := uuid.New().String()
-				s.commentService.EXPECT().
-					List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("domain.ListCommentsFilter")).
+				s.appealService.EXPECT().
+					ListComments(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("domain.ListCommentsFilter")).
 					Return(nil, tc.expecedError)
-				defer s.commentService.AssertExpectations(s.T())
+				defer s.appealService.AssertExpectations(s.T())
 
 				req := &guardianv1beta1.ListAppealCommentsRequest{
 					AppealId: appealID,
@@ -131,7 +131,7 @@ func (s *GrpcHandlersSuite) TestCreateComment() {
 		commentBody := "test comment"
 		expectedNewComment := &domain.Comment{
 			ID:        uuid.New().String(),
-			AppealID:  appealID,
+			ParentID:  appealID,
 			CreatedBy: actor,
 			Body:      commentBody,
 			CreatedAt: timeNow,
@@ -148,11 +148,11 @@ func (s *GrpcHandlersSuite) TestCreateComment() {
 			},
 		}
 
-		s.commentService.EXPECT().
-			Create(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*domain.Comment")).
+		s.appealService.EXPECT().
+			CreateComment(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*domain.Comment")).
 			Return(nil).
 			Run(func(_a0 context.Context, c *domain.Comment) {
-				s.Equal(appealID, c.AppealID)
+				s.Equal(appealID, c.ParentID)
 				s.Equal(actor, c.CreatedBy)
 				s.Equal(commentBody, c.Body)
 
@@ -161,7 +161,7 @@ func (s *GrpcHandlersSuite) TestCreateComment() {
 				c.CreatedAt = expectedNewComment.CreatedAt
 				c.UpdatedAt = expectedNewComment.UpdatedAt
 			})
-		defer s.commentService.AssertExpectations(s.T())
+		defer s.appealService.AssertExpectations(s.T())
 
 		req := &guardianv1beta1.CreateAppealCommentRequest{
 			AppealId: appealID,
@@ -194,6 +194,16 @@ func (s *GrpcHandlersSuite) TestCreateComment() {
 			expectedGRPCCode codes.Code
 		}{
 			{
+				name:             "should return invalid argument error when parent type is empty",
+				expecedError:     comment.ErrEmptyCommentParentType,
+				expectedGRPCCode: codes.InvalidArgument,
+			},
+			{
+				name:             "should return invalid argument error when parent id is empty",
+				expecedError:     comment.ErrEmptyCommentParentID,
+				expectedGRPCCode: codes.InvalidArgument,
+			},
+			{
 				name:             "should return invalid argument error when comment creator is empty",
 				expecedError:     comment.ErrEmptyCommentCreator,
 				expectedGRPCCode: codes.InvalidArgument,
@@ -219,10 +229,10 @@ func (s *GrpcHandlersSuite) TestCreateComment() {
 			s.Run(tc.name, func() {
 				s.setup()
 
-				s.commentService.EXPECT().
-					Create(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*domain.Comment")).
+				s.appealService.EXPECT().
+					CreateComment(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*domain.Comment")).
 					Return(tc.expecedError)
-				defer s.commentService.AssertExpectations(s.T())
+				defer s.appealService.AssertExpectations(s.T())
 
 				req := &guardianv1beta1.CreateAppealCommentRequest{
 					AppealId: uuid.New().String(),

@@ -118,12 +118,12 @@ func (s *CommentRepositorySuite) TestCreateAndListComments() {
 	// create comments
 	comments := []*domain.Comment{
 		{
-			AppealID:  s.dummyAppeal.ID,
+			ParentID:  s.dummyAppeal.ID,
 			Body:      "comment_test_1",
 			CreatedBy: "user_1",
 		},
 		{
-			AppealID:  s.dummyAppeal.ID,
+			ParentID:  s.dummyAppeal.ID,
 			Body:      "comment_test_2",
 			CreatedBy: "user_2",
 		},
@@ -135,7 +135,7 @@ func (s *CommentRepositorySuite) TestCreateAndListComments() {
 
 	// list comments
 	filter := domain.ListCommentsFilter{
-		AppealID: s.dummyAppeal.ID,
+		ParentID: s.dummyAppeal.ID,
 		OrderBy:  []string{"created_by:desc"},
 	}
 

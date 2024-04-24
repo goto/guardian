@@ -9,13 +9,14 @@ import (
 )
 
 type Comment struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	AppealID  uuid.UUID `gorm:"type:uuid"`
-	CreatedBy string
-	Body      string
-	CreatedAt time.Time      `gorm:"autoCreateTime"`
-	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	ID         uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ParentType string
+	ParentID   string
+	CreatedBy  string
+	Body       string
+	CreatedAt  time.Time      `gorm:"autoCreateTime"`
+	UpdatedAt  time.Time      `gorm:"autoUpdateTime"`
+	DeletedAt  gorm.DeletedAt `gorm:"index"`
 }
 
 func (Comment) TableName() string {
@@ -31,14 +32,8 @@ func (m *Comment) FromDomain(c *domain.Comment) error {
 		}
 	}
 
-	if c.AppealID != "" {
-		if uuid, err := uuid.Parse(c.AppealID); err != nil {
-			return err
-		} else {
-			m.AppealID = uuid
-		}
-	}
-
+	m.ParentType = c.ParentType
+	m.ParentID = c.ParentID
 	m.CreatedBy = c.CreatedBy
 	m.Body = c.Body
 	m.CreatedAt = c.CreatedAt
@@ -49,11 +44,12 @@ func (m *Comment) FromDomain(c *domain.Comment) error {
 
 func (m *Comment) ToDomain() *domain.Comment {
 	return &domain.Comment{
-		ID:        m.ID.String(),
-		AppealID:  m.AppealID.String(),
-		CreatedBy: m.CreatedBy,
-		Body:      m.Body,
-		CreatedAt: m.CreatedAt,
-		UpdatedAt: m.UpdatedAt,
+		ID:         m.ID.String(),
+		ParentType: m.ParentType,
+		ParentID:   m.ParentID,
+		CreatedBy:  m.CreatedBy,
+		Body:       m.Body,
+		CreatedAt:  m.CreatedAt,
+		UpdatedAt:  m.UpdatedAt,
 	}
 }

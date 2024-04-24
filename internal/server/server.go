@@ -112,7 +112,6 @@ func RunServer(config *Config) error {
 		services.AppealService,
 		services.ApprovalService,
 		services.GrantService,
-		services.CommentService,
 		protoAdapter,
 		authUserContextKey[config.Auth.Provider],
 		logger,

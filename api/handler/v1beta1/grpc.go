@@ -97,6 +97,8 @@ type appealService interface {
 	AddApprover(ctx context.Context, appealID, approvalID, email string) (*domain.Appeal, error)
 	DeleteApprover(ctx context.Context, appealID, approvalID, email string) (*domain.Appeal, error)
 	UpdateApproval(ctx context.Context, approvalAction domain.ApprovalAction) (*domain.Appeal, error)
+	ListComments(context.Context, domain.ListCommentsFilter) ([]*domain.Comment, error)
+	CreateComment(context.Context, *domain.Comment) error
 }
 
 //go:generate mockery --name=approvalService --exported --with-expecter
@@ -118,12 +120,6 @@ type grantService interface {
 	ImportFromProvider(ctx context.Context, criteria grant.ImportFromProviderCriteria) ([]*domain.Grant, error)
 }
 
-//go:generate mockery --name=commentService --exported --with-expecter
-type commentService interface {
-	List(context.Context, domain.ListCommentsFilter) ([]*domain.Comment, error)
-	Create(context.Context, *domain.Comment) error
-}
-
 type GRPCServer struct {
 	resourceService resourceService
 	activityService activityService
@@ -132,7 +128,6 @@ type GRPCServer struct {
 	appealService   appealService
 	approvalService approvalService
 	grantService    grantService
-	commentService  commentService
 	adapter         ProtoAdapter
 
 	authenticatedUserContextKey interface{}
@@ -149,7 +144,6 @@ func NewGRPCServer(
 	appealService appealService,
 	approvalService approvalService,
 	grantService grantService,
-	commentService commentService,
 	adapter ProtoAdapter,
 	authenticatedUserContextKey interface{},
 	logger log.Logger,
@@ -162,7 +156,6 @@ func NewGRPCServer(
 		appealService:               appealService,
 		approvalService:             approvalService,
 		grantService:                grantService,
-		commentService:              commentService,
 		adapter:                     adapter,
 		authenticatedUserContextKey: authenticatedUserContextKey,
 		logger:                      logger,

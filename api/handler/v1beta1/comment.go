@@ -13,8 +13,8 @@ import (
 )
 
 func (s *GRPCServer) ListAppealComments(ctx context.Context, req *guardianv1beta1.ListAppealCommentsRequest) (*guardianv1beta1.ListAppealCommentsResponse, error) {
-	comments, err := s.commentService.List(ctx, domain.ListCommentsFilter{
-		AppealID: req.GetAppealId(),
+	comments, err := s.appealService.ListComments(ctx, domain.ListCommentsFilter{
+		ParentID: req.GetAppealId(),
 		OrderBy:  req.GetOrderBy(),
 	})
 	if err != nil {
@@ -43,13 +43,15 @@ func (s *GRPCServer) CreateAppealComment(ctx context.Context, req *guardianv1bet
 	}
 
 	c := &domain.Comment{
-		AppealID:  req.GetAppealId(),
+		ParentID:  req.GetAppealId(),
 		Body:      req.GetBody(),
 		CreatedBy: actor,
 	}
-	if err := s.commentService.Create(ctx, c); err != nil {
+	if err := s.appealService.CreateComment(ctx, c); err != nil {
 		switch {
 		case
+			errors.Is(err, comment.ErrEmptyCommentParentType),
+			errors.Is(err, comment.ErrEmptyCommentParentID),
 			errors.Is(err, comment.ErrEmptyCommentCreator),
 			errors.Is(err, comment.ErrEmptyCommentBody):
 			return nil, s.invalidArgument(ctx, err.Error())

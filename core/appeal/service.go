@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/goto/guardian/core/comment"
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/core/policy"
 	"github.com/goto/guardian/domain"
@@ -119,6 +120,7 @@ type ServiceDeps struct {
 	ProviderService providerService
 	PolicyService   policyService
 	GrantService    grantService
+	CommentService  *comment.Service
 	IAMManager      iamManager
 
 	Notifier    notifier
@@ -135,6 +137,7 @@ type Service struct {
 	providerService providerService
 	policyService   policyService
 	grantService    grantService
+	commentService  *comment.Service
 	iam             domain.IAMManager
 
 	notifier    notifier
@@ -154,6 +157,7 @@ func NewService(deps ServiceDeps) *Service {
 		deps.ProviderService,
 		deps.PolicyService,
 		deps.GrantService,
+		deps.CommentService,
 		deps.IAMManager,
 
 		deps.Notifier,
