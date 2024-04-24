@@ -412,6 +412,87 @@
         ]
       }
     },
+    "/v1beta1/appeals/{appealId}/comments": {
+      "get": {
+        "operationId": "GuardianService_ListAppealComments",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1ListAppealCommentsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "appealId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "orderBy",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
+      },
+      "post": {
+        "operationId": "GuardianService_CreateAppealComment",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1CreateAppealCommentResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "appealId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "body": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
+      }
+    },
     "/v1beta1/appeals/{id}": {
       "get": {
         "operationId": "GuardianService_GetAppeal",
@@ -2421,6 +2502,31 @@
       },
       "title": "Appeal is created by user to get access to one or more resources"
     },
+    "v1beta1AppealComment": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "appealId": {
+          "type": "string"
+        },
+        "createdBy": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
     "v1beta1AppealOptions": {
       "type": "object",
       "properties": {
@@ -2498,6 +2604,14 @@
         },
         "match": {
           "$ref": "#/definitions/ConditionMatchCondition"
+        }
+      }
+    },
+    "v1beta1CreateAppealCommentResponse": {
+      "type": "object",
+      "properties": {
+        "comment": {
+          "$ref": "#/definitions/v1beta1AppealComment"
         }
       }
     },
@@ -2810,6 +2924,18 @@
           "items": {
             "type": "object",
             "$ref": "#/definitions/v1beta1ProviderActivity"
+          }
+        }
+      }
+    },
+    "v1beta1ListAppealCommentsResponse": {
+      "type": "object",
+      "properties": {
+        "comments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1beta1AppealComment"
           }
         }
       }

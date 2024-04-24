@@ -26,7 +26,7 @@ func (s *GRPCServer) ListAppealComments(ctx context.Context, req *guardianv1beta
 		}
 	}
 
-	commentProtos := []*guardianv1beta1.Comment{}
+	commentProtos := []*guardianv1beta1.AppealComment{}
 	for _, c := range comments {
 		commentProtos = append(commentProtos, s.adapter.ToCommentProto(c))
 	}

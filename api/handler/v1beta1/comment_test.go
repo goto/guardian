@@ -41,7 +41,7 @@ func (s *GrpcHandlersSuite) TestListComments() {
 			},
 		}
 		expectedResponse := &guardianv1beta1.ListAppealCommentsResponse{
-			Comments: []*guardianv1beta1.Comment{
+			Comments: []*guardianv1beta1.AppealComment{
 				{
 					Id:        dummyComments[0].ID,
 					AppealId:  appealID,
@@ -138,7 +138,7 @@ func (s *GrpcHandlersSuite) TestCreateComment() {
 			UpdatedAt: timeNow,
 		}
 		expectedResponse := &guardianv1beta1.CreateAppealCommentResponse{
-			Comment: &guardianv1beta1.Comment{
+			Comment: &guardianv1beta1.AppealComment{
 				Id:        expectedNewComment.ID,
 				AppealId:  appealID,
 				CreatedBy: actor,

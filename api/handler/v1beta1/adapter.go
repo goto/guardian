@@ -902,12 +902,12 @@ func (a *adapter) ToActivityProto(activity *domain.Activity) (*guardianv1beta1.P
 	return activityProto, nil
 }
 
-func (a *adapter) ToCommentProto(c *domain.Comment) *guardianv1beta1.Comment {
+func (a *adapter) ToCommentProto(c *domain.Comment) *guardianv1beta1.AppealComment {
 	if c == nil {
 		return nil
 	}
 
-	commentProto := &guardianv1beta1.Comment{
+	commentProto := &guardianv1beta1.AppealComment{
 		Id:        c.ID,
 		AppealId:  c.ParentID,
 		CreatedBy: c.CreatedBy,

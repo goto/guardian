@@ -41,7 +41,7 @@ type ProtoAdapter interface {
 
 	ToActivityProto(*domain.Activity) (*guardianv1beta1.ProviderActivity, error)
 
-	ToCommentProto(*domain.Comment) *guardianv1beta1.Comment
+	ToCommentProto(*domain.Comment) *guardianv1beta1.AppealComment
 }
 
 //go:generate mockery --name=resourceService --exported --with-expecter
