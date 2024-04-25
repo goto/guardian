@@ -409,6 +409,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 
 	if len(notifications) > 0 {
 		go func() {
+			ctx := context.WithoutCancel(ctx)
 			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
 				for _, err1 := range errs {
 					s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
@@ -625,6 +626,7 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 		}
 		if len(notifications) > 0 {
 			go func() {
+				ctx := context.WithoutCancel(ctx)
 				if errs := s.notifier.Notify(ctx, notifications); errs != nil {
 					for _, err1 := range errs {
 						s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
@@ -767,6 +769,7 @@ func (s *Service) AddApprover(ctx context.Context, appealID, approvalID, email s
 	}
 
 	go func() {
+		ctx := context.WithoutCancel(ctx)
 		if errs := s.notifier.Notify(ctx, notifications); errs != nil {
 			for _, err1 := range errs {
 				s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
