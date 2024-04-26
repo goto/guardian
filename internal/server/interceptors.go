@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"net/http"
 
 	ctx_logrus "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus"
 	"github.com/sirupsen/logrus"
@@ -11,9 +12,13 @@ import (
 
 type authenticatedUserEmailContextKey struct{}
 
-var logrusActorKey = "actor"
+const (
+	logrusActorKey = "actor"
 
-func withAuthenticatedUserEmail(headerKey string) grpc.UnaryServerInterceptor {
+	grpcgatewayHTTPPathKey = "http-path"
+)
+
+func headerAuthInterceptor(headerKey string) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if md, ok := metadata.FromIncomingContext(ctx); ok {
 			if v := md.Get(headerKey); len(v) > 0 {
@@ -26,14 +31,27 @@ func withAuthenticatedUserEmail(headerKey string) grpc.UnaryServerInterceptor {
 	}
 }
 
-func withLogrusContext() grpc.UnaryServerInterceptor {
+func enrichRequestMetadata(ctx context.Context, req *http.Request) metadata.MD {
+	return metadata.New(map[string]string{
+		grpcgatewayHTTPPathKey: req.URL.Path,
+	})
+}
+
+func enrichLogrusFields() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		fields := make(logrus.Fields, 0)
+
 		if userEmail, ok := ctx.Value(authenticatedUserEmailContextKey{}).(string); ok {
-			ctx_logrus.AddFields(ctx, logrus.Fields{
-				logrusActorKey: userEmail,
-			})
+			fields[logrusActorKey] = userEmail
 		}
 
+		if md, ok := metadata.FromIncomingContext(ctx); ok {
+			fields["http_path"] = md[grpcgatewayHTTPPathKey][0]
+		}
+
+		if len(fields) > 0 {
+			ctx_logrus.AddFields(ctx, fields)
+		}
 		return handler(ctx, req)
 	}
 }

@@ -93,7 +93,7 @@ func RunServer(config *Config) error {
 			),
 			grpc_logrus.UnaryServerInterceptor(logrusEntry),
 			authInterceptor,
-			withLogrusContext(),
+			enrichLogrusFields(),
 			otelgrpc.UnaryServerInterceptor(),
 		)),
 	)
@@ -134,6 +134,7 @@ func RunServer(config *Config) error {
 				DiscardUnknown: true,
 			},
 		}),
+		runtime.WithMetadata(enrichRequestMetadata),
 	)
 
 	// grpcPort has to be same as config.Port till the time guardian service can support both grpc and http in two different ports
@@ -216,7 +217,7 @@ func makeHeaderMatcher(c *Config) func(key string) (string, bool) {
 
 func getAuthInterceptor(config *Config) (grpc.UnaryServerInterceptor, error) {
 	// default fallback to user email on header
-	authInterceptor := withAuthenticatedUserEmail(config.Auth.Default.HeaderKey)
+	authInterceptor := headerAuthInterceptor(config.Auth.Default.HeaderKey)
 
 	if config.Auth.Provider == "oidc" {
 		idtokenValidator, err := idtoken.NewValidator(context.Background())
