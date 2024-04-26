@@ -1096,6 +1096,7 @@ func (s *ServiceTestSuite) TestCreate() {
 			Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 
 		actualError := h.service.Create(context.Background(), appeals)
+		time.Sleep(time.Millisecond)
 
 		s.Nil(actualError)
 		s.Equal(expectedResult, appeals)
@@ -1560,6 +1561,7 @@ func (s *ServiceTestSuite) TestCreate() {
 			Return(nil).Once()
 
 		actualError := h.service.Create(context.Background(), appeals)
+		time.Sleep(time.Millisecond)
 
 		s.Nil(actualError)
 		s.Equal(expectedResult, appeals)
@@ -1657,6 +1659,7 @@ func (s *ServiceTestSuite) TestCreate() {
 			h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 
 			err := h.service.Create(context.Background(), []*domain.Appeal{input}, appeal.CreateWithAdditionalAppeal())
+			time.Sleep(time.Millisecond)
 
 			s.NoError(err)
 			s.Equal("test-approval", input.Approvals[0].Name)
@@ -1933,6 +1936,7 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprov
 	h.mockAuditLogger.EXPECT().Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 
 	actualError := h.service.Create(context.Background(), appeals)
+	time.Sleep(time.Millisecond)
 
 	s.Nil(actualError)
 	s.Equal(expectedResult, appeals)
@@ -2129,6 +2133,7 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithAdditionalAppeals() {
 	h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 
 	err := h.service.Create(context.Background(), appealsPayload)
+	time.Sleep(time.Millisecond)
 
 	s.NoError(err)
 }
@@ -2763,6 +2768,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			Return(nil).Once()
 
 		_, actualError := h.service.UpdateApproval(context.Background(), action)
+		time.Sleep(time.Millisecond)
 
 		s.Nil(actualError)
 	})
@@ -3164,7 +3170,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					Return(nil).Once()
 
 				actualResult, actualError := h.service.UpdateApproval(context.Background(), tc.expectedApprovalAction)
-
+				time.Sleep(time.Millisecond)
 				s.NoError(actualError)
 				tc.expectedResult.Policy = actualResult.Policy
 				s.Equal(tc.expectedResult, actualResult)
@@ -3364,9 +3370,9 @@ func (s *ServiceTestSuite) TestAddApprover() {
 
 				actualAppeal, actualError := h.service.AddApprover(context.Background(), appealID, approvalID, newApprover)
 
+				time.Sleep(time.Millisecond)
 				s.NoError(actualError)
 				s.Equal(expectedApproval, actualAppeal.Approvals[0])
-
 			})
 		}
 	})
