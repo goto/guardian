@@ -50,6 +50,7 @@ type Service struct {
 	providerService providerService
 	iam             domain.IAMManager
 
+	crypto      domain.Crypto
 	validator   *validator.Validate
 	logger      log.Logger
 	auditLogger auditLogger
@@ -61,6 +62,7 @@ type ServiceDeps struct {
 	ProviderService providerService
 	IAMManager      domain.IAMManager
 
+	Crypto      domain.Crypto
 	Validator   *validator.Validate
 	Logger      log.Logger
 	AuditLogger auditLogger
@@ -74,6 +76,7 @@ func NewService(deps ServiceDeps) *Service {
 		deps.ProviderService,
 		deps.IAMManager,
 
+		deps.Crypto,
 		deps.Validator,
 		deps.Logger,
 		deps.AuditLogger,
@@ -105,6 +108,12 @@ func (s *Service) Create(ctx context.Context, p *domain.Policy) error {
 		p.IAM.Config = sensitiveConfig
 	}
 
+	if p.HasAppealMetadataSources() {
+		if err := s.encryptAppealMetadata(p); err != nil {
+			return err
+		}
+	}
+
 	if !isDryRun(ctx) {
 		if err := s.repository.Create(ctx, p); err != nil {
 			return err
@@ -117,6 +126,12 @@ func (s *Service) Create(ctx context.Context, p *domain.Policy) error {
 
 	if p.HasIAMConfig() {
 		if err := s.decryptAndDeserializeIAMConfig(p.IAM); err != nil {
+			return err
+		}
+	}
+
+	if p.HasAppealMetadataSources() {
+		if err := s.decryptAppealMetadata(p); err != nil {
 			return err
 		}
 	}
@@ -137,6 +152,12 @@ func (s *Service) Find(ctx context.Context) ([]*domain.Policy, error) {
 				return nil, err
 			}
 		}
+
+		if p.HasAppealMetadataSources() {
+			if err := s.decryptAppealMetadata(p); err != nil {
+				return nil, err
+			}
+		}
 	}
 	return policies, nil
 }
@@ -150,6 +171,12 @@ func (s *Service) GetOne(ctx context.Context, id string, version uint) (*domain.
 
 	if p.HasIAMConfig() {
 		if err := s.decryptAndDeserializeIAMConfig(p.IAM); err != nil {
+			return nil, err
+		}
+	}
+
+	if p.HasAppealMetadataSources() {
+		if err := s.decryptAppealMetadata(p); err != nil {
 			return nil, err
 		}
 	}
@@ -189,6 +216,12 @@ func (s *Service) Update(ctx context.Context, p *domain.Policy) error {
 		p.IAM.Config = sensitiveConfig
 	}
 
+	if p.HasAppealMetadataSources() {
+		if err := s.encryptAppealMetadata(p); err != nil {
+			return err
+		}
+	}
+
 	p.Version = latestPolicy.Version + 1
 
 	if !isDryRun(ctx) {
@@ -203,6 +236,43 @@ func (s *Service) Update(ctx context.Context, p *domain.Policy) error {
 
 	if p.HasIAMConfig() {
 		if err := s.decryptAndDeserializeIAMConfig(p.IAM); err != nil {
+			return err
+		}
+	}
+
+	if p.HasAppealMetadataSources() {
+		if err := s.decryptAppealMetadata(p); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Service) encryptAppealMetadata(p *domain.Policy) error {
+	if p.AppealConfig == nil {
+		return nil
+	}
+	for _, sourceCfg := range p.AppealConfig.MetadataSources {
+		if sourceCfg.Config == nil {
+			continue
+		}
+		if err := sourceCfg.EncryptConfig(s.crypto); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) decryptAppealMetadata(p *domain.Policy) error {
+	if p.AppealConfig == nil {
+		return nil
+	}
+	for _, sourceCfg := range p.AppealConfig.MetadataSources {
+		if sourceCfg.Config == nil {
+			continue
+		}
+		if err := sourceCfg.DecryptConfig(s.crypto); err != nil {
 			return err
 		}
 	}
@@ -264,7 +334,37 @@ func (s *Service) validatePolicy(ctx context.Context, p *domain.Policy, excluded
 		}
 	}
 
+	if p.HasAppealMetadataSources() {
+		for key, metadataSource := range p.AppealConfig.MetadataSources {
+			if err := s.validateAppealMetadataSource(ctx, metadataSource); err != nil {
+				return fmt.Errorf("invalid appeal metadata source: %s : %w", key, err)
+			}
+		}
+	}
+
 	return nil
+}
+
+func (s *Service) validateAppealMetadataSource(ctx context.Context, metadataSource *domain.AppealMetadataSource) error {
+	if metadataSource.Name == "" {
+		return fmt.Errorf("name should not be empty")
+	}
+	if metadataSource.Value == nil {
+		return fmt.Errorf("value should not be empty")
+	}
+
+	switch metadataSource.Type {
+	case "http":
+		if metadataSource.Config == nil {
+			return fmt.Errorf(`"config" is required for type http`)
+		}
+		// TODO: validate http config
+		return nil
+	case "static":
+		return nil
+	default:
+		return fmt.Errorf("invalid metadata source type: %s", metadataSource.Type)
+	}
 }
 
 func (s *Service) validateRequirements(ctx context.Context, requirements []*domain.Requirement) error {

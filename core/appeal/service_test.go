@@ -2,8 +2,11 @@ package appeal_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -2113,6 +2116,269 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithAdditionalAppeals() {
 	err := h.service.Create(context.Background(), appealsPayload)
 
 	s.NoError(err)
+}
+
+func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
+	s.setup()
+	accountID := "test@email.com"
+
+	expectedUserDetails := map[string]interface{}{
+		"managers": []interface{}{"user.approver@email.com"},
+		"name":     "test-name",
+		"role":     "test-role-1",
+		"roles":    []interface{}{"test-role-1", "test-role-2"},
+	}
+	testServer := http.NewServeMux()
+	testServer.HandleFunc(fmt.Sprintf("/users/%s", accountID), func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		resp, _ := json.Marshal(expectedUserDetails)
+		w.Write(resp)
+	})
+	ts := httptest.NewServer(testServer)
+
+	resources := []*domain.Resource{
+		{
+			ID:           "1",
+			Type:         "resource_type_1",
+			ProviderType: "provider_type",
+			ProviderURN:  "provider1",
+			Details: map[string]interface{}{
+				"owner": []string{"resource.owner@email.com"},
+			},
+		},
+	}
+	providers := []*domain.Provider{
+		{
+			ID:   "1",
+			Type: "provider_type",
+			URN:  "provider1",
+			Config: &domain.ProviderConfig{
+				Appeal: &domain.AppealConfig{
+					AllowPermanentAccess:         true,
+					AllowActiveAccessExtensionIn: "24h",
+				},
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: "resource_type_1",
+						Policy: &domain.PolicyConfig{
+							ID:      "policy_1",
+							Version: 1,
+						},
+						Roles: []*domain.Role{
+							{
+								ID:          "role_id",
+								Permissions: []interface{}{"test-permission-1"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	expDate := timeNow.Add(23 * time.Hour)
+	expectedExistingAppeals := []*domain.Appeal{}
+	expectedActiveGrants := []domain.Grant{
+		{
+			ID:         "99",
+			AccountID:  accountID,
+			ResourceID: "2",
+			Resource: &domain.Resource{
+				ID:  "2",
+				URN: "urn",
+			},
+			Role:           "role_id",
+			Status:         domain.GrantStatusActive,
+			ExpirationDate: &expDate,
+		},
+	}
+	policies := []*domain.Policy{
+		{
+			ID:      "policy_1",
+			Version: 1,
+			Steps: []*domain.Step{
+				{
+					Name:     "step_1",
+					Strategy: "manual",
+					Approvers: []string{
+						"$appeal.resource.details.owner",
+					},
+				},
+				{
+					Name:     "step_2",
+					Strategy: "manual",
+					Approvers: []string{
+						"$appeal.details.__policy_metadata.creator.managers",
+					},
+				},
+			},
+			AppealConfig: &domain.PolicyAppealConfig{
+				MetadataSources: map[string]*domain.AppealMetadataSource{
+					"creator": {
+						Type: "http",
+						Config: map[string]interface{}{
+							"url": fmt.Sprintf(`"%s/users/" + $appeal.created_by`, ts.URL),
+						},
+						Value: map[string]interface{}{
+							"managers": "$response.body.managers",
+						},
+					},
+				},
+			},
+		},
+	}
+	expectedAppealsInsertionParam := []*domain.Appeal{
+		{
+			ResourceID:    resources[0].ID,
+			Resource:      resources[0],
+			PolicyID:      "policy_1",
+			PolicyVersion: 1,
+			Status:        domain.AppealStatusPending,
+			AccountID:     accountID,
+			AccountType:   domain.DefaultAppealAccountType,
+			CreatedBy:     accountID,
+			Role:          "role_id",
+			Permissions:   []string{"test-permission-1"},
+			Approvals: []*domain.Approval{
+				{
+					Name:          "step_1",
+					Index:         0,
+					Status:        domain.ApprovalStatusPending,
+					PolicyID:      "policy_1",
+					PolicyVersion: 1,
+					Approvers:     []string{"resource.owner@email.com"},
+				},
+				{
+					Name:          "step_2",
+					Index:         1,
+					Status:        domain.ApprovalStatusBlocked,
+					PolicyID:      "policy_1",
+					PolicyVersion: 1,
+					Approvers:     []string{"user.approver@email.com"},
+				},
+			},
+			Description: "The answer is 42",
+			Details: map[string]interface{}{
+				"__policy_metadata": map[string]interface{}{
+					"creator": map[string]interface{}{
+						"managers": []interface{}{"user.approver@email.com"},
+					},
+				},
+			},
+		},
+	}
+	expectedResult := []*domain.Appeal{
+		{
+			ID:            "1",
+			ResourceID:    "1",
+			Resource:      resources[0],
+			PolicyID:      "policy_1",
+			PolicyVersion: 1,
+			Status:        domain.AppealStatusPending,
+			AccountID:     accountID,
+			AccountType:   domain.DefaultAppealAccountType,
+			CreatedBy:     accountID,
+			Role:          "role_id",
+			Permissions:   []string{"test-permission-1"},
+			Approvals: []*domain.Approval{
+				{
+					ID:            "1",
+					Name:          "step_1",
+					Index:         0,
+					Status:        domain.ApprovalStatusPending,
+					PolicyID:      "policy_1",
+					PolicyVersion: 1,
+					Approvers:     []string{"resource.owner@email.com"},
+				},
+				{
+					ID:            "2",
+					Name:          "step_2",
+					Index:         1,
+					Status:        domain.ApprovalStatusBlocked,
+					PolicyID:      "policy_1",
+					PolicyVersion: 1,
+					Approvers:     []string{"user.approver@email.com"},
+				},
+			},
+			Description: "The answer is 42",
+			Details: map[string]interface{}{
+				"__policy_metadata": map[string]interface{}{
+					"creator": map[string]interface{}{
+						"managers": []interface{}{"user.approver@email.com"},
+					},
+				},
+			},
+		},
+	}
+
+	expectedResourceFilters := domain.ListResourcesFilter{IDs: []string{resources[0].ID}}
+	s.mockResourceService.EXPECT().
+		Find(mock.Anything, expectedResourceFilters).
+		Return(resources, nil).Once()
+	s.mockProviderService.EXPECT().
+		Find(mock.Anything).Return(providers, nil).Once()
+	s.mockPolicyService.EXPECT().
+		Find(mock.Anything).Return(policies, nil).Once()
+	expectedExistingAppealsFilters := &domain.ListAppealsFilter{
+		Statuses:   []string{domain.AppealStatusPending},
+		AccountIDs: []string{"test@email.com"},
+	}
+	s.mockRepository.EXPECT().
+		Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedExistingAppealsFilters).
+		Return(expectedExistingAppeals, nil).Once()
+	s.mockGrantService.EXPECT().
+		List(mock.MatchedBy(func(ctx context.Context) bool { return true }), domain.ListGrantsFilter{
+			Statuses:    []string{string(domain.GrantStatusActive)},
+			AccountIDs:  []string{accountID},
+			ResourceIDs: []string{"1"},
+			Roles:       []string{"role_id"},
+			OrderBy:     []string{"updated_at:desc"},
+		}).
+		Return(expectedActiveGrants, nil).Once()
+	s.mockProviderService.EXPECT().
+		ValidateAppeal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil)
+	s.mockProviderService.EXPECT().
+		GetPermissions(mock.Anything, mock.Anything, mock.AnythingOfType("string"), "role_id").
+		Return([]interface{}{"test-permission-1"}, nil)
+
+	s.mockRepository.EXPECT().
+		BulkUpsert(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedAppealsInsertionParam).
+		Return(nil).
+		Run(func(_a0 context.Context, appeals []*domain.Appeal) {
+			for i, a := range appeals {
+				a.ID = expectedResult[i].ID
+				for j, approval := range a.Approvals {
+					approval.ID = expectedResult[i].Approvals[j].ID
+				}
+			}
+		}).
+		Once()
+	s.mockNotifier.EXPECT().
+		Notify(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
+		Return(nil).Once()
+	s.mockAuditLogger.EXPECT().
+		Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).
+		Return(nil).Once()
+
+	appeals := []*domain.Appeal{
+		{
+			CreatedBy:  accountID,
+			AccountID:  accountID,
+			ResourceID: "1",
+			Resource: &domain.Resource{
+				ID:  "1",
+				URN: "urn",
+			},
+			Role:        "role_id",
+			Description: "The answer is 42",
+		},
+	}
+	actualError := s.service.Create(context.Background(), appeals)
+
+	s.Nil(actualError)
+	s.Equal(expectedResult, appeals)
+	s.mockProviderService.AssertExpectations(s.T())
+	s.mockRepository.AssertExpectations(s.T())
 }
 
 func (s *ServiceTestSuite) TestUpdateApproval() {

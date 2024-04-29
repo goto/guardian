@@ -2,6 +2,7 @@ package policy_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -43,6 +44,7 @@ func (s *ServiceTestSuite) SetupTest() {
 		ResourceService: s.mockResourceService,
 		ProviderService: s.mockProviderService,
 		IAMManager:      iamManager,
+		Crypto:          s.mockCrypto,
 		AuditLogger:     s.mockAuditLogger,
 		Validator:       validator.New(),
 	})
@@ -300,93 +302,118 @@ func (s *ServiceTestSuite) TestCreate() {
 		})
 	})
 
-	validPolicy := &domain.Policy{
-		ID:      "id",
-		Version: 1,
-		Steps: []*domain.Step{
-			{
-				Name:     "test",
-				Strategy: "manual",
-				Approvers: []string{
-					"user@email.com",
-				},
-			},
-		},
-		AppealConfig: &domain.PolicyAppealConfig{
-			DurationOptions: []domain.AppealDurationOption{
+	getValidPolicy := func() *domain.Policy {
+		return &domain.Policy{
+			ID:      "id",
+			Version: 1,
+			Steps: []*domain.Step{
 				{
-					Name:  "1 day",
-					Value: "24h",
-				},
-				{
-					Name:  "2 days",
-					Value: "48h",
-				},
-			},
-			AllowPermanentAccess:         false,
-			AllowActiveAccessExtensionIn: "24h",
-		},
-		IAM: &domain.IAMConfig{
-			Provider: "http",
-			Config: map[string]interface{}{
-				"url": "http://test-localhost:8080",
-				"auth": map[string]interface{}{
-					"type":     "basic",
-					"username": "test-user",
-					"password": "test-password",
+					Name:     "test",
+					Strategy: "manual",
+					Approvers: []string{
+						"user@email.com",
+					},
 				},
 			},
-		},
+			AppealConfig: &domain.PolicyAppealConfig{
+				DurationOptions: []domain.AppealDurationOption{
+					{
+						Name:  "1 day",
+						Value: "24h",
+					},
+					{
+						Name:  "2 days",
+						Value: "48h",
+					},
+				},
+				AllowPermanentAccess:         false,
+				AllowActiveAccessExtensionIn: "24h",
+				MetadataSources: map[string]*domain.AppealMetadataSource{
+					"test-static-source": {
+						Type:        "static",
+						Name:        "test name",
+						Description: "test description",
+						Value:       "test value",
+					},
+					"test-http-source": {
+						Type:        "http",
+						Name:        "test name",
+						Description: "test description",
+						Config: map[string]interface{}{
+							"url": "http://test-localhost:8080",
+						},
+						Value: "$response.body",
+					},
+				},
+			},
+			IAM: &domain.IAMConfig{
+				Provider: "http",
+				Config: map[string]interface{}{
+					"url": "http://test-localhost:8080",
+					"auth": map[string]interface{}{
+						"type":     "basic",
+						"username": "test-user",
+						"password": "test-password",
+					},
+				},
+			},
+		}
 	}
 
 	s.Run("should return error if got error from the policy repository", func() {
+		validPolicy := getValidPolicy()
 		expectedError := errors.New("error from repository")
 		s.mockPolicyRepository.EXPECT().Create(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(expectedError).Once()
-		s.mockCrypto.EXPECT().Encrypt("test-password").Return("test-password", nil).Once()
-		s.mockCrypto.EXPECT().Decrypt("test-password").Return("test-password", nil).Once()
+		s.mockCrypto.EXPECT().Encrypt("test-password").Return("encrypted-test-password", nil).Once()
+		s.mockCrypto.EXPECT().Encrypt(`{"url":"http://test-localhost:8080"}`).Return("encrypted-config", nil).Once()
 
 		actualError := s.service.Create(context.Background(), validPolicy)
 
 		s.EqualError(actualError, expectedError.Error())
+		s.mockPolicyRepository.AssertExpectations(s.T())
+		s.mockCrypto.AssertExpectations(s.T())
 	})
 
 	s.Run("should set initial version to 1", func() {
-		p := &domain.Policy{
-			ID:    "test",
-			Steps: validPolicy.Steps,
-		}
+		validPolicy := getValidPolicy()
 
 		expectedVersion := uint(1)
-		s.mockPolicyRepository.EXPECT().Create(mock.MatchedBy(func(ctx context.Context) bool { return true }), p).Return(nil).Once()
-		s.mockCrypto.EXPECT().Encrypt("test-password").Return("test-password", nil).Once()
-		s.mockCrypto.EXPECT().Decrypt("test-password").Return("test-password", nil).Once()
+		s.mockPolicyRepository.EXPECT().
+			Create(
+				mock.MatchedBy(func(ctx context.Context) bool { return true }),
+				mock.MatchedBy(func(arg interface{}) bool {
+					insertedPolicy := arg.(*domain.Policy)
+					return (insertedPolicy.ID == validPolicy.ID &&
+						insertedPolicy.Version == expectedVersion &&
+						insertedPolicy.AppealConfig.MetadataSources["test-http-source"].Config == "encrypted-config" &&
+						insertedPolicy.IAM.Config.(*identities.HTTPClientConfig).Auth.Password == "encrypted-test-password")
+				}),
+			).
+			Return(nil).Once()
+		s.mockCrypto.EXPECT().Encrypt("test-password").Return("encrypted-test-password", nil).Once()
+		s.mockCrypto.EXPECT().Encrypt(`{"url":"http://test-localhost:8080"}`).Return("encrypted-config", nil).Once()
+		s.mockCrypto.EXPECT().Decrypt("encrypted-test-password").Return("test-password", nil).Once()
+		s.mockCrypto.EXPECT().Decrypt("encrypted-config").Return(`{"url":"http://test-localhost:8080"}`, nil).Once()
 		s.mockAuditLogger.EXPECT().Log(mock.Anything, policy.AuditKeyPolicyCreate, mock.Anything).Return(nil).Once()
-
-		actualError := s.service.Create(context.Background(), p)
-
-		s.Nil(actualError)
-		s.Equal(expectedVersion, p.Version)
-		s.mockPolicyRepository.AssertExpectations(s.T())
-		s.mockAuditLogger.AssertExpectations(s.T())
-	})
-
-	s.Run("should pass the model from the param", func() {
-		s.mockPolicyRepository.EXPECT().Create(mock.MatchedBy(func(ctx context.Context) bool { return true }), validPolicy).Return(nil).Once()
-		s.mockAuditLogger.EXPECT().Log(mock.Anything, policy.AuditKeyPolicyCreate, mock.Anything).Return(nil).Once()
-		s.mockCrypto.EXPECT().Encrypt("test-password").Return("test-password", nil).Once()
-		s.mockCrypto.EXPECT().Decrypt("test-password").Return("test-password", nil).Once()
 
 		actualError := s.service.Create(context.Background(), validPolicy)
 
 		s.Nil(actualError)
+		s.Equal(expectedVersion, validPolicy.Version)
 		s.mockPolicyRepository.AssertExpectations(s.T())
 		s.mockAuditLogger.AssertExpectations(s.T())
+		s.mockCrypto.AssertExpectations(s.T())
 	})
 
 	s.Run("with dryRun true", func() {
+		validPolicy := getValidPolicy()
 		s.Run("with valid policy should not call repository", func() {
-			ctx := policy.WithDryRun(context.Background())
+			s.mockCrypto.EXPECT().Encrypt("test-password").Return("test-password", nil).Once()
+			s.mockCrypto.EXPECT().Encrypt(`{"url":"http://test-localhost:8080"}`).Return("encrypted-config", nil).Once()
+			s.mockCrypto.EXPECT().Decrypt("test-password").Return("test-password", nil).Once()
+			s.mockCrypto.EXPECT().Decrypt("encrypted-config").Return(`{"url":"http://test-localhost:8080"}`, nil).Once()
 
+			ctx := policy.WithDryRun(context.Background())
 			actualError := s.service.Create(ctx, validPolicy)
 
 			s.Nil(actualError)
@@ -646,7 +673,7 @@ func (s *ServiceTestSuite) TestFind() {
 	})
 
 	s.Run("should return list of records on success", func() {
-		expectedResult := []*domain.Policy{
+		dummyPolicies := []*domain.Policy{
 			{
 				IAM: &domain.IAMConfig{
 					Provider: "http",
@@ -655,20 +682,46 @@ func (s *ServiceTestSuite) TestFind() {
 						"auth": map[string]interface{}{
 							"type":     "basic",
 							"username": "test-user",
-							"password": "test-password",
+							"password": "encrypted-test-password",
+						},
+					},
+				},
+				AppealConfig: &domain.PolicyAppealConfig{
+					MetadataSources: map[string]*domain.AppealMetadataSource{
+						"test-static-source": {
+							Type:        "static",
+							Name:        "test name",
+							Description: "test description",
+							Value:       "test value",
+						},
+						"test-http-source": {
+							Type:        "http",
+							Name:        "test name",
+							Description: "test description",
+							Config:      "encrypted-config",
+							Value:       "$response.body",
 						},
 					},
 				},
 			},
 		}
-		s.mockPolicyRepository.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(expectedResult, nil).Once()
-		s.mockCrypto.EXPECT().Decrypt("test-password").Return("test-password", nil).Once()
+		s.mockPolicyRepository.EXPECT().
+			Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).
+			Return(dummyPolicies, nil).Once()
+		expectedPassword := "test-password"
+		s.mockCrypto.EXPECT().Decrypt("encrypted-test-password").Return(expectedPassword, nil).Once()
+		expectedConfig := map[string]interface{}{"url": "http://test-localhost:8080"}
+		expectedConfigJSON, _ := json.Marshal(expectedConfig)
+		s.mockCrypto.EXPECT().Decrypt("encrypted-config").Return(string(expectedConfigJSON), nil).Once()
 
 		actualResult, actualError := s.service.Find(context.Background())
 
-		s.Equal(expectedResult, actualResult)
+		s.Len(actualResult, len(dummyPolicies))
+		s.Equal(actualResult[0].IAM.Config.(map[string]any)["auth"].(map[string]any)["password"], expectedPassword)
+		s.Equal(actualResult[0].AppealConfig.MetadataSources["test-http-source"].Config, expectedConfig)
 		s.Nil(actualError)
 		s.mockPolicyRepository.AssertExpectations(s.T())
+		s.mockCrypto.AssertExpectations(s.T())
 	})
 }
 
@@ -684,7 +737,7 @@ func (s *ServiceTestSuite) TestGetOne() {
 	})
 
 	s.Run("should return list of records on success", func() {
-		expectedResult := &domain.Policy{
+		dummyPolicy := &domain.Policy{
 			IAM: &domain.IAMConfig{
 				Provider: "http",
 				Config: map[string]interface{}{
@@ -692,19 +745,42 @@ func (s *ServiceTestSuite) TestGetOne() {
 					"auth": map[string]interface{}{
 						"type":     "basic",
 						"username": "test-user",
-						"password": "test-password",
+						"password": "encrypted-test-password",
+					},
+				},
+			},
+			AppealConfig: &domain.PolicyAppealConfig{
+				MetadataSources: map[string]*domain.AppealMetadataSource{
+					"test-static-source": {
+						Type:        "static",
+						Name:        "test name",
+						Description: "test description",
+						Value:       "test value",
+					},
+					"test-http-source": {
+						Type:        "http",
+						Name:        "test name",
+						Description: "test description",
+						Config:      "encrypted-config",
+						Value:       "$response.body",
 					},
 				},
 			},
 		}
-		s.mockPolicyRepository.EXPECT().GetOne(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything, mock.Anything).Return(expectedResult, nil).Once()
-		s.mockCrypto.EXPECT().Decrypt("test-password").Return("test-password", nil).Once()
+		s.mockPolicyRepository.EXPECT().GetOne(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything, mock.Anything).Return(dummyPolicy, nil).Once()
+		expectedPassword := "test-password"
+		s.mockCrypto.EXPECT().Decrypt("encrypted-test-password").Return(expectedPassword, nil).Once()
+		expectedConfig := map[string]interface{}{"url": "http://test-localhost:8080"}
+		expectedConfigJSON, _ := json.Marshal(expectedConfig)
+		s.mockCrypto.EXPECT().Decrypt("encrypted-config").Return(string(expectedConfigJSON), nil).Once()
 
 		actualResult, actualError := s.service.GetOne(context.Background(), "", 0)
 
-		s.Equal(expectedResult, actualResult)
+		s.Equal(actualResult.IAM.Config.(map[string]any)["auth"].(map[string]any)["password"], expectedPassword)
+		s.Equal(actualResult.AppealConfig.MetadataSources["test-http-source"].Config, expectedConfig)
 		s.Nil(actualError)
 		s.mockPolicyRepository.AssertExpectations(s.T())
+		s.mockCrypto.AssertExpectations(s.T())
 	})
 }
 
@@ -742,6 +818,25 @@ func (s *ServiceTestSuite) TestUpdate() {
 					},
 				},
 			},
+			AppealConfig: &domain.PolicyAppealConfig{
+				MetadataSources: map[string]*domain.AppealMetadataSource{
+					"test-static-source": {
+						Type:        "static",
+						Name:        "test name",
+						Description: "test description",
+						Value:       "test value",
+					},
+					"test-http-source": {
+						Type:        "http",
+						Name:        "test name",
+						Description: "test description",
+						Config: map[string]interface{}{
+							"url": "http://test-localhost:8080",
+						},
+						Value: "$response.body",
+					},
+				},
+			},
 		}
 
 		expectedLatestPolicy := &domain.Policy{
@@ -749,17 +844,32 @@ func (s *ServiceTestSuite) TestUpdate() {
 			Version: 5,
 		}
 		expectedNewVersion := uint(6)
-		s.mockPolicyRepository.EXPECT().GetOne(mock.MatchedBy(func(ctx context.Context) bool { return true }), p.ID, uint(0)).Return(expectedLatestPolicy, nil).Once()
-		s.mockPolicyRepository.EXPECT().Create(mock.MatchedBy(func(ctx context.Context) bool { return true }), p).Return(nil)
-		s.mockCrypto.EXPECT().Encrypt("test-password").Return("test-password", nil).Once()
-		s.mockCrypto.EXPECT().Decrypt("test-password").Return("test-password", nil).Once()
+		s.mockPolicyRepository.EXPECT().
+			GetOne(mock.MatchedBy(func(ctx context.Context) bool { return true }), p.ID, uint(0)).
+			Return(expectedLatestPolicy, nil).Once()
+		s.mockPolicyRepository.EXPECT().
+			Create(
+				mock.MatchedBy(func(ctx context.Context) bool { return true }),
+				mock.MatchedBy(func(arg interface{}) bool {
+					insertedPolicy := arg.(*domain.Policy)
+					return (insertedPolicy.ID == p.ID &&
+						insertedPolicy.Version == expectedNewVersion &&
+						insertedPolicy.AppealConfig.MetadataSources["test-http-source"].Config == "encrypted-config" &&
+						insertedPolicy.IAM.Config.(*identities.HTTPClientConfig).Auth.Password == "encrypted-test-password")
+				}),
+			).Return(nil)
+		s.mockCrypto.EXPECT().Encrypt("test-password").Return("encrypted-test-password", nil).Once()
+		s.mockCrypto.EXPECT().Encrypt(`{"url":"http://test-localhost:8080"}`).Return("encrypted-config", nil).Once()
+		s.mockCrypto.EXPECT().Decrypt("encrypted-test-password").Return("test-password", nil).Once()
+		s.mockCrypto.EXPECT().Decrypt("encrypted-config").Return(`{"url":"http://test-localhost:8080"}`, nil).Once()
 		s.mockAuditLogger.EXPECT().Log(mock.Anything, policy.AuditKeyPolicyUpdate, mock.Anything).Return(nil).Once()
 
 		s.service.Update(context.Background(), p)
 
+		s.Equal(expectedNewVersion, p.Version)
 		s.mockPolicyRepository.AssertExpectations(s.T())
 		s.mockAuditLogger.AssertExpectations(s.T())
-		s.Equal(expectedNewVersion, p.Version)
+		s.mockCrypto.AssertExpectations(s.T())
 	})
 
 	s.Run("with dryRun true", func() {
