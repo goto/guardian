@@ -322,23 +322,23 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 
 		for _, approval := range appeal.Approvals {
 			if approval.Index == len(appeal.Approvals)-1 && (approval.Status == domain.ApprovalStatusApproved || appeal.Status == domain.AppealStatusApproved) {
-				newGrant, revokedGrant, err := s.prepareGrant(ctx, appeal)
+				newGrant, prevGrant, err := s.prepareGrant(ctx, appeal)
 				if err != nil {
 					return fmt.Errorf("preparing grant: %w", err)
 				}
 				newGrant.Resource = appeal.Resource
 				appeal.Grant = newGrant
-				if revokedGrant != nil {
-					if _, err := s.grantService.Revoke(ctx, revokedGrant.ID, domain.SystemActorName, revokedGrant.RevokeReason,
+				if prevGrant != nil {
+					if _, err := s.grantService.Revoke(ctx, prevGrant.ID, domain.SystemActorName, prevGrant.RevokeReason,
 						grant.SkipNotifications(),
 						grant.SkipRevokeAccessInProvider(),
 					); err != nil {
 						return fmt.Errorf("revoking previous grant: %w", err)
 					}
-				} else {
-					if err := s.GrantAccessToProvider(ctx, appeal, opts...); err != nil {
-						return fmt.Errorf("granting access: %w", err)
-					}
+				}
+
+				if err := s.GrantAccessToProvider(ctx, appeal, opts...); err != nil {
+					return fmt.Errorf("granting access: %w", err)
 				}
 
 				notifications = append(notifications, domain.Notification{
@@ -549,23 +549,23 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 		}
 
 		if appeal.Status == domain.AppealStatusApproved {
-			newGrant, revokedGrant, err := s.prepareGrant(ctx, appeal)
+			newGrant, prevGrant, err := s.prepareGrant(ctx, appeal)
 			if err != nil {
 				return nil, fmt.Errorf("preparing grant: %w", err)
 			}
 			newGrant.Resource = appeal.Resource
 			appeal.Grant = newGrant
-			if revokedGrant != nil {
-				if _, err := s.grantService.Revoke(ctx, revokedGrant.ID, domain.SystemActorName, revokedGrant.RevokeReason,
+			if prevGrant != nil {
+				if _, err := s.grantService.Revoke(ctx, prevGrant.ID, domain.SystemActorName, prevGrant.RevokeReason,
 					grant.SkipNotifications(),
 					grant.SkipRevokeAccessInProvider(),
 				); err != nil {
 					return nil, fmt.Errorf("revoking previous grant: %w", err)
 				}
-			} else {
-				if err := s.GrantAccessToProvider(ctx, appeal); err != nil {
-					return nil, fmt.Errorf("granting access: %w", err)
-				}
+			}
+
+			if err := s.GrantAccessToProvider(ctx, appeal); err != nil {
+				return nil, fmt.Errorf("granting access: %w", err)
 			}
 		}
 
