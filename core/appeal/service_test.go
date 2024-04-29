@@ -1899,6 +1899,8 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprov
 			mock.AnythingOfType("grant.Option"), mock.AnythingOfType("grant.Option"),
 		).
 		Return(preparedGrant, nil).Once()
+	h.mockPolicyService.EXPECT().GetOne(mock.Anything, policies[0].ID, policies[0].Version).Return(policies[0], nil).Once()
+	h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 
 	h.mockRepository.EXPECT().
 		BulkUpsert(h.ctxMatcher, expectedAppealsInsertionParam).
@@ -2457,7 +2459,6 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			GetByID(h.ctxMatcher, mock.Anything).
 			Return(appealDetails, nil).Once()
 
-		h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(&domain.Policy{}, nil).Once()
 		h.mockProviderService.EXPECT().
 			IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
 			Return(false).Once()
@@ -2474,6 +2475,8 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			Revoke(mock.Anything, expectedRevokedGrant.ID, domain.SystemActorName,
 				appeal.RevokeReasonForExtension, mock.Anything, mock.Anything).
 			Return(expectedNewGrant, nil).Once()
+		h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(&domain.Policy{}, nil).Once()
+		h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 		h.mockRepository.EXPECT().Update(h.ctxMatcher, appealDetails).Return(nil).Once()
 		h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 		h.mockAuditLogger.EXPECT().Log(mock.Anything, mock.Anything, mock.Anything).
