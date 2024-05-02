@@ -1902,6 +1902,8 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprov
 			mock.AnythingOfType("grant.Option"), mock.AnythingOfType("grant.Option"),
 		).
 		Return(preparedGrant, nil).Once()
+	h.mockPolicyService.EXPECT().GetOne(mock.Anything, policies[0].ID, policies[0].Version).Return(policies[0], nil).Once()
+	h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 
 	h.mockRepository.EXPECT().
 		BulkUpsert(h.ctxMatcher, expectedAppealsInsertionParam).
@@ -2119,7 +2121,8 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithAdditionalAppeals() {
 }
 
 func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
-	s.setup()
+	h := newServiceTestHelper()
+	defer h.assertExpectations(s.T())
 	accountID := "test@email.com"
 
 	expectedUserDetails := map[string]interface{}{
@@ -2311,21 +2314,21 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 	}
 
 	expectedResourceFilters := domain.ListResourcesFilter{IDs: []string{resources[0].ID}}
-	s.mockResourceService.EXPECT().
+	h.mockResourceService.EXPECT().
 		Find(mock.Anything, expectedResourceFilters).
 		Return(resources, nil).Once()
-	s.mockProviderService.EXPECT().
+	h.mockProviderService.EXPECT().
 		Find(mock.Anything).Return(providers, nil).Once()
-	s.mockPolicyService.EXPECT().
+	h.mockPolicyService.EXPECT().
 		Find(mock.Anything).Return(policies, nil).Once()
 	expectedExistingAppealsFilters := &domain.ListAppealsFilter{
 		Statuses:   []string{domain.AppealStatusPending},
 		AccountIDs: []string{"test@email.com"},
 	}
-	s.mockRepository.EXPECT().
+	h.mockRepository.EXPECT().
 		Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedExistingAppealsFilters).
 		Return(expectedExistingAppeals, nil).Once()
-	s.mockGrantService.EXPECT().
+	h.mockGrantService.EXPECT().
 		List(mock.MatchedBy(func(ctx context.Context) bool { return true }), domain.ListGrantsFilter{
 			Statuses:    []string{string(domain.GrantStatusActive)},
 			AccountIDs:  []string{accountID},
@@ -2334,14 +2337,14 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 			OrderBy:     []string{"updated_at:desc"},
 		}).
 		Return(expectedActiveGrants, nil).Once()
-	s.mockProviderService.EXPECT().
+	h.mockProviderService.EXPECT().
 		ValidateAppeal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil)
-	s.mockProviderService.EXPECT().
+	h.mockProviderService.EXPECT().
 		GetPermissions(mock.Anything, mock.Anything, mock.AnythingOfType("string"), "role_id").
 		Return([]interface{}{"test-permission-1"}, nil)
 
-	s.mockRepository.EXPECT().
+	h.mockRepository.EXPECT().
 		BulkUpsert(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedAppealsInsertionParam).
 		Return(nil).
 		Run(func(_a0 context.Context, appeals []*domain.Appeal) {
@@ -2353,10 +2356,10 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 			}
 		}).
 		Once()
-	s.mockNotifier.EXPECT().
+	h.mockNotifier.EXPECT().
 		Notify(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
 		Return(nil).Once()
-	s.mockAuditLogger.EXPECT().
+	h.mockAuditLogger.EXPECT().
 		Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).
 		Return(nil).Once()
 
@@ -2373,12 +2376,12 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 			Description: "The answer is 42",
 		},
 	}
-	actualError := s.service.Create(context.Background(), appeals)
+	actualError := h.service.Create(context.Background(), appeals)
 
 	s.Nil(actualError)
 	s.Equal(expectedResult, appeals)
-	s.mockProviderService.AssertExpectations(s.T())
-	s.mockRepository.AssertExpectations(s.T())
+	h.mockProviderService.AssertExpectations(s.T())
+	h.mockRepository.AssertExpectations(s.T())
 }
 
 func (s *ServiceTestSuite) TestUpdateApproval() {
@@ -2723,7 +2726,6 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			GetByID(h.ctxMatcher, mock.Anything).
 			Return(appealDetails, nil).Once()
 
-		h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(&domain.Policy{}, nil).Once()
 		h.mockProviderService.EXPECT().
 			IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
 			Return(false).Once()
@@ -2740,6 +2742,8 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			Revoke(mock.Anything, expectedRevokedGrant.ID, domain.SystemActorName,
 				appeal.RevokeReasonForExtension, mock.Anything, mock.Anything).
 			Return(expectedNewGrant, nil).Once()
+		h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(&domain.Policy{}, nil).Once()
+		h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 		h.mockRepository.EXPECT().Update(h.ctxMatcher, appealDetails).Return(nil).Once()
 		h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 		h.mockAuditLogger.EXPECT().Log(mock.Anything, mock.Anything, mock.Anything).
