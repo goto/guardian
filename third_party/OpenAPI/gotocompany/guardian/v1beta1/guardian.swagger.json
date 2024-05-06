@@ -2136,6 +2136,22 @@
         }
       }
     },
+    "PolicyAppealConfigMetadataSource": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "config": {},
+        "value": {}
+      }
+    },
     "PolicyAppealConfigQuestion": {
       "type": "object",
       "properties": {
@@ -3177,6 +3193,12 @@
         },
         "allowCreatorDetailsFailure": {
           "type": "boolean"
+        },
+        "metadataSources": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/PolicyAppealConfigMetadataSource"
+          }
         }
       }
     },
