@@ -40,6 +40,8 @@ type ProtoAdapter interface {
 	FromGrantProto(*guardianv1beta1.Grant) *domain.Grant
 
 	ToActivityProto(*domain.Activity) (*guardianv1beta1.ProviderActivity, error)
+
+	ToCommentProto(*domain.Comment) *guardianv1beta1.AppealComment
 }
 
 //go:generate mockery --name=resourceService --exported --with-expecter
@@ -95,6 +97,8 @@ type appealService interface {
 	AddApprover(ctx context.Context, appealID, approvalID, email string) (*domain.Appeal, error)
 	DeleteApprover(ctx context.Context, appealID, approvalID, email string) (*domain.Appeal, error)
 	UpdateApproval(ctx context.Context, approvalAction domain.ApprovalAction) (*domain.Appeal, error)
+	ListComments(context.Context, domain.ListCommentsFilter) ([]*domain.Comment, error)
+	CreateComment(context.Context, *domain.Comment) error
 }
 
 //go:generate mockery --name=approvalService --exported --with-expecter

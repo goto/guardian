@@ -46,6 +46,8 @@ type GuardianServiceClient interface {
 	GetAppeal(ctx context.Context, in *GetAppealRequest, opts ...grpc.CallOption) (*GetAppealResponse, error)
 	CancelAppeal(ctx context.Context, in *CancelAppealRequest, opts ...grpc.CallOption) (*CancelAppealResponse, error)
 	CreateAppeal(ctx context.Context, in *CreateAppealRequest, opts ...grpc.CallOption) (*CreateAppealResponse, error)
+	ListAppealComments(ctx context.Context, in *ListAppealCommentsRequest, opts ...grpc.CallOption) (*ListAppealCommentsResponse, error)
+	CreateAppealComment(ctx context.Context, in *CreateAppealCommentRequest, opts ...grpc.CallOption) (*CreateAppealCommentResponse, error)
 	ListUserApprovals(ctx context.Context, in *ListUserApprovalsRequest, opts ...grpc.CallOption) (*ListUserApprovalsResponse, error)
 	ListApprovals(ctx context.Context, in *ListApprovalsRequest, opts ...grpc.CallOption) (*ListApprovalsResponse, error)
 	UpdateApproval(ctx context.Context, in *UpdateApprovalRequest, opts ...grpc.CallOption) (*UpdateApprovalResponse, error)
@@ -285,6 +287,24 @@ func (c *guardianServiceClient) CreateAppeal(ctx context.Context, in *CreateAppe
 	return out, nil
 }
 
+func (c *guardianServiceClient) ListAppealComments(ctx context.Context, in *ListAppealCommentsRequest, opts ...grpc.CallOption) (*ListAppealCommentsResponse, error) {
+	out := new(ListAppealCommentsResponse)
+	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/ListAppealComments", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *guardianServiceClient) CreateAppealComment(ctx context.Context, in *CreateAppealCommentRequest, opts ...grpc.CallOption) (*CreateAppealCommentResponse, error) {
+	out := new(CreateAppealCommentResponse)
+	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/CreateAppealComment", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *guardianServiceClient) ListUserApprovals(ctx context.Context, in *ListUserApprovalsRequest, opts ...grpc.CallOption) (*ListUserApprovalsResponse, error) {
 	out := new(ListUserApprovalsResponse)
 	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/ListUserApprovals", in, out, opts...)
@@ -430,6 +450,8 @@ type GuardianServiceServer interface {
 	GetAppeal(context.Context, *GetAppealRequest) (*GetAppealResponse, error)
 	CancelAppeal(context.Context, *CancelAppealRequest) (*CancelAppealResponse, error)
 	CreateAppeal(context.Context, *CreateAppealRequest) (*CreateAppealResponse, error)
+	ListAppealComments(context.Context, *ListAppealCommentsRequest) (*ListAppealCommentsResponse, error)
+	CreateAppealComment(context.Context, *CreateAppealCommentRequest) (*CreateAppealCommentResponse, error)
 	ListUserApprovals(context.Context, *ListUserApprovalsRequest) (*ListUserApprovalsResponse, error)
 	ListApprovals(context.Context, *ListApprovalsRequest) (*ListApprovalsResponse, error)
 	UpdateApproval(context.Context, *UpdateApprovalRequest) (*UpdateApprovalResponse, error)
@@ -521,6 +543,12 @@ func (UnimplementedGuardianServiceServer) CancelAppeal(context.Context, *CancelA
 }
 func (UnimplementedGuardianServiceServer) CreateAppeal(context.Context, *CreateAppealRequest) (*CreateAppealResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateAppeal not implemented")
+}
+func (UnimplementedGuardianServiceServer) ListAppealComments(context.Context, *ListAppealCommentsRequest) (*ListAppealCommentsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListAppealComments not implemented")
+}
+func (UnimplementedGuardianServiceServer) CreateAppealComment(context.Context, *CreateAppealCommentRequest) (*CreateAppealCommentResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateAppealComment not implemented")
 }
 func (UnimplementedGuardianServiceServer) ListUserApprovals(context.Context, *ListUserApprovalsRequest) (*ListUserApprovalsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListUserApprovals not implemented")
@@ -1006,6 +1034,42 @@ func _GuardianService_CreateAppeal_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GuardianService_ListAppealComments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAppealCommentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuardianServiceServer).ListAppealComments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gotocompany.guardian.v1beta1.GuardianService/ListAppealComments",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuardianServiceServer).ListAppealComments(ctx, req.(*ListAppealCommentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GuardianService_CreateAppealComment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateAppealCommentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuardianServiceServer).CreateAppealComment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gotocompany.guardian.v1beta1.GuardianService/CreateAppealComment",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuardianServiceServer).CreateAppealComment(ctx, req.(*CreateAppealCommentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _GuardianService_ListUserApprovals_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListUserApprovalsRequest)
 	if err := dec(in); err != nil {
@@ -1342,6 +1406,14 @@ var GuardianService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateAppeal",
 			Handler:    _GuardianService_CreateAppeal_Handler,
+		},
+		{
+			MethodName: "ListAppealComments",
+			Handler:    _GuardianService_ListAppealComments_Handler,
+		},
+		{
+			MethodName: "CreateAppealComment",
+			Handler:    _GuardianService_CreateAppealComment_Handler,
 		},
 		{
 			MethodName: "ListUserApprovals",

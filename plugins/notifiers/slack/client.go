@@ -245,6 +245,7 @@ func ParseMessage(message domain.NotificationMessage, templates domain.Notificat
 		domain.NotificationTypeExpirationReminder:     templates.ExpirationReminder,
 		domain.NotificationTypeOnBehalfAppealApproved: templates.OthersAppealApproved,
 		domain.NotificationTypeGrantOwnerChanged:      templates.GrantOwnerChanged,
+		domain.NotificationTypeNewComment:             templates.NewComment,
 	}
 
 	messageBlock, ok := messageTypeTemplateMap[message.Type]

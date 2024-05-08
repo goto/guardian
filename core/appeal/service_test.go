@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/goto/guardian/core/appeal"
 	appealmocks "github.com/goto/guardian/core/appeal/mocks"
+	"github.com/goto/guardian/core/comment"
+	commentmocks "github.com/goto/guardian/core/comment/mocks"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/mocks"
@@ -29,6 +31,7 @@ var (
 
 type serviceTestHelper struct {
 	mockRepository      *appealmocks.Repository
+	mockCommentRepo     *commentmocks.Repository
 	mockApprovalService *appealmocks.ApprovalService
 	mockResourceService *appealmocks.ResourceService
 	mockProviderService *appealmocks.ProviderService
@@ -47,6 +50,7 @@ type serviceTestHelper struct {
 func (h *serviceTestHelper) assertExpectations(t *testing.T) {
 	t.Helper()
 	h.mockRepository.AssertExpectations(t)
+	h.mockCommentRepo.AssertExpectations(t)
 	h.mockApprovalService.AssertExpectations(t)
 	h.mockResourceService.AssertExpectations(t)
 	h.mockProviderService.AssertExpectations(t)
@@ -59,17 +63,25 @@ func (h *serviceTestHelper) assertExpectations(t *testing.T) {
 }
 
 func newServiceTestHelper() *serviceTestHelper {
+	logger := log.NewNoop()
+
 	h := &serviceTestHelper{}
+	h.mockAuditLogger = new(appealmocks.AuditLogger)
 	h.mockRepository = new(appealmocks.Repository)
+	h.mockCommentRepo = new(commentmocks.Repository)
 	h.mockApprovalService = new(appealmocks.ApprovalService)
 	h.mockResourceService = new(appealmocks.ResourceService)
 	h.mockProviderService = new(appealmocks.ProviderService)
 	h.mockPolicyService = new(appealmocks.PolicyService)
 	h.mockGrantService = new(appealmocks.GrantService)
+	commentService := comment.NewService(comment.ServiceDeps{
+		Repository:  h.mockCommentRepo,
+		Logger:      logger,
+		AuditLogger: h.mockAuditLogger,
+	})
 	h.mockIAMManager = new(appealmocks.IamManager)
 	h.mockIAMClient = new(mocks.IAMClient)
 	h.mockNotifier = new(appealmocks.Notifier)
-	h.mockAuditLogger = new(appealmocks.AuditLogger)
 	h.now = time.Now()
 	h.ctxMatcher = mock.MatchedBy(func(ctx context.Context) bool { return true })
 
@@ -80,10 +92,11 @@ func newServiceTestHelper() *serviceTestHelper {
 		h.mockProviderService,
 		h.mockPolicyService,
 		h.mockGrantService,
+		commentService,
 		h.mockIAMManager,
 		h.mockNotifier,
 		validator.New(),
-		log.NewNoop(),
+		logger,
 		h.mockAuditLogger,
 	})
 	service.TimeNow = func() time.Time {

@@ -46,3 +46,23 @@ func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClause
 		},
 	})
 }
+
+func addOrderBy(db *gorm.DB, orderBy string) *gorm.DB {
+	if orderBy != "" {
+		var column, order string
+		expression := strings.Split(orderBy, ":")
+		column = expression[0]
+		if len(expression) == 2 {
+			order = expression[1]
+		}
+
+		if utils.ContainsString([]string{"updated_at", "created_at"}, strings.ToLower(column)) {
+			if utils.ContainsString([]string{"asc", "desc"}, strings.ToLower(order)) {
+				return db.Order(fmt.Sprintf(`"%s" %s`, column, order))
+			}
+			return db.Order(column)
+		}
+	}
+
+	return db
+}

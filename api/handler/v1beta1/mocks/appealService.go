@@ -195,6 +195,49 @@ func (_c *AppealService_Create_Call) RunAndReturn(run func(context.Context, []*d
 	return _c
 }
 
+// CreateComment provides a mock function with given fields: _a0, _a1
+func (_m *AppealService) CreateComment(_a0 context.Context, _a1 *domain.Comment) error {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.Comment) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// AppealService_CreateComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateComment'
+type AppealService_CreateComment_Call struct {
+	*mock.Call
+}
+
+// CreateComment is a helper method to define mock.On call
+//   - _a0 context.Context
+//   - _a1 *domain.Comment
+func (_e *AppealService_Expecter) CreateComment(_a0 interface{}, _a1 interface{}) *AppealService_CreateComment_Call {
+	return &AppealService_CreateComment_Call{Call: _e.mock.On("CreateComment", _a0, _a1)}
+}
+
+func (_c *AppealService_CreateComment_Call) Run(run func(_a0 context.Context, _a1 *domain.Comment)) *AppealService_CreateComment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*domain.Comment))
+	})
+	return _c
+}
+
+func (_c *AppealService_CreateComment_Call) Return(_a0 error) *AppealService_CreateComment_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *AppealService_CreateComment_Call) RunAndReturn(run func(context.Context, *domain.Comment) error) *AppealService_CreateComment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteApprover provides a mock function with given fields: ctx, appealID, approvalID, email
 func (_m *AppealService) DeleteApprover(ctx context.Context, appealID string, approvalID string, email string) (*domain.Appeal, error) {
 	ret := _m.Called(ctx, appealID, approvalID, email)
@@ -411,6 +454,61 @@ func (_c *AppealService_GetByID_Call) Return(_a0 *domain.Appeal, _a1 error) *App
 }
 
 func (_c *AppealService_GetByID_Call) RunAndReturn(run func(context.Context, string) (*domain.Appeal, error)) *AppealService_GetByID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListComments provides a mock function with given fields: _a0, _a1
+func (_m *AppealService) ListComments(_a0 context.Context, _a1 domain.ListCommentsFilter) ([]*domain.Comment, error) {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 []*domain.Comment
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListCommentsFilter) ([]*domain.Comment, error)); ok {
+		return rf(_a0, _a1)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListCommentsFilter) []*domain.Comment); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*domain.Comment)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, domain.ListCommentsFilter) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AppealService_ListComments_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListComments'
+type AppealService_ListComments_Call struct {
+	*mock.Call
+}
+
+// ListComments is a helper method to define mock.On call
+//   - _a0 context.Context
+//   - _a1 domain.ListCommentsFilter
+func (_e *AppealService_Expecter) ListComments(_a0 interface{}, _a1 interface{}) *AppealService_ListComments_Call {
+	return &AppealService_ListComments_Call{Call: _e.mock.On("ListComments", _a0, _a1)}
+}
+
+func (_c *AppealService_ListComments_Call) Run(run func(_a0 context.Context, _a1 domain.ListCommentsFilter)) *AppealService_ListComments_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(domain.ListCommentsFilter))
+	})
+	return _c
+}
+
+func (_c *AppealService_ListComments_Call) Return(_a0 []*domain.Comment, _a1 error) *AppealService_ListComments_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *AppealService_ListComments_Call) RunAndReturn(run func(context.Context, domain.ListCommentsFilter) ([]*domain.Comment, error)) *AppealService_ListComments_Call {
 	_c.Call.Return(run)
 	return _c
 }

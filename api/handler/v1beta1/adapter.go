@@ -902,6 +902,28 @@ func (a *adapter) ToActivityProto(activity *domain.Activity) (*guardianv1beta1.P
 	return activityProto, nil
 }
 
+func (a *adapter) ToCommentProto(c *domain.Comment) *guardianv1beta1.AppealComment {
+	if c == nil {
+		return nil
+	}
+
+	commentProto := &guardianv1beta1.AppealComment{
+		Id:        c.ID,
+		AppealId:  c.ParentID,
+		CreatedBy: c.CreatedBy,
+		Body:      c.Body,
+	}
+
+	if !c.CreatedAt.IsZero() {
+		commentProto.CreatedAt = timestamppb.New(c.CreatedAt)
+	}
+	if !c.UpdatedAt.IsZero() {
+		commentProto.UpdatedAt = timestamppb.New(c.UpdatedAt)
+	}
+
+	return commentProto
+}
+
 func (a *adapter) fromConditionProto(c *guardianv1beta1.Condition) *domain.Condition {
 	if c == nil {
 		return nil

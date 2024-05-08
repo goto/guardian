@@ -9,6 +9,7 @@ type NotificationMessages struct {
 	OthersAppealApproved string `mapstructure:"others_appeal_approved"`
 	GrantOwnerChanged    string `mapstructure:"grant_owner_changed"`
 	UnusedGrant          string `mapstructure:"unused_grant"`
+	NewComment           string `mapstructure:"new_comment"`
 }
 
 const (
@@ -20,6 +21,7 @@ const (
 	NotificationTypeApproverNotification   = "ApproverNotification"
 	NotificationTypeGrantOwnerChanged      = "GrantOwnerChanged"
 	NotificationTypeUnusedGrant            = "UnusedGrant"
+	NotificationTypeNewComment             = "NewComment"
 )
 
 type NotificationMessage struct {
