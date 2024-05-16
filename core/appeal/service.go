@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -507,50 +508,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 	}
 	isAdditionalAppealCreation := createAppealOpts.IsAdditionalAppeal
 
-	var isAppealUpdated bool
-
-	if appeal.AccountID == "" {
-		appeal.AccountID = existingAppeal.AccountID
-	} else {
-		isAppealUpdated = true
-	}
-
-	if appeal.AccountType == "" {
-		appeal.AccountType = existingAppeal.AccountType
-	} else {
-		isAppealUpdated = true
-	}
-
-	if appeal.Description == "" {
-		appeal.Description = existingAppeal.Description
-	} else {
-		isAppealUpdated = true
-	}
-
-	if appeal.Role == "" {
-		appeal.Role = existingAppeal.Role
-	} else {
-		isAppealUpdated = true
-	}
-
-	if appeal.ResourceID == "" || appeal.ResourceID == existingAppeal.ResourceID {
-		appeal.ResourceID = existingAppeal.ResourceID
-		appeal.Resource = existingAppeal.Resource
-	} else {
-		isAppealUpdated = true
-	}
-
-	if appeal.Options.Duration == "" {
-		appeal.Options.Duration = existingAppeal.Options.Duration
-	} else {
-		isAppealUpdated = true
-	}
-
-	if appeal.Details == nil {
-		appeal.Details = existingAppeal.Details
-	} else {
-		isAppealUpdated = true
-	}
+	isAppealUpdated := validatePatchReq(appeal, existingAppeal)
 
 	if !isAppealUpdated {
 		// do not perform any operation since no field changed
@@ -752,6 +710,55 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 	}
 
 	return nil
+}
+
+func validatePatchReq(appeal, existingAppeal *domain.Appeal) bool {
+	var isAppealUpdated bool
+
+	if appeal.AccountID == "" || appeal.AccountID == existingAppeal.AccountID {
+		appeal.AccountID = existingAppeal.AccountID
+	} else {
+		isAppealUpdated = true
+	}
+
+	if appeal.AccountType == "" || appeal.AccountType == existingAppeal.AccountType {
+		appeal.AccountType = existingAppeal.AccountType
+	} else {
+		isAppealUpdated = true
+	}
+
+	if appeal.Description == "" || appeal.Description == existingAppeal.Description {
+		appeal.Description = existingAppeal.Description
+	} else {
+		isAppealUpdated = true
+	}
+
+	if appeal.Role == "" || appeal.Role == existingAppeal.Role {
+		appeal.Role = existingAppeal.Role
+	} else {
+		isAppealUpdated = true
+	}
+
+	if appeal.ResourceID == "" || appeal.ResourceID == existingAppeal.ResourceID {
+		appeal.ResourceID = existingAppeal.ResourceID
+		appeal.Resource = existingAppeal.Resource
+	} else {
+		isAppealUpdated = true
+	}
+
+	if appeal.Options.Duration == "" || appeal.Options.Duration == existingAppeal.Options.Duration {
+		appeal.Options.Duration = existingAppeal.Options.Duration
+	} else {
+		isAppealUpdated = true
+	}
+
+	if appeal.Details == nil || reflect.DeepEqual(appeal.Details, existingAppeal.Details) {
+		appeal.Details = existingAppeal.Details
+	} else {
+		isAppealUpdated = true
+	}
+
+	return isAppealUpdated
 }
 
 // UpdateApproval Approve an approval step
