@@ -498,7 +498,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 	}
 
 	if existingAppeal.Status != domain.AppealStatusPending {
-		return fmt.Errorf("appeal is not in pending state")
+		return ErrAppealStatusInvalid
 	}
 
 	createAppealOpts := &createAppealOptions{}
