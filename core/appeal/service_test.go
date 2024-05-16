@@ -2397,6 +2397,58 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 	h.mockRepository.AssertExpectations(s.T())
 }
 
+func (s *ServiceTestSuite) TestPatch() {
+	appealID := uuid.New().String()
+	s.Run("should return error if got error from appeal respository on GetByID", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+		expectedError := fmt.Errorf("error from repository layer")
+
+		h.mockRepository.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, expectedError).Once()
+		actualError := h.service.Patch(context.Background(), &domain.Appeal{})
+
+		s.ErrorIs(actualError, expectedError)
+	})
+
+	s.Run("should return error if appeal status is not pending", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		resAppeal := &domain.Appeal{
+			Status: domain.AppealStatusCanceled,
+		}
+
+		h.mockRepository.EXPECT().GetByID(mock.Anything, mock.Anything).Return(resAppeal, nil).Once()
+		err := h.service.Patch(context.Background(), &domain.Appeal{})
+
+		s.ErrorIs(err, appeal.ErrAppealStatusInvalid)
+	})
+
+	s.Run("should return without error if no field is changed", func() {
+		appeal := &domain.Appeal{
+			ID:          appealID,
+			ResourceID:  "1",
+			Status:      domain.AppealStatusPending,
+			AccountID:   "1",
+			AccountType: domain.DefaultAppealAccountType,
+			Role:        "viewer",
+			Options: &domain.AppealOptions{
+				Duration: "1d",
+			},
+			Description: "test-appeal",
+			Details:     map[string]interface{}{},
+		}
+
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(appeal, nil).Once()
+		err := h.service.Patch(context.Background(), appeal)
+
+		s.ErrorIs(err, nil)
+	})
+}
+
 func (s *ServiceTestSuite) TestUpdateApproval() {
 	appealID := uuid.New().String()
 	appeal.TimeNow = func() time.Time {
