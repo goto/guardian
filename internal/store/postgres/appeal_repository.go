@@ -145,6 +145,32 @@ func (r *AppealRepository) BulkUpsert(ctx context.Context, appeals []*domain.App
 	})
 }
 
+func (r *AppealRepository) UpdateByID(ctx context.Context, a *domain.Appeal) error {
+	if a.ID == "" {
+		return appeal.ErrAppealIDEmptyParam
+	}
+
+	m := new(model.Appeal)
+	if err := m.FromDomain(a); err != nil {
+		return err
+	}
+
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(m).Where(`"id" = ?`, a.ID).Updates(*m).Error; err != nil {
+			return err
+		}
+
+		newRecord, err := m.ToDomain()
+		if err != nil {
+			return err
+		}
+
+		*a = *newRecord
+
+		return nil
+	})
+}
+
 // Update an approval step
 func (r *AppealRepository) Update(ctx context.Context, a *domain.Appeal) error {
 	m := new(model.Appeal)

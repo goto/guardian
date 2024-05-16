@@ -47,6 +47,7 @@ type repository interface {
 	BulkUpsert(context.Context, []*domain.Appeal) error
 	Find(context.Context, *domain.ListAppealsFilter) ([]*domain.Appeal, error)
 	GetByID(ctx context.Context, id string) (*domain.Appeal, error)
+	UpdateByID(context.Context, *domain.Appeal) error
 	Update(context.Context, *domain.Appeal) error
 	GetAppealsTotalCount(context.Context, *domain.ListAppealsFilter) (int64, error)
 }
@@ -69,6 +70,8 @@ type policyService interface {
 
 //go:generate mockery --name=approvalService --exported --with-expecter
 type approvalService interface {
+	GetApprovalsByAppealID(ctx context.Context, appealID string) ([]*domain.Approval, error)
+	UpdateApproval(ctx context.Context, approval *domain.Approval) error
 	AddApprover(ctx context.Context, approvalID, email string) error
 	DeleteApprover(ctx context.Context, approvalID, email string) error
 }
@@ -315,6 +318,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			return fmt.Errorf("getting creator details: %w", err)
 		}
 
+		appeal.Revision = 0
 		if err := appeal.ApplyPolicy(policy); err != nil {
 			return err
 		}
@@ -483,6 +487,270 @@ func validateAppealOnBehalf(a *domain.Appeal, policy *domain.Policy) error {
 			return ErrCannotCreateAppealForOtherUser
 		}
 	}
+	return nil
+}
+
+// Patch record
+func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...CreateAppealOption) error {
+	existingAppeal, err := s.repo.GetByID(ctx, appeal.ID)
+	if err != nil {
+		return fmt.Errorf("error getting existing appeal: %w", err)
+	}
+
+	if existingAppeal.Status != domain.AppealStatusPending {
+		return fmt.Errorf("appeal is not in pending state")
+	}
+
+	createAppealOpts := &createAppealOptions{}
+	for _, opt := range opts {
+		opt(createAppealOpts)
+	}
+	isAdditionalAppealCreation := createAppealOpts.IsAdditionalAppeal
+
+	var isAppealUpdated bool
+
+	if appeal.AccountID == "" {
+		appeal.AccountID = existingAppeal.AccountID
+	} else {
+		isAppealUpdated = true
+	}
+
+	if appeal.AccountType == "" {
+		appeal.AccountType = existingAppeal.AccountType
+	} else {
+		isAppealUpdated = true
+	}
+
+	if appeal.Description == "" {
+		appeal.Description = existingAppeal.Description
+	} else {
+		isAppealUpdated = true
+	}
+
+	if appeal.Role == "" {
+		appeal.Role = existingAppeal.Role
+	} else {
+		isAppealUpdated = true
+	}
+
+	if appeal.ResourceID == "" || appeal.ResourceID == existingAppeal.ResourceID {
+		appeal.ResourceID = existingAppeal.ResourceID
+		appeal.Resource = existingAppeal.Resource
+	} else {
+		isAppealUpdated = true
+	}
+
+	if appeal.Options.Duration == "" {
+		appeal.Options.Duration = existingAppeal.Options.Duration
+	} else {
+		isAppealUpdated = true
+	}
+
+	if appeal.Details == nil {
+		appeal.Details = existingAppeal.Details
+	} else {
+		isAppealUpdated = true
+	}
+
+	if !isAppealUpdated {
+		// do not perform any operation since no field changed
+		return nil
+	}
+
+	eg, egctx := errgroup.WithContext(ctx)
+	var (
+		providers      map[string]map[string]*domain.Provider
+		policies       map[string]map[uint]*domain.Policy
+		pendingAppeals map[string]map[string]map[string]*domain.Appeal
+	)
+
+	eg.Go(func() error {
+		if appeal.Resource == nil {
+			resource, err := s.resourceService.Get(ctx, &domain.ResourceIdentifier{ID: appeal.ResourceID})
+			if err != nil {
+				return fmt.Errorf("error getting resource: %w", err)
+			}
+			appeal.Resource = resource
+		}
+		return nil
+	})
+
+	eg.Go(func() error {
+		providersData, err := s.getProvidersMap(egctx)
+		if err != nil {
+			return fmt.Errorf("error getting providers map: %w", err)
+		}
+		providers = providersData
+		return nil
+	})
+
+	eg.Go(func() error {
+		policiesData, err := s.getPoliciesMap(egctx)
+		if err != nil {
+			return fmt.Errorf("error getting policies map: %w", err)
+		}
+		policies = policiesData
+		return nil
+	})
+
+	eg.Go(func() error {
+		pendingAppealsData, err := s.getAppealsMap(egctx, &domain.ListAppealsFilter{
+			Statuses:   []string{domain.AppealStatusPending},
+			AccountIDs: []string{appeal.AccountID},
+		})
+		if err != nil {
+			return fmt.Errorf("listing pending appeals: %w", err)
+		}
+		pendingAppeals = pendingAppealsData
+		return nil
+	})
+
+	if err := eg.Wait(); err != nil {
+		return err
+	}
+
+	appeal.SetDefaults()
+
+	if err := validateAppeal(appeal, pendingAppeals); err != nil {
+		return err
+	}
+
+	provider, err := getProvider(appeal, providers)
+	if err != nil {
+		return err
+	}
+
+	var policy *domain.Policy
+	if isAdditionalAppealCreation && appeal.PolicyID != "" && appeal.PolicyVersion != 0 {
+		policy = policies[appeal.PolicyID][appeal.PolicyVersion]
+	} else {
+		policy, err = getPolicy(appeal, provider, policies)
+		if err != nil {
+			return err
+		}
+	}
+
+	activeGrant, err := s.findActiveGrant(ctx, appeal)
+	if err != nil && err != ErrGrantNotFound {
+		return err
+	}
+
+	if activeGrant != nil {
+		if err := s.checkExtensionEligibility(appeal, provider, policy, activeGrant); err != nil {
+			return err
+		}
+	}
+
+	if err := s.providerService.ValidateAppeal(ctx, appeal, provider, policy); err != nil {
+		return fmt.Errorf("provider validation: %w", err)
+	}
+
+	strPermissions, err := s.getPermissions(ctx, provider.Config, appeal.Resource.Type, appeal.Role)
+	if err != nil {
+		return fmt.Errorf("getting permissions list: %w", err)
+	}
+	appeal.Permissions = strPermissions
+
+	if err := validateAppealDurationConfig(appeal, policy); err != nil {
+		return err
+	}
+
+	if err := validateAppealOnBehalf(appeal, policy); err != nil {
+		return err
+	}
+
+	if err := s.populateAppealMetadata(ctx, appeal, policy); err != nil {
+		return fmt.Errorf("getting appeal metadata: %w", err)
+	}
+
+	if err := s.addCreatorDetails(ctx, appeal, policy); err != nil {
+		return fmt.Errorf("getting creator details: %w", err)
+	}
+
+	prevApprovals, err := s.approvalService.GetApprovalsByAppealID(ctx, appeal.ID)
+	if err != nil {
+		return fmt.Errorf("error getting previous approvals for appeal(%s): %w", appeal.ID, err)
+	}
+
+	// mark previous approvals as stale
+	for _, approval := range prevApprovals {
+		approval.IsStale = true
+		err := s.approvalService.UpdateApproval(ctx, approval)
+		if err != nil {
+			return fmt.Errorf("couldn't update old approval(%s): %w", approval.ID, err)
+		}
+	}
+
+	// create new approval
+	appeal.Revision = appeal.Revision + 1
+	if err := appeal.ApplyPolicy(policy); err != nil {
+		return err
+	}
+
+	if err := appeal.AdvanceApproval(policy); err != nil {
+		return fmt.Errorf("initializing approvals: %w", err)
+	}
+	appeal.Policy = nil
+
+	notifications := []domain.Notification{}
+	for _, approval := range appeal.Approvals {
+		if approval.Index == len(appeal.Approvals)-1 && (approval.Status == domain.ApprovalStatusApproved || appeal.Status == domain.AppealStatusApproved) {
+			newGrant, revokedGrant, err := s.prepareGrant(ctx, appeal)
+			if err != nil {
+				return fmt.Errorf("preparing grant: %w", err)
+			}
+			newGrant.Resource = appeal.Resource
+			appeal.Grant = newGrant
+			if revokedGrant != nil {
+				if _, err := s.grantService.Revoke(ctx, revokedGrant.ID, domain.SystemActorName, revokedGrant.RevokeReason,
+					grant.SkipNotifications(),
+					grant.SkipRevokeAccessInProvider(),
+				); err != nil {
+					return fmt.Errorf("revoking previous grant: %w", err)
+				}
+			} else {
+				if err := s.GrantAccessToProvider(ctx, appeal); err != nil {
+					return fmt.Errorf("granting access: %w", err)
+				}
+			}
+
+			notifications = append(notifications, domain.Notification{
+				User: appeal.CreatedBy,
+				Labels: map[string]string{
+					"appeal_id": appeal.ID,
+				},
+				Message: domain.NotificationMessage{
+					Type: domain.NotificationTypeAppealApproved,
+					Variables: map[string]interface{}{
+						"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+						"role":          appeal.Role,
+						"account_id":    appeal.AccountID,
+						"appeal_id":     appeal.ID,
+						"requestor":     appeal.CreatedBy,
+					},
+				},
+			})
+
+			notifications = addOnBehalfApprovedNotification(appeal, notifications)
+		}
+	}
+
+	if err := s.repo.UpdateByID(ctx, appeal); err != nil {
+		return fmt.Errorf("error saving appeal to db: %w", err)
+	}
+
+	if err := s.auditLogger.Log(ctx, AuditKeyBulkInsert, appeal); err != nil {
+		s.logger.Error(ctx, "failed to record audit log", "error", err)
+	}
+
+	if len(notifications) > 0 {
+		if errs := s.notifier.Notify(ctx, notifications); errs != nil {
+			for _, err1 := range errs {
+				s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+			}
+		}
+	}
+
 	return nil
 }
 

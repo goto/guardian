@@ -64,6 +64,8 @@ type Appeal struct {
 	Approvals []*Approval `json:"approvals,omitempty" yaml:"approvals,omitempty"`
 	Grant     *Grant      `json:"grant,omitempty" yaml:"grant,omitempty"`
 
+	Revision uint `json:"revision,omitempty" yaml:"revision,omitempty"`
+
 	CreatedAt time.Time `json:"created_at,omitempty" yaml:"created_at,omitempty"`
 	UpdatedAt time.Time `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
 }

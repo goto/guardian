@@ -574,6 +574,187 @@ func (s *GrpcHandlersSuite) TestCreateAppeal() {
 	})
 }
 
+func (s *GrpcHandlersSuite) TestUpdateAppeal() {
+	s.Run("should return updated appeal on success", func() {
+		s.setup()
+		timeNow := time.Now()
+
+		expectedUser := "user@example.com"
+		expectedResource := &domain.Resource{
+			ID:           "test-resource-id",
+			ProviderType: "test-provider-type",
+			ProviderURN:  "test-provider-urn",
+			Type:         "test-resource-type",
+			URN:          "test-resource-urn",
+			Name:         "test-name",
+		}
+		expectedApproval := &domain.Approval{
+			ID:            "test-approval-id",
+			Name:          "test-approval-step",
+			Status:        "pending",
+			AppealID:      "test-id",
+			PolicyID:      "test-policy-id",
+			PolicyVersion: 1,
+			Approvers:     []string{"approver@example.com"},
+			CreatedAt:     timeNow,
+			UpdatedAt:     timeNow,
+		}
+		expectedOptions := &domain.AppealOptions{
+			ExpirationDate: &timeNow,
+			Duration:       "24h",
+		}
+		expectedAppeal := &domain.Appeal{
+			AccountID:   expectedUser,
+			AccountType: "user",
+			CreatedBy:   expectedUser,
+			ResourceID:  "test-resource-id",
+			Role:        "test-role",
+			Options: &domain.AppealOptions{
+				Duration: "24h",
+			},
+			Details: map[string]interface{}{
+				"foo": "bar",
+			},
+			Description: "The answer is 42",
+		}
+		expectedDetails, err := structpb.NewStruct(map[string]interface{}{
+			"foo": "bar",
+		})
+		s.Require().NoError(err)
+		expectedResponse := &guardianv1beta1.UpdateAppealResponse{
+			Appeal: &guardianv1beta1.Appeal{
+				Id:            "test-id",
+				ResourceId:    "test-resource-id",
+				AccountId:     expectedUser,
+				AccountType:   "user",
+				CreatedBy:     expectedUser,
+				Role:          "test-role",
+				PolicyId:      "test-policy-id",
+				PolicyVersion: 1,
+				Status:        "pending",
+				Resource: &guardianv1beta1.Resource{
+					Id:           "test-resource-id",
+					ProviderType: "test-provider-type",
+					ProviderUrn:  "test-provider-urn",
+					Type:         "test-resource-type",
+					Urn:          "test-resource-urn",
+					Name:         "test-name",
+				},
+				Approvals: []*guardianv1beta1.Approval{
+					{
+						Id:            "test-approval-id",
+						Name:          "test-approval-step",
+						Status:        "pending",
+						AppealId:      "test-id",
+						PolicyId:      "test-policy-id",
+						PolicyVersion: 1,
+						Approvers:     []string{"approver@example.com"},
+						CreatedAt:     timestamppb.New(timeNow),
+						UpdatedAt:     timestamppb.New(timeNow),
+					},
+				},
+				Options: &guardianv1beta1.AppealOptions{
+					ExpirationDate: timestamppb.New(timeNow),
+					Duration:       "24h",
+				},
+				Details:     expectedDetails,
+				Description: "The answer is 42",
+				CreatedAt:   timestamppb.New(timeNow),
+				UpdatedAt:   timestamppb.New(timeNow),
+			},
+		}
+		s.appealService.EXPECT().Patch(mock.AnythingOfType("*context.valueCtx"), expectedAppeal).
+			Run(func(_a0 context.Context, _a1 *domain.Appeal, _a2 ...appeal.CreateAppealOption) {
+				_a1.ID = "test-id"
+				_a1.Resource = expectedResource
+				_a1.PolicyID = "test-policy-id"
+				_a1.PolicyVersion = 1
+				_a1.Status = "pending"
+				_a1.Approvals = []*domain.Approval{expectedApproval}
+				_a1.CreatedAt = timeNow
+				_a1.UpdatedAt = timeNow
+				_a1.Options = expectedOptions
+				_a1.Description = "The answer is 42"
+			}).
+			Return(nil).Once()
+
+		reqOptions, err := structpb.NewStruct(map[string]interface{}{
+			"duration": "24h",
+		})
+		s.Require().NoError(err)
+
+		req := &guardianv1beta1.UpdateAppealRequest{
+			AccountId:   expectedUser,
+			AccountType: "user",
+			Resource: &guardianv1beta1.UpdateAppealRequest_Resource{
+				Id:      "test-resource-id",
+				Role:    "test-role",
+				Options: reqOptions,
+				Details: expectedDetails,
+			},
+			Description: "The answer is 42",
+		}
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, expectedUser)
+		res, err := s.grpcServer.UpdateAppeal(ctx, req)
+
+		s.NoError(err)
+		s.Equal(expectedResponse, res)
+		s.appealService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return unauthenticated error if request is unauthenticated", func() {
+		s.setup()
+		req := &guardianv1beta1.UpdateAppealRequest{}
+		ctx := context.Background()
+		md := metadata.New(map[string]string{})
+		ctx = metadata.NewIncomingContext(ctx, md)
+		res, err := s.grpcServer.UpdateAppeal(ctx, req)
+
+		s.Equal(codes.Unauthenticated, status.Code(err))
+		s.Nil(res)
+		s.appealService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return internal error if appeal service returns an error", func() {
+		s.setup()
+
+		expectedError := errors.New("random error")
+		s.appealService.EXPECT().Patch(mock.AnythingOfType("*context.valueCtx"), mock.Anything).Return(expectedError).Once()
+
+		req := &guardianv1beta1.UpdateAppealRequest{}
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.com")
+		res, err := s.grpcServer.UpdateAppeal(ctx, req)
+
+		s.Equal(codes.Internal, status.Code(err))
+		s.Nil(res)
+		s.appealService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return internal error if failed to parse appeal", func() {
+		s.setup()
+
+		invalidAppeal := &domain.Appeal{
+
+			Creator: map[string]interface{}{
+				"foo": make(chan int),
+			},
+		}
+		s.appealService.EXPECT().Patch(mock.AnythingOfType("*context.valueCtx"), mock.Anything).
+			Run(func(_a0 context.Context, _a1 *domain.Appeal, _a2 ...appeal.CreateAppealOption) {
+				*_a1 = *invalidAppeal
+			}).
+			Return(nil).Once()
+
+		req := &guardianv1beta1.UpdateAppealRequest{Resource: &guardianv1beta1.UpdateAppealRequest_Resource{}}
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.com")
+		res, err := s.grpcServer.UpdateAppeal(ctx, req)
+
+		s.Equal(codes.Internal, status.Code(err))
+		s.Nil(res)
+		s.appealService.AssertExpectations(s.T())
+	})
+}
+
 func (s *GrpcHandlersSuite) TestGetAppeal() {
 	s.Run("should return appeal details on success", func() {
 		s.setup()
