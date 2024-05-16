@@ -65,7 +65,7 @@ config:
 proto:
 	@echo "Generating protobuf from goto/proton"
 	@echo " [info] make sure correct version of dependencies are installed using 'make install'"
-	@buf generate https://github.com/goto/proton/archive/${PROTON_COMMIT}.zip#strip_components=1 --template buf.gen.yaml --path gotocompany/guardian
+	@buf generate /Users/ayushi/workspace/proton --template buf.gen.yaml --path /Users/ayushi/workspace/proton/gotocompany/guardian
 	@echo "Protobuf compilation finished"
 
 setup:

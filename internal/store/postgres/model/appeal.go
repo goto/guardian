@@ -35,6 +35,8 @@ type Appeal struct {
 	Approvals []*Approval
 	Grant     *Grant
 
+	Revision uint `gorm:"default:0"`
+
 	CreatedAt time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `gorm:"index"`

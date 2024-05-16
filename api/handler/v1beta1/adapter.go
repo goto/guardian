@@ -720,6 +720,33 @@ func (a *adapter) FromCreateAppealProto(ca *guardianv1beta1.CreateAppealRequest,
 	return appeals, nil
 }
 
+func (a *adapter) FromUpdateAppealProto(ua *guardianv1beta1.UpdateAppealRequest, authenticatedUser string) (*domain.Appeal, error) {
+	resource := ua.GetResource()
+
+	appeal := &domain.Appeal{
+		AccountID:   ua.GetAccountId(),
+		AccountType: ua.GetAccountType(),
+		CreatedBy:   authenticatedUser,
+		ResourceID:  resource.GetId(),
+		Role:        resource.GetRole(),
+		Description: ua.GetDescription(),
+	}
+
+	if resource.GetOptions() != nil {
+		var options *domain.AppealOptions
+		if err := mapstructure.Decode(resource.GetOptions().AsMap(), &options); err != nil {
+			return nil, err
+		}
+		appeal.Options = options
+	}
+
+	if resource.GetDetails() != nil {
+		appeal.Details = resource.GetDetails().AsMap()
+	}
+
+	return appeal, nil
+}
+
 func (a *adapter) ToApprovalProto(approval *domain.Approval) (*guardianv1beta1.Approval, error) {
 	approvalProto := &guardianv1beta1.Approval{
 		Id:            approval.ID,

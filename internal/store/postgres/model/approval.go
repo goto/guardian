@@ -24,6 +24,9 @@ type Approval struct {
 	Approvers []Approver
 	Appeal    *Appeal
 
+	IsStale        bool `gorm:"default:false"`
+	AppealRevision uint `gorm:"default:0"`
+
 	CreatedAt time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `gorm:"index"`
