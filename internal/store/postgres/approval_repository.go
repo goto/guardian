@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/core/approval"
 	"github.com/goto/guardian/domain"
@@ -107,36 +106,6 @@ func (r *ApprovalRepository) BulkInsert(ctx context.Context, approvals []*domain
 
 		return nil
 	})
-}
-
-func (r *ApprovalRepository) GetApprovalsByAppealID(ctx context.Context, appealID string) ([]*domain.Approval, error) {
-	if appealID == "" {
-		return nil, approval.ErrAppealIDEmptyParam
-	}
-
-	if _, err := uuid.Parse(appealID); err != nil {
-		return nil, fmt.Errorf("error parsing appeal ID: %w", err)
-	}
-
-	var models []model.Approval
-	if err := r.db.WithContext(ctx).Where(`"appeal_id" = ?`, appealID).Take(&models).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, approval.ErrApprovalNotFound
-		}
-		return nil, err
-	}
-
-	records := []*domain.Approval{}
-	for _, m := range models {
-		approval, err := m.ToDomain()
-		if err != nil {
-			return nil, err
-		}
-
-		records = append(records, approval)
-	}
-
-	return records, nil
 }
 
 func (r *ApprovalRepository) UpdateApproval(ctx context.Context, a *domain.Approval) error {

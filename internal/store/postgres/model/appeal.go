@@ -115,6 +115,7 @@ func (m *Appeal) FromDomain(a *domain.Appeal) error {
 	m.Details = datatypes.JSON(details)
 	m.Description = a.Description
 	m.Approvals = approvals
+	m.Revision = a.Revision
 	m.CreatedAt = a.CreatedAt
 	m.UpdatedAt = a.UpdatedAt
 
@@ -198,6 +199,7 @@ func (m *Appeal) ToDomain() (*domain.Appeal, error) {
 		Labels:        labels,
 		Approvals:     approvals,
 		Resource:      resource,
+		Revision:      m.Revision,
 		Grant:         grant,
 		CreatedAt:     m.CreatedAt,
 		UpdatedAt:     m.UpdatedAt,

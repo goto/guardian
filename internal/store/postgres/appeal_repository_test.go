@@ -485,6 +485,53 @@ func (s *AppealRepositoryTestSuite) TestBulkUpsert() {
 	})
 }
 
+func (s *AppealRepositoryTestSuite) TestUpdateByID() {
+	dummyAppeals := []*domain.Appeal{
+		{
+			ResourceID:    s.dummyResource.ID,
+			PolicyID:      s.dummyPolicy.ID,
+			PolicyVersion: s.dummyPolicy.Version,
+			AccountID:     "user@example.com",
+			AccountType:   domain.DefaultAppealAccountType,
+			Role:          "role_test",
+			Status:        domain.AppealStatusApproved,
+			Permissions:   []string{"permission_test"},
+			CreatedBy:     "user@example.com",
+		},
+		{
+			ResourceID:    s.dummyResource.ID,
+			PolicyID:      s.dummyPolicy.ID,
+			PolicyVersion: s.dummyPolicy.Version,
+			AccountID:     "user2@example.com",
+			AccountType:   domain.DefaultAppealAccountType,
+			Status:        domain.AppealStatusCanceled,
+			Role:          "role_test",
+			Permissions:   []string{"permission_test_2"},
+			CreatedBy:     "user2@example.com",
+		},
+	}
+
+	ctx := context.Background()
+	actualError := s.repository.BulkUpsert(ctx, dummyAppeals)
+	s.Nil(actualError)
+
+	s.Run("should return error if Appeal ID is missing", func() {
+		err := s.repository.UpdateByID(context.Background(), &domain.Appeal{})
+		s.EqualError(err, appeal.ErrAppealIDEmptyParam.Error())
+	})
+
+	s.Run("should update appeal successfully", func() {
+		dummyAppeals[0].Revision = 1
+		err := s.repository.UpdateByID(context.Background(), dummyAppeals[0])
+		s.Require().NoError(err)
+
+		appeals, err := s.repository.GetByID(context.Background(), dummyAppeals[0].ID)
+		s.Require().NoError(err)
+
+		s.Equal(appeals.Revision, uint(1))
+	})
+}
+
 func (s *AppealRepositoryTestSuite) TestUpdate() {
 	s.Run("should return error if appeal input is invalid", func() {
 		invalidAppeal := &domain.Appeal{

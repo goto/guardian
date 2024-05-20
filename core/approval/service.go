@@ -10,7 +10,6 @@ import (
 type repository interface {
 	BulkInsert(context.Context, []*domain.Approval) error
 	GetApprovalsTotalCount(context.Context, *domain.ListApprovalsFilter) (int64, error)
-	GetApprovalsByAppealID(context.Context, string) ([]*domain.Approval, error)
 	ListApprovals(context.Context, *domain.ListApprovalsFilter) ([]*domain.Approval, error)
 	UpdateApproval(ctx context.Context, approval *domain.Approval) error
 	AddApprover(context.Context, *domain.Approver) error
@@ -36,10 +35,6 @@ func NewService(deps ServiceDeps) *Service {
 		deps.Repository,
 		deps.PolicyService,
 	}
-}
-
-func (s *Service) GetApprovalsByAppealID(ctx context.Context, appealID string) ([]*domain.Approval, error) {
-	return s.repo.GetApprovalsByAppealID(ctx, appealID)
 }
 
 func (s *Service) ListApprovals(ctx context.Context, filters *domain.ListApprovalsFilter) ([]*domain.Approval, error) {
