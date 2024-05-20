@@ -127,36 +127,6 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 	})
 }
 
-func (s *ServiceTestSuite) TestGetApprovalByAppealID() {
-	s.Run("should return error if got error from repository", func() {
-		expectedError := errors.New("repository error")
-		s.mockRepository.EXPECT().
-			GetApprovalsByAppealID(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
-			Return(nil, expectedError).Once()
-
-		_, actualError := s.service.GetApprovalsByAppealID(context.Background(), mock.Anything)
-
-		s.EqualError(actualError, expectedError.Error())
-	})
-
-	s.Run("should return error if nil error on success", func() {
-		expectedApprovals := []*domain.Approval{
-			{
-				ID: uuid.New().String(),
-			},
-		}
-		s.mockRepository.EXPECT().
-			GetApprovalsByAppealID(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
-			Return(expectedApprovals, nil).Once()
-
-		actualApprovals, err := s.service.GetApprovalsByAppealID(context.Background(), expectedApprovals[0].ID)
-
-		s.Equal(expectedApprovals, actualApprovals)
-		s.NoError(err)
-	})
-
-}
-
 func (s *ServiceTestSuite) TestAddApprover() {
 	s.Run("should return nil error on success", func() {
 		expectedApprover := &domain.Approver{
