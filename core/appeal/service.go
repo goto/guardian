@@ -27,6 +27,7 @@ import (
 
 const (
 	AuditKeyBulkInsert     = "appeal.bulkInsert"
+	AuditKeyUpdateAppeal   = "appeal.updayeByID"
 	AuditKeyCancel         = "appeal.cancel"
 	AuditKeyApprove        = "appeal.approve"
 	AuditKeyReject         = "appeal.reject"
@@ -524,7 +525,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 
 	eg.Go(func() error {
 		if appeal.Resource == nil {
-			resource, err := s.resourceService.Get(ctx, &domain.ResourceIdentifier{ID: appeal.ResourceID})
+			resource, err := s.resourceService.Get(egctx, &domain.ResourceIdentifier{ID: appeal.ResourceID})
 			if err != nil {
 				return fmt.Errorf("error getting resource: %w", err)
 			}
@@ -557,7 +558,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 			AccountIDs: []string{appeal.AccountID},
 		})
 		if err != nil {
-			return fmt.Errorf("listing pending appeals: %w", err)
+			return fmt.Errorf("error while listing pending appeals: %w", err)
 		}
 		pendingAppeals = pendingAppealsData
 		return nil
@@ -625,13 +626,8 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 		return fmt.Errorf("getting creator details: %w", err)
 	}
 
-	prevApprovals, err := s.approvalService.GetApprovalsByAppealID(ctx, appeal.ID)
-	if err != nil {
-		return fmt.Errorf("error getting previous approvals for appeal(%s): %w", appeal.ID, err)
-	}
-
 	// mark previous approvals as stale
-	for _, approval := range prevApprovals {
+	for _, approval := range existingAppeal.Approvals {
 		approval.IsStale = true
 		err := s.approvalService.UpdateApproval(ctx, approval)
 		if err != nil {
@@ -697,7 +693,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 		return fmt.Errorf("error saving appeal to db: %w", err)
 	}
 
-	if err := s.auditLogger.Log(ctx, AuditKeyBulkInsert, appeal); err != nil {
+	if err := s.auditLogger.Log(ctx, AuditKeyUpdateAppeal, appeal); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
 
@@ -746,8 +742,8 @@ func validatePatchReq(appeal, existingAppeal *domain.Appeal) bool {
 		isAppealUpdated = true
 	}
 
-	if appeal.Options.Duration == "" || appeal.Options.Duration == existingAppeal.Options.Duration {
-		appeal.Options.Duration = existingAppeal.Options.Duration
+	if appeal.Options == nil || appeal.Options.Duration == "" || appeal.Options.Duration == existingAppeal.Options.Duration {
+		appeal.Options = existingAppeal.Options
 	} else {
 		isAppealUpdated = true
 	}
@@ -757,6 +753,11 @@ func validatePatchReq(appeal, existingAppeal *domain.Appeal) bool {
 	} else {
 		isAppealUpdated = true
 	}
+
+	appeal.CreatedBy = existingAppeal.CreatedBy
+	appeal.Creator = existingAppeal.Creator
+	appeal.Status = existingAppeal.Status
+	appeal.Labels = existingAppeal.Labels
 
 	return isAppealUpdated
 }
