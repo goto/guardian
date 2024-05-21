@@ -2362,13 +2362,16 @@ func (s *ServiceTestSuite) TestPatch() {
 					PolicyID:      "policy_id",
 					PolicyVersion: uint(1),
 					Options: &domain.AppealOptions{
-						Duration: "100h",
+						Duration: "24h",
 					},
 					Status: domain.ApprovalStatusPending,
 				},
 				reqAppeal: &domain.Appeal{
 					ID:         "1",
 					ResourceID: "1",
+					Options: &domain.AppealOptions{
+						Duration: "100h",
+					},
 				},
 				expectedError: appeal.ErrDurationNotAllowed,
 			},

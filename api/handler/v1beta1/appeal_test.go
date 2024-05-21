@@ -604,6 +604,7 @@ func (s *GrpcHandlersSuite) TestPatchAppeal() {
 			Duration:       "24h",
 		}
 		expectedAppeal := &domain.Appeal{
+			ID:          "test-id",
 			AccountID:   expectedUser,
 			AccountType: "user",
 			CreatedBy:   expectedUser,
@@ -684,6 +685,7 @@ func (s *GrpcHandlersSuite) TestPatchAppeal() {
 		s.Require().NoError(err)
 
 		req := &guardianv1beta1.PatchAppealRequest{
+			Id:          "test-id",
 			AccountId:   expectedUser,
 			AccountType: "user",
 			Resource: &guardianv1beta1.PatchAppealRequest_Resource{
@@ -702,9 +704,22 @@ func (s *GrpcHandlersSuite) TestPatchAppeal() {
 		s.appealService.AssertExpectations(s.T())
 	})
 
-	s.Run("should return unauthenticated error if request is unauthenticated", func() {
+	s.Run("should return error if appeal ID is missing in request", func() {
 		s.setup()
 		req := &guardianv1beta1.PatchAppealRequest{}
+		ctx := context.Background()
+		md := metadata.New(map[string]string{})
+		ctx = metadata.NewIncomingContext(ctx, md)
+		res, err := s.grpcServer.PatchAppeal(ctx, req)
+
+		s.Equal(codes.FailedPrecondition, status.Code(err))
+		s.Nil(res)
+		s.appealService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return unauthenticated error if request is unauthenticated", func() {
+		s.setup()
+		req := &guardianv1beta1.PatchAppealRequest{Id: "test-id"}
 		ctx := context.Background()
 		md := metadata.New(map[string]string{})
 		ctx = metadata.NewIncomingContext(ctx, md)
@@ -721,7 +736,7 @@ func (s *GrpcHandlersSuite) TestPatchAppeal() {
 		expectedError := errors.New("random error")
 		s.appealService.EXPECT().Patch(mock.AnythingOfType("*context.valueCtx"), mock.Anything).Return(expectedError).Once()
 
-		req := &guardianv1beta1.PatchAppealRequest{}
+		req := &guardianv1beta1.PatchAppealRequest{Id: "test-id"}
 		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.com")
 		res, err := s.grpcServer.PatchAppeal(ctx, req)
 
@@ -745,7 +760,7 @@ func (s *GrpcHandlersSuite) TestPatchAppeal() {
 			}).
 			Return(nil).Once()
 
-		req := &guardianv1beta1.PatchAppealRequest{Resource: &guardianv1beta1.PatchAppealRequest_Resource{}}
+		req := &guardianv1beta1.PatchAppealRequest{Id: "test-id", Resource: &guardianv1beta1.PatchAppealRequest_Resource{}}
 		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.com")
 		res, err := s.grpcServer.PatchAppeal(ctx, req)
 

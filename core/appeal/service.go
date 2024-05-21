@@ -666,7 +666,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 					return fmt.Errorf("revoking previous grant: %w", err)
 				}
 			} else {
-				if err := s.GrantAccessToProvider(ctx, appeal); err != nil {
+				if err := s.GrantAccessToProvider(ctx, appeal, opts...); err != nil {
 					return fmt.Errorf("granting access: %w", err)
 				}
 			}
@@ -714,57 +714,40 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 func validatePatchReq(appeal, existingAppeal *domain.Appeal) (bool, error) {
 	var isAppealUpdated bool
 
-	if appeal.AccountID == "" || appeal.AccountID == existingAppeal.AccountID {
-		appeal.AccountID = existingAppeal.AccountID
-	} else {
+	updateField := func(newVal, existingVal string) string {
+		if newVal == "" || newVal == existingVal {
+			return existingVal
+		}
 		isAppealUpdated = true
+		return newVal
 	}
 
-	if appeal.AccountType == "" || appeal.AccountType == existingAppeal.AccountType {
-		appeal.AccountType = existingAppeal.AccountType
-	} else {
+	updateFieldIfNil := func(newVal, existingVal interface{}) interface{} {
+		if newVal == nil || reflect.DeepEqual(newVal, existingVal) {
+			return existingVal
+		}
 		isAppealUpdated = true
+		return newVal
 	}
 
-	if appeal.Description == "" || appeal.Description == existingAppeal.Description {
-		appeal.Description = existingAppeal.Description
-	} else {
-		isAppealUpdated = true
-	}
-
-	if appeal.Role == "" || appeal.Role == existingAppeal.Role {
-		appeal.Role = existingAppeal.Role
-	} else {
-		isAppealUpdated = true
-	}
-
-	if appeal.ResourceID == "" || appeal.ResourceID == existingAppeal.ResourceID {
-		appeal.ResourceID = existingAppeal.ResourceID
+	appeal.AccountID = updateField(appeal.AccountID, existingAppeal.AccountID)
+	appeal.AccountType = updateField(appeal.AccountType, existingAppeal.AccountType)
+	appeal.Description = updateField(appeal.Description, existingAppeal.Description)
+	appeal.Role = updateField(appeal.Role, existingAppeal.Role)
+	appeal.ResourceID = updateField(appeal.ResourceID, existingAppeal.ResourceID)
+	if appeal.ResourceID == existingAppeal.ResourceID {
 		appeal.Resource = existingAppeal.Resource
-	} else {
-		isAppealUpdated = true
 	}
-
-	if appeal.Options == nil || appeal.Options.Duration == "" || appeal.Options.Duration == existingAppeal.Options.Duration {
-		appeal.Options = existingAppeal.Options
-	} else {
-		isAppealUpdated = true
-	}
-
-	if appeal.Details == nil || reflect.DeepEqual(appeal.Details[PolicyQuestionsKey], existingAppeal.Details[PolicyQuestionsKey]) {
-		appeal.Details = existingAppeal.Details
-	} else {
-		isAppealUpdated = true
-	}
-
+	appeal.Options = updateFieldIfNil(appeal.Options, existingAppeal.Options).(*domain.AppealOptions)
+	appeal.Details = updateFieldIfNil(appeal.Details, existingAppeal.Details).(map[string]interface{})
+	appeal.Labels = updateFieldIfNil(appeal.Labels, existingAppeal.Labels).(map[string]string)
+	appeal.CreatedBy = updateField(appeal.CreatedBy, existingAppeal.CreatedBy)
 	if appeal.CreatedBy != existingAppeal.CreatedBy {
 		return false, fmt.Errorf("not allowed to update creator")
 	}
 
-	appeal.CreatedBy = existingAppeal.CreatedBy
 	appeal.Creator = existingAppeal.Creator
 	appeal.Status = existingAppeal.Status
-	appeal.Labels = existingAppeal.Labels
 
 	return isAppealUpdated, nil
 }
