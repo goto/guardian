@@ -16,6 +16,7 @@ import (
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/core/policy"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/diff"
 	"github.com/goto/guardian/pkg/evaluator"
 	"github.com/goto/guardian/pkg/http"
 	"github.com/goto/guardian/pkg/log"
@@ -696,9 +697,16 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 		return fmt.Errorf("error saving appeal to db: %w", err)
 	}
 
-	if err := s.auditLogger.Log(ctx, AuditKeyUpdateAppeal, appeal); err != nil {
+	log, err := getAuditLog(existingAppeal, appeal)
+	if err != nil {
+		return err
+	}
+
+	if err := s.auditLogger.Log(ctx, AuditKeyUpdateAppeal, log); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
+
+	fmt.Println(log)
 
 	if len(notifications) > 0 {
 		if errs := s.notifier.Notify(ctx, notifications); errs != nil {
@@ -711,19 +719,106 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 	return nil
 }
 
+func getAuditLog(oldAppeal, newAppeal *domain.Appeal) (string, error) {
+	var auditLog []diff.PatchOp
+
+	createDiff(&auditLog, "/appeal/account_id", newAppeal.CreatedBy, oldAppeal.AccountID, newAppeal.AccountID)
+	createDiff(&auditLog, "/appeal/account_type", newAppeal.CreatedBy, oldAppeal.AccountType, newAppeal.AccountType)
+	createDiff(&auditLog, "/appeal/resource_id", newAppeal.CreatedBy, oldAppeal.ResourceID, newAppeal.ResourceID)
+	createDiff(&auditLog, "/appeal/description", newAppeal.CreatedBy, oldAppeal.Description, newAppeal.Description)
+	createDiff(&auditLog, "/appeal/policy_id", "system", oldAppeal.PolicyID, newAppeal.PolicyID)
+	createDiff(&auditLog, "/appeal/policy_version", "system", oldAppeal.PolicyVersion, newAppeal.PolicyVersion)
+	createDiff(&auditLog, "/appeal/revision", "system", oldAppeal.Revision, newAppeal.Revision)
+	createDiff(&auditLog, "/appeal/role", newAppeal.CreatedBy, oldAppeal.Role, newAppeal.Role)
+	createDiff(&auditLog, "/appeal/status", "system", oldAppeal.Status, newAppeal.Status)
+
+	permissionsLog, err := updateAuditLog("system", "/appeal/permissions", oldAppeal.Permissions, newAppeal.Permissions)
+	if err != nil {
+		return "", err
+	}
+
+	auditLog = append(auditLog, permissionsLog...)
+
+	labelsLog, err := updateAuditLog(oldAppeal.CreatedBy, "/appeal/labels", oldAppeal.Labels, newAppeal.Labels)
+	if err != nil {
+		return "", err
+	}
+
+	auditLog = append(auditLog, labelsLog...)
+
+	creatorAuditLog, err := updateAuditLog("system", "/appeal/creator", oldAppeal.Creator, newAppeal.Creator)
+	if err != nil {
+		return "", err
+	}
+
+	auditLog = append(auditLog, creatorAuditLog...)
+
+	optionsLog, err := updateAuditLog(oldAppeal.CreatedBy, "/appeal/options", oldAppeal.Options, newAppeal.Options)
+	if err != nil {
+		return "", err
+	}
+
+	auditLog = append(auditLog, optionsLog...)
+
+	if detailsDiff, err := diff.GetChangelog(oldAppeal.Details, newAppeal.Details); err == nil {
+		if len(detailsDiff) > 0 {
+			for _, d := range detailsDiff {
+				if strings.Contains(d.Path, PolicyQuestionsKey) {
+					d.Actor = oldAppeal.CreatedBy
+				} else {
+					d.Actor = "system"
+				}
+				d.Path = "/appeal/details" + d.Path
+				auditLog = append(auditLog, d)
+			}
+		}
+	} else {
+		return "", err
+	}
+
+	auditLogJSON, err := json.MarshalIndent(auditLog, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("error marshalling patch: %w", err)
+	}
+
+	return string(auditLogJSON), err
+}
+
+func updateAuditLog(actor, parentPathKey string, a, b interface{}) ([]diff.PatchOp, error) {
+	var auditLog []diff.PatchOp
+	if diff, err := diff.GetChangelog(a, b); err == nil {
+		if len(diff) > 0 {
+			for _, d := range diff {
+				d.Path = parentPathKey + d.Path
+				d.Actor = actor
+				auditLog = append(auditLog, d)
+			}
+		}
+	} else {
+		return auditLog, err
+	}
+
+	return auditLog, nil
+}
+
+func createDiff(auditLog *[]diff.PatchOp, path, actor string, oldValue, newValue interface{}) {
+	if oldValue != newValue {
+		diff := diff.PatchOp{
+			Op:       "replace",
+			Path:     path,
+			Actor:    actor,
+			NewValue: newValue,
+			OldValue: oldValue,
+		}
+		*auditLog = append(*auditLog, diff)
+	}
+}
+
 func validatePatchReq(appeal, existingAppeal *domain.Appeal) (bool, error) {
 	var isAppealUpdated bool
 
 	updateField := func(newVal, existingVal string) string {
 		if newVal == "" || newVal == existingVal {
-			return existingVal
-		}
-		isAppealUpdated = true
-		return newVal
-	}
-
-	updateFieldIfNil := func(newVal, existingVal interface{}) interface{} {
-		if newVal == nil || reflect.DeepEqual(newVal, existingVal) {
 			return existingVal
 		}
 		isAppealUpdated = true
@@ -738,9 +833,25 @@ func validatePatchReq(appeal, existingAppeal *domain.Appeal) (bool, error) {
 	if appeal.ResourceID == existingAppeal.ResourceID {
 		appeal.Resource = existingAppeal.Resource
 	}
-	appeal.Options = updateFieldIfNil(appeal.Options, existingAppeal.Options).(*domain.AppealOptions)
-	appeal.Details = updateFieldIfNil(appeal.Details, existingAppeal.Details).(map[string]interface{})
-	appeal.Labels = updateFieldIfNil(appeal.Labels, existingAppeal.Labels).(map[string]string)
+
+	if appeal.Options == nil || reflect.DeepEqual(appeal.Options, existingAppeal.Options) {
+		appeal.Options = existingAppeal.Options
+	} else {
+		isAppealUpdated = true
+	}
+
+	if appeal.Details == nil || reflect.DeepEqual(appeal.Details, existingAppeal.Details) {
+		appeal.Details = existingAppeal.Details
+	} else {
+		isAppealUpdated = true
+	}
+
+	if appeal.Labels == nil || reflect.DeepEqual(appeal.Labels, existingAppeal.Labels) {
+		appeal.Labels = existingAppeal.Labels
+	} else {
+		isAppealUpdated = true
+	}
+
 	appeal.CreatedBy = updateField(appeal.CreatedBy, existingAppeal.CreatedBy)
 	if appeal.CreatedBy != existingAppeal.CreatedBy {
 		return false, fmt.Errorf("not allowed to update creator")
