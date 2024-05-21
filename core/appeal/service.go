@@ -27,7 +27,7 @@ import (
 
 const (
 	AuditKeyBulkInsert     = "appeal.bulkInsert"
-	AuditKeyUpdateAppeal   = "appeal.updayeByID"
+	AuditKeyUpdateAppeal   = "appeal.update"
 	AuditKeyCancel         = "appeal.cancel"
 	AuditKeyApprove        = "appeal.approve"
 	AuditKeyReject         = "appeal.reject"
@@ -39,7 +39,8 @@ const (
 	RevokeReasonForExtension = "Automatically revoked for grant extension"
 	RevokeReasonForOverride  = "Automatically revoked for grant override"
 
-	PolicyMetadataKey = "__policy_metadata"
+	PolicyQuestionsKey = "__policy_questions"
+	PolicyMetadataKey  = "__policy_metadata"
 )
 
 var TimeNow = time.Now
@@ -508,7 +509,10 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 	}
 	isAdditionalAppealCreation := createAppealOpts.IsAdditionalAppeal
 
-	isAppealUpdated := validatePatchReq(appeal, existingAppeal)
+	isAppealUpdated, err := validatePatchReq(appeal, existingAppeal)
+	if err != nil {
+		return err
+	}
 
 	if !isAppealUpdated {
 		// do not perform any operation since no field changed
@@ -635,7 +639,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 	}
 
 	// create new approval
-	appeal.Revision = appeal.Revision + 1
+	appeal.Revision = existingAppeal.Revision + 1
 	if err := appeal.ApplyPolicy(policy); err != nil {
 		return err
 	}
@@ -707,7 +711,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 	return nil
 }
 
-func validatePatchReq(appeal, existingAppeal *domain.Appeal) bool {
+func validatePatchReq(appeal, existingAppeal *domain.Appeal) (bool, error) {
 	var isAppealUpdated bool
 
 	if appeal.AccountID == "" || appeal.AccountID == existingAppeal.AccountID {
@@ -747,10 +751,14 @@ func validatePatchReq(appeal, existingAppeal *domain.Appeal) bool {
 		isAppealUpdated = true
 	}
 
-	if appeal.Details == nil || reflect.DeepEqual(appeal.Details, existingAppeal.Details) {
+	if appeal.Details == nil || reflect.DeepEqual(appeal.Details[PolicyQuestionsKey], existingAppeal.Details[PolicyQuestionsKey]) {
 		appeal.Details = existingAppeal.Details
 	} else {
 		isAppealUpdated = true
+	}
+
+	if appeal.CreatedBy != existingAppeal.CreatedBy {
+		return false, fmt.Errorf("not allowed to update creator")
 	}
 
 	appeal.CreatedBy = existingAppeal.CreatedBy
@@ -758,7 +766,7 @@ func validatePatchReq(appeal, existingAppeal *domain.Appeal) bool {
 	appeal.Status = existingAppeal.Status
 	appeal.Labels = existingAppeal.Labels
 
-	return isAppealUpdated
+	return isAppealUpdated, nil
 }
 
 // UpdateApproval Approve an approval step
