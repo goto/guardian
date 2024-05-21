@@ -574,7 +574,7 @@ func (s *GrpcHandlersSuite) TestCreateAppeal() {
 	})
 }
 
-func (s *GrpcHandlersSuite) TestUpdateAppeal() {
+func (s *GrpcHandlersSuite) TestPatchAppeal() {
 	s.Run("should return updated appeal on success", func() {
 		s.setup()
 		timeNow := time.Now()
@@ -621,7 +621,7 @@ func (s *GrpcHandlersSuite) TestUpdateAppeal() {
 			"foo": "bar",
 		})
 		s.Require().NoError(err)
-		expectedResponse := &guardianv1beta1.UpdateAppealResponse{
+		expectedResponse := &guardianv1beta1.PatchAppealResponse{
 			Appeal: &guardianv1beta1.Appeal{
 				Id:            "test-id",
 				ResourceId:    "test-resource-id",
@@ -683,10 +683,10 @@ func (s *GrpcHandlersSuite) TestUpdateAppeal() {
 		})
 		s.Require().NoError(err)
 
-		req := &guardianv1beta1.UpdateAppealRequest{
+		req := &guardianv1beta1.PatchAppealRequest{
 			AccountId:   expectedUser,
 			AccountType: "user",
-			Resource: &guardianv1beta1.UpdateAppealRequest_Resource{
+			Resource: &guardianv1beta1.PatchAppealRequest_Resource{
 				Id:      "test-resource-id",
 				Role:    "test-role",
 				Options: reqOptions,
@@ -695,7 +695,7 @@ func (s *GrpcHandlersSuite) TestUpdateAppeal() {
 			Description: "The answer is 42",
 		}
 		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, expectedUser)
-		res, err := s.grpcServer.UpdateAppeal(ctx, req)
+		res, err := s.grpcServer.PatchAppeal(ctx, req)
 
 		s.NoError(err)
 		s.Equal(expectedResponse, res)
@@ -704,11 +704,11 @@ func (s *GrpcHandlersSuite) TestUpdateAppeal() {
 
 	s.Run("should return unauthenticated error if request is unauthenticated", func() {
 		s.setup()
-		req := &guardianv1beta1.UpdateAppealRequest{}
+		req := &guardianv1beta1.PatchAppealRequest{}
 		ctx := context.Background()
 		md := metadata.New(map[string]string{})
 		ctx = metadata.NewIncomingContext(ctx, md)
-		res, err := s.grpcServer.UpdateAppeal(ctx, req)
+		res, err := s.grpcServer.PatchAppeal(ctx, req)
 
 		s.Equal(codes.Unauthenticated, status.Code(err))
 		s.Nil(res)
@@ -721,9 +721,9 @@ func (s *GrpcHandlersSuite) TestUpdateAppeal() {
 		expectedError := errors.New("random error")
 		s.appealService.EXPECT().Patch(mock.AnythingOfType("*context.valueCtx"), mock.Anything).Return(expectedError).Once()
 
-		req := &guardianv1beta1.UpdateAppealRequest{}
+		req := &guardianv1beta1.PatchAppealRequest{}
 		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.com")
-		res, err := s.grpcServer.UpdateAppeal(ctx, req)
+		res, err := s.grpcServer.PatchAppeal(ctx, req)
 
 		s.Equal(codes.Internal, status.Code(err))
 		s.Nil(res)
@@ -745,9 +745,9 @@ func (s *GrpcHandlersSuite) TestUpdateAppeal() {
 			}).
 			Return(nil).Once()
 
-		req := &guardianv1beta1.UpdateAppealRequest{Resource: &guardianv1beta1.UpdateAppealRequest_Resource{}}
+		req := &guardianv1beta1.PatchAppealRequest{Resource: &guardianv1beta1.PatchAppealRequest_Resource{}}
 		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.com")
-		res, err := s.grpcServer.UpdateAppeal(ctx, req)
+		res, err := s.grpcServer.PatchAppeal(ctx, req)
 
 		s.Equal(codes.Internal, status.Code(err))
 		s.Nil(res)

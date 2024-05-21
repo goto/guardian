@@ -147,13 +147,13 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 	}, nil
 }
 
-func (s *GRPCServer) UpdateAppeal(ctx context.Context, req *guardianv1beta1.UpdateAppealRequest) (*guardianv1beta1.UpdateAppealResponse, error) {
+func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.PatchAppealRequest) (*guardianv1beta1.PatchAppealResponse, error) {
 	authenticatedUser, err := s.getUser(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
 
-	a, err := s.adapter.FromUpdateAppealProto(req, authenticatedUser)
+	a, err := s.adapter.FromPatchAppealProto(req, authenticatedUser)
 	if err != nil {
 		return nil, s.internalError(ctx, "cannot deserialize payload: %v", err)
 	}
@@ -189,7 +189,7 @@ func (s *GRPCServer) UpdateAppeal(ctx context.Context, req *guardianv1beta1.Upda
 			errors.Is(err, domain.ErrInvalidApproverValue):
 			return nil, s.failedPrecondition(ctx, err.Error())
 		default:
-			return nil, s.internalError(ctx, "failed to create appeal(s): %v", err)
+			return nil, s.internalError(ctx, "failed to update appeal(s): %v", err)
 		}
 	}
 
@@ -198,7 +198,7 @@ func (s *GRPCServer) UpdateAppeal(ctx context.Context, req *guardianv1beta1.Upda
 		return nil, s.internalError(ctx, "failed to parse appeal: %v", err)
 	}
 
-	return &guardianv1beta1.UpdateAppealResponse{
+	return &guardianv1beta1.PatchAppealResponse{
 		Appeal: appealProto,
 	}, nil
 }
