@@ -725,6 +725,7 @@ func (a *adapter) FromPatchAppealProto(ua *guardianv1beta1.PatchAppealRequest, a
 	resource := ua.GetResource()
 
 	appeal := &domain.Appeal{
+		ID:          ua.GetId(),
 		AccountID:   ua.GetAccountId(),
 		AccountType: ua.GetAccountType(),
 		CreatedBy:   authenticatedUser,

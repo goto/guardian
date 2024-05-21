@@ -521,6 +521,56 @@
         "tags": [
           "GuardianService"
         ]
+      },
+      "patch": {
+        "operationId": "GuardianService_PatchAppeal",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1PatchAppealResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "accountId": {
+                  "type": "string"
+                },
+                "resource": {
+                  "$ref": "#/definitions/v1beta1PatchAppealRequestResource"
+                },
+                "accountType": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
       }
     },
     "/v1beta1/appeals/{id}/approvals/{approvalName}": {
@@ -2514,6 +2564,10 @@
         },
         "description": {
           "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "format": "int64"
         }
       },
       "title": "Appeal is created by user to get access to one or more resources"
@@ -2600,6 +2654,13 @@
         },
         "reason": {
           "type": "string"
+        },
+        "isStale": {
+          "type": "boolean"
+        },
+        "appealRevision": {
+          "type": "integer",
+          "format": "int64"
         }
       },
       "title": "Approval is an approval item that generated in an appeal based on the selected policy"
@@ -3112,6 +3173,31 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1beta1PatchAppealRequestResource": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "options": {
+          "type": "object"
+        },
+        "details": {
+          "type": "object"
+        }
+      }
+    },
+    "v1beta1PatchAppealResponse": {
+      "type": "object",
+      "properties": {
+        "appeal": {
+          "$ref": "#/definitions/v1beta1Appeal"
         }
       }
     },
