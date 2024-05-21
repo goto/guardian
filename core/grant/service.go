@@ -274,10 +274,6 @@ func (s *Service) Restore(ctx context.Context, id string) (*domain.Grant, error)
 		return nil, fmt.Errorf("getting grant details: %w", err)
 	}
 
-	if grant.ExpirationDate.Unix() > time.Now().Unix() {
-		return nil, fmt.Errorf("grant is already expired at: %s", grant.ExpirationDate)
-	}
-
 	grant.Status = domain.GrantStatusActive
 	grant.StatusInProvider = domain.GrantStatusActive
 	grant.RestoredAt = time.Now() //TBC
