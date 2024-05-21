@@ -179,7 +179,8 @@ func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) *gorm.DB {
 		db = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
 			statusColumnName: `"approvals"."status"`,
 			statusesOrder:    AppealStatusDefaultSort,
-		})
+		},
+			[]string{})
 	}
 
 	return db

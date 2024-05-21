@@ -225,7 +225,8 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) *gorm.DB 
 		db = addOrderByClause(db, filters.OrderBy, addOrderByClauseOptions{
 			statusColumnName: `"appeals"."status"`,
 			statusesOrder:    AppealStatusDefaultSort,
-		})
+		},
+			[]string{})
 	}
 
 	db = db.Joins("Resource")

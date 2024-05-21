@@ -265,7 +265,8 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) *gorm.DB {
 		db = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
 			statusColumnName: `"grants"."status"`,
 			statusesOrder:    GrantStatusDefaultSort,
-		})
+		},
+			[]string{})
 	}
 	if !filter.ExpirationDateLessThan.IsZero() {
 		db = db.Where(`"grants"."expiration_date" < ?`, filter.ExpirationDateLessThan)
