@@ -693,7 +693,6 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 		}
 	}
 
-	s.logger.Error(ctx, "modified appeal: %w", appeal)
 	if err := s.repo.UpdateByID(ctx, appeal); err != nil {
 		return fmt.Errorf("error saving appeal to db: %w", err)
 	}
@@ -703,7 +702,6 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 		return err
 	}
 
-	s.logger.Error(ctx, "audit log: %w", log)
 	if err := s.auditLogger.Log(ctx, AuditKeyUpdateAppeal, log); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
