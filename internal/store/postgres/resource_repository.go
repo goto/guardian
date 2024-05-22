@@ -128,6 +128,7 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) *gorm.D
 		db = addOrderByClause(db, sortOrder, addOrderByClauseOptions{
 			statusColumnName: "",
 			statusesOrder:    []string{},
+			searchQuery:      filter.Q,
 		},
 			[]string{"name", "urn", "global_urn"})
 	}

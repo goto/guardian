@@ -12,6 +12,7 @@ import (
 type addOrderByClauseOptions struct {
 	statusColumnName string
 	statusesOrder    []string
+	searchQuery      string
 }
 
 func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClauseOptions, orderByOptions []string) *gorm.DB {
@@ -28,7 +29,7 @@ func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClause
 			if utils.ContainsString(append([]string{"updated_at", "created_at"}, orderByOptions...), column) {
 				if len(columnOrder) == 1 {
 					if column == "name" {
-						orderByClauses = append(orderByClauses, fmt.Sprintf(`(CASE WHEN lower("%s") = 'gofood' THEN 1 ELSE 2 END)`, column))
+						orderByClauses = append(orderByClauses, fmt.Sprintf(`(CASE WHEN lower("%s") = '%s' THEN 1 ELSE 2 END)`, column, options.searchQuery))
 					} else {
 						orderByClauses = append(orderByClauses, fmt.Sprintf(`"%s"`, column))
 					}
@@ -41,7 +42,7 @@ func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClause
 			}
 		}
 	}
-	if orderByClauses == nil {
+	if len(orderByClauses) == 0 {
 		return db
 	}
 	return db.Clauses(clause.OrderBy{
