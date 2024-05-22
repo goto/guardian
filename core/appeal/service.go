@@ -760,21 +760,12 @@ func getAuditLog(oldAppeal, newAppeal *domain.Appeal) (string, error) {
 
 	auditLog = append(auditLog, optionsLog...)
 
-	if detailsDiff, err := diff.GetChangelog(oldAppeal.Details, newAppeal.Details); err == nil {
-		if len(detailsDiff) > 0 {
-			for _, d := range detailsDiff {
-				if strings.Contains(d.Path, PolicyQuestionsKey) {
-					d.Actor = oldAppeal.CreatedBy
-				} else {
-					d.Actor = "system"
-				}
-				d.Path = "/appeal/details" + d.Path
-				auditLog = append(auditLog, d)
-			}
-		}
-	} else {
+	detailsLog, err := updateAuditLog(oldAppeal.CreatedBy, "/appeal/options", oldAppeal.Details, newAppeal.Details)
+	if err != nil {
 		return "", err
 	}
+
+	auditLog = append(auditLog, detailsLog...)
 
 	auditLogJSON, err := json.MarshalIndent(auditLog, "", "  ")
 	if err != nil {

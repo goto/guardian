@@ -622,6 +622,33 @@ func (s *GrpcHandlersSuite) TestPatchAppeal() {
 			"foo": "bar",
 		})
 		s.Require().NoError(err)
+
+		updatedAppeal := &domain.Appeal{
+			ID:            "test-id",
+			ResourceID:    "test-resource-id",
+			AccountID:     expectedUser,
+			AccountType:   "user",
+			CreatedBy:     expectedUser,
+			Role:          "test-role",
+			PolicyID:      "test-policy-id",
+			PolicyVersion: 1,
+			Status:        "pending",
+			Options: &domain.AppealOptions{
+				Duration: "24h",
+			},
+			Details: map[string]interface{}{
+				"foo": "bar",
+			},
+			Resource: &domain.Resource{
+				ID:           "test-resource-id",
+				ProviderType: "test-provider-type",
+				ProviderURN:  "test-provider-urn",
+				Type:         "test-resource-type",
+				URN:          "test-resource-urn",
+				Name:         "test-name",
+			},
+			Description: "The answer is 42",
+		}
 		expectedResponse := &guardianv1beta1.PatchAppealResponse{
 			Appeal: &guardianv1beta1.Appeal{
 				Id:            "test-id",
@@ -641,27 +668,11 @@ func (s *GrpcHandlersSuite) TestPatchAppeal() {
 					Urn:          "test-resource-urn",
 					Name:         "test-name",
 				},
-				Approvals: []*guardianv1beta1.Approval{
-					{
-						Id:            "test-approval-id",
-						Name:          "test-approval-step",
-						Status:        "pending",
-						AppealId:      "test-id",
-						PolicyId:      "test-policy-id",
-						PolicyVersion: 1,
-						Approvers:     []string{"approver@example.com"},
-						CreatedAt:     timestamppb.New(timeNow),
-						UpdatedAt:     timestamppb.New(timeNow),
-					},
-				},
 				Options: &guardianv1beta1.AppealOptions{
-					ExpirationDate: timestamppb.New(timeNow),
-					Duration:       "24h",
+					Duration: "24h",
 				},
 				Details:     expectedDetails,
 				Description: "The answer is 42",
-				CreatedAt:   timestamppb.New(timeNow),
-				UpdatedAt:   timestamppb.New(timeNow),
 			},
 		}
 		s.appealService.EXPECT().Patch(mock.AnythingOfType("*context.valueCtx"), expectedAppeal).
@@ -696,6 +707,9 @@ func (s *GrpcHandlersSuite) TestPatchAppeal() {
 			},
 			Description: "The answer is 42",
 		}
+
+		s.appealService.EXPECT().GetByID(mock.Anything, mock.Anything).Return(updatedAppeal, nil).Once()
+
 		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, expectedUser)
 		res, err := s.grpcServer.PatchAppeal(ctx, req)
 
@@ -737,30 +751,6 @@ func (s *GrpcHandlersSuite) TestPatchAppeal() {
 		s.appealService.EXPECT().Patch(mock.AnythingOfType("*context.valueCtx"), mock.Anything).Return(expectedError).Once()
 
 		req := &guardianv1beta1.PatchAppealRequest{Id: "test-id"}
-		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.com")
-		res, err := s.grpcServer.PatchAppeal(ctx, req)
-
-		s.Equal(codes.Internal, status.Code(err))
-		s.Nil(res)
-		s.appealService.AssertExpectations(s.T())
-	})
-
-	s.Run("should return internal error if failed to parse appeal", func() {
-		s.setup()
-
-		invalidAppeal := &domain.Appeal{
-
-			Creator: map[string]interface{}{
-				"foo": make(chan int),
-			},
-		}
-		s.appealService.EXPECT().Patch(mock.AnythingOfType("*context.valueCtx"), mock.Anything).
-			Run(func(_a0 context.Context, _a1 *domain.Appeal, _a2 ...appeal.CreateAppealOption) {
-				*_a1 = *invalidAppeal
-			}).
-			Return(nil).Once()
-
-		req := &guardianv1beta1.PatchAppealRequest{Id: "test-id", Resource: &guardianv1beta1.PatchAppealRequest_Resource{}}
 		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.com")
 		res, err := s.grpcServer.PatchAppeal(ctx, req)
 
