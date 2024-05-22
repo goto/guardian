@@ -27,7 +27,11 @@ func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClause
 			column := columnOrder[0]
 			if utils.ContainsString(append([]string{"updated_at", "created_at"}, orderByOptions...), column) {
 				if len(columnOrder) == 1 {
-					orderByClauses = append(orderByClauses, fmt.Sprintf(`"%s"`, column))
+					if column == "name" {
+						orderByClauses = append(orderByClauses, fmt.Sprintf(`(CASE WHEN lower("%s") = 'gofood' THEN 1 ELSE 2 END)`, column))
+					} else {
+						orderByClauses = append(orderByClauses, fmt.Sprintf(`"%s"`, column))
+					}
 				} else if len(columnOrder) == 2 {
 					order := columnOrder[1]
 					if utils.ContainsString([]string{"asc", "desc"}, order) {
@@ -37,7 +41,9 @@ func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClause
 			}
 		}
 	}
-
+	if orderByClauses == nil {
+		return db
+	}
 	return db.Clauses(clause.OrderBy{
 		Expression: clause.Expr{
 			SQL:                strings.Join(orderByClauses, ", "),
