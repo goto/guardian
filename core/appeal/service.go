@@ -574,8 +574,10 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 
 	appeal.SetDefaults()
 
-	if err := validateAppeal(appeal, pendingAppeals); err != nil {
-		return err
+	if appeal.AccountID != existingAppeal.AccountID || appeal.ResourceID != existingAppeal.ResourceID || appeal.Role != existingAppeal.Role {
+		if err := validateAppeal(appeal, pendingAppeals); err != nil {
+			return err
+		}
 	}
 
 	provider, err := getProvider(appeal, providers)
