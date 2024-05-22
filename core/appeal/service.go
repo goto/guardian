@@ -706,8 +706,6 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
 
-	fmt.Println(log)
-
 	if len(notifications) > 0 {
 		if errs := s.notifier.Notify(ctx, notifications); errs != nil {
 			for _, err1 := range errs {
