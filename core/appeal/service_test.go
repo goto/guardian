@@ -16,6 +16,8 @@ import (
 	appealmocks "github.com/goto/guardian/core/appeal/mocks"
 	"github.com/goto/guardian/core/comment"
 	commentmocks "github.com/goto/guardian/core/comment/mocks"
+	"github.com/goto/guardian/core/event"
+	eventmocks "github.com/goto/guardian/core/event/mocks"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/mocks"
@@ -32,6 +34,7 @@ var (
 type serviceTestHelper struct {
 	mockRepository      *appealmocks.Repository
 	mockCommentRepo     *commentmocks.Repository
+	mockAuditLogRepo    *eventmocks.Repository
 	mockApprovalService *appealmocks.ApprovalService
 	mockResourceService *appealmocks.ResourceService
 	mockProviderService *appealmocks.ProviderService
@@ -51,6 +54,7 @@ func (h *serviceTestHelper) assertExpectations(t *testing.T) {
 	t.Helper()
 	h.mockRepository.AssertExpectations(t)
 	h.mockCommentRepo.AssertExpectations(t)
+	h.mockAuditLogRepo.AssertExpectations(t)
 	h.mockApprovalService.AssertExpectations(t)
 	h.mockResourceService.AssertExpectations(t)
 	h.mockProviderService.AssertExpectations(t)
@@ -79,6 +83,8 @@ func newServiceTestHelper() *serviceTestHelper {
 		Logger:      logger,
 		AuditLogger: h.mockAuditLogger,
 	})
+	h.mockAuditLogRepo = new(eventmocks.Repository)
+	eventService := event.NewService(h.mockAuditLogRepo, logger)
 	h.mockIAMManager = new(appealmocks.IamManager)
 	h.mockIAMClient = new(mocks.IAMClient)
 	h.mockNotifier = new(appealmocks.Notifier)
@@ -93,6 +99,7 @@ func newServiceTestHelper() *serviceTestHelper {
 		h.mockPolicyService,
 		h.mockGrantService,
 		commentService,
+		eventService,
 		h.mockIAMManager,
 		h.mockNotifier,
 		validator.New(),

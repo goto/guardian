@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS audit_logs_appeal_activities;
