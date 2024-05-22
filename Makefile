@@ -3,7 +3,7 @@ COMMIT := $(shell git rev-parse --short HEAD)
 TAG := "$(shell git rev-list --tags --max-count=1)"
 VERSION := "$(shell git describe --tags ${TAG})-next"
 BUILD_DIR=dist
-PROTON_COMMIT := "6fdca7f234f339540c675cc6db64f2483a6f4db5"
+PROTON_COMMIT := "0d20242f53946c5368c0d02738679580f61b9db6"
 
 .PHONY: all build clean test tidy vet proto setup format generate
 
@@ -65,7 +65,7 @@ config:
 proto:
 	@echo "Generating protobuf from goto/proton"
 	@echo " [info] make sure correct version of dependencies are installed using 'make install'"
-	@buf generate /Users/ayushi/workspace/proton --template buf.gen.yaml --path /Users/ayushi/workspace/proton/gotocompany/guardian
+	@buf generate https://github.com/goto/proton/archive/${PROTON_COMMIT}.zip#strip_components=1 --template buf.gen.yaml --path gotocompany/guardian
 	@echo "Protobuf compilation finished"
 
 setup:
