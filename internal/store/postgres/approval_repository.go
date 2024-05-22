@@ -126,7 +126,7 @@ func (r *ApprovalRepository) UpdateApproval(ctx context.Context, a *domain.Appro
 	}
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(m).Where(`"id" = ?`, a.ID).Updates(*m).Error; err != nil {
+		if err := tx.Omit("Approvers").Session(&gorm.Session{FullSaveAssociations: true}).Save(&m).Error; err != nil {
 			return err
 		}
 

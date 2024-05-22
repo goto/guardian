@@ -1100,7 +1100,6 @@ func (s *ServiceTestSuite) TestCreate() {
 		s.Nil(actualError)
 		s.Equal(expectedResult, appeals)
 	})
-
 }
 
 func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprovalSteps() {
@@ -1837,7 +1836,7 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 
 func (s *ServiceTestSuite) TestPatch() {
 	appealID := uuid.New().String()
-	s.Run("should return error if got error from appeal respository on GetByID", func() {
+	s.Run("should return error if got error from appeal repository on GetByID", func() {
 		h := newServiceTestHelper()
 		defer h.assertExpectations(s.T())
 		expectedError := fmt.Errorf("error from repository layer")
@@ -1943,7 +1942,7 @@ func (s *ServiceTestSuite) TestPatch() {
 		s.ErrorIs(actualError, expectedError)
 	})
 
-	s.Run("should return error if got error from respository while fetching pending appeals", func() {
+	s.Run("should return error if got error from repository while fetching pending appeals", func() {
 		h := newServiceTestHelper()
 		defer h.assertExpectations(s.T())
 		expectedError := fmt.Errorf("error while listing pending appeals: %w", errors.New("resource service error"))
@@ -2971,9 +2970,7 @@ func (s *ServiceTestSuite) TestPatch() {
 				s.Nil(actualError)
 			})
 		}
-
 	})
-
 }
 
 func (s *ServiceTestSuite) TestUpdateApproval() {
@@ -3945,7 +3942,6 @@ func (s *ServiceTestSuite) TestAddApprover() {
 
 				s.NoError(actualError)
 				s.Equal(expectedApproval, actualAppeal.Approvals[0])
-
 			})
 		}
 	})
@@ -4001,7 +3997,6 @@ func (s *ServiceTestSuite) TestAddApprover() {
 
 		s.Nil(appeal)
 		s.ErrorIs(err, expectedError)
-
 	})
 
 	s.Run("should return error if appeal status is not pending", func() {
@@ -4025,7 +4020,6 @@ func (s *ServiceTestSuite) TestAddApprover() {
 
 		s.Nil(appeal)
 		s.ErrorIs(err, expectedError)
-
 	})
 
 	s.Run("should return error if approval not found", func() {
@@ -4048,7 +4042,6 @@ func (s *ServiceTestSuite) TestAddApprover() {
 
 		s.Nil(appeal)
 		s.ErrorIs(err, expectedError)
-
 	})
 
 	s.Run("should return error if approval status is not pending or blocked", func() {
@@ -4073,7 +4066,6 @@ func (s *ServiceTestSuite) TestAddApprover() {
 
 		s.Nil(appeal)
 		s.ErrorIs(err, expectedError)
-
 	})
 
 	s.Run("should return error if approval is a manual step", func() {
@@ -4099,7 +4091,6 @@ func (s *ServiceTestSuite) TestAddApprover() {
 
 		s.Nil(appeal)
 		s.ErrorIs(err, expectedError)
-
 	})
 
 	s.Run("should return error if approval service returns an error when adding the new approver", func() {
@@ -4126,7 +4117,6 @@ func (s *ServiceTestSuite) TestAddApprover() {
 
 		s.Nil(appeal)
 		s.ErrorIs(err, expectedError)
-
 	})
 
 	s.Run("should return error if the new approver is already exist on the current approval", func() {
@@ -4152,7 +4142,6 @@ func (s *ServiceTestSuite) TestAddApprover() {
 
 		s.Nil(appeal)
 		s.ErrorIs(err, expectedError)
-
 	})
 }
 
@@ -4217,7 +4206,6 @@ func (s *ServiceTestSuite) TestDeleteApprover() {
 
 				s.NoError(actualError)
 				s.Equal(expectedApproval, actualAppeal.Approvals[0])
-
 			})
 		}
 	})
@@ -4273,7 +4261,6 @@ func (s *ServiceTestSuite) TestDeleteApprover() {
 
 		s.Nil(appeal)
 		s.ErrorIs(err, expectedError)
-
 	})
 
 	s.Run("should return error if appeal status is not pending", func() {
@@ -4297,7 +4284,6 @@ func (s *ServiceTestSuite) TestDeleteApprover() {
 
 		s.Nil(appeal)
 		s.ErrorIs(err, expectedError)
-
 	})
 
 	s.Run("should return error if approval status is not pending or blocked", func() {
