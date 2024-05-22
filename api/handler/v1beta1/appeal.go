@@ -193,11 +193,19 @@ func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.Patch
 			errors.Is(err, domain.ErrInvalidApproverValue):
 			return nil, s.failedPrecondition(ctx, err.Error())
 		default:
-			return nil, s.internalError(ctx, "failed to update appeal(s): %v", err)
+			return nil, s.internalError(ctx, "failed to update appeal: %v", err)
 		}
 	}
 
-	appealProto, err := s.adapter.ToAppealProto(a)
+	responseAppeal, err := s.appealService.GetByID(ctx, req.Id)
+	if err != nil {
+		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
+			return nil, s.invalidArgument(ctx, err.Error())
+		}
+		return nil, s.internalError(ctx, "failed to retrieve appeal: %v", err)
+	}
+
+	appealProto, err := s.adapter.ToAppealProto(responseAppeal)
 	if err != nil {
 		return nil, s.internalError(ctx, "failed to parse appeal: %v", err)
 	}
