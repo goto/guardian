@@ -92,6 +92,24 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				CreatedAt:    time.Now().Add(10 * time.Minute),
 				GlobalURN:    "global_urn_2",
 			},
+			{
+				ProviderType: s.dummyProvider.Type,
+				ProviderURN:  s.dummyProvider.URN,
+				Type:         "test_type_2",
+				URN:          "test_exact_urn_match",
+				Name:         "test_exact_name_match",
+				CreatedAt:    time.Now().Add(15 * time.Minute),
+				GlobalURN:    "global_urn_4",
+			},
+			{
+				ProviderType: s.dummyProvider.Type,
+				ProviderURN:  s.dummyProvider.URN,
+				Type:         "test_type_2",
+				URN:          "test_exact_urn_match_2",
+				Name:         "test_exact_name_match_2",
+				CreatedAt:    time.Now().Add(20 * time.Minute),
+				GlobalURN:    "global_urn_3",
+			},
 		}
 		err := s.repository.BulkUpsert(context.Background(), dummyResources)
 		s.Require().NoError(err)
@@ -130,7 +148,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				filters: domain.ListResourcesFilter{
 					ResourceType: "test_type",
 				},
-				expectedResult: dummyResources,
+				expectedResult: []*domain.Resource{dummyResources[0], dummyResources[1]},
 			},
 			{
 				name: "filter by name",
@@ -175,7 +193,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 					Size:   1,
 					Offset: 0,
 				},
-				expectedResult: []*domain.Resource{dummyResources[1]},
+				expectedResult: []*domain.Resource{dummyResources[3]},
 			},
 			{
 				name: "filter by size and offset 1",
@@ -183,21 +201,21 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 					Size:   1,
 					Offset: 1,
 				},
-				expectedResult: []*domain.Resource{dummyResources[0]},
+				expectedResult: []*domain.Resource{dummyResources[2]},
 			},
 			{
 				name: "filter by size only",
 				filters: domain.ListResourcesFilter{
 					Size: 1,
 				},
-				expectedResult: []*domain.Resource{dummyResources[1]},
+				expectedResult: []*domain.Resource{dummyResources[3]},
 			},
 			{
 				name: "Order by created at desc",
 				filters: domain.ListResourcesFilter{
 					OrderBy: []string{"created_at:desc"},
 				},
-				expectedResult: []*domain.Resource{dummyResources[1], dummyResources[0]},
+				expectedResult: []*domain.Resource{dummyResources[3], dummyResources[2], dummyResources[1], dummyResources[0]},
 			},
 		}
 
@@ -215,6 +233,17 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				}
 			})
 		}
+	})
+
+	s.Run("should return exact name matching resource on top", func() {
+		exact_match_filter := domain.ListResourcesFilter{
+			Q:       "test_exact_name_match",
+			OrderBy: []string{"name"},
+		}
+
+		actualResult, actualError := s.repository.Find(context.Background(), exact_match_filter)
+		s.NoError(actualError)
+		s.Equal("test_exact_name_match", actualResult[0].Name)
 	})
 
 	s.Run("should return error if filters validation returns an error", func() {

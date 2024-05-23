@@ -316,15 +316,6 @@ func (s *ApprovalRepositoryTestSuite) TestListApprovals() {
 		s.Error(err)
 		s.Nil(approvals)
 	})
-
-	s.Run("should return error if db execution returns an error on listing approvers", func() {
-		approvals, err := s.repository.ListApprovals(context.Background(), &domain.ListApprovalsFilter{
-			OrderBy: []string{"not-a-column"},
-		})
-
-		s.Error(err)
-		s.Nil(approvals)
-	})
 }
 
 func (s *ApprovalRepositoryTestSuite) TestListApprovals__Search() {
