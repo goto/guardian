@@ -520,6 +520,19 @@ func (s *AppealRepositoryTestSuite) TestUpdateByID() {
 		s.EqualError(err, appeal.ErrAppealIDEmptyParam.Error())
 	})
 
+	s.Run("should return error if appeal input is invalid", func() {
+		invalidAppeal := &domain.Appeal{
+			ID: uuid.New().String(),
+			Details: map[string]interface{}{
+				"foo": make(chan int), // invalid value
+			},
+		}
+
+		actualError := s.repository.UpdateByID(context.Background(), invalidAppeal)
+
+		s.EqualError(actualError, "json: unsupported type: chan int")
+	})
+
 	s.Run("should update appeal successfully", func() {
 		dummyAppeals[0].Revision = 1
 		err := s.repository.UpdateByID(context.Background(), dummyAppeals[0])
