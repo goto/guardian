@@ -1841,8 +1841,8 @@ func (s *ServiceTestSuite) TestPatch() {
 		defer h.assertExpectations(s.T())
 		expectedError := fmt.Errorf("error from repository layer")
 
-		h.mockRepository.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, expectedError).Once()
-		actualError := h.service.Patch(context.Background(), &domain.Appeal{})
+		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(nil, expectedError).Once()
+		actualError := h.service.Patch(context.Background(), &domain.Appeal{ID: appealID})
 
 		s.ErrorIs(actualError, expectedError)
 	})
@@ -1855,8 +1855,8 @@ func (s *ServiceTestSuite) TestPatch() {
 			Status: domain.AppealStatusCanceled,
 		}
 
-		h.mockRepository.EXPECT().GetByID(mock.Anything, mock.Anything).Return(resAppeal, nil).Once()
-		err := h.service.Patch(context.Background(), &domain.Appeal{})
+		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(resAppeal, nil).Once()
+		err := h.service.Patch(context.Background(), &domain.Appeal{ID: appealID})
 
 		s.ErrorIs(err, appeal.ErrAppealStatusInvalid)
 	})
@@ -1892,7 +1892,7 @@ func (s *ServiceTestSuite) TestPatch() {
 		expectedProviders := []*domain.Provider{}
 		expectedPolicies := []*domain.Policy{}
 		expectedAppeals := []*domain.Appeal{}
-		h.mockRepository.EXPECT().GetByID(mock.Anything, mock.Anything).Return(&domain.Appeal{ID: "1", ResourceID: "1", Status: domain.AppealStatusPending, Options: &domain.AppealOptions{}}, nil).Once()
+		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(&domain.Appeal{ID: appealID, ResourceID: "1", Status: domain.AppealStatusPending, Options: &domain.AppealOptions{}}, nil).Once()
 		h.mockResourceService.EXPECT().Get(mock.Anything, mock.Anything).Return(nil, expectedError).Once()
 		h.mockProviderService.EXPECT().Find(mock.Anything).Return(expectedProviders, nil).Once()
 		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(expectedPolicies, nil).Once()
@@ -1900,7 +1900,7 @@ func (s *ServiceTestSuite) TestPatch() {
 			Find(h.ctxMatcher, mock.Anything).
 			Return(expectedAppeals, nil).Once()
 
-		actualError := h.service.Patch(context.Background(), &domain.Appeal{Options: &domain.AppealOptions{Duration: "1d"}})
+		actualError := h.service.Patch(context.Background(), &domain.Appeal{ID: appealID, Options: &domain.AppealOptions{Duration: "1d"}})
 		s.ErrorIs(actualError, expectedError)
 	})
 
@@ -1911,7 +1911,7 @@ func (s *ServiceTestSuite) TestPatch() {
 		expectedResource := &domain.Resource{}
 		expectedPolicies := []*domain.Policy{}
 		expectedAppeals := []*domain.Appeal{}
-		h.mockRepository.EXPECT().GetByID(mock.Anything, mock.Anything).Return(&domain.Appeal{ID: "1", ResourceID: "1", Status: domain.AppealStatusPending, Options: &domain.AppealOptions{}}, nil).Once()
+		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(&domain.Appeal{ID: appealID, ResourceID: "1", Status: domain.AppealStatusPending, Options: &domain.AppealOptions{}}, nil).Once()
 		h.mockResourceService.EXPECT().Get(mock.Anything, mock.Anything).Return(expectedResource, nil).Once()
 		h.mockProviderService.EXPECT().Find(mock.Anything).Return(nil, expectedError).Once()
 		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(expectedPolicies, nil).Once()
@@ -1919,7 +1919,7 @@ func (s *ServiceTestSuite) TestPatch() {
 			Find(h.ctxMatcher, mock.Anything).
 			Return(expectedAppeals, nil).Once()
 
-		actualError := h.service.Patch(context.Background(), &domain.Appeal{Options: &domain.AppealOptions{Duration: "1d"}})
+		actualError := h.service.Patch(context.Background(), &domain.Appeal{ID: appealID, Options: &domain.AppealOptions{Duration: "1d"}})
 		s.ErrorIs(actualError, expectedError)
 	})
 
@@ -1930,7 +1930,7 @@ func (s *ServiceTestSuite) TestPatch() {
 		expectedResource := &domain.Resource{}
 		expectedProviders := []*domain.Provider{}
 		expectedAppeals := []*domain.Appeal{}
-		h.mockRepository.EXPECT().GetByID(mock.Anything, mock.Anything).Return(&domain.Appeal{ID: "1", ResourceID: "1", Status: domain.AppealStatusPending, Options: &domain.AppealOptions{}}, nil).Once()
+		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(&domain.Appeal{ID: appealID, ResourceID: "1", Status: domain.AppealStatusPending, Options: &domain.AppealOptions{}}, nil).Once()
 		h.mockResourceService.EXPECT().Get(mock.Anything, mock.Anything).Return(expectedResource, nil).Once()
 		h.mockProviderService.EXPECT().Find(mock.Anything).Return(expectedProviders, nil).Once()
 		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(nil, expectedError).Once()
@@ -1938,7 +1938,7 @@ func (s *ServiceTestSuite) TestPatch() {
 			Find(h.ctxMatcher, mock.Anything).
 			Return(expectedAppeals, nil).Once()
 
-		actualError := h.service.Patch(context.Background(), &domain.Appeal{Options: &domain.AppealOptions{Duration: "1d"}})
+		actualError := h.service.Patch(context.Background(), &domain.Appeal{ID: appealID, Options: &domain.AppealOptions{Duration: "1d"}})
 		s.ErrorIs(actualError, expectedError)
 	})
 
@@ -1949,7 +1949,7 @@ func (s *ServiceTestSuite) TestPatch() {
 		expectedResource := &domain.Resource{}
 		expectedProviders := []*domain.Provider{}
 		expectedPolicies := []*domain.Policy{}
-		h.mockRepository.EXPECT().GetByID(mock.Anything, mock.Anything).Return(&domain.Appeal{ID: "1", ResourceID: "1", Status: domain.AppealStatusPending, Options: &domain.AppealOptions{}}, nil).Once()
+		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(&domain.Appeal{ID: appealID, ResourceID: "1", Status: domain.AppealStatusPending, Options: &domain.AppealOptions{}}, nil).Once()
 		h.mockResourceService.EXPECT().Get(mock.Anything, mock.Anything).Return(expectedResource, nil).Once()
 		h.mockProviderService.EXPECT().Find(mock.Anything).Return(expectedProviders, nil).Once()
 		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(expectedPolicies, nil).Once()
@@ -1957,7 +1957,7 @@ func (s *ServiceTestSuite) TestPatch() {
 			Find(h.ctxMatcher, mock.Anything).
 			Return(nil, expectedError).Once()
 
-		actualError := h.service.Patch(context.Background(), &domain.Appeal{Options: &domain.AppealOptions{Duration: "1d"}})
+		actualError := h.service.Patch(context.Background(), &domain.Appeal{ID: appealID, Options: &domain.AppealOptions{Duration: "1d"}})
 		s.ErrorIs(actualError, expectedError)
 	})
 
@@ -2007,9 +2007,11 @@ func (s *ServiceTestSuite) TestPatch() {
 			{
 				name: "updating  appeal for other normal user with allow_on_behalf=false",
 				reqAppeal: &domain.Appeal{
+					ID:        appealID,
 					AccountID: "addOnBehalfApprovedNotification-user2",
 				},
 				existingAppeal: &domain.Appeal{
+					ID:         appealID,
 					CreatedBy:  "addOnBehalfApprovedNotification-user",
 					AccountID:  "addOnBehalfApprovedNotification-user",
 					ResourceID: "1",
@@ -2047,9 +2049,11 @@ func (s *ServiceTestSuite) TestPatch() {
 				providers: []*domain.Provider{testProvider},
 				policies:  []*domain.Policy{{ID: "policy_id", Version: 1, AppealConfig: &domain.PolicyAppealConfig{AllowOnBehalf: false}}},
 				reqAppeal: &domain.Appeal{
+					ID:         appealID,
 					ResourceID: "2",
 				},
 				existingAppeal: &domain.Appeal{
+					ID:         appealID,
 					CreatedBy:  "test-user",
 					AccountID:  "test-user",
 					ResourceID: "1",
@@ -2068,6 +2072,7 @@ func (s *ServiceTestSuite) TestPatch() {
 				},
 				providers: []*domain.Provider{testProvider},
 				existingAppeal: &domain.Appeal{
+					ID:         appealID,
 					CreatedBy:  "addOnBehalfApprovedNotification-user",
 					AccountID:  "addOnBehalfApprovedNotification-user",
 					ResourceID: "1",
@@ -2075,6 +2080,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					Status:     domain.AppealStatusPending,
 				},
 				reqAppeal: &domain.Appeal{
+					ID:         appealID,
 					ResourceID: "2",
 				},
 				expectedError: appeal.ErrProviderNotFound,
@@ -2089,6 +2095,7 @@ func (s *ServiceTestSuite) TestPatch() {
 				},
 				providers: []*domain.Provider{testProvider},
 				existingAppeal: &domain.Appeal{
+					ID:         appealID,
 					CreatedBy:  "addOnBehalfApprovedNotification-user",
 					AccountID:  "addOnBehalfApprovedNotification-user",
 					ResourceID: "1",
@@ -2096,6 +2103,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					Status:     domain.AppealStatusPending,
 				},
 				reqAppeal: &domain.Appeal{
+					ID:         appealID,
 					ResourceID: "2",
 				},
 				expectedError: appeal.ErrProviderNotFound,
@@ -2116,9 +2124,11 @@ func (s *ServiceTestSuite) TestPatch() {
 				}},
 				policies: testPolicies,
 				reqAppeal: &domain.Appeal{
+					ID:         appealID,
 					ResourceID: "1",
 				},
 				existingAppeal: &domain.Appeal{
+					ID:         appealID,
 					CreatedBy:  "test-user",
 					AccountID:  "test-user",
 					ResourceID: "2",
@@ -2143,11 +2153,13 @@ func (s *ServiceTestSuite) TestPatch() {
 					Status:     domain.GrantStatusActive,
 				}},
 				reqAppeal: &domain.Appeal{
+					ID: appealID,
 					Options: &domain.AppealOptions{
 						Duration: "72h",
 					},
 				},
 				existingAppeal: &domain.Appeal{
+					ID:         appealID,
 					CreatedBy:  "test-user",
 					AccountID:  "test-user",
 					ResourceID: "2",
@@ -2187,11 +2199,13 @@ func (s *ServiceTestSuite) TestPatch() {
 					ExpirationDate: &expDate,
 				}},
 				reqAppeal: &domain.Appeal{
+					ID: appealID,
 					Options: &domain.AppealOptions{
 						Duration: "72h",
 					},
 				},
 				existingAppeal: &domain.Appeal{
+					ID:         appealID,
 					CreatedBy:  "test-user",
 					AccountID:  "test-user",
 					ResourceID: "1",
@@ -2228,6 +2242,7 @@ func (s *ServiceTestSuite) TestPatch() {
 				callMockValidateAppeal:        true,
 				expectedAppealValidationError: provider.ErrAppealValidationInvalidDurationValue,
 				existingAppeal: &domain.Appeal{
+					ID:         appealID,
 					ResourceID: "2",
 					Options: &domain.AppealOptions{
 						Duration: "24h",
@@ -2235,6 +2250,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					Status: domain.AppealStatusPending,
 				},
 				reqAppeal: &domain.Appeal{
+					ID:         appealID,
 					ResourceID: "1",
 					Options: &domain.AppealOptions{
 						Duration: "invalid-duration",
@@ -2255,12 +2271,13 @@ func (s *ServiceTestSuite) TestPatch() {
 				callMockValidateAppeal:        true,
 				expectedAppealValidationError: provider.ErrInvalidRole,
 				existingAppeal: &domain.Appeal{
+					ID:         appealID,
 					ResourceID: "1",
 					Role:       "viewer",
 					Status:     domain.AppealStatusPending,
 				},
 				reqAppeal: &domain.Appeal{
-					ID:   "1",
+					ID:   appealID,
 					Role: "invalid_role",
 				},
 				expectedError: appeal.ErrInvalidRole,
@@ -2276,11 +2293,12 @@ func (s *ServiceTestSuite) TestPatch() {
 				policies:  testPolicies,
 				providers: []*domain.Provider{testProvider},
 				existingAppeal: &domain.Appeal{
+					ID:         appealID,
 					ResourceID: "1",
 					Status:     domain.ApprovalStatusPending,
 				},
 				reqAppeal: &domain.Appeal{
-					ID:         "1",
+					ID:         appealID,
 					ResourceID: "2",
 				},
 				expectedError: appeal.ErrInvalidResourceType,
@@ -2295,6 +2313,7 @@ func (s *ServiceTestSuite) TestPatch() {
 				},
 				providers: []*domain.Provider{testProvider},
 				existingAppeal: &domain.Appeal{
+					ID:         appealID,
 					ResourceID: "1",
 					Role:       "role_1",
 					Options: &domain.AppealOptions{
@@ -2303,7 +2322,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					Status: domain.ApprovalStatusPending,
 				},
 				reqAppeal: &domain.Appeal{
-					ID:         "1",
+					ID:         appealID,
 					ResourceID: "2",
 				},
 				expectedError: appeal.ErrPolicyNotFound,
@@ -2321,6 +2340,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					ID: "policy_id",
 				}},
 				existingAppeal: &domain.Appeal{
+					ID:         appealID,
 					ResourceID: "2",
 					Role:       "role_1",
 					Options: &domain.AppealOptions{
@@ -2329,7 +2349,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					Status: domain.ApprovalStatusPending,
 				},
 				reqAppeal: &domain.Appeal{
-					ID:         "1",
+					ID:         appealID,
 					ResourceID: "1",
 				},
 				expectedError: appeal.ErrPolicyNotFound,
@@ -2357,6 +2377,7 @@ func (s *ServiceTestSuite) TestPatch() {
 				callMockValidateAppeal: true,
 				callMockGetPermissions: true,
 				existingAppeal: &domain.Appeal{
+					ID:            appealID,
 					ResourceID:    "2",
 					PolicyID:      "policy_id",
 					PolicyVersion: uint(1),
@@ -2366,7 +2387,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					Status: domain.ApprovalStatusPending,
 				},
 				reqAppeal: &domain.Appeal{
-					ID:         "1",
+					ID:         appealID,
 					ResourceID: "1",
 					Options: &domain.AppealOptions{
 						Duration: "100h",
@@ -2379,7 +2400,7 @@ func (s *ServiceTestSuite) TestPatch() {
 		for _, tc := range testCases {
 			s.Run(tc.name, func() {
 				h := newServiceTestHelper()
-				h.mockRepository.EXPECT().GetByID(mock.Anything, mock.Anything).Return(tc.existingAppeal, nil).Once()
+				h.mockRepository.EXPECT().GetByID(mock.Anything, tc.reqAppeal.ID).Return(tc.existingAppeal, nil).Once()
 				h.mockResourceService.EXPECT().
 					Get(mock.Anything, mock.Anything).
 					Return(tc.resource, nil).Once()
@@ -2447,7 +2468,7 @@ func (s *ServiceTestSuite) TestPatch() {
 		}
 		activeGrants := []domain.Grant{}
 		expectedPendingAppeals := []*domain.Appeal{}
-		h.mockRepository.EXPECT().GetByID(mock.Anything, mock.Anything).Return(&domain.Appeal{ID: "1", Status: domain.ApprovalStatusPending, ResourceID: "1", Options: &domain.AppealOptions{Duration: "72h"}}, nil).Once()
+		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(&domain.Appeal{ID: appealID, Status: domain.ApprovalStatusPending, ResourceID: "1", Options: &domain.AppealOptions{Duration: "72h"}}, nil).Once()
 		h.mockResourceService.EXPECT().
 			Get(mock.Anything, mock.Anything).
 			Return(expectedResource, nil).Once()
@@ -2473,7 +2494,7 @@ func (s *ServiceTestSuite) TestPatch() {
 			GetPermissions(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return([]interface{}{}, nil).Once()
 
-		actualError := h.service.Patch(context.Background(), &domain.Appeal{Options: &domain.AppealOptions{Duration: "24h"}})
+		actualError := h.service.Patch(context.Background(), &domain.Appeal{ID: appealID, Options: &domain.AppealOptions{Duration: "24h"}})
 		s.ErrorIs(actualError, assert.AnError)
 	})
 
@@ -2647,9 +2668,9 @@ func (s *ServiceTestSuite) TestPatch() {
 			{
 				name:            "should update description",
 				mockGetResource: false,
-				reqAppeal:       &domain.Appeal{ID: "1", Description: "update appeal description"},
+				reqAppeal:       &domain.Appeal{ID: appealID, Description: "update appeal description"},
 				existingAppeal: &domain.Appeal{
-					ID:            "1",
+					ID:            appealID,
 					ResourceID:    resources[0].ID,
 					Resource:      resources[0],
 					PolicyID:      "policy_1",
@@ -2685,9 +2706,9 @@ func (s *ServiceTestSuite) TestPatch() {
 			{
 				name:            "should update appeal duration",
 				mockGetResource: false,
-				reqAppeal:       &domain.Appeal{ID: "1", Options: &domain.AppealOptions{Duration: "72h"}},
+				reqAppeal:       &domain.Appeal{ID: appealID, Options: &domain.AppealOptions{Duration: "72h"}},
 				existingAppeal: &domain.Appeal{
-					ID:            "1",
+					ID:            appealID,
 					ResourceID:    resources[0].ID,
 					Resource:      resources[0],
 					PolicyID:      "policy_1",
@@ -2726,9 +2747,9 @@ func (s *ServiceTestSuite) TestPatch() {
 			{
 				name:            "should update policy questions",
 				mockGetResource: false,
-				reqAppeal:       &domain.Appeal{ID: "1", Details: map[string]interface{}{"__policy_questions": map[string]string{"dataRequirement": "updated reason", "new question": "test response"}}},
+				reqAppeal:       &domain.Appeal{ID: appealID, Details: map[string]interface{}{"__policy_questions": map[string]string{"dataRequirement": "updated reason", "new question": "test response"}}},
 				existingAppeal: &domain.Appeal{
-					ID:            "1",
+					ID:            appealID,
 					ResourceID:    resources[0].ID,
 					Resource:      resources[0],
 					PolicyID:      "policy_1",
@@ -2772,9 +2793,9 @@ func (s *ServiceTestSuite) TestPatch() {
 			{
 				name:            "should update resource",
 				mockGetResource: true,
-				reqAppeal:       &domain.Appeal{ID: "1", ResourceID: "2"},
+				reqAppeal:       &domain.Appeal{ID: appealID, ResourceID: "2"},
 				existingAppeal: &domain.Appeal{
-					ID:            "1",
+					ID:            appealID,
 					ResourceID:    resources[0].ID,
 					Resource:      resources[0],
 					PolicyID:      "policy_1",
@@ -2818,9 +2839,9 @@ func (s *ServiceTestSuite) TestPatch() {
 			{
 				name:            "should update labels",
 				mockGetResource: false,
-				reqAppeal:       &domain.Appeal{ID: "1", Labels: map[string]string{"label1": "value1", "label2": "value2"}},
+				reqAppeal:       &domain.Appeal{ID: appealID, Labels: map[string]string{"label1": "value1", "label2": "value2"}},
 				existingAppeal: &domain.Appeal{
-					ID:            "1",
+					ID:            appealID,
 					ResourceID:    resources[0].ID,
 					Resource:      resources[0],
 					PolicyID:      "policy_1",
@@ -2867,9 +2888,9 @@ func (s *ServiceTestSuite) TestPatch() {
 			{
 				name:            "should update Role",
 				mockGetResource: false,
-				reqAppeal:       &domain.Appeal{ID: "1", Role: "role_id"},
+				reqAppeal:       &domain.Appeal{ID: appealID, Role: "role_id"},
 				existingAppeal: &domain.Appeal{
-					ID:            "1",
+					ID:            appealID,
 					ResourceID:    resources[0].ID,
 					Resource:      resources[0],
 					PolicyID:      "policy_1",
@@ -2922,7 +2943,7 @@ func (s *ServiceTestSuite) TestPatch() {
 
 		for _, tc := range testCases {
 			s.Run(tc.name, func() {
-				h.mockRepository.EXPECT().GetByID(mock.Anything, mock.Anything).Return(tc.existingAppeal, nil).Once()
+				h.mockRepository.EXPECT().GetByID(mock.Anything, tc.existingAppeal.ID).Return(tc.existingAppeal, nil).Once()
 				if tc.mockGetResource {
 					h.mockResourceService.EXPECT().Get(mock.Anything, mock.Anything).Return(resources[1], nil).Once()
 				}
@@ -2971,6 +2992,7 @@ func (s *ServiceTestSuite) TestPatch() {
 			})
 		}
 	})
+
 }
 
 func (s *ServiceTestSuite) TestUpdateApproval() {

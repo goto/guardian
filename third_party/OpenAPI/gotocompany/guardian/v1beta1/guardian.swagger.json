@@ -746,6 +746,12 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "stale",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -1300,6 +1306,12 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "stale",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [

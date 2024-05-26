@@ -495,7 +495,7 @@ func validateAppealOnBehalf(a *domain.Appeal, policy *domain.Policy) error {
 
 // Patch record
 func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...CreateAppealOption) error {
-	existingAppeal, err := s.repo.GetByID(ctx, appeal.ID)
+	existingAppeal, err := s.GetByID(ctx, appeal.ID)
 	if err != nil {
 		return fmt.Errorf("error getting existing appeal: %w", err)
 	}

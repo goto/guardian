@@ -329,74 +329,90 @@ func (s *ApprovalRepositoryTestSuite) TestListApprovals() {
 }
 
 func (s *ApprovalRepositoryTestSuite) TestListApprovals__Search() {
+	dummyAppeals := []*domain.Appeal{
+		{
+			ResourceID:    s.dummyResource.ID,
+			PolicyID:      s.dummyPolicy.ID,
+			PolicyVersion: s.dummyPolicy.Version,
+			AccountID:     "user1@example.com",
+			AccountType:   domain.DefaultAppealAccountType,
+			Role:          "role_test",
+			Permissions:   []string{"permission_test"},
+			CreatedBy:     "user1@example.com",
+			Status:        domain.AppealStatusPending,
+		},
+		{
+			ResourceID:    s.dummyResource.ID,
+			PolicyID:      s.dummyPolicy.ID,
+			PolicyVersion: s.dummyPolicy.Version,
+			AccountID:     "user2@example.com",
+			AccountType:   domain.DefaultAppealAccountType,
+			Role:          "role_test_1",
+			Permissions:   []string{"permission_test"},
+			CreatedBy:     "user2@example.com",
+			Status:        domain.AppealStatusPending,
+			Revision:      1,
+		},
+	}
+	err := s.appealRepository.BulkUpsert(context.Background(), dummyAppeals)
+	s.Require().NoError(err)
+
+	dummyApprovals := []*domain.Approval{
+		{
+			Name:          "test-approval-1",
+			Index:         0,
+			AppealID:      dummyAppeals[0].ID,
+			Status:        domain.ApprovalStatusPending,
+			PolicyID:      "test-policy-id",
+			PolicyVersion: 1,
+			Appeal:        dummyAppeals[0],
+		},
+		{
+			Name:          "test-approval-2",
+			Index:         0,
+			AppealID:      dummyAppeals[1].ID,
+			Status:        domain.ApprovalStatusPending,
+			PolicyID:      "test-policy-id",
+			PolicyVersion: 1,
+			Appeal:        dummyAppeals[1],
+			IsStale:       true,
+		},
+		{
+			Name:          "test-approval-3",
+			Index:         0,
+			AppealID:      dummyAppeals[1].ID,
+			Status:        domain.ApprovalStatusPending,
+			PolicyID:      "test-policy-id",
+			PolicyVersion: 1,
+			Appeal:        dummyAppeals[1],
+		},
+	}
+	err = s.repository.BulkInsert(context.Background(), dummyApprovals)
+	s.Require().NoError(err)
+
+	dummyApprover := []*domain.Approver{
+		{
+			ApprovalID: dummyApprovals[0].ID,
+			AppealID:   dummyAppeals[0].ID,
+			Email:      "approver@email.com",
+		},
+		{
+			ApprovalID: dummyApprovals[1].ID,
+			AppealID:   dummyAppeals[1].ID,
+			Email:      "approver3@email.com",
+		},
+		{
+			ApprovalID: dummyApprovals[2].ID,
+			AppealID:   dummyAppeals[1].ID,
+			Email:      "test-approver@email.com",
+		},
+	}
+	for _, ap := range dummyApprover {
+		err = s.repository.AddApprover(context.Background(), ap)
+		s.Require().NoError(err)
+	}
+
 	s.Run("should pass grouped condition properly and return result accordingly", func() {
-		dummyAppeals := []*domain.Appeal{
-			{
-				ResourceID:    s.dummyResource.ID,
-				PolicyID:      s.dummyPolicy.ID,
-				PolicyVersion: s.dummyPolicy.Version,
-				AccountID:     "user1@example.com",
-				AccountType:   domain.DefaultAppealAccountType,
-				Role:          "role_test",
-				Permissions:   []string{"permission_test"},
-				CreatedBy:     "user1@example.com",
-				Status:        domain.AppealStatusPending,
-			},
-			{
-				ResourceID:    s.dummyResource.ID,
-				PolicyID:      s.dummyPolicy.ID,
-				PolicyVersion: s.dummyPolicy.Version,
-				AccountID:     "user2@example.com",
-				AccountType:   domain.DefaultAppealAccountType,
-				Role:          "role_test",
-				Permissions:   []string{"permission_test"},
-				CreatedBy:     "user2@example.com",
-				Status:        domain.AppealStatusPending,
-			},
-		}
-		err := s.appealRepository.BulkUpsert(context.Background(), dummyAppeals)
-		s.Require().NoError(err)
-
-		dummyApprovals := []*domain.Approval{
-			{
-				Name:          "test-approval-name-1",
-				Index:         0,
-				AppealID:      dummyAppeals[0].ID,
-				Status:        domain.ApprovalStatusPending,
-				PolicyID:      "test-policy-id",
-				PolicyVersion: 1,
-				Appeal:        dummyAppeals[0],
-			},
-			{
-				Name:          "test-approval-name-1",
-				Index:         0,
-				AppealID:      dummyAppeals[1].ID,
-				Status:        domain.ApprovalStatusPending,
-				PolicyID:      "test-policy-id",
-				PolicyVersion: 1,
-				Appeal:        dummyAppeals[1],
-			},
-		}
-		err = s.repository.BulkInsert(context.Background(), dummyApprovals)
-		s.Require().NoError(err)
-
-		dummyApprover := []*domain.Approver{
-			{
-				ApprovalID: dummyApprovals[0].ID,
-				AppealID:   dummyAppeals[0].ID,
-				Email:      "approver@email.com",
-			},
-			{
-				ApprovalID: dummyApprovals[1].ID,
-				AppealID:   dummyAppeals[1].ID,
-				Email:      "approver2@email.com",
-			},
-		}
-		for _, ap := range dummyApprover {
-			err = s.repository.AddApprover(context.Background(), ap)
-			s.Require().NoError(err)
-		}
-
 		approvals, err := s.repository.ListApprovals(context.Background(), &domain.ListApprovalsFilter{
 			CreatedBy: "approver@email.com",
 			Q:         "role_test",
@@ -405,6 +421,27 @@ func (s *ApprovalRepositoryTestSuite) TestListApprovals__Search() {
 		s.NoError(err)
 		s.Len(approvals, 1)
 		s.Equal(dummyApprovals[0].ID, approvals[0].ID)
+	})
+
+	s.Run("should return latest approval if stale filter is not passed", func() {
+		approvals, err := s.repository.ListApprovals(context.Background(), &domain.ListApprovalsFilter{
+			CreatedBy: "test-approver@email.com",
+			Q:         "role_test_1",
+		})
+
+		s.NoError(err)
+		s.Len(approvals, 1)
+		s.Equal(dummyApprovals[2].ID, approvals[0].ID)
+	})
+
+	s.Run("should return stale records also if stale flag is passed", func() {
+		approvals, err := s.repository.ListApprovals(context.Background(), &domain.ListApprovalsFilter{
+			Q:     "role_test_1",
+			Stale: true,
+		})
+
+		s.NoError(err)
+		s.Len(approvals, 2)
 	})
 }
 

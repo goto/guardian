@@ -60,4 +60,5 @@ type ListApprovalsFilter struct {
 	Size           int      `mapstructure:"size" validate:"omitempty"`
 	Offset         int      `mapstructure:"offset" validate:"omitempty"`
 	AppealStatuses []string `mapstructure:"appeal_statuses" validate:"omitempty,min=1"`
+	Stale          bool     `mapstructure:"stale" validate:"omitempty"`
 }

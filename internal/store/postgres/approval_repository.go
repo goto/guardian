@@ -222,5 +222,9 @@ func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, err
 		}
 	}
 
+	if !filter.Stale {
+		db = db.Where(`"approvals"."is_stale" = ?`, filter.Stale)
+	}
+
 	return db, nil
 }
