@@ -252,7 +252,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 	s.Run("should return exact name matching resource on top", func() {
 		exact_match_filter := domain.ListResourcesFilter{
 			Q:       "test_exact_name_match",
-			OrderBy: []string{"name:exact"},
+			OrderBy: []string{"name:exact_asc"},
 		}
 
 		actualResult, actualError := s.repository.Find(context.Background(), exact_match_filter)
