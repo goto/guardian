@@ -777,6 +777,8 @@ func (a *adapter) FromGrantProto(g *guardianv1beta1.Grant) *domain.Grant {
 		CreatedBy:        g.GetCreatedBy(),
 		Owner:            g.GetOwner(),
 		Resource:         a.FromResourceProto(g.GetResource()),
+		RestoreReason:    g.GetRestoreReason(),
+		RestoredBy:       g.GetRestoredBy(),
 	}
 
 	if g.GetExpirationDate() != nil {
@@ -792,6 +794,10 @@ func (a *adapter) FromGrantProto(g *guardianv1beta1.Grant) *domain.Grant {
 	}
 	if g.GetUpdatedAt() != nil {
 		grant.UpdatedAt = g.GetUpdatedAt().AsTime()
+	}
+	if g.GetRestoredAt() != nil {
+		t := g.GetRestoredAt().AsTime()
+		grant.RestoredAt = &t
 	}
 
 	return grant
@@ -818,6 +824,8 @@ func (a *adapter) ToGrantProto(grant *domain.Grant) (*guardianv1beta1.Grant, err
 		RevokeReason:     grant.RevokeReason,
 		CreatedBy:        grant.CreatedBy,
 		Owner:            grant.Owner,
+		RestoreReason:    grant.RestoreReason,
+		RestoredBy:       grant.RestoredBy,
 	}
 
 	if grant.ExpirationDate != nil {
@@ -845,6 +853,9 @@ func (a *adapter) ToGrantProto(grant *domain.Grant) (*guardianv1beta1.Grant, err
 			return nil, fmt.Errorf("parsing appeal: %w", err)
 		}
 		grantProto.Appeal = appealProto
+	}
+	if grant.RestoredAt != nil {
+		grantProto.RestoredAt = timestamppb.New(*grant.RestoredAt)
 	}
 
 	return grantProto, nil
