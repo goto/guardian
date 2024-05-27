@@ -29,6 +29,9 @@ type Grant struct {
 	RevokedBy               string
 	RevokedAt               time.Time
 	RevokeReason            string
+	RestoredBy              sql.NullString
+	RestoredAt              sql.NullTime
+	RestoreReason           sql.NullString
 	Owner                   string
 	CreatedAt               time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt               time.Time      `gorm:"autoUpdateTime"`
@@ -88,6 +91,26 @@ func (m *Grant) FromDomain(g domain.Grant) error {
 
 	if g.RevokedAt != nil {
 		m.RevokedAt = *g.RevokedAt
+	}
+
+	if g.RestoreReason != "" {
+		m.RestoreReason = sql.NullString{
+			String: g.RestoreReason,
+			Valid:  true,
+		}
+	}
+	if g.RestoredBy != "" {
+		m.RestoredBy = sql.NullString{
+			String: g.RestoredBy,
+			Valid:  true,
+		}
+	}
+	if g.RestoredAt != nil {
+		m.RestoredAt = sql.NullTime{
+			Time:  *g.RestoredAt,
+			Valid: true,
+		}
+
 	}
 
 	m.Status = string(g.Status)
@@ -161,6 +184,15 @@ func (m Grant) ToDomain() (*domain.Grant, error) {
 	}
 	if !m.RevokedAt.IsZero() {
 		grant.RevokedAt = &m.RevokedAt
+	}
+	if m.RestoreReason.Valid {
+		grant.RestoreReason = m.RestoreReason.String
+	}
+	if m.RestoredBy.Valid {
+		grant.RestoredBy = m.RestoredBy.String
+	}
+	if m.RestoredAt.Valid {
+		grant.RestoredAt = &m.RestoredAt.Time
 	}
 
 	return grant, nil
