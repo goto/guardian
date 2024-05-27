@@ -2898,6 +2898,9 @@
         "owner": {
           "type": "string"
         },
+        "expirationDateReason": {
+          "type": "string"
+        },
         "restoreReason": {
           "type": "string"
         },
