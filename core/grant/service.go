@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	AuditKeyRevoke = "grant.revoke"
-	AuditKeyUpdate = "grant.update"
+	AuditKeyRevoke  = "grant.revoke"
+	AuditKeyUpdate  = "grant.update"
+	AuditKeyRestore = "grant.restore"
 )
 
 //go:generate mockery --name=repository --exported --with-expecter
@@ -255,18 +256,23 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 	return grant, nil
 }
 
-func (s *Service) Restore(ctx context.Context, id string) (*domain.Grant, error) {
+func (s *Service) Restore(ctx context.Context, id, actor, reason string) (*domain.Grant, error) {
 	grant, err := s.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("getting grant details: %w", err)
 	}
 
+	if grant.ExpirationDate.Unix() > time.Now().Unix() {
+		return nil, fmt.Errorf("grant is already expired at: %s", grant.ExpirationDate)
+	}
+
+	now := time.Now()
 	grant.Status = domain.GrantStatusActive
 	grant.StatusInProvider = domain.GrantStatusActive
-	grant.RestoredAt = time.Now() //TBC
-	grant.RestoredBy = ""         //TBC
-	grant.RestoreReason = ""      //TBC
-	grant.UpdatedAt = time.Now()
+	grant.RestoredAt = &now
+	grant.RestoredBy = actor
+	grant.RestoreReason = reason
+	grant.UpdatedAt = now
 
 	if err := s.providerService.GrantAccess(ctx, *grant); err != nil {
 		return nil, fmt.Errorf("granting access in provider: %w", err)
@@ -276,9 +282,9 @@ func (s *Service) Restore(ctx context.Context, id string) (*domain.Grant, error)
 		return nil, fmt.Errorf("updating grant record in db: %w", err)
 	}
 
-	if err := s.auditLogger.Log(ctx, AuditKeyRevoke, map[string]interface{}{
-		"grant_id":       id,
-		"restore reason": "", //TBC
+	if err := s.auditLogger.Log(ctx, AuditKeyRestore, map[string]interface{}{
+		"grant_id": id,
+		"reason":   reason,
 	}); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
