@@ -183,7 +183,7 @@ func (s *GRPCServer) RestoreGrant(ctx context.Context, req *guardianv1beta1.Rest
 		return nil, status.Error(codes.Unauthenticated, "failed to get metadata: actor")
 	}
 
-	g, err := s.grantService.Restore(ctx, req.GetId(), actor, req.GetReason())
+	g, err := s.grantService.Restore(ctx, req.GetId(), actor, req.GetReason(), req.GetDuration())
 	if err != nil {
 		return nil, s.internalError(ctx, "failed to restore grant: %v", err)
 	}
