@@ -275,20 +275,24 @@ func (s *Service) Restore(ctx context.Context, id, actor, reason, duration strin
 		return nil, fmt.Errorf("getting grant details: %w", err)
 	}
 
-	if grant.ExpirationDate != nil && time.Now().After(*grant.ExpirationDate) {
-		if duration == "" {
-			return nil, fmt.Errorf(`grant is already expired at: %s, "duration" is required to restore`, grant.ExpirationDate)
-		}
-
-		d, err := time.ParseDuration(duration)
-		if err != nil {
-			return nil, fmt.Errorf("invalid duration: %q", duration)
-		}
-
-		newExpDate := time.Now().Add(d)
-		grant.ExpirationDate = &newExpDate
-		grant.ExpirationDateReason = fmt.Sprintf("%s: %s", domain.GrantExpirationReasonRestored, duration)
+	if grant.ExpirationDate != nil && time.Now().After(*grant.ExpirationDate) && duration == "" {
+		return nil, fmt.Errorf(`grant is already expired at: %s, "duration" is required to restore`, grant.ExpirationDate)
 	}
+
+	d, err := time.ParseDuration(duration)
+	if err != nil {
+		return nil, fmt.Errorf("invalid duration: %q", duration)
+	}
+
+	newExpDate := time.Now().Add(d)
+	grant.ExpirationDate = &newExpDate
+	durationReason := duration
+	if d == 0*time.Second {
+		grant.IsPermanent = true
+		grant.ExpirationDate = nil
+		durationReason = "permanent"
+	}
+	grant.ExpirationDateReason = fmt.Sprintf("%s: %s", domain.GrantExpirationReasonRestored, durationReason)
 
 	now := time.Now()
 	grant.Status = domain.GrantStatusActive
