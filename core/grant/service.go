@@ -262,7 +262,7 @@ func (s *Service) Restore(ctx context.Context, id, actor, reason string) (*domai
 		return nil, fmt.Errorf("getting grant details: %w", err)
 	}
 
-	if grant.ExpirationDate.Unix() > time.Now().Unix() {
+	if grant.ExpirationDate != nil && time.Now().After(*grant.ExpirationDate) {
 		return nil, fmt.Errorf("grant is already expired at: %s", grant.ExpirationDate)
 	}
 
