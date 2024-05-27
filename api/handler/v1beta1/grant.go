@@ -178,7 +178,12 @@ func (s *GRPCServer) RevokeGrants(ctx context.Context, req *guardianv1beta1.Revo
 }
 
 func (s *GRPCServer) RestoreGrant(ctx context.Context, req *guardianv1beta1.RestoreGrantRequest) (*guardianv1beta1.RestoreGrantResponse, error) {
-	g, err := s.grantService.Restore(ctx, req.GetId())
+	actor, err := s.getUser(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, "failed to get metadata: actor")
+	}
+
+	g, err := s.grantService.Restore(ctx, req.GetId(), actor, req.GetReason())
 	if err != nil {
 		return nil, s.internalError(ctx, "failed to restore grant: %v", err)
 	}
