@@ -238,12 +238,23 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 	s.Run("should return exact name matching resource on top", func() {
 		exact_match_filter := domain.ListResourcesFilter{
 			Q:       "test_exact_name_match",
-			OrderBy: []string{"name"},
+			OrderBy: []string{"name:exact"},
 		}
 
 		actualResult, actualError := s.repository.Find(context.Background(), exact_match_filter)
 		s.NoError(actualError)
 		s.Equal("test_exact_name_match", actualResult[0].Name)
+	})
+
+	s.Run("should return error when invalid order by direction is passed", func() {
+		exact_match_filter := domain.ListResourcesFilter{
+			Q:       "test_exact_name_match",
+			OrderBy: []string{"name:test"},
+		}
+
+		actualResult, actualError := s.repository.Find(context.Background(), exact_match_filter)
+		s.Error(actualError)
+		s.Nil(actualResult)
 	})
 
 	s.Run("should return error if filters validation returns an error", func() {

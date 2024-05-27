@@ -44,9 +44,6 @@ func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClause
 		}
 	}
 
-	if len(orderByClauses) == 0 {
-		return db, nil
-	}
 	return db.Clauses(clause.OrderBy{
 		Expression: clause.Expr{
 			SQL:                strings.Join(orderByClauses, ", "),
