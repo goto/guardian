@@ -298,8 +298,11 @@ func (s *Service) Restore(ctx context.Context, id, actor, reason, duration strin
 	}
 
 	if err := s.auditLogger.Log(ctx, AuditKeyRestore, map[string]interface{}{
-		"grant_id": id,
-		"reason":   reason,
+		"grant_id":            id,
+		"reason":              reason,
+		"duration":            duration,
+		"new_expiration_date": newExpDate.Format(time.RFC3339),
+		"is_permanent":        grant.IsPermanent,
 	}); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
