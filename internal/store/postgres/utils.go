@@ -15,7 +15,7 @@ type addOrderByClauseOptions struct {
 	searchQuery      string
 }
 
-func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClauseOptions, orderByOptions []string) *gorm.DB {
+func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClauseOptions, allowedColumns []string) (*gorm.DB, error) {
 	var orderByClauses []string
 	var vars []interface{}
 
@@ -25,25 +25,27 @@ func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClause
 			vars = append(vars, options.statusesOrder)
 		} else {
 			columnOrder := strings.Split(orderBy, ":")
-			column := columnOrder[0]
-			if utils.ContainsString(append([]string{"updated_at", "created_at"}, orderByOptions...), column) {
-				if len(columnOrder) == 1 {
-					if column == "name" {
-						orderByClauses = append(orderByClauses, fmt.Sprintf(`(CASE WHEN lower("%s") = '%s' THEN 1 ELSE 2 END)`, column, options.searchQuery))
-					} else {
-						orderByClauses = append(orderByClauses, fmt.Sprintf(`"%s"`, column))
-					}
-				} else if len(columnOrder) == 2 {
-					order := columnOrder[1]
-					if utils.ContainsString([]string{"asc", "desc"}, order) {
-						orderByClauses = append(orderByClauses, fmt.Sprintf(`"%s" %s`, column, order))
-					}
+			columnName := columnOrder[0]
+			if !utils.ContainsString(allowedColumns, columnName) {
+				return nil, fmt.Errorf("cannot order by column %q", columnName)
+			}
+			if len(columnOrder) == 1 {
+				orderByClauses = append(orderByClauses, fmt.Sprintf(`"%s"`, columnName))
+			} else if len(columnOrder) == 2 {
+				orderDirection := columnOrder[1]
+				if utils.ContainsString([]string{"asc", "desc"}, orderDirection) {
+					orderByClauses = append(orderByClauses, fmt.Sprintf(`"%s" %s`, columnName, orderDirection))
+				} else if orderDirection == "exact" && columnName == "name" {
+					orderByClauses = append(orderByClauses, fmt.Sprintf(`(CASE WHEN lower("%s") = '%s' THEN 1 ELSE 2 END)`, columnName, options.searchQuery))
+				} else {
+					return nil, fmt.Errorf("invalid order by direction: %s", orderDirection)
 				}
 			}
 		}
 	}
+
 	if len(orderByClauses) == 0 {
-		return db
+		return db, nil
 	}
 	return db.Clauses(clause.OrderBy{
 		Expression: clause.Expr{
@@ -51,7 +53,7 @@ func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClause
 			Vars:               vars,
 			WithoutParentheses: true,
 		},
-	})
+	}), nil
 }
 
 func addOrderBy(db *gorm.DB, orderBy string) *gorm.DB {

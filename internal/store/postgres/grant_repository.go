@@ -30,7 +30,11 @@ func NewGrantRepository(db *gorm.DB) *GrantRepository {
 
 func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilter) ([]domain.Grant, error) {
 	db := r.db.WithContext(ctx)
-	db = applyGrantFilter(db, filter)
+	var err error
+	db, err = applyGrantFilter(db, filter)
+	if err != nil {
+		return nil, err
+	}
 
 	var models []model.Grant
 	if err := db.Joins("Resource").Joins("Appeal").Find(&models).Error; err != nil {
@@ -56,9 +60,13 @@ func (r *GrantRepository) GetGrantsTotalCount(ctx context.Context, filter domain
 	grantFilters.Size = 0
 	grantFilters.Offset = 0
 
-	db = applyGrantFilter(db, grantFilters)
+	var err error
+	db, err = applyGrantFilter(db, grantFilters)
+	if err != nil {
+		return 0, err
+	}
 	var count int64
-	err := db.Model(&model.Grant{}).Count(&count).Error
+	err = db.Model(&model.Grant{}).Count(&count).Error
 
 	return count, err
 }
@@ -212,7 +220,7 @@ func upsertResources(tx *gorm.DB, models []*model.Grant) error {
 	return nil
 }
 
-func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) *gorm.DB {
+func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, error) {
 	db = db.Joins("JOIN resources ON grants.resource_id = resources.id")
 	if filter.Q != "" {
 		// NOTE: avoid adding conditions before this grouped where clause.
@@ -262,11 +270,16 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) *gorm.DB {
 		db = db.Where(`"grants"."created_at" <= ?`, filter.CreatedAtLte)
 	}
 	if filter.OrderBy != nil {
-		db = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
+		var err error
+		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
 			statusColumnName: `"grants"."status"`,
 			statusesOrder:    GrantStatusDefaultSort,
 		},
-			[]string{})
+			[]string{"updated_at", "created_at"})
+
+		if err != nil {
+			return nil, err
+		}
 	}
 	if !filter.ExpirationDateLessThan.IsZero() {
 		db = db.Where(`"grants"."expiration_date" < ?`, filter.ExpirationDateLessThan)
@@ -287,5 +300,5 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) *gorm.DB {
 	if filter.ResourceURNs != nil {
 		db = db.Where(`"Resource"."urn" IN ?`, filter.ResourceURNs)
 	}
-	return db
+	return db, nil
 }

@@ -37,7 +37,11 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 	records := []*domain.Approval{}
 
 	db := r.db.WithContext(ctx)
-	db = applyFilter(db, filter)
+	var err error
+	db, err = applyFilter(db, filter)
+	if err != nil {
+		return nil, err
+	}
 	if filter.Size > 0 {
 		db = db.Limit(filter.Size)
 	}
@@ -68,8 +72,11 @@ func (r *ApprovalRepository) GetApprovalsTotalCount(ctx context.Context, filter 
 	f := *filter
 	f.Size = 0
 	f.Offset = 0
-	db = applyFilter(db, &f)
-
+	var err error
+	db, err = applyFilter(db, &f)
+	if err != nil {
+		return 0, err
+	}
 	var count int64
 	if err := db.Model(&model.Approval{}).Count(&count).Error; err != nil {
 		return 0, err
@@ -139,7 +146,7 @@ func (r *ApprovalRepository) DeleteApprover(ctx context.Context, approvalID, ema
 	return nil
 }
 
-func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) *gorm.DB {
+func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, error) {
 	db = db.Joins("Appeal").
 		Joins("Appeal.Resource").
 		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
@@ -176,12 +183,17 @@ func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) *gorm.DB {
 	}
 
 	if filter.OrderBy != nil {
-		db = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
+		var err error
+		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
 			statusColumnName: `"approvals"."status"`,
 			statusesOrder:    AppealStatusDefaultSort,
 		},
-			[]string{})
+			[]string{"updated_at", "created_at"})
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return db
+	return db, nil
 }
