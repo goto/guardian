@@ -17,7 +17,8 @@ const (
 	GrantSourceAppeal GrantSource = "appeal"
 	GrantSourceImport GrantSource = "import"
 
-	GrantExpirationReasonDormant = "grant/access hasn't been used for a while"
+	GrantExpirationReasonDormant  = "grant/access hasn't been used for a while"
+	GrantExpirationReasonRestored = "grant restored with new duration"
 )
 
 var ErrDuplicateActiveGrant = errors.New("grant already exists")

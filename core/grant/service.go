@@ -256,14 +256,25 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 	return grant, nil
 }
 
-func (s *Service) Restore(ctx context.Context, id, actor, reason string) (*domain.Grant, error) {
+func (s *Service) Restore(ctx context.Context, id, actor, reason, duration string) (*domain.Grant, error) {
 	grant, err := s.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("getting grant details: %w", err)
 	}
 
 	if grant.ExpirationDate != nil && time.Now().After(*grant.ExpirationDate) {
-		return nil, fmt.Errorf("grant is already expired at: %s", grant.ExpirationDate)
+		if duration == "" {
+			return nil, fmt.Errorf(`grant is already expired at: %s, "duration" is required to restore`, grant.ExpirationDate)
+		}
+
+		d, err := time.ParseDuration(duration)
+		if err != nil {
+			return nil, fmt.Errorf("invalid duration: %q", duration)
+		}
+
+		newExpDate := time.Now().Add(d)
+		grant.ExpirationDate = &newExpDate
+		grant.ExpirationDateReason = fmt.Sprintf("%s: %s", domain.GrantExpirationReasonRestored, duration)
 	}
 
 	now := time.Now()
