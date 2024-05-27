@@ -217,6 +217,20 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				},
 				expectedResult: []*domain.Resource{dummyResources[3], dummyResources[2], dummyResources[1], dummyResources[0]},
 			},
+			{
+				name: "filter by urns",
+				filters: domain.ListResourcesFilter{
+					ResourceURNs: []string{"test_urn_1", "test_urn_2"},
+				},
+				expectedResult: []*domain.Resource{dummyResources[0], dummyResources[1]},
+			},
+			{
+				name: "filter by resource types",
+				filters: domain.ListResourcesFilter{
+					ResourceTypes: []string{"test_type"},
+				},
+				expectedResult: []*domain.Resource{dummyResources[0], dummyResources[1]},
+			},
 		}
 
 		for _, tc := range testCases {
@@ -316,6 +330,12 @@ func (s *ResourceRepositoryTestSuite) TestGetResourcesTotalCount() {
 		_, actualError := s.repository.GetResourcesTotalCount(context.Background(), domain.ListResourcesFilter{})
 
 		s.Nil(actualError)
+	})
+
+	s.Run("should return error", func() {
+		_, actualError := s.repository.GetResourcesTotalCount(context.Background(), domain.ListResourcesFilter{OrderBy: []string{"name:test"}})
+
+		s.Error(actualError)
 	})
 }
 
