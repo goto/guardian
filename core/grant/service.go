@@ -275,32 +275,9 @@ func (s *Service) Restore(ctx context.Context, id, actor, reason, duration strin
 		return nil, fmt.Errorf("getting grant details: %w", err)
 	}
 
-	if grant.ExpirationDate != nil && time.Now().After(*grant.ExpirationDate) && duration == "" {
-		return nil, fmt.Errorf(`grant is already expired at: %s, "duration" is required to restore`, grant.ExpirationDate)
+	if err := grant.Restore(actor, reason, duration); err != nil {
+		return nil, err
 	}
-
-	d, err := time.ParseDuration(duration)
-	if err != nil {
-		return nil, fmt.Errorf("invalid duration: %q", duration)
-	}
-
-	newExpDate := time.Now().Add(d)
-	grant.ExpirationDate = &newExpDate
-	durationReason := duration
-	if d == 0*time.Second {
-		grant.IsPermanent = true
-		grant.ExpirationDate = nil
-		durationReason = "permanent"
-	}
-	grant.ExpirationDateReason = fmt.Sprintf("%s: %s", domain.GrantExpirationReasonRestored, durationReason)
-
-	now := time.Now()
-	grant.Status = domain.GrantStatusActive
-	grant.StatusInProvider = domain.GrantStatusActive
-	grant.RestoredAt = &now
-	grant.RestoredBy = actor
-	grant.RestoreReason = reason
-	grant.UpdatedAt = now
 
 	if err := s.providerService.GrantAccess(ctx, *grant); err != nil {
 		return nil, fmt.Errorf("granting access in provider: %w", err)
@@ -311,11 +288,9 @@ func (s *Service) Restore(ctx context.Context, id, actor, reason, duration strin
 	}
 
 	if err := s.auditLogger.Log(ctx, AuditKeyRestore, map[string]interface{}{
-		"grant_id":            id,
-		"reason":              reason,
-		"duration":            duration,
-		"new_expiration_date": newExpDate.Format(time.RFC3339),
-		"is_permanent":        grant.IsPermanent,
+		"grant_id": id,
+		"reason":   reason,
+		"duration": duration,
 	}); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
