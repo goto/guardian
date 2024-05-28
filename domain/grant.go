@@ -85,37 +85,19 @@ func (g *Grant) Revoke(actor, reason string) error {
 	return nil
 }
 
-func (g *Grant) Restore(actor, reason, duration string) error {
+func (g *Grant) Restore(actor, reason string) error {
 	if actor == "" {
 		return errors.New("actor is required")
 	}
 
-	if g.isExpired() && duration == "" {
-		return fmt.Errorf(`grant is already expired at: %s, "duration" is required to restore`, g.ExpirationDate)
-	}
-
-	now := time.Now()
-	if duration != "" {
-		d, err := time.ParseDuration(duration)
-		if err != nil {
-			return fmt.Errorf("invalid duration value: %q", duration)
-		}
-
-		if d == 0*time.Second { // permanent
-			g.ExpirationDate = nil
-			g.IsPermanent = true
-			g.ExpirationDateReason = fmt.Sprintf("%s: %s", GrantExpirationReasonRestored, "permanent")
-		} else {
-			newExpDate := now.Add(d)
-			g.ExpirationDate = &newExpDate
-			g.IsPermanent = false
-			g.ExpirationDateReason = fmt.Sprintf("%s: %s", GrantExpirationReasonRestored, duration)
-		}
+	if g.isExpired() {
+		return fmt.Errorf("grant is already expired at: %s", g.ExpirationDate)
 	}
 
 	g.Status = GrantStatusActive
 	g.StatusInProvider = GrantStatusActive
 
+	now := time.Now()
 	g.RestoredAt = &now
 	g.RestoredBy = actor
 	g.RestoreReason = reason
