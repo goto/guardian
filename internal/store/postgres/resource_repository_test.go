@@ -92,6 +92,24 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				CreatedAt:    time.Now().Add(10 * time.Minute),
 				GlobalURN:    "global_urn_2",
 			},
+			{
+				ProviderType: s.dummyProvider.Type,
+				ProviderURN:  s.dummyProvider.URN,
+				Type:         "test_type_2",
+				URN:          "test_exact_urn_match",
+				Name:         "test_exact_name_match",
+				CreatedAt:    time.Now().Add(15 * time.Minute),
+				GlobalURN:    "global_urn_4",
+			},
+			{
+				ProviderType: s.dummyProvider.Type,
+				ProviderURN:  s.dummyProvider.URN,
+				Type:         "test_type_2",
+				URN:          "test_exact_urn_match_2",
+				Name:         "test_exact_name_match_2",
+				CreatedAt:    time.Now().Add(20 * time.Minute),
+				GlobalURN:    "global_urn_3",
+			},
 		}
 		err := s.repository.BulkUpsert(context.Background(), dummyResources)
 		s.Require().NoError(err)
@@ -130,7 +148,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				filters: domain.ListResourcesFilter{
 					ResourceType: "test_type",
 				},
-				expectedResult: dummyResources,
+				expectedResult: []*domain.Resource{dummyResources[0], dummyResources[1]},
 			},
 			{
 				name: "filter by name",
@@ -175,7 +193,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 					Size:   1,
 					Offset: 0,
 				},
-				expectedResult: []*domain.Resource{dummyResources[1]},
+				expectedResult: []*domain.Resource{dummyResources[3]},
 			},
 			{
 				name: "filter by size and offset 1",
@@ -183,21 +201,35 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 					Size:   1,
 					Offset: 1,
 				},
-				expectedResult: []*domain.Resource{dummyResources[0]},
+				expectedResult: []*domain.Resource{dummyResources[2]},
 			},
 			{
 				name: "filter by size only",
 				filters: domain.ListResourcesFilter{
 					Size: 1,
 				},
-				expectedResult: []*domain.Resource{dummyResources[1]},
+				expectedResult: []*domain.Resource{dummyResources[3]},
 			},
 			{
 				name: "Order by created at desc",
 				filters: domain.ListResourcesFilter{
 					OrderBy: []string{"created_at:desc"},
 				},
-				expectedResult: []*domain.Resource{dummyResources[1], dummyResources[0]},
+				expectedResult: []*domain.Resource{dummyResources[3], dummyResources[2], dummyResources[1], dummyResources[0]},
+			},
+			{
+				name: "filter by urns",
+				filters: domain.ListResourcesFilter{
+					ResourceURNs: []string{"test_urn_1", "test_urn_2"},
+				},
+				expectedResult: []*domain.Resource{dummyResources[0], dummyResources[1]},
+			},
+			{
+				name: "filter by resource types",
+				filters: domain.ListResourcesFilter{
+					ResourceTypes: []string{"test_type"},
+				},
+				expectedResult: []*domain.Resource{dummyResources[0], dummyResources[1]},
 			},
 		}
 
@@ -215,6 +247,28 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				}
 			})
 		}
+	})
+
+	s.Run("should return exact name matching resource on top", func() {
+		exact_match_filter := domain.ListResourcesFilter{
+			Q:       "test_exact_name_match",
+			OrderBy: []string{"name:exact_asc"},
+		}
+
+		actualResult, actualError := s.repository.Find(context.Background(), exact_match_filter)
+		s.NoError(actualError)
+		s.Equal("test_exact_name_match", actualResult[0].Name)
+	})
+
+	s.Run("should return error when invalid order by direction is passed", func() {
+		exact_match_filter := domain.ListResourcesFilter{
+			Q:       "test_exact_name_match",
+			OrderBy: []string{"name:test"},
+		}
+
+		actualResult, actualError := s.repository.Find(context.Background(), exact_match_filter)
+		s.Error(actualError)
+		s.Nil(actualResult)
 	})
 
 	s.Run("should return error if filters validation returns an error", func() {
@@ -276,6 +330,12 @@ func (s *ResourceRepositoryTestSuite) TestGetResourcesTotalCount() {
 		_, actualError := s.repository.GetResourcesTotalCount(context.Background(), domain.ListResourcesFilter{})
 
 		s.Nil(actualError)
+	})
+
+	s.Run("should return error", func() {
+		_, actualError := s.repository.GetResourcesTotalCount(context.Background(), domain.ListResourcesFilter{OrderBy: []string{"name:test"}})
+
+		s.Error(actualError)
 	})
 }
 

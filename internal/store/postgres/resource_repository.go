@@ -36,7 +36,11 @@ func (r *ResourceRepository) Find(ctx context.Context, filter domain.ListResourc
 	}
 
 	db := r.db.WithContext(ctx)
-	db = applyResourceFilter(db, filter)
+	var err error
+	db, err = applyResourceFilter(db, filter)
+	if err != nil {
+		return nil, err
+	}
 	var models []*model.Resource
 	if err := db.Find(&models).Error; err != nil {
 		return nil, err
@@ -61,14 +65,18 @@ func (r *ResourceRepository) GetResourcesTotalCount(ctx context.Context, filter 
 	f := filter
 	f.Size = 0
 	f.Offset = 0
-	db = applyResourceFilter(db, f)
+	var err error
+	db, err = applyResourceFilter(db, f)
+	if err != nil {
+		return 0, err
+	}
 	var count int64
-	err := db.Model(&model.Resource{}).Count(&count).Error
+	err = db.Model(&model.Resource{}).Count(&count).Error
 
 	return count, err
 }
 
-func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) *gorm.DB {
+func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) (*gorm.DB, error) {
 	if filter.Q != "" {
 		// NOTE: avoid adding conditions before this grouped where clause.
 		// Otherwise, it will be wrapped in parentheses and the query will be invalid.
@@ -125,17 +133,24 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) *gorm.D
 	}
 
 	if len(sortOrder) != 0 {
-		db = addOrderByClause(db, sortOrder, addOrderByClauseOptions{
+		var err error
+		db, err = addOrderByClause(db, sortOrder, addOrderByClauseOptions{
 			statusColumnName: "",
 			statusesOrder:    []string{},
-		})
+			searchQuery:      filter.Q,
+		},
+			[]string{"updated_at", "created_at", "name", "urn", "global_urn"})
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	for path, v := range filter.Details {
 		pathArr := "{" + strings.Join(strings.Split(path, "."), ",") + "}"
 		db = db.Where(`"details" #>> ? = ?`, pathArr, v)
 	}
-	return db
+	return db, nil
 }
 
 // GetOne record by ID

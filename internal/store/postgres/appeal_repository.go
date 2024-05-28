@@ -71,7 +71,11 @@ func (r *AppealRepository) Find(ctx context.Context, filters *domain.ListAppeals
 	}
 
 	db := r.db.WithContext(ctx)
-	db = applyAppealFilter(db, filters)
+	var err error
+	db, err = applyAppealFilter(db, filters)
+	if err != nil {
+		return nil, err
+	}
 
 	var models []*model.Appeal
 	if err := db.Joins("Grant").Find(&models).Error; err != nil {
@@ -98,10 +102,13 @@ func (r *AppealRepository) GetAppealsTotalCount(ctx context.Context, filter *dom
 	appealFilters.Size = 0
 	appealFilters.Offset = 0
 
-	db = applyAppealFilter(db, &appealFilters)
-
+	var err error
+	db, err = applyAppealFilter(db, &appealFilters)
+	if err != nil {
+		return 0, err
+	}
 	var count int64
-	err := db.Model(&model.Appeal{}).Count(&count).Error
+	err = db.Model(&model.Appeal{}).Count(&count).Error
 
 	return count, err
 }
@@ -165,7 +172,7 @@ func (r *AppealRepository) Update(ctx context.Context, a *domain.Appeal) error {
 	})
 }
 
-func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) *gorm.DB {
+func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.DB, error) {
 	db = db.Joins("JOIN resources ON appeals.resource_id = resources.id")
 	if filters.Q != "" {
 		// NOTE: avoid adding conditions before this grouped where clause.
@@ -222,10 +229,16 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) *gorm.DB 
 		db = db.Where(`"options" -> 'expiration_date' > ?`, filters.ExpirationDateGreaterThan)
 	}
 	if filters.OrderBy != nil {
-		db = addOrderByClause(db, filters.OrderBy, addOrderByClauseOptions{
+		var err error
+		db, err = addOrderByClause(db, filters.OrderBy, addOrderByClauseOptions{
 			statusColumnName: `"appeals"."status"`,
 			statusesOrder:    AppealStatusDefaultSort,
-		})
+		},
+			[]string{"updated_at", "created_at"})
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	db = db.Joins("Resource")
@@ -242,5 +255,5 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) *gorm.DB 
 		db = db.Where(`"Resource"."urn" IN ?`, filters.ResourceURNs)
 	}
 
-	return db
+	return db, nil
 }
