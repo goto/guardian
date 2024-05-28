@@ -354,25 +354,25 @@ func (_c *GrantService_ListUserRoles_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
-// Restore provides a mock function with given fields: ctx, id, actor, reason, duration
-func (_m *GrantService) Restore(ctx context.Context, id string, actor string, reason string, duration string) (*domain.Grant, error) {
-	ret := _m.Called(ctx, id, actor, reason, duration)
+// Restore provides a mock function with given fields: ctx, id, actor, reason
+func (_m *GrantService) Restore(ctx context.Context, id string, actor string, reason string) (*domain.Grant, error) {
+	ret := _m.Called(ctx, id, actor, reason)
 
 	var r0 *domain.Grant
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) (*domain.Grant, error)); ok {
-		return rf(ctx, id, actor, reason, duration)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (*domain.Grant, error)); ok {
+		return rf(ctx, id, actor, reason)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) *domain.Grant); ok {
-		r0 = rf(ctx, id, actor, reason, duration)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *domain.Grant); ok {
+		r0 = rf(ctx, id, actor, reason)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*domain.Grant)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, string) error); ok {
-		r1 = rf(ctx, id, actor, reason, duration)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, id, actor, reason)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -390,14 +390,13 @@ type GrantService_Restore_Call struct {
 //   - id string
 //   - actor string
 //   - reason string
-//   - duration string
-func (_e *GrantService_Expecter) Restore(ctx interface{}, id interface{}, actor interface{}, reason interface{}, duration interface{}) *GrantService_Restore_Call {
-	return &GrantService_Restore_Call{Call: _e.mock.On("Restore", ctx, id, actor, reason, duration)}
+func (_e *GrantService_Expecter) Restore(ctx interface{}, id interface{}, actor interface{}, reason interface{}) *GrantService_Restore_Call {
+	return &GrantService_Restore_Call{Call: _e.mock.On("Restore", ctx, id, actor, reason)}
 }
 
-func (_c *GrantService_Restore_Call) Run(run func(ctx context.Context, id string, actor string, reason string, duration string)) *GrantService_Restore_Call {
+func (_c *GrantService_Restore_Call) Run(run func(ctx context.Context, id string, actor string, reason string)) *GrantService_Restore_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
 	})
 	return _c
 }
@@ -407,7 +406,7 @@ func (_c *GrantService_Restore_Call) Return(_a0 *domain.Grant, _a1 error) *Grant
 	return _c
 }
 
-func (_c *GrantService_Restore_Call) RunAndReturn(run func(context.Context, string, string, string, string) (*domain.Grant, error)) *GrantService_Restore_Call {
+func (_c *GrantService_Restore_Call) RunAndReturn(run func(context.Context, string, string, string) (*domain.Grant, error)) *GrantService_Restore_Call {
 	_c.Call.Return(run)
 	return _c
 }
