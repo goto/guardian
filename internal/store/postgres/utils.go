@@ -36,7 +36,7 @@ func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClause
 				if utils.ContainsString([]string{"asc", "desc"}, orderDirection) {
 					orderByClauses = append(orderByClauses, fmt.Sprintf(`"%s" %s`, columnName, orderDirection))
 				} else if orderDirection == "exact_asc" && columnName == "name" {
-					orderByClauses = append(orderByClauses, fmt.Sprintf(`(CASE WHEN "%s" = '%s' THEN 1 ELSE 2 END)`, strings.ToLower(columnName), strings.ToLower(options.searchQuery)))
+					orderByClauses = append(orderByClauses, fmt.Sprintf(`(CASE WHEN lower("%s") = '%s' THEN 1 ELSE 2 END)`, columnName, strings.ToLower(options.searchQuery)))
 				} else {
 					return nil, fmt.Errorf("invalid order by direction: %s", orderDirection)
 				}
