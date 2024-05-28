@@ -39,14 +39,16 @@ func enrichRequestMetadata(ctx context.Context, req *http.Request) metadata.MD {
 
 func enrichLogrusFields() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		fields := make(logrus.Fields, 0)
+		fields := make(logrus.Fields)
 
 		if userEmail, ok := ctx.Value(authenticatedUserEmailContextKey{}).(string); ok {
 			fields[logrusActorKey] = userEmail
 		}
 
 		if md, ok := metadata.FromIncomingContext(ctx); ok {
-			fields["http_path"] = md[grpcgatewayHTTPPathKey][0]
+			if len(md[grpcgatewayHTTPPathKey]) > 0 {
+				fields["http_path"] = md[grpcgatewayHTTPPathKey][0]
+			}
 		}
 
 		if len(fields) > 0 {
