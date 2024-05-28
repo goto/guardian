@@ -256,13 +256,13 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 	return grant, nil
 }
 
-func (s *Service) Restore(ctx context.Context, id, actor, reason, duration string) (*domain.Grant, error) {
+func (s *Service) Restore(ctx context.Context, id, actor, reason string) (*domain.Grant, error) {
 	grant, err := s.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("getting grant details: %w", err)
 	}
 
-	if err := grant.Restore(actor, reason, duration); err != nil {
+	if err := grant.Restore(actor, reason); err != nil {
 		return nil, err
 	}
 
@@ -277,7 +277,6 @@ func (s *Service) Restore(ctx context.Context, id, actor, reason, duration strin
 	if err := s.auditLogger.Log(ctx, AuditKeyRestore, map[string]interface{}{
 		"grant_id": id,
 		"reason":   reason,
-		"duration": duration,
 	}); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
