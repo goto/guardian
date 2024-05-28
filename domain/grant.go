@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -82,6 +83,49 @@ func (g *Grant) Revoke(actor, reason string) error {
 	now := time.Now()
 	g.RevokedAt = &now
 	return nil
+}
+
+func (g *Grant) Restore(actor, reason, duration string) error {
+	if actor == "" {
+		return errors.New("actor is required")
+	}
+
+	if g.isExpired() && duration == "" {
+		return fmt.Errorf(`grant is already expired at: %s, "duration" is required to restore`, g.ExpirationDate)
+	}
+
+	now := time.Now()
+	if duration != "" {
+		d, err := time.ParseDuration(duration)
+		if err != nil {
+			return fmt.Errorf("invalid duration value: %q", duration)
+		}
+
+		if d == 0*time.Second { // permanent
+			g.ExpirationDate = nil
+			g.IsPermanent = true
+			g.ExpirationDateReason = fmt.Sprintf("%s: %s", GrantExpirationReasonRestored, "permanent")
+		} else {
+			newExpDate := now.Add(d)
+			g.ExpirationDate = &newExpDate
+			g.IsPermanent = false
+			g.ExpirationDateReason = fmt.Sprintf("%s: %s", GrantExpirationReasonRestored, duration)
+		}
+	}
+
+	g.Status = GrantStatusActive
+	g.StatusInProvider = GrantStatusActive
+
+	g.RestoredAt = &now
+	g.RestoredBy = actor
+	g.RestoreReason = reason
+	g.UpdatedAt = now
+
+	return nil
+}
+
+func (g *Grant) isExpired() bool {
+	return g.ExpirationDate != nil && time.Now().After(*g.ExpirationDate)
 }
 
 func (g *Grant) GetPermissions() []string {
