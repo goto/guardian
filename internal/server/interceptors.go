@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	ctx_logrus "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -52,7 +52,7 @@ func enrichLogrusFields() grpc.UnaryServerInterceptor {
 		}
 
 		if len(fields) > 0 {
-			ctx_logrus.AddFields(ctx, fields)
+			ctxlogrus.AddFields(ctx, fields)
 		}
 		return handler(ctx, req)
 	}
