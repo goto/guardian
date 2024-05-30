@@ -133,7 +133,7 @@ func (s *Service) Update(ctx context.Context, payload *domain.Grant) error {
 
 	if err := s.auditLogger.Log(ctx, AuditKeyUpdate, map[string]interface{}{
 		"grant_id":      grantDetails.ID,
-		"payload":       updatedGrant, // TODO: check
+		"payload":       updatedGrant,
 		"updated_grant": payload,
 	}); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
