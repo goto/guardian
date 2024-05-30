@@ -33,6 +33,7 @@ func TestListActivities(t *testing.T) {
 			appeal.AuditKeyReject,
 			appeal.AuditKeyAddApprover,
 			appeal.AuditKeyDeleteApprover,
+			appeal.AuditKeyUpdate,
 		},
 		AppealID: appealID,
 	}).Return(dummyAuditLogs, nil)
