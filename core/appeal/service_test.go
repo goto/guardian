@@ -3332,9 +3332,10 @@ func (s *ServiceTestSuite) TestAddApprover() {
 					Status: domain.AppealStatusPending,
 					Approvals: []*domain.Approval{
 						{
-							ID:     approvalID,
-							Name:   approvalName,
-							Status: domain.ApprovalStatusPending,
+							ID:       approvalID,
+							AppealID: appealID,
+							Name:     approvalName,
+							Status:   domain.ApprovalStatusPending,
 							Approvers: []string{
 								"existing.approver@example.com",
 							},
@@ -3343,9 +3344,10 @@ func (s *ServiceTestSuite) TestAddApprover() {
 					Resource: &domain.Resource{},
 				}
 				expectedApproval := &domain.Approval{
-					ID:     approvalID,
-					Name:   approvalName,
-					Status: domain.ApprovalStatusPending,
+					ID:       approvalID,
+					AppealID: appealID,
+					Name:     approvalName,
+					Status:   domain.ApprovalStatusPending,
 					Approvers: []string{
 						"existing.approver@example.com",
 						tc.newApprover,
@@ -3358,7 +3360,12 @@ func (s *ServiceTestSuite) TestAddApprover() {
 					AddApprover(h.ctxMatcher, approvalID, newApprover).
 					Return(nil).Once()
 				h.mockAuditLogger.EXPECT().
-					Log(h.ctxMatcher, appeal.AuditKeyAddApprover, expectedApproval).Return(nil).Once()
+					Log(h.ctxMatcher, appeal.AuditKeyAddApprover, mock.MatchedBy(func(arg any) bool {
+						auditData := arg.(map[string]any)
+						return (auditData["id"] == approvalID || auditData["name"] == approvalID) &&
+							auditData["appeal_id"] == appealID &&
+							auditData["affected_approver"] == newApprover
+					})).Return(nil).Once()
 				h.mockNotifier.EXPECT().
 					Notify(h.ctxMatcher, mock.Anything).
 					Run(func(ctx context.Context, notifications []domain.Notification) {
@@ -3613,9 +3620,10 @@ func (s *ServiceTestSuite) TestDeleteApprover() {
 					Status: domain.AppealStatusPending,
 					Approvals: []*domain.Approval{
 						{
-							ID:     approvalID,
-							Name:   approvalName,
-							Status: domain.ApprovalStatusPending,
+							ID:       approvalID,
+							AppealID: appealID,
+							Name:     approvalName,
+							Status:   domain.ApprovalStatusPending,
 							Approvers: []string{
 								"approver1@example.com",
 								tc.newApprover,
@@ -3625,9 +3633,10 @@ func (s *ServiceTestSuite) TestDeleteApprover() {
 					Resource: &domain.Resource{},
 				}
 				expectedApproval := &domain.Approval{
-					ID:     approvalID,
-					Name:   approvalName,
-					Status: domain.ApprovalStatusPending,
+					ID:       approvalID,
+					AppealID: appealID,
+					Name:     approvalName,
+					Status:   domain.ApprovalStatusPending,
 					Approvers: []string{
 						"approver1@example.com",
 					},
@@ -3639,7 +3648,12 @@ func (s *ServiceTestSuite) TestDeleteApprover() {
 					DeleteApprover(h.ctxMatcher, approvalID, approverEmail).
 					Return(nil).Once()
 				h.mockAuditLogger.EXPECT().
-					Log(h.ctxMatcher, appeal.AuditKeyDeleteApprover, expectedApproval).Return(nil).Once()
+					Log(h.ctxMatcher, appeal.AuditKeyDeleteApprover, mock.MatchedBy(func(arg any) bool {
+						auditData := arg.(map[string]any)
+						return (auditData["id"] == approvalID || auditData["name"] == approvalID) &&
+							auditData["appeal_id"] == appealID &&
+							auditData["affected_approver"] == approverEmail
+					})).Return(nil).Once()
 
 				actualAppeal, actualError := h.service.DeleteApprover(context.Background(), appealID, approvalID, approverEmail)
 

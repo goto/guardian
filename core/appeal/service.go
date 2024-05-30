@@ -726,7 +726,12 @@ func (s *Service) AddApprover(ctx context.Context, appealID, approvalID, email s
 	}
 	approval.Approvers = append(approval.Approvers, email)
 
-	if err := s.auditLogger.Log(ctx, AuditKeyAddApprover, approval); err != nil {
+	auditData, err := utils.StructToMap(approval)
+	if err != nil {
+		return nil, fmt.Errorf("converting approval to map: %w", err)
+	}
+	auditData["affected_approver"] = email
+	if err := s.auditLogger.Log(ctx, AuditKeyAddApprover, auditData); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
 
@@ -816,7 +821,12 @@ func (s *Service) DeleteApprover(ctx context.Context, appealID, approvalID, emai
 	}
 	approval.Approvers = newApprovers
 
-	if err := s.auditLogger.Log(ctx, AuditKeyDeleteApprover, approval); err != nil {
+	auditData, err := utils.StructToMap(approval)
+	if err != nil {
+		return nil, fmt.Errorf("converting approval to map: %w", err)
+	}
+	auditData["affected_approver"] = email
+	if err := s.auditLogger.Log(ctx, AuditKeyDeleteApprover, auditData); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
 
