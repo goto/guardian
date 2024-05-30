@@ -273,6 +273,26 @@ func (s *GRPCServer) CancelAppeal(ctx context.Context, req *guardianv1beta1.Canc
 	}, nil
 }
 
+func (s *GRPCServer) ListAppealActivities(ctx context.Context, req *guardianv1beta1.ListAppealActivitiesRequest) (*guardianv1beta1.ListAppealActivitiesResponse, error) {
+	activities, err := s.appealService.ListActivities(ctx, req.GetAppealId())
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to get appeal activities: %v", err)
+	}
+
+	activityProtos := make([]*guardianv1beta1.AppealActivity, 0, len(activities))
+	for _, a := range activities {
+		activityProto, err := s.adapter.ToAppealActivityProto(a)
+		if err != nil {
+			return nil, s.internalError(ctx, "failed to parse appeal activity: %v", err)
+		}
+		activityProtos = append(activityProtos, activityProto)
+	}
+
+	return &guardianv1beta1.ListAppealActivitiesResponse{
+		Activities: activityProtos,
+	}, nil
+}
+
 func (s *GRPCServer) listAppeals(ctx context.Context, filters *domain.ListAppealsFilter) ([]*guardianv1beta1.Appeal, int64, error) {
 	eg, ctx := errgroup.WithContext(ctx)
 	var appeals []*domain.Appeal

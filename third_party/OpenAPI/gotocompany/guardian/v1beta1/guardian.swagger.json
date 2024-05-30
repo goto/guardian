@@ -321,6 +321,36 @@
         ]
       }
     },
+    "/v1beta1/appeals/{appealId}/activities": {
+      "get": {
+        "operationId": "GuardianService_ListAppealActivities",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1ListAppealActivitiesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "appealId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
+      }
+    },
     "/v1beta1/appeals/{appealId}/approvals/{approvalId}/approvers": {
       "post": {
         "operationId": "GuardianService_AddApprover",
@@ -2584,6 +2614,27 @@
       },
       "title": "Appeal is created by user to get access to one or more resources"
     },
+    "v1beta1AppealActivity": {
+      "type": "object",
+      "properties": {
+        "appealId": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "type": {
+          "type": "string"
+        },
+        "actor": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object"
+        }
+      }
+    },
     "v1beta1AppealComment": {
       "type": "object",
       "properties": {
@@ -3013,6 +3064,18 @@
           "items": {
             "type": "object",
             "$ref": "#/definitions/v1beta1ProviderActivity"
+          }
+        }
+      }
+    },
+    "v1beta1ListAppealActivitiesResponse": {
+      "type": "object",
+      "properties": {
+        "activities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1beta1AppealActivity"
           }
         }
       }

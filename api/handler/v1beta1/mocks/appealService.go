@@ -458,6 +458,61 @@ func (_c *AppealService_GetByID_Call) RunAndReturn(run func(context.Context, str
 	return _c
 }
 
+// ListActivities provides a mock function with given fields: _a0, _a1
+func (_m *AppealService) ListActivities(_a0 context.Context, _a1 string) ([]*domain.Event, error) {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 []*domain.Event
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*domain.Event, error)); ok {
+		return rf(_a0, _a1)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*domain.Event); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*domain.Event)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AppealService_ListActivities_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListActivities'
+type AppealService_ListActivities_Call struct {
+	*mock.Call
+}
+
+// ListActivities is a helper method to define mock.On call
+//   - _a0 context.Context
+//   - _a1 string
+func (_e *AppealService_Expecter) ListActivities(_a0 interface{}, _a1 interface{}) *AppealService_ListActivities_Call {
+	return &AppealService_ListActivities_Call{Call: _e.mock.On("ListActivities", _a0, _a1)}
+}
+
+func (_c *AppealService_ListActivities_Call) Run(run func(_a0 context.Context, _a1 string)) *AppealService_ListActivities_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *AppealService_ListActivities_Call) Return(_a0 []*domain.Event, _a1 error) *AppealService_ListActivities_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *AppealService_ListActivities_Call) RunAndReturn(run func(context.Context, string) ([]*domain.Event, error)) *AppealService_ListActivities_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListComments provides a mock function with given fields: _a0, _a1
 func (_m *AppealService) ListComments(_a0 context.Context, _a1 domain.ListCommentsFilter) ([]*domain.Comment, error) {
 	ret := _m.Called(_a0, _a1)
