@@ -704,7 +704,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	return nil
 }
 
-func getAuditLog(oldAppeal, newAppeal *domain.Appeal) (string, error) {
+func getAuditLog(oldAppeal, newAppeal *domain.Appeal) ([]diff.PatchOp, error) {
 	var auditLog []diff.PatchOp
 
 	createDiff(&auditLog, "/appeal/account_id", newAppeal.CreatedBy, oldAppeal.AccountID, newAppeal.AccountID)
@@ -719,45 +719,39 @@ func getAuditLog(oldAppeal, newAppeal *domain.Appeal) (string, error) {
 
 	permissionsLog, err := updateAuditLog("system", "/appeal/permissions", oldAppeal.Permissions, newAppeal.Permissions)
 	if err != nil {
-		return "", err
+		return auditLog, err
 	}
 
 	auditLog = append(auditLog, permissionsLog...)
 
 	labelsLog, err := updateAuditLog(oldAppeal.CreatedBy, "/appeal/labels", oldAppeal.Labels, newAppeal.Labels)
 	if err != nil {
-		return "", err
+		return auditLog, err
 	}
 
 	auditLog = append(auditLog, labelsLog...)
 
 	creatorAuditLog, err := updateAuditLog("system", "/appeal/creator", oldAppeal.Creator, newAppeal.Creator)
 	if err != nil {
-		return "", err
+		return auditLog, err
 	}
 
 	auditLog = append(auditLog, creatorAuditLog...)
 
 	optionsLog, err := updateAuditLog(oldAppeal.CreatedBy, "/appeal/options", oldAppeal.Options, newAppeal.Options)
 	if err != nil {
-		return "", err
+		return auditLog, err
 	}
 
 	auditLog = append(auditLog, optionsLog...)
 
 	detailsLog, err := updateAuditLog(oldAppeal.CreatedBy, "/appeal/options", oldAppeal.Details, newAppeal.Details)
 	if err != nil {
-		return "", err
+		return auditLog, err
 	}
 
 	auditLog = append(auditLog, detailsLog...)
-
-	auditLogJSON, err := json.MarshalIndent(auditLog, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("error marshalling patch: %w", err)
-	}
-
-	return string(auditLogJSON), err
+	return auditLog, nil
 }
 
 func updateAuditLog(actor, parentPathKey string, a, b interface{}) ([]diff.PatchOp, error) {
