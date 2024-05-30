@@ -50,6 +50,7 @@ var (
 	ErrApprovalNotEligibleForAction = errors.New("approval not eligible for action")
 
 	ErrAppealStatusInvalid = errors.New("appeal should be in pending state")
+	ErrUnprocessableEntity = errors.New("provided payload did not change any fields")
 )
 
 type InvalidError struct {

@@ -575,34 +575,9 @@ func (s *GrpcHandlersSuite) TestCreateAppeal() {
 }
 
 func (s *GrpcHandlersSuite) TestPatchAppeal() {
+	expectedUser := "user@example.com"
 	s.Run("should return updated appeal on success", func() {
 		s.setup()
-		timeNow := time.Now()
-
-		expectedUser := "user@example.com"
-		expectedResource := &domain.Resource{
-			ID:           "test-resource-id",
-			ProviderType: "test-provider-type",
-			ProviderURN:  "test-provider-urn",
-			Type:         "test-resource-type",
-			URN:          "test-resource-urn",
-			Name:         "test-name",
-		}
-		expectedApproval := &domain.Approval{
-			ID:            "test-approval-id",
-			Name:          "test-approval-step",
-			Status:        "pending",
-			AppealID:      "test-id",
-			PolicyID:      "test-policy-id",
-			PolicyVersion: 1,
-			Approvers:     []string{"approver@example.com"},
-			CreatedAt:     timeNow,
-			UpdatedAt:     timeNow,
-		}
-		expectedOptions := &domain.AppealOptions{
-			ExpirationDate: &timeNow,
-			Duration:       "24h",
-		}
 		expectedAppeal := &domain.Appeal{
 			ID:          "test-id",
 			AccountID:   expectedUser,
@@ -676,18 +651,6 @@ func (s *GrpcHandlersSuite) TestPatchAppeal() {
 			},
 		}
 		s.appealService.EXPECT().Patch(mock.AnythingOfType("*context.valueCtx"), expectedAppeal).
-			Run(func(_a0 context.Context, _a1 *domain.Appeal, _a2 ...appeal.CreateAppealOption) {
-				_a1.ID = "test-id"
-				_a1.Resource = expectedResource
-				_a1.PolicyID = "test-policy-id"
-				_a1.PolicyVersion = 1
-				_a1.Status = "pending"
-				_a1.Approvals = []*domain.Approval{expectedApproval}
-				_a1.CreatedAt = timeNow
-				_a1.UpdatedAt = timeNow
-				_a1.Options = expectedOptions
-				_a1.Description = "The answer is 42"
-			}).
 			Return(nil).Once()
 
 		reqOptions, err := structpb.NewStruct(map[string]interface{}{
@@ -721,7 +684,7 @@ func (s *GrpcHandlersSuite) TestPatchAppeal() {
 	s.Run("should return error if appeal ID is missing in request", func() {
 		s.setup()
 		req := &guardianv1beta1.PatchAppealRequest{}
-		ctx := context.Background()
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, expectedUser)
 		md := metadata.New(map[string]string{})
 		ctx = metadata.NewIncomingContext(ctx, md)
 		res, err := s.grpcServer.PatchAppeal(ctx, req)

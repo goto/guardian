@@ -494,7 +494,7 @@ func validateAppealOnBehalf(a *domain.Appeal, policy *domain.Policy) error {
 }
 
 // Patch record
-func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...CreateAppealOption) error {
+func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	existingAppeal, err := s.GetByID(ctx, appeal.ID)
 	if err != nil {
 		return fmt.Errorf("error getting existing appeal: %w", err)
@@ -504,20 +504,13 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 		return ErrAppealStatusInvalid
 	}
 
-	createAppealOpts := &createAppealOptions{}
-	for _, opt := range opts {
-		opt(createAppealOpts)
-	}
-	isAdditionalAppealCreation := createAppealOpts.IsAdditionalAppeal
-
 	isAppealUpdated, err := validatePatchReq(appeal, existingAppeal)
 	if err != nil {
 		return err
 	}
 
 	if !isAppealUpdated {
-		// do not perform any operation since no field changed
-		return nil
+		return ErrUnprocessableEntity
 	}
 
 	eg, egctx := errgroup.WithContext(ctx)
@@ -585,14 +578,9 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 		return err
 	}
 
-	var policy *domain.Policy
-	if isAdditionalAppealCreation && appeal.PolicyID != "" && appeal.PolicyVersion != 0 {
-		policy = policies[appeal.PolicyID][appeal.PolicyVersion]
-	} else {
-		policy, err = getPolicy(appeal, provider, policies)
-		if err != nil {
-			return err
-		}
+	policy, err := getPolicy(appeal, provider, policies)
+	if err != nil {
+		return err
 	}
 
 	activeGrant, err := s.findActiveGrant(ctx, appeal)
@@ -635,10 +623,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 	// mark previous approvals as stale
 	for _, approval := range existingAppeal.Approvals {
 		approval.IsStale = true
-		err := s.approvalService.UpdateApproval(ctx, approval)
-		if err != nil {
-			return fmt.Errorf("couldn't update old approval(%s): %w", approval.ID, err)
-		}
+		appeal.Approvals = append(appeal.Approvals, approval)
 	}
 
 	// create new approval
@@ -669,7 +654,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal, opts ...Crea
 					return fmt.Errorf("revoking previous grant: %w", err)
 				}
 			} else {
-				if err := s.GrantAccessToProvider(ctx, appeal, opts...); err != nil {
+				if err := s.GrantAccessToProvider(ctx, appeal); err != nil {
 					return fmt.Errorf("granting access: %w", err)
 				}
 			}

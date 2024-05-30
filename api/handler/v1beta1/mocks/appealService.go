@@ -513,20 +513,13 @@ func (_c *AppealService_ListComments_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
-// Patch provides a mock function with given fields: _a0, _a1, _a2
-func (_m *AppealService) Patch(_a0 context.Context, _a1 *domain.Appeal, _a2 ...appeal.CreateAppealOption) error {
-	_va := make([]interface{}, len(_a2))
-	for _i := range _a2 {
-		_va[_i] = _a2[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, _a0, _a1)
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
+// Patch provides a mock function with given fields: _a0, _a1
+func (_m *AppealService) Patch(_a0 context.Context, _a1 *domain.Appeal) error {
+	ret := _m.Called(_a0, _a1)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *domain.Appeal, ...appeal.CreateAppealOption) error); ok {
-		r0 = rf(_a0, _a1, _a2...)
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.Appeal) error); ok {
+		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -542,21 +535,13 @@ type AppealService_Patch_Call struct {
 // Patch is a helper method to define mock.On call
 //   - _a0 context.Context
 //   - _a1 *domain.Appeal
-//   - _a2 ...appeal.CreateAppealOption
-func (_e *AppealService_Expecter) Patch(_a0 interface{}, _a1 interface{}, _a2 ...interface{}) *AppealService_Patch_Call {
-	return &AppealService_Patch_Call{Call: _e.mock.On("Patch",
-		append([]interface{}{_a0, _a1}, _a2...)...)}
+func (_e *AppealService_Expecter) Patch(_a0 interface{}, _a1 interface{}) *AppealService_Patch_Call {
+	return &AppealService_Patch_Call{Call: _e.mock.On("Patch", _a0, _a1)}
 }
 
-func (_c *AppealService_Patch_Call) Run(run func(_a0 context.Context, _a1 *domain.Appeal, _a2 ...appeal.CreateAppealOption)) *AppealService_Patch_Call {
+func (_c *AppealService_Patch_Call) Run(run func(_a0 context.Context, _a1 *domain.Appeal)) *AppealService_Patch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		variadicArgs := make([]appeal.CreateAppealOption, len(args)-2)
-		for i, a := range args[2:] {
-			if a != nil {
-				variadicArgs[i] = a.(appeal.CreateAppealOption)
-			}
-		}
-		run(args[0].(context.Context), args[1].(*domain.Appeal), variadicArgs...)
+		run(args[0].(context.Context), args[1].(*domain.Appeal))
 	})
 	return _c
 }
@@ -566,7 +551,7 @@ func (_c *AppealService_Patch_Call) Return(_a0 error) *AppealService_Patch_Call 
 	return _c
 }
 
-func (_c *AppealService_Patch_Call) RunAndReturn(run func(context.Context, *domain.Appeal, ...appeal.CreateAppealOption) error) *AppealService_Patch_Call {
+func (_c *AppealService_Patch_Call) RunAndReturn(run func(context.Context, *domain.Appeal) error) *AppealService_Patch_Call {
 	_c.Call.Return(run)
 	return _c
 }

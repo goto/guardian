@@ -148,13 +148,13 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 }
 
 func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.PatchAppealRequest) (*guardianv1beta1.PatchAppealResponse, error) {
-	if req.Id == "" {
-		return nil, status.Error(codes.FailedPrecondition, "appeal id is required")
-	}
-
 	authenticatedUser, err := s.getUser(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+
+	if req.Id == "" {
+		return nil, status.Error(codes.FailedPrecondition, "appeal id is required")
 	}
 
 	a, err := s.adapter.FromPatchAppealProto(req, authenticatedUser)
@@ -172,6 +172,7 @@ func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.Patch
 			errors.Is(err, provider.ErrAppealValidationMissingRequiredParameter),
 			errors.Is(err, provider.ErrAppealValidationMissingRequiredQuestion),
 			errors.Is(err, appeal.ErrDurationNotAllowed),
+			errors.Is(err, appeal.ErrUnprocessableEntity),
 			errors.Is(err, appeal.ErrCannotCreateAppealForOtherUser):
 			return nil, s.invalidArgument(ctx, err.Error())
 		case errors.Is(err, appeal.ErrAppealDuplicate):

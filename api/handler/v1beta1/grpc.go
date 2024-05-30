@@ -94,7 +94,7 @@ type appealService interface {
 	GetByID(context.Context, string) (*domain.Appeal, error)
 	Find(context.Context, *domain.ListAppealsFilter) ([]*domain.Appeal, error)
 	Create(context.Context, []*domain.Appeal, ...appeal.CreateAppealOption) error
-	Patch(context.Context, *domain.Appeal, ...appeal.CreateAppealOption) error
+	Patch(context.Context, *domain.Appeal) error
 	Cancel(context.Context, string) (*domain.Appeal, error)
 	AddApprover(ctx context.Context, appealID, approvalID, email string) (*domain.Appeal, error)
 	DeleteApprover(ctx context.Context, appealID, approvalID, email string) (*domain.Appeal, error)

@@ -1861,8 +1861,8 @@ func (s *ServiceTestSuite) TestPatch() {
 		s.ErrorIs(err, appeal.ErrAppealStatusInvalid)
 	})
 
-	s.Run("should return without error if no field is changed", func() {
-		appeal := &domain.Appeal{
+	s.Run("should return error if no field is changed", func() {
+		a := &domain.Appeal{
 			ID:          appealID,
 			ResourceID:  "1",
 			Status:      domain.AppealStatusPending,
@@ -1879,10 +1879,10 @@ func (s *ServiceTestSuite) TestPatch() {
 		h := newServiceTestHelper()
 		defer h.assertExpectations(s.T())
 
-		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(appeal, nil).Once()
-		err := h.service.Patch(context.Background(), appeal)
+		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(a, nil).Once()
+		err := h.service.Patch(context.Background(), a)
 
-		s.ErrorIs(err, nil)
+		s.ErrorIs(err, appeal.ErrUnprocessableEntity)
 	})
 
 	s.Run("should return error if got error from resource service", func() {
@@ -2979,9 +2979,6 @@ func (s *ServiceTestSuite) TestPatch() {
 				}
 				h.mockIAMClient.EXPECT().
 					GetUser(accountID).Return(expectedCreatorResponse, nil).Once()
-				h.mockApprovalService.EXPECT().
-					UpdateApproval(mock.Anything, mock.Anything).
-					Return(nil).Twice()
 
 				h.mockRepository.EXPECT().UpdateByID(mock.Anything, mock.Anything).Return(nil)
 				h.mockAuditLogger.EXPECT().
