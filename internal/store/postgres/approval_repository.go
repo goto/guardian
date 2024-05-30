@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/goto/guardian/core/appeal"
-	"github.com/goto/guardian/core/approval"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres/model"
 	"github.com/goto/guardian/utils"
@@ -110,32 +109,6 @@ func (r *ApprovalRepository) BulkInsert(ctx context.Context, approvals []*domain
 
 			*approvals[i] = *newApproval
 		}
-
-		return nil
-	})
-}
-
-func (r *ApprovalRepository) UpdateApproval(ctx context.Context, a *domain.Approval) error {
-	if a.ID == "" {
-		return approval.ErrApprovalIDEmptyParam
-	}
-
-	m := new(model.Approval)
-	if err := m.FromDomain(a); err != nil {
-		return err
-	}
-
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Omit("Approvers").Session(&gorm.Session{FullSaveAssociations: true}).Save(&m).Error; err != nil {
-			return err
-		}
-
-		newRecord, err := m.ToDomain()
-		if err != nil {
-			return err
-		}
-
-		*a = *newRecord
 
 		return nil
 	})

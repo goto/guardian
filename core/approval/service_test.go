@@ -104,29 +104,6 @@ func (s *ServiceTestSuite) TestBulkInsert() {
 	})
 }
 
-func (s *ServiceTestSuite) TestUpdateApproval() {
-	s.Run("should return error if got error from repository", func() {
-		expectedError := errors.New("repository error")
-		s.mockRepository.EXPECT().
-			UpdateApproval(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
-			Return(expectedError).Once()
-
-		actualError := s.service.UpdateApproval(context.Background(), &domain.Approval{})
-
-		s.EqualError(actualError, expectedError.Error())
-	})
-
-	s.Run("should return error if nil error on success", func() {
-		s.mockRepository.EXPECT().
-			UpdateApproval(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
-			Return(nil).Once()
-
-		actualError := s.service.UpdateApproval(context.Background(), &domain.Approval{})
-
-		s.NoError(actualError)
-	})
-}
-
 func (s *ServiceTestSuite) TestAddApprover() {
 	s.Run("should return nil error on success", func() {
 		expectedApprover := &domain.Approver{

@@ -11,7 +11,6 @@ type repository interface {
 	BulkInsert(context.Context, []*domain.Approval) error
 	GetApprovalsTotalCount(context.Context, *domain.ListApprovalsFilter) (int64, error)
 	ListApprovals(context.Context, *domain.ListApprovalsFilter) ([]*domain.Approval, error)
-	UpdateApproval(ctx context.Context, approval *domain.Approval) error
 	AddApprover(context.Context, *domain.Approver) error
 	DeleteApprover(ctx context.Context, approvalID, email string) error
 }
@@ -47,10 +46,6 @@ func (s *Service) GetApprovalsTotalCount(ctx context.Context, filters *domain.Li
 
 func (s *Service) BulkInsert(ctx context.Context, approvals []*domain.Approval) error {
 	return s.repo.BulkInsert(ctx, approvals)
-}
-
-func (s *Service) UpdateApproval(ctx context.Context, approval *domain.Approval) error {
-	return s.repo.UpdateApproval(ctx, approval)
 }
 
 func (s *Service) AddApprover(ctx context.Context, approvalID, email string) error {

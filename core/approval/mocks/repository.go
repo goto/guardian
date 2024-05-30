@@ -152,61 +152,6 @@ func (_c *Repository_DeleteApprover_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
-// GetApprovalsByAppealID provides a mock function with given fields: _a0, _a1
-func (_m *Repository) GetApprovalsByAppealID(_a0 context.Context, _a1 string) ([]*domain.Approval, error) {
-	ret := _m.Called(_a0, _a1)
-
-	var r0 []*domain.Approval
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*domain.Approval, error)); ok {
-		return rf(_a0, _a1)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []*domain.Approval); ok {
-		r0 = rf(_a0, _a1)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*domain.Approval)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(_a0, _a1)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Repository_GetApprovalsByAppealID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetApprovalsByAppealID'
-type Repository_GetApprovalsByAppealID_Call struct {
-	*mock.Call
-}
-
-// GetApprovalsByAppealID is a helper method to define mock.On call
-//   - _a0 context.Context
-//   - _a1 string
-func (_e *Repository_Expecter) GetApprovalsByAppealID(_a0 interface{}, _a1 interface{}) *Repository_GetApprovalsByAppealID_Call {
-	return &Repository_GetApprovalsByAppealID_Call{Call: _e.mock.On("GetApprovalsByAppealID", _a0, _a1)}
-}
-
-func (_c *Repository_GetApprovalsByAppealID_Call) Run(run func(_a0 context.Context, _a1 string)) *Repository_GetApprovalsByAppealID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
-	})
-	return _c
-}
-
-func (_c *Repository_GetApprovalsByAppealID_Call) Return(_a0 []*domain.Approval, _a1 error) *Repository_GetApprovalsByAppealID_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *Repository_GetApprovalsByAppealID_Call) RunAndReturn(run func(context.Context, string) ([]*domain.Approval, error)) *Repository_GetApprovalsByAppealID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetApprovalsTotalCount provides a mock function with given fields: _a0, _a1
 func (_m *Repository) GetApprovalsTotalCount(_a0 context.Context, _a1 *domain.ListApprovalsFilter) (int64, error) {
 	ret := _m.Called(_a0, _a1)
@@ -311,49 +256,6 @@ func (_c *Repository_ListApprovals_Call) Return(_a0 []*domain.Approval, _a1 erro
 }
 
 func (_c *Repository_ListApprovals_Call) RunAndReturn(run func(context.Context, *domain.ListApprovalsFilter) ([]*domain.Approval, error)) *Repository_ListApprovals_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateApproval provides a mock function with given fields: ctx, _a1
-func (_m *Repository) UpdateApproval(ctx context.Context, _a1 *domain.Approval) error {
-	ret := _m.Called(ctx, _a1)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *domain.Approval) error); ok {
-		r0 = rf(ctx, _a1)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// Repository_UpdateApproval_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateApproval'
-type Repository_UpdateApproval_Call struct {
-	*mock.Call
-}
-
-// UpdateApproval is a helper method to define mock.On call
-//   - ctx context.Context
-//   - _a1 *domain.Approval
-func (_e *Repository_Expecter) UpdateApproval(ctx interface{}, _a1 interface{}) *Repository_UpdateApproval_Call {
-	return &Repository_UpdateApproval_Call{Call: _e.mock.On("UpdateApproval", ctx, _a1)}
-}
-
-func (_c *Repository_UpdateApproval_Call) Run(run func(ctx context.Context, _a1 *domain.Approval)) *Repository_UpdateApproval_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*domain.Approval))
-	})
-	return _c
-}
-
-func (_c *Repository_UpdateApproval_Call) Return(_a0 error) *Repository_UpdateApproval_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *Repository_UpdateApproval_Call) RunAndReturn(run func(context.Context, *domain.Approval) error) *Repository_UpdateApproval_Call {
 	_c.Call.Return(run)
 	return _c
 }

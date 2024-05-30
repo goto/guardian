@@ -74,7 +74,6 @@ type policyService interface {
 
 //go:generate mockery --name=approvalService --exported --with-expecter
 type approvalService interface {
-	UpdateApproval(ctx context.Context, approval *domain.Approval) error
 	AddApprover(ctx context.Context, approvalID, email string) error
 	DeleteApprover(ctx context.Context, approvalID, email string) error
 }
