@@ -662,12 +662,10 @@ func (s *GrpcHandlersSuite) TestPatchAppeal() {
 			Id:          "test-id",
 			AccountId:   expectedUser,
 			AccountType: "user",
-			Resource: &guardianv1beta1.PatchAppealRequest_Resource{
-				Id:      "test-resource-id",
-				Role:    "test-role",
-				Options: reqOptions,
-				Details: expectedDetails,
-			},
+			ResourceId:  "test-resource-id",
+			Role:        "test-role",
+			Options:     reqOptions,
+			Details:     expectedDetails,
 			Description: "The answer is 42",
 		}
 

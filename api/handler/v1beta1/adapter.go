@@ -722,28 +722,26 @@ func (a *adapter) FromCreateAppealProto(ca *guardianv1beta1.CreateAppealRequest,
 }
 
 func (a *adapter) FromPatchAppealProto(ua *guardianv1beta1.PatchAppealRequest, authenticatedUser string) (*domain.Appeal, error) {
-	resource := ua.GetResource()
-
 	appeal := &domain.Appeal{
 		ID:          ua.GetId(),
 		AccountID:   ua.GetAccountId(),
 		AccountType: ua.GetAccountType(),
 		CreatedBy:   authenticatedUser,
-		ResourceID:  resource.GetId(),
-		Role:        resource.GetRole(),
+		ResourceID:  ua.GetResourceId(),
+		Role:        ua.GetRole(),
 		Description: ua.GetDescription(),
 	}
 
-	if resource.GetOptions() != nil {
+	if ua.GetOptions() != nil {
 		var options *domain.AppealOptions
-		if err := mapstructure.Decode(resource.GetOptions().AsMap(), &options); err != nil {
+		if err := mapstructure.Decode(ua.GetOptions().AsMap(), &options); err != nil {
 			return nil, err
 		}
 		appeal.Options = options
 	}
 
-	if resource.GetDetails() != nil {
-		appeal.Details = resource.GetDetails().AsMap()
+	if ua.GetDetails() != nil {
+		appeal.Details = ua.GetDetails().AsMap()
 	}
 
 	return appeal, nil

@@ -2989,7 +2989,7 @@ func (s *ServiceTestSuite) TestPatch() {
 
 				h.mockRepository.EXPECT().UpdateByID(mock.Anything, mock.Anything).Return(nil)
 				h.mockAuditLogger.EXPECT().
-					Log(mock.Anything, appeal.AuditKeyUpdateAppeal, mock.Anything).Return(nil).Once()
+					Log(mock.Anything, appeal.AuditKeyUpdate, mock.Anything).Return(nil).Once()
 				actualError := h.service.Patch(context.Background(), tc.reqAppeal)
 
 				s.Nil(actualError)
