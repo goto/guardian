@@ -27,6 +27,7 @@ import (
 
 const (
 	AuditKeyBulkInsert     = "appeal.bulkInsert"
+	AuditKeyUpdate         = "appeal.update"
 	AuditKeyCancel         = "appeal.cancel"
 	AuditKeyApprove        = "appeal.approve"
 	AuditKeyReject         = "appeal.reject"

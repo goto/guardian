@@ -14,6 +14,7 @@ func (s *Service) ListActivities(ctx context.Context, appealID string) ([]*domai
 			AuditKeyReject,
 			AuditKeyAddApprover,
 			AuditKeyDeleteApprover,
+			AuditKeyUpdate,
 		},
 		ParentType: "appeal",
 		ParentID:   appealID,
