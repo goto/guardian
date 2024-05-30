@@ -684,12 +684,18 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		return fmt.Errorf("error saving appeal to db: %w", err)
 	}
 
-	log, err := getAuditLog(existingAppeal, appeal)
+	diffLog, err := getAuditLog(existingAppeal, appeal)
 	if err != nil {
 		return err
 	}
 
-	if err := s.auditLogger.Log(ctx, AuditKeyUpdateAppeal, log); err != nil {
+	auditLog := map[string]interface{}{
+		"appeal_id": appeal.ID,
+		"revision":  appeal.Revision,
+		"diff":      diffLog,
+	}
+
+	if err := s.auditLogger.Log(ctx, AuditKeyUpdateAppeal, auditLog); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
 
