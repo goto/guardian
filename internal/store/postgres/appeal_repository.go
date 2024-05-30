@@ -156,7 +156,11 @@ func (r *AppealRepository) UpdateByID(ctx context.Context, a *domain.Appeal) err
 	}
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(m).Where(`"id" = ?`, a.ID).Updates(*m).Error; err != nil {
+		if err := tx.Model(m).Session(&gorm.Session{FullSaveAssociations: true}).Where(`"id" = ?`, a.ID).Updates(*m).Error; err != nil {
+			var pgError *pgconn.PgError
+			if errors.As(err, &pgError) && pgError.Code == pgUniqueViolationErrorCode && pgError.ConstraintName == grantUniqueConstraintName {
+				return domain.ErrDuplicateActiveGrant
+			}
 			return err
 		}
 

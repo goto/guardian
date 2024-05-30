@@ -619,12 +619,6 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		return fmt.Errorf("getting creator details: %w", err)
 	}
 
-	// mark previous approvals as stale
-	for _, approval := range existingAppeal.Approvals {
-		approval.IsStale = true
-		appeal.Approvals = append(appeal.Approvals, approval)
-	}
-
 	// create new approval
 	appeal.Revision = existingAppeal.Revision + 1
 	if err := appeal.ApplyPolicy(policy); err != nil {
@@ -677,6 +671,13 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 
 			notifications = addOnBehalfApprovedNotification(appeal, notifications)
 		}
+	}
+
+	// mark previous approvals as stale
+	for _, approval := range existingAppeal.Approvals {
+		approval.IsStale = true
+		approval.Approvers = []string{}
+		appeal.Approvals = append(appeal.Approvals, approval)
 	}
 
 	if err := s.repo.UpdateByID(ctx, appeal); err != nil {
