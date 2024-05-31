@@ -677,6 +677,8 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		}
 	}
 
+	newApprovals := appeal.Approvals
+
 	// mark previous approvals as stale
 	for _, approval := range existingAppeal.Approvals {
 		approval.IsStale = true
@@ -701,6 +703,54 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 
 	if err := s.auditLogger.Log(ctx, AuditKeyUpdate, auditLog); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
+	}
+
+	appeal.Approvals = newApprovals
+	if appeal.Status == domain.AppealStatusApproved {
+		notifications = append(notifications, domain.Notification{
+			User: appeal.CreatedBy,
+			Labels: map[string]string{
+				"appeal_id": appeal.ID,
+			},
+			Message: domain.NotificationMessage{
+				Type: domain.NotificationTypeAppealApproved,
+				Variables: map[string]interface{}{
+					"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+					"role":          appeal.Role,
+					"account_id":    appeal.AccountID,
+					"appeal_id":     appeal.ID,
+					"requestor":     appeal.CreatedBy,
+				},
+			},
+		})
+		notifications = addOnBehalfApprovedNotification(appeal, notifications)
+	} else if appeal.Status == domain.AppealStatusRejected {
+		var reason string
+		for _, approval := range appeal.Approvals {
+			if approval.Status == domain.ApprovalStatusRejected {
+				reason = approval.Reason
+				break
+			}
+		}
+		notifications = append(notifications, domain.Notification{
+			User: appeal.CreatedBy,
+			Labels: map[string]string{
+				"appeal_id": appeal.ID,
+			},
+			Message: domain.NotificationMessage{
+				Type: domain.NotificationTypeAppealRejected,
+				Variables: map[string]interface{}{
+					"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+					"role":          appeal.Role,
+					"account_id":    appeal.AccountID,
+					"appeal_id":     appeal.ID,
+					"requestor":     appeal.CreatedBy,
+					"reason":        reason,
+				},
+			},
+		})
+	} else {
+		notifications = append(notifications, s.getApprovalNotifications(ctx, appeal)...)
 	}
 
 	if len(notifications) > 0 {
