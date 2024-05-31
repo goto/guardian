@@ -1025,7 +1025,7 @@
       }
     },
     "/v1beta1/grants/{id}/restore": {
-      "post": {
+      "put": {
         "operationId": "GuardianService_RestoreGrant",
         "responses": {
           "200": {
