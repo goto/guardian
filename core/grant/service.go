@@ -276,7 +276,7 @@ func (s *Service) Restore(ctx context.Context, id, actor, reason string) (*domai
 	}
 
 	if err := grant.Restore(actor, reason); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %s", ErrInvalidRequest, err.Error())
 	}
 
 	if err := s.providerService.GrantAccess(ctx, *grant); err != nil {

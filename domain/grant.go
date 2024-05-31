@@ -89,6 +89,9 @@ func (g *Grant) Restore(actor, reason string) error {
 	if actor == "" {
 		return errors.New("actor is required")
 	}
+	if reason == "" {
+		return errors.New("reason is required")
+	}
 
 	if g.isExpired() {
 		return fmt.Errorf("grant is already expired at: %s", g.ExpirationDate)
