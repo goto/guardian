@@ -185,7 +185,12 @@ func (s *GRPCServer) RestoreGrant(ctx context.Context, req *guardianv1beta1.Rest
 
 	g, err := s.grantService.Restore(ctx, req.GetId(), actor, req.GetReason())
 	if err != nil {
-		return nil, s.internalError(ctx, "failed to restore grant: %v", err)
+		switch {
+		case errors.Is(err, grant.ErrInvalidRequest):
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		default:
+			return nil, s.internalError(ctx, "failed to restore grant: %v", err)
+		}
 	}
 
 	grantProto, err := s.adapter.ToGrantProto(g)
