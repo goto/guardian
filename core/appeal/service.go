@@ -717,45 +717,45 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 func getAuditLog(oldAppeal, newAppeal *domain.Appeal) ([]diff.PatchOp, error) {
 	var auditLog []diff.PatchOp
 
-	createDiff(&auditLog, "/appeal/account_id", newAppeal.CreatedBy, oldAppeal.AccountID, newAppeal.AccountID)
-	createDiff(&auditLog, "/appeal/account_type", newAppeal.CreatedBy, oldAppeal.AccountType, newAppeal.AccountType)
-	createDiff(&auditLog, "/appeal/resource_id", newAppeal.CreatedBy, oldAppeal.ResourceID, newAppeal.ResourceID)
-	createDiff(&auditLog, "/appeal/description", newAppeal.CreatedBy, oldAppeal.Description, newAppeal.Description)
-	createDiff(&auditLog, "/appeal/policy_id", "system", oldAppeal.PolicyID, newAppeal.PolicyID)
-	createDiff(&auditLog, "/appeal/policy_version", "system", oldAppeal.PolicyVersion, newAppeal.PolicyVersion)
-	createDiff(&auditLog, "/appeal/revision", "system", oldAppeal.Revision, newAppeal.Revision)
-	createDiff(&auditLog, "/appeal/role", newAppeal.CreatedBy, oldAppeal.Role, newAppeal.Role)
-	createDiff(&auditLog, "/appeal/status", "system", oldAppeal.Status, newAppeal.Status)
+	createDiff(&auditLog, "account_id", newAppeal.CreatedBy, oldAppeal.AccountID, newAppeal.AccountID)
+	createDiff(&auditLog, "account_type", newAppeal.CreatedBy, oldAppeal.AccountType, newAppeal.AccountType)
+	createDiff(&auditLog, "resource_id", newAppeal.CreatedBy, oldAppeal.ResourceID, newAppeal.ResourceID)
+	createDiff(&auditLog, "description", newAppeal.CreatedBy, oldAppeal.Description, newAppeal.Description)
+	createDiff(&auditLog, "policy_id", "system", oldAppeal.PolicyID, newAppeal.PolicyID)
+	createDiff(&auditLog, "policy_version", "system", oldAppeal.PolicyVersion, newAppeal.PolicyVersion)
+	createDiff(&auditLog, "revision", "system", oldAppeal.Revision, newAppeal.Revision)
+	createDiff(&auditLog, "role", newAppeal.CreatedBy, oldAppeal.Role, newAppeal.Role)
+	createDiff(&auditLog, "status", "system", oldAppeal.Status, newAppeal.Status)
 
-	permissionsLog, err := updateAuditLog("system", "/appeal/permissions", oldAppeal.Permissions, newAppeal.Permissions)
+	permissionsLog, err := updateAuditLog("system", "permissions", oldAppeal.Permissions, newAppeal.Permissions)
 	if err != nil {
 		return auditLog, err
 	}
 
 	auditLog = append(auditLog, permissionsLog...)
 
-	labelsLog, err := updateAuditLog(oldAppeal.CreatedBy, "/appeal/labels", oldAppeal.Labels, newAppeal.Labels)
+	labelsLog, err := updateAuditLog(oldAppeal.CreatedBy, "labels", oldAppeal.Labels, newAppeal.Labels)
 	if err != nil {
 		return auditLog, err
 	}
 
 	auditLog = append(auditLog, labelsLog...)
 
-	creatorAuditLog, err := updateAuditLog("system", "/appeal/creator", oldAppeal.Creator, newAppeal.Creator)
+	creatorAuditLog, err := updateAuditLog("system", "creator", oldAppeal.Creator, newAppeal.Creator)
 	if err != nil {
 		return auditLog, err
 	}
 
 	auditLog = append(auditLog, creatorAuditLog...)
 
-	optionsLog, err := updateAuditLog(oldAppeal.CreatedBy, "/appeal/options", oldAppeal.Options, newAppeal.Options)
+	optionsLog, err := updateAuditLog(oldAppeal.CreatedBy, "options", oldAppeal.Options, newAppeal.Options)
 	if err != nil {
 		return auditLog, err
 	}
 
 	auditLog = append(auditLog, optionsLog...)
 
-	detailsLog, err := updateAuditLog(oldAppeal.CreatedBy, "/appeal/options", oldAppeal.Details, newAppeal.Details)
+	detailsLog, err := updateAuditLog(oldAppeal.CreatedBy, "details", oldAppeal.Details, newAppeal.Details)
 	if err != nil {
 		return auditLog, err
 	}
@@ -769,7 +769,7 @@ func updateAuditLog(actor, parentPathKey string, a, b interface{}) ([]diff.Patch
 	if diff, err := diff.GetChangelog(a, b); err == nil {
 		if len(diff) > 0 {
 			for _, d := range diff {
-				d.Path = parentPathKey + d.Path
+				d.Path = parentPathKey + strings.Join(strings.Split(d.Path, "/"), ".")
 				d.Actor = actor
 				auditLog = append(auditLog, d)
 			}
