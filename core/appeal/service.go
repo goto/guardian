@@ -773,7 +773,6 @@ func getAuditLog(oldAppeal, newAppeal *domain.Appeal) ([]diff.PatchOp, error) {
 	createDiff(&auditLog, "description", newAppeal.CreatedBy, oldAppeal.Description, newAppeal.Description)
 	createDiff(&auditLog, "policy_id", "system", oldAppeal.PolicyID, newAppeal.PolicyID)
 	createDiff(&auditLog, "policy_version", "system", oldAppeal.PolicyVersion, newAppeal.PolicyVersion)
-	createDiff(&auditLog, "revision", "system", oldAppeal.Revision, newAppeal.Revision)
 	createDiff(&auditLog, "role", newAppeal.CreatedBy, oldAppeal.Role, newAppeal.Role)
 	createDiff(&auditLog, "status", "system", oldAppeal.Status, newAppeal.Status)
 
