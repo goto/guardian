@@ -110,7 +110,7 @@ func (g *Grant) Restore(actor, reason string) error {
 }
 
 func (g *Grant) isExpired() bool {
-	return g.ExpirationDate != nil && time.Now().After(*g.ExpirationDate)
+	return !g.IsPermanent && g.ExpirationDate != nil && time.Now().After(*g.ExpirationDate)
 }
 
 func (g *Grant) GetPermissions() []string {
