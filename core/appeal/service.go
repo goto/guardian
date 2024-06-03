@@ -504,7 +504,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	}
 
 	if existingAppeal.Status != domain.AppealStatusPending {
-		return ErrAppealStatusInvalid
+		return fmt.Errorf("%w: unable to edit appeal in status: %q", ErrAppealStatusInvalid, existingAppeal.Status)
 	}
 
 	isAppealUpdated, err := validatePatchReq(appeal, existingAppeal)
