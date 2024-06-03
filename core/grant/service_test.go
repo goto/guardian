@@ -328,6 +328,28 @@ func (s *ServiceTestSuite) TestRevoke() {
 			}).
 			Return(nil).Once()
 
+		notifications := []domain.Notification{{
+			User: expectedGrantDetails.CreatedBy,
+			Labels: map[string]string{
+				"appeal_id": expectedGrantDetails.AppealID,
+				"grant_id":  expectedGrantDetails.ID,
+			},
+			Message: domain.NotificationMessage{
+				Type: domain.NotificationTypeAccessRevoked,
+				Variables: map[string]interface{}{
+					"resource_name": fmt.Sprintf("%s (%s: %s)", expectedGrantDetails.Resource.Name, expectedGrantDetails.Resource.ProviderType, expectedGrantDetails.Resource.URN),
+					"role":          expectedGrantDetails.Role,
+					"account_type":  expectedGrantDetails.AccountType,
+					"account_id":    expectedGrantDetails.AccountID,
+					"requestor":     expectedGrantDetails.Owner,
+					"revoke_reason": reason,
+				},
+			},
+		}}
+		s.mockNotifier.EXPECT().
+			Notify(mock.MatchedBy(func(ctx context.Context) bool { return true }), notifications).
+			Return(nil).Once()
+
 		expectedGrant, err := s.service.Revoke(context.Background(), id, actor, reason, grant.SkipRevokeAccessInProvider(), grant.SkipNotifications())
 
 		s.NoError(err)

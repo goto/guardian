@@ -140,37 +140,40 @@ func (s *Service) Update(ctx context.Context, payload *domain.Grant) error {
 	}
 
 	if previousOwner != updatedGrant.Owner {
-		message := domain.NotificationMessage{
-			Type: domain.NotificationTypeGrantOwnerChanged,
-			Variables: map[string]interface{}{
-				"grant_id":       grantDetails.ID,
-				"previous_owner": previousOwner,
-				"new_owner":      updatedGrant.Owner,
-			},
-		}
-		notifications := []domain.Notification{{
-			User: updatedGrant.Owner,
-			Labels: map[string]string{
-				"appeal_id": grantDetails.AppealID,
-				"grant_id":  grantDetails.ID,
-			},
-			Message: message,
-		}}
-		if previousOwner != "" {
-			notifications = append(notifications, domain.Notification{
-				User: previousOwner,
+		go func() {
+			message := domain.NotificationMessage{
+				Type: domain.NotificationTypeGrantOwnerChanged,
+				Variables: map[string]interface{}{
+					"grant_id":       grantDetails.ID,
+					"previous_owner": previousOwner,
+					"new_owner":      updatedGrant.Owner,
+				},
+			}
+			notifications := []domain.Notification{{
+				User: updatedGrant.Owner,
 				Labels: map[string]string{
 					"appeal_id": grantDetails.AppealID,
 					"grant_id":  grantDetails.ID,
 				},
 				Message: message,
-			})
-		}
-		if errs := s.notifier.Notify(ctx, notifications); errs != nil {
-			for _, err1 := range errs {
-				s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+			}}
+			if previousOwner != "" {
+				notifications = append(notifications, domain.Notification{
+					User: previousOwner,
+					Labels: map[string]string{
+						"appeal_id": grantDetails.AppealID,
+						"grant_id":  grantDetails.ID,
+					},
+					Message: message,
+				})
 			}
-		}
+			ctx := context.WithoutCancel(ctx)
+			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
+				for _, err1 := range errs {
+					s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+				}
+			}
+		}()
 	}
 
 	return nil
@@ -218,7 +221,7 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 	}
 
 	if !options.skipNotification {
-		if errs := s.notifier.Notify(ctx, []domain.Notification{{
+		notifications := []domain.Notification{{
 			User: grant.CreatedBy,
 			Labels: map[string]string{
 				"appeal_id": grant.AppealID,
@@ -235,11 +238,15 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 					"revoke_reason": grant.RevokeReason,
 				},
 			},
-		}}); errs != nil {
-			for _, err1 := range errs {
-				s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+		}}
+		go func() {
+			ctx := context.WithoutCancel(ctx)
+			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
+				for _, err1 := range errs {
+					s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+				}
 			}
-		}
+		}()
 	}
 
 	s.logger.Info(ctx, "grant revoked", "grant_id", id)
@@ -571,44 +578,47 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 		return fmt.Errorf("updating grants expiration date: %w", err)
 	}
 
-	var notifications []domain.Notification
-prepare_notifications:
-	for owner, grants := range dormantGrantsByOwner {
-		var grantsMap []map[string]interface{}
-		var grantIDs []string
+	go func() {
+		ctx := context.WithoutCancel(ctx)
+		var notifications []domain.Notification
+	prepare_notifications:
+		for owner, grants := range dormantGrantsByOwner {
+			var grantsMap []map[string]interface{}
+			var grantIDs []string
 
-		for _, g := range grants {
-			grantMap, err := utils.StructToMap(g)
-			if err != nil {
-				s.logger.Error(ctx, "failed to convert grant to map", "error", err)
-				continue prepare_notifications
+			for _, g := range grants {
+				grantMap, err := utils.StructToMap(g)
+				if err != nil {
+					s.logger.Error(ctx, "failed to convert grant to map", "error", err)
+					continue prepare_notifications
+				}
+				grantsMap = append(grantsMap, grantMap)
 			}
-			grantsMap = append(grantsMap, grantMap)
-		}
 
-		notifications = append(notifications, domain.Notification{
-			User: owner,
-			Labels: map[string]string{
-				"owner":     owner,
-				"grant_ids": strings.Join(grantIDs, ", "),
-			},
-			Message: domain.NotificationMessage{
-				Type: domain.NotificationTypeUnusedGrant,
-				Variables: map[string]interface{}{
-					"dormant_grants":       grantsMap,
-					"period":               criteria.Period.String(),
-					"retain_duration":      criteria.RetainDuration.String(),
-					"start_date_formatted": startDate.Format("Jan 02, 2006 15:04:05 UTC"),
+			notifications = append(notifications, domain.Notification{
+				User: owner,
+				Labels: map[string]string{
+					"owner":     owner,
+					"grant_ids": strings.Join(grantIDs, ", "),
 				},
-			},
-		})
-	}
-
-	if errs := s.notifier.Notify(ctx, notifications); errs != nil {
-		for _, err1 := range errs {
-			s.logger.Error(ctx, "failed to send notifications", "error", err1.Error(), "provider_urn", provider.URN)
+				Message: domain.NotificationMessage{
+					Type: domain.NotificationTypeUnusedGrant,
+					Variables: map[string]interface{}{
+						"dormant_grants":       grantsMap,
+						"period":               criteria.Period.String(),
+						"retain_duration":      criteria.RetainDuration.String(),
+						"start_date_formatted": startDate.Format("Jan 02, 2006 15:04:05 UTC"),
+					},
+				},
+			})
 		}
-	}
+
+		if errs := s.notifier.Notify(ctx, notifications); errs != nil {
+			for _, err1 := range errs {
+				s.logger.Error(ctx, "failed to send notifications", "error", err1.Error(), "provider_urn", provider.URN)
+			}
+		}
+	}()
 
 	return nil
 }
