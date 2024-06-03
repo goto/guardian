@@ -3079,8 +3079,6 @@ func (s *ServiceTestSuite) TestPatch() {
 	})
 
 	s.Run("should update appeal successfully", func() {
-		h := newServiceTestHelper()
-		defer h.assertExpectations(s.T())
 		accountID := "test@email.com"
 		resources := []*domain.Resource{
 			{
@@ -3523,6 +3521,7 @@ func (s *ServiceTestSuite) TestPatch() {
 
 		for _, tc := range testCases {
 			s.Run(tc.name, func() {
+				h := newServiceTestHelper()
 				h.mockRepository.EXPECT().GetByID(mock.Anything, tc.existingAppeal.ID).Return(tc.existingAppeal, nil).Once()
 				if tc.mockGetResource {
 					h.mockResourceService.EXPECT().Get(mock.Anything, mock.Anything).Return(resources[1], nil).Once()
@@ -3570,6 +3569,9 @@ func (s *ServiceTestSuite) TestPatch() {
 				actualError := h.service.Patch(context.Background(), tc.reqAppeal)
 
 				s.Nil(actualError)
+
+				time.Sleep(time.Millisecond)
+				h.assertExpectations(s.T())
 			})
 		}
 	})

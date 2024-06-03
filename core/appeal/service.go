@@ -757,11 +757,14 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	}
 
 	if len(notifications) > 0 {
-		if errs := s.notifier.Notify(ctx, notifications); errs != nil {
-			for _, err1 := range errs {
-				s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+		go func() {
+			ctx := context.WithoutCancel(ctx)
+			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
+				for _, err1 := range errs {
+					s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+				}
 			}
-		}
+		}()
 	}
 
 	return nil
