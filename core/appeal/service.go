@@ -749,7 +749,7 @@ func (s *Service) AddApprover(ctx context.Context, appealID, approvalID, email s
 	auditData["affected_approver"] = email
 	go func() {
 		ctx := context.WithoutCancel(ctx)
-		if err := s.auditLogger.Log(ctx, AuditKeyAddApprover, approval); err != nil {
+		if err := s.auditLogger.Log(ctx, AuditKeyAddApprover, auditData); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
 	}()
@@ -850,7 +850,7 @@ func (s *Service) DeleteApprover(ctx context.Context, appealID, approvalID, emai
 	auditData["affected_approver"] = email
 	go func() {
 		ctx := context.WithoutCancel(ctx)
-		if err := s.auditLogger.Log(ctx, AuditKeyDeleteApprover, approval); err != nil {
+		if err := s.auditLogger.Log(ctx, AuditKeyDeleteApprover, auditData); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
 	}()
