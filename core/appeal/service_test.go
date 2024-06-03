@@ -719,7 +719,6 @@ func (s *ServiceTestSuite) TestCreate() {
 
 	s.Run("should return appeals on success", func() {
 		h := newServiceTestHelper()
-		defer h.assertExpectations(s.T())
 		resources := []*domain.Resource{
 			{
 				ID:           "1",
@@ -1103,15 +1102,16 @@ func (s *ServiceTestSuite) TestCreate() {
 			Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 
 		actualError := h.service.Create(context.Background(), appeals)
-		time.Sleep(time.Millisecond)
 
 		s.Nil(actualError)
 		s.Equal(expectedResult, appeals)
+
+		time.Sleep(time.Millisecond)
+		h.assertExpectations(s.T())
 	})
 
 	s.Run("should return appeals on success with latest policy", func() {
 		h := newServiceTestHelper()
-		defer h.assertExpectations(s.T())
 		expDate := timeNow.Add(23 * time.Hour)
 
 		resources := []*domain.Resource{
@@ -1568,16 +1568,17 @@ func (s *ServiceTestSuite) TestCreate() {
 			Return(nil).Once()
 
 		actualError := h.service.Create(context.Background(), appeals)
-		time.Sleep(time.Millisecond)
 
 		s.Nil(actualError)
 		s.Equal(expectedResult, appeals)
+
+		time.Sleep(time.Millisecond)
+		h.assertExpectations(s.T())
 	})
 
 	s.Run("additional appeal creation", func() {
 		s.Run("should use the overridding policy", func() {
 			h := newServiceTestHelper()
-			defer h.assertExpectations(s.T())
 			input := &domain.Appeal{
 				ResourceID:    uuid.New().String(),
 				AccountID:     "user@example.com",
@@ -1666,18 +1667,19 @@ func (s *ServiceTestSuite) TestCreate() {
 			h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 
 			err := h.service.Create(context.Background(), []*domain.Appeal{input}, appeal.CreateWithAdditionalAppeal())
-			time.Sleep(time.Millisecond)
 
 			s.NoError(err)
 			s.Equal("test-approval", input.Approvals[0].Name)
 			s.Equal(expectedPermissions, input.Permissions)
+
+			time.Sleep(time.Millisecond)
+			h.assertExpectations(s.T())
 		})
 	})
 }
 
 func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprovalSteps() {
 	h := newServiceTestHelper()
-	defer h.assertExpectations(s.T())
 
 	appeal.TimeNow = func() time.Time {
 		return timeNow
@@ -1943,15 +1945,16 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprov
 	h.mockAuditLogger.EXPECT().Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 
 	actualError := h.service.Create(context.Background(), appeals)
-	time.Sleep(time.Millisecond)
 
 	s.Nil(actualError)
 	s.Equal(expectedResult, appeals)
+
+	time.Sleep(time.Millisecond)
+	h.assertExpectations(s.T())
 }
 
 func (s *ServiceTestSuite) TestCreateAppeal__WithAdditionalAppeals() {
 	h := newServiceTestHelper()
-	defer h.assertExpectations(s.T())
 	providerType := "test-provider-type"
 	providerURN := "test-provider-urn"
 	resourceType := "test-resource-type"
@@ -2140,9 +2143,11 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithAdditionalAppeals() {
 	h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 
 	err := h.service.Create(context.Background(), appealsPayload)
-	time.Sleep(time.Millisecond)
 
 	s.NoError(err)
+
+	time.Sleep(time.Millisecond)
+	h.assertExpectations(s.T())
 }
 
 func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
@@ -2710,7 +2715,6 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 
 	s.Run("should terminate existing active grant if present", func() {
 		h := newServiceTestHelper()
-		defer h.assertExpectations(s.T())
 		action := domain.ApprovalAction{
 			AppealID:     appealID,
 			ApprovalName: "test-approval-step",
@@ -2775,9 +2779,11 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			Return(nil).Once()
 
 		_, actualError := h.service.UpdateApproval(context.Background(), action)
-		time.Sleep(time.Millisecond)
 
 		s.Nil(actualError)
+
+		time.Sleep(time.Millisecond)
+		h.assertExpectations(s.T())
 	})
 
 	s.Run("should return updated appeal on success", func() {
@@ -3134,7 +3140,6 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		for _, tc := range testCases {
 			s.Run(tc.name, func() {
 				h := newServiceTestHelper()
-				defer h.assertExpectations(s.T())
 
 				h.mockRepository.EXPECT().
 					GetByID(h.ctxMatcher, validApprovalActionParam.AppealID).
@@ -3177,10 +3182,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					Return(nil).Once()
 
 				actualResult, actualError := h.service.UpdateApproval(context.Background(), tc.expectedApprovalAction)
-				time.Sleep(time.Millisecond)
 				s.NoError(actualError)
 				tc.expectedResult.Policy = actualResult.Policy
 				s.Equal(tc.expectedResult, actualResult)
+
+				time.Sleep(time.Millisecond)
+				h.assertExpectations(s.T())
 			})
 		}
 	})
@@ -3332,7 +3339,6 @@ func (s *ServiceTestSuite) TestAddApprover() {
 		for _, tc := range testCases {
 			s.Run(tc.name, func() {
 				h := newServiceTestHelper()
-				defer h.assertExpectations(s.T())
 				expectedAppeal := &domain.Appeal{
 					ID:     appealID,
 					Status: domain.AppealStatusPending,
@@ -3384,9 +3390,11 @@ func (s *ServiceTestSuite) TestAddApprover() {
 
 				actualAppeal, actualError := h.service.AddApprover(context.Background(), appealID, approvalID, newApprover)
 
-				time.Sleep(time.Millisecond)
 				s.NoError(actualError)
 				s.Equal(expectedApproval, actualAppeal.Approvals[0])
+
+				time.Sleep(time.Millisecond)
+				h.assertExpectations(s.T())
 			})
 		}
 	})
