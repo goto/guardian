@@ -13,6 +13,7 @@ import (
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/core/approval"
 	"github.com/goto/guardian/core/comment"
+	"github.com/goto/guardian/core/event"
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/core/policy"
 	"github.com/goto/guardian/core/provider"
@@ -105,6 +106,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 	approvalRepository := postgres.NewApprovalRepository(store.DB())
 	grantRepository := postgres.NewGrantRepository(store.DB())
 	commentRepository := postgres.NewCommentRepository(store.DB())
+	auditLogRepository := postgres.NewAuditLogRepository(store.DB())
 
 	providerClients := []provider.Client{
 		bigquery.NewProvider(domain.ProviderTypeBigQuery, deps.Crypto, deps.Logger),
@@ -169,6 +171,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		Logger:      deps.Logger,
 		AuditLogger: auditLogger,
 	})
+	eventService := event.NewService(auditLogRepository, deps.Logger)
 	appealService := appeal.NewService(appeal.ServiceDeps{
 		Repository:      appealRepository,
 		ResourceService: resourceService,
@@ -177,6 +180,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		PolicyService:   policyService,
 		GrantService:    grantService,
 		CommentService:  commentService,
+		EventService:    eventService,
 		IAMManager:      iamManager,
 		Notifier:        deps.Notifier,
 		Validator:       deps.Validator,

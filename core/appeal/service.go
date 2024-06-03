@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/core/comment"
+	"github.com/goto/guardian/core/event"
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/core/policy"
 	"github.com/goto/guardian/domain"
@@ -26,6 +27,7 @@ import (
 
 const (
 	AuditKeyBulkInsert     = "appeal.bulkInsert"
+	AuditKeyUpdate         = "appeal.update"
 	AuditKeyCancel         = "appeal.cancel"
 	AuditKeyApprove        = "appeal.approve"
 	AuditKeyReject         = "appeal.reject"
@@ -121,6 +123,7 @@ type ServiceDeps struct {
 	PolicyService   policyService
 	GrantService    grantService
 	CommentService  *comment.Service
+	EventService    *event.Service
 	IAMManager      iamManager
 
 	Notifier    notifier
@@ -138,6 +141,7 @@ type Service struct {
 	policyService   policyService
 	grantService    grantService
 	commentService  *comment.Service
+	eventService    *event.Service
 	iam             domain.IAMManager
 
 	notifier    notifier
@@ -158,6 +162,7 @@ func NewService(deps ServiceDeps) *Service {
 		deps.PolicyService,
 		deps.GrantService,
 		deps.CommentService,
+		deps.EventService,
 		deps.IAMManager,
 
 		deps.Notifier,
@@ -728,7 +733,12 @@ func (s *Service) AddApprover(ctx context.Context, appealID, approvalID, email s
 	}
 	approval.Approvers = append(approval.Approvers, email)
 
-	if err := s.auditLogger.Log(ctx, AuditKeyAddApprover, approval); err != nil {
+	auditData, err := utils.StructToMap(approval)
+	if err != nil {
+		return nil, fmt.Errorf("converting approval to map: %w", err)
+	}
+	auditData["affected_approver"] = email
+	if err := s.auditLogger.Log(ctx, AuditKeyAddApprover, auditData); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
 
@@ -821,7 +831,12 @@ func (s *Service) DeleteApprover(ctx context.Context, appealID, approvalID, emai
 	}
 	approval.Approvers = newApprovers
 
-	if err := s.auditLogger.Log(ctx, AuditKeyDeleteApprover, approval); err != nil {
+	auditData, err := utils.StructToMap(approval)
+	if err != nil {
+		return nil, fmt.Errorf("converting approval to map: %w", err)
+	}
+	auditData["affected_approver"] = email
+	if err := s.auditLogger.Log(ctx, AuditKeyDeleteApprover, auditData); err != nil {
 		s.logger.Error(ctx, "failed to record audit log", "error", err)
 	}
 

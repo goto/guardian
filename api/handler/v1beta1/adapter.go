@@ -942,6 +942,28 @@ func (a *adapter) fromConditionProto(c *guardianv1beta1.Condition) *domain.Condi
 	}
 }
 
+func (a *adapter) ToAppealActivityProto(e *domain.Event) (*guardianv1beta1.AppealActivity, error) {
+	if e == nil {
+		return nil, nil
+	}
+
+	activityProto := &guardianv1beta1.AppealActivity{
+		AppealId:  e.ParentID,
+		Timestamp: timestamppb.New(e.Timestamp),
+		Type:      e.Type,
+		Actor:     e.Actor,
+	}
+
+	if e.Data != nil {
+		data, err := structpb.NewStruct(e.Data)
+		if err != nil {
+			return nil, err
+		}
+		activityProto.Data = data
+	}
+	return activityProto, nil
+}
+
 func (a *adapter) toConditionProto(c *domain.Condition) (*guardianv1beta1.Condition, error) {
 	if c == nil {
 		return nil, nil

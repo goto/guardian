@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"embed"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/goto/guardian/internal/store"
+	auditrepo "github.com/goto/salt/audit/repositories"
 	pg "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -78,6 +80,17 @@ func (s *Store) DB() *gorm.DB {
 }
 
 func (s *Store) Migrate() error {
+	// audit logs migrations
+	db, err := s.db.DB()
+	if err != nil {
+		return err
+	}
+	auditRepo := auditrepo.NewPostgresRepository(db)
+	if err := auditRepo.Init(context.TODO()); err != nil {
+		return err
+	}
+
+	// guardian migrations
 	iofsDriver, err := iofs.New(fs, "migrations")
 	if err != nil {
 		return err

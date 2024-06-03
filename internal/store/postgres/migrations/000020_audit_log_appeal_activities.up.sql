@@ -1,0 +1,1 @@
+CREATE INDEX CONCURRENTLY IF NOT EXISTS audit_logs_appeal_activities ON audit_logs (action, (data ->> 'appeal_id'));
