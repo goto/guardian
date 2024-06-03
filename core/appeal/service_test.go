@@ -1569,7 +1569,6 @@ func (s *ServiceTestSuite) TestCreate() {
 			Return(nil).Once()
 
 		actualError := h.service.Create(context.Background(), appeals)
-		time.Sleep(time.Millisecond)
 
 		s.Nil(actualError)
 		s.Equal(expectedResult, appeals)
@@ -1669,7 +1668,6 @@ func (s *ServiceTestSuite) TestCreate() {
 			h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 
 			err := h.service.Create(context.Background(), []*domain.Appeal{input}, appeal.CreateWithAdditionalAppeal())
-			time.Sleep(time.Millisecond)
 
 			s.NoError(err)
 			s.Equal("test-approval", input.Approvals[0].Name)
