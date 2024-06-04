@@ -271,6 +271,49 @@ func (_c *Repository_Update_Call) RunAndReturn(run func(context.Context, *domain
 	return _c
 }
 
+// UpdateByID provides a mock function with given fields: _a0, _a1
+func (_m *Repository) UpdateByID(_a0 context.Context, _a1 *domain.Appeal) error {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.Appeal) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Repository_UpdateByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateByID'
+type Repository_UpdateByID_Call struct {
+	*mock.Call
+}
+
+// UpdateByID is a helper method to define mock.On call
+//   - _a0 context.Context
+//   - _a1 *domain.Appeal
+func (_e *Repository_Expecter) UpdateByID(_a0 interface{}, _a1 interface{}) *Repository_UpdateByID_Call {
+	return &Repository_UpdateByID_Call{Call: _e.mock.On("UpdateByID", _a0, _a1)}
+}
+
+func (_c *Repository_UpdateByID_Call) Run(run func(_a0 context.Context, _a1 *domain.Appeal)) *Repository_UpdateByID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*domain.Appeal))
+	})
+	return _c
+}
+
+func (_c *Repository_UpdateByID_Call) Return(_a0 error) *Repository_UpdateByID_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Repository_UpdateByID_Call) RunAndReturn(run func(context.Context, *domain.Appeal) error) *Repository_UpdateByID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewRepository creates a new instance of Repository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewRepository(t interface {

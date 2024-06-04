@@ -34,6 +34,7 @@ type ProtoAdapter interface {
 
 	ToAppealProto(*domain.Appeal) (*guardianv1beta1.Appeal, error)
 	FromCreateAppealProto(*guardianv1beta1.CreateAppealRequest, string) ([]*domain.Appeal, error)
+	FromPatchAppealProto(*guardianv1beta1.PatchAppealRequest, string) (*domain.Appeal, error)
 	ToApprovalProto(*domain.Approval) (*guardianv1beta1.Approval, error)
 
 	ToGrantProto(*domain.Grant) (*guardianv1beta1.Grant, error)
@@ -94,6 +95,7 @@ type appealService interface {
 	GetByID(context.Context, string) (*domain.Appeal, error)
 	Find(context.Context, *domain.ListAppealsFilter) ([]*domain.Appeal, error)
 	Create(context.Context, []*domain.Appeal, ...appeal.CreateAppealOption) error
+	Patch(context.Context, *domain.Appeal) error
 	Cancel(context.Context, string) (*domain.Appeal, error)
 	AddApprover(ctx context.Context, appealID, approvalID, email string) (*domain.Appeal, error)
 	DeleteApprover(ctx context.Context, appealID, approvalID, email string) (*domain.Appeal, error)

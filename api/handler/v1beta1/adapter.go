@@ -634,6 +634,7 @@ func (a *adapter) ToAppealProto(appeal *domain.Appeal) (*guardianv1beta1.Appeal,
 		Options:       a.toAppealOptionsProto(appeal.Options),
 		Labels:        appeal.Labels,
 		Description:   appeal.Description,
+		Revision:      uint32(appeal.Revision),
 	}
 
 	if appeal.Resource != nil {
@@ -720,18 +721,46 @@ func (a *adapter) FromCreateAppealProto(ca *guardianv1beta1.CreateAppealRequest,
 	return appeals, nil
 }
 
+func (a *adapter) FromPatchAppealProto(ua *guardianv1beta1.PatchAppealRequest, authenticatedUser string) (*domain.Appeal, error) {
+	appeal := &domain.Appeal{
+		ID:          ua.GetId(),
+		AccountID:   ua.GetAccountId(),
+		AccountType: ua.GetAccountType(),
+		CreatedBy:   authenticatedUser,
+		ResourceID:  ua.GetResourceId(),
+		Role:        ua.GetRole(),
+		Description: ua.GetDescription(),
+	}
+
+	if ua.GetOptions() != nil {
+		var options *domain.AppealOptions
+		if err := mapstructure.Decode(ua.GetOptions().AsMap(), &options); err != nil {
+			return nil, err
+		}
+		appeal.Options = options
+	}
+
+	if ua.GetDetails() != nil {
+		appeal.Details = ua.GetDetails().AsMap()
+	}
+
+	return appeal, nil
+}
+
 func (a *adapter) ToApprovalProto(approval *domain.Approval) (*guardianv1beta1.Approval, error) {
 	approvalProto := &guardianv1beta1.Approval{
-		Id:            approval.ID,
-		Name:          approval.Name,
-		AppealId:      approval.AppealID,
-		Status:        approval.Status,
-		Reason:        approval.Reason,
-		PolicyId:      approval.PolicyID,
-		PolicyVersion: uint32(approval.PolicyVersion),
-		Approvers:     approval.Approvers,
-		CreatedAt:     timestamppb.New(approval.CreatedAt),
-		UpdatedAt:     timestamppb.New(approval.UpdatedAt),
+		Id:             approval.ID,
+		Name:           approval.Name,
+		AppealId:       approval.AppealID,
+		Status:         approval.Status,
+		Reason:         approval.Reason,
+		PolicyId:       approval.PolicyID,
+		PolicyVersion:  uint32(approval.PolicyVersion),
+		Approvers:      approval.Approvers,
+		CreatedAt:      timestamppb.New(approval.CreatedAt),
+		UpdatedAt:      timestamppb.New(approval.UpdatedAt),
+		IsStale:        approval.IsStale,
+		AppealRevision: uint32(approval.AppealRevision),
 	}
 
 	if approval.Appeal != nil {

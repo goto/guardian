@@ -6,6 +6,7 @@ import (
 
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/appeal"
+	"github.com/goto/guardian/core/approval"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"golang.org/x/sync/errgroup"
@@ -143,6 +144,75 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 
 	return &guardianv1beta1.CreateAppealResponse{
 		Appeals: appealProtos,
+	}, nil
+}
+
+func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.PatchAppealRequest) (*guardianv1beta1.PatchAppealResponse, error) {
+	authenticatedUser, err := s.getUser(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+
+	if req.Id == "" {
+		return nil, status.Error(codes.FailedPrecondition, "appeal id is required")
+	}
+
+	a, err := s.adapter.FromPatchAppealProto(req, authenticatedUser)
+	if err != nil {
+		return nil, s.internalError(ctx, "cannot deserialize payload: %v", err)
+	}
+
+	if err := s.appealService.Patch(ctx, a); err != nil {
+		switch {
+		case errors.Is(err, provider.ErrAppealValidationInvalidAccountType),
+			errors.Is(err, provider.ErrAppealValidationInvalidRole),
+			errors.Is(err, provider.ErrAppealValidationDurationNotSpecified),
+			errors.Is(err, provider.ErrAppealValidationEmptyDuration),
+			errors.Is(err, provider.ErrAppealValidationInvalidDurationValue),
+			errors.Is(err, provider.ErrAppealValidationMissingRequiredParameter),
+			errors.Is(err, provider.ErrAppealValidationMissingRequiredQuestion),
+			errors.Is(err, appeal.ErrDurationNotAllowed),
+			errors.Is(err, appeal.ErrNoChanges),
+			errors.Is(err, appeal.ErrCannotCreateAppealForOtherUser):
+			return nil, s.invalidArgument(ctx, err.Error())
+		case errors.Is(err, appeal.ErrAppealDuplicate):
+			s.logger.Error(ctx, err.Error())
+			return nil, status.Errorf(codes.AlreadyExists, err.Error())
+		case errors.Is(err, appeal.ErrResourceNotFound),
+			errors.Is(err, appeal.ErrResourceDeleted),
+			errors.Is(err, appeal.ErrProviderNotFound),
+			errors.Is(err, appeal.ErrPolicyNotFound),
+			errors.Is(err, appeal.ErrInvalidResourceType),
+			errors.Is(err, appeal.ErrAppealInvalidExtensionDuration),
+			errors.Is(err, appeal.ErrGrantNotEligibleForExtension),
+			errors.Is(err, approval.ErrApprovalNotFound),
+			errors.Is(err, approval.ErrApprovalIDEmptyParam),
+			errors.Is(err, approval.ErrAppealIDEmptyParam),
+			errors.Is(err, domain.ErrFailedToGetApprovers),
+			errors.Is(err, domain.ErrApproversNotFound),
+			errors.Is(err, domain.ErrUnexpectedApproverType),
+			errors.Is(err, domain.ErrInvalidApproverValue):
+			return nil, s.failedPrecondition(ctx, err.Error())
+		default:
+			return nil, s.internalError(ctx, "failed to update appeal: %v", err)
+		}
+	}
+
+	responseAppeal, err := s.appealService.GetByID(ctx, req.Id)
+	if err != nil {
+		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
+			return nil, s.invalidArgument(ctx, err.Error())
+		}
+		return nil, s.internalError(ctx, "failed to retrieve appeal: %v", err)
+	}
+
+	appealProto, err := s.adapter.ToAppealProto(responseAppeal)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to parse appeal: %v", err)
+	}
+
+	return &guardianv1beta1.PatchAppealResponse{
+		Appeal: appealProto,
 	}, nil
 }
 
