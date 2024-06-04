@@ -119,9 +119,11 @@ func (s *Service) Create(ctx context.Context, p *domain.Policy) error {
 			return err
 		}
 
-		if err := s.auditLogger.Log(ctx, AuditKeyPolicyCreate, p); err != nil {
-			s.logger.Error(ctx, "failed to record audit log", "error", err)
-		}
+		go func() {
+			if err := s.auditLogger.Log(ctx, AuditKeyPolicyCreate, p); err != nil {
+				s.logger.Error(ctx, "failed to record audit log", "error", err)
+			}
+		}()
 	}
 
 	if p.HasIAMConfig() {
@@ -229,9 +231,11 @@ func (s *Service) Update(ctx context.Context, p *domain.Policy) error {
 			return err
 		}
 
-		if err := s.auditLogger.Log(ctx, AuditKeyPolicyUpdate, p); err != nil {
-			s.logger.Error(ctx, "failed to record audit log", "error", err)
-		}
+		go func() {
+			if err := s.auditLogger.Log(ctx, AuditKeyPolicyUpdate, p); err != nil {
+				s.logger.Error(ctx, "failed to record audit log", "error", err)
+			}
+		}()
 	}
 
 	if p.HasIAMConfig() {

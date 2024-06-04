@@ -142,9 +142,12 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 			return err
 		}
 
-		if err := s.auditLogger.Log(ctx, AuditKeyCreate, p); err != nil {
-			s.logger.Error(ctx, "failed to record audit log", "error", err)
-		}
+		go func() {
+			ctx := context.WithoutCancel(ctx)
+			if err := s.auditLogger.Log(ctx, AuditKeyCreate, p); err != nil {
+				s.logger.Error(ctx, "failed to record audit log", "error", err)
+			}
+		}()
 	} else {
 		s.logger.Info(ctx, "dry run enabled, skipping provider creation", "provider_urn", p.URN)
 	}
@@ -223,9 +226,12 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 			return err
 		}
 
-		if err := s.auditLogger.Log(ctx, AuditKeyUpdate, p); err != nil {
-			s.logger.Error(ctx, "failed to record audit log", "error", err)
-		}
+		go func() {
+			ctx := context.WithoutCancel(ctx)
+			if err := s.auditLogger.Log(ctx, AuditKeyUpdate, p); err != nil {
+				s.logger.Error(ctx, "failed to record audit log", "error", err)
+			}
+		}()
 	} else {
 		s.logger.Info(ctx, "dry run enabled, skipping provider update", "provider_urn", p.URN)
 	}
@@ -470,9 +476,12 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	}
 	s.logger.Info(ctx, "provider deleted", "provider", id)
 
-	if err := s.auditLogger.Log(ctx, AuditKeyDelete, p); err != nil {
-		s.logger.Error(ctx, "failed to record audit log", "error", err)
-	}
+	go func() {
+		ctx := context.WithoutCancel(ctx)
+		if err := s.auditLogger.Log(ctx, AuditKeyDelete, p); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
 
 	return nil
 }

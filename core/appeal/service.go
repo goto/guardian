@@ -376,9 +376,12 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		return fmt.Errorf("inserting appeals into db: %w", err)
 	}
 
-	if err := s.auditLogger.Log(ctx, AuditKeyBulkInsert, appeals); err != nil {
-		s.logger.Error(ctx, "failed to record audit log", "error", err)
-	}
+	go func() {
+		ctx := context.WithoutCancel(ctx)
+		if err := s.auditLogger.Log(ctx, AuditKeyBulkInsert, appeals); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
 
 	for _, a := range appeals {
 		if a.Status == domain.AppealStatusRejected {
@@ -647,9 +650,12 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			auditKey = AuditKeyApprove
 		}
 		if auditKey != "" {
-			if err := s.auditLogger.Log(ctx, auditKey, approvalAction); err != nil {
-				s.logger.Error(ctx, "failed to record audit log", "error", err)
-			}
+			go func() {
+				ctx := context.WithoutCancel(ctx)
+				if err := s.auditLogger.Log(ctx, auditKey, approvalAction); err != nil {
+					s.logger.Error(ctx, "failed to record audit log", "error", err)
+				}
+			}()
 		}
 
 		return appeal, nil
@@ -687,11 +693,14 @@ func (s *Service) Cancel(ctx context.Context, id string) (*domain.Appeal, error)
 		return nil, err
 	}
 
-	if err := s.auditLogger.Log(ctx, AuditKeyCancel, map[string]interface{}{
-		"appeal_id": id,
-	}); err != nil {
-		s.logger.Error(ctx, "failed to record audit log", "error", err)
-	}
+	go func() {
+		ctx := context.WithoutCancel(ctx)
+		if err := s.auditLogger.Log(ctx, AuditKeyCancel, map[string]interface{}{
+			"appeal_id": id,
+		}); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
 
 	return appeal, nil
 }
@@ -738,9 +747,12 @@ func (s *Service) AddApprover(ctx context.Context, appealID, approvalID, email s
 		return nil, fmt.Errorf("converting approval to map: %w", err)
 	}
 	auditData["affected_approver"] = email
-	if err := s.auditLogger.Log(ctx, AuditKeyAddApprover, auditData); err != nil {
-		s.logger.Error(ctx, "failed to record audit log", "error", err)
-	}
+	go func() {
+		ctx := context.WithoutCancel(ctx)
+		if err := s.auditLogger.Log(ctx, AuditKeyAddApprover, auditData); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
 
 	duration := domain.PermanentDurationLabel
 	if !appeal.IsDurationEmpty() {
@@ -836,9 +848,12 @@ func (s *Service) DeleteApprover(ctx context.Context, appealID, approvalID, emai
 		return nil, fmt.Errorf("converting approval to map: %w", err)
 	}
 	auditData["affected_approver"] = email
-	if err := s.auditLogger.Log(ctx, AuditKeyDeleteApprover, auditData); err != nil {
-		s.logger.Error(ctx, "failed to record audit log", "error", err)
-	}
+	go func() {
+		ctx := context.WithoutCancel(ctx)
+		if err := s.auditLogger.Log(ctx, AuditKeyDeleteApprover, auditData); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
 
 	return appeal, nil
 }
