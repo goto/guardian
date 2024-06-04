@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	AuditKeyRevoke = "grant.revoke"
-	AuditKeyUpdate = "grant.update"
+	AuditKeyRevoke  = "grant.revoke"
+	AuditKeyUpdate  = "grant.update"
+	AuditKeyRestore = "grant.restore"
 )
 
 //go:generate mockery --name=repository --exported --with-expecter
@@ -33,6 +34,7 @@ type repository interface {
 //go:generate mockery --name=providerService --exported --with-expecter
 type providerService interface {
 	GetByID(context.Context, string) (*domain.Provider, error)
+	GrantAccess(context.Context, domain.Grant) error
 	RevokeAccess(context.Context, domain.Grant) error
 	ListAccess(context.Context, domain.Provider, []*domain.Resource) (domain.MapResourceAccess, error)
 	ListActivities(context.Context, domain.Provider, domain.ListActivitiesFilter) ([]*domain.Activity, error)
@@ -257,6 +259,43 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 	go func() {
 		ctx := context.WithoutCancel(ctx)
 		if err := s.auditLogger.Log(ctx, AuditKeyRevoke, map[string]interface{}{
+			"grant_id": id,
+			"reason":   reason,
+		}); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
+
+	return grant, nil
+}
+
+func (s *Service) Restore(ctx context.Context, id, actor, reason string) (*domain.Grant, error) {
+	originalGrant, err := s.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("getting grant details: %w", err)
+	}
+
+	grant := &domain.Grant{}
+	*grant = *originalGrant // copy values
+
+	if err := grant.Restore(actor, reason); err != nil {
+		return nil, err
+	}
+
+	if err := s.repo.Update(ctx, grant); err != nil {
+		return nil, fmt.Errorf("updating grant record in db: %w", err)
+	}
+
+	if err := s.providerService.GrantAccess(ctx, *grant); err != nil {
+		if err := s.repo.Update(ctx, originalGrant); err != nil {
+			return nil, fmt.Errorf("failed to rollback grant record after restore failed: %w", err)
+		}
+		return nil, fmt.Errorf("granting access in provider: %w", err)
+	}
+
+	go func() {
+		ctx := context.WithoutCancel(ctx)
+		if err := s.auditLogger.Log(ctx, AuditKeyRestore, map[string]interface{}{
 			"grant_id": id,
 			"reason":   reason,
 		}); err != nil {

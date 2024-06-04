@@ -61,6 +61,7 @@ type GuardianServiceClient interface {
 	GetGrant(ctx context.Context, in *GetGrantRequest, opts ...grpc.CallOption) (*GetGrantResponse, error)
 	UpdateGrant(ctx context.Context, in *UpdateGrantRequest, opts ...grpc.CallOption) (*UpdateGrantResponse, error)
 	RevokeGrant(ctx context.Context, in *RevokeGrantRequest, opts ...grpc.CallOption) (*RevokeGrantResponse, error)
+	RestoreGrant(ctx context.Context, in *RestoreGrantRequest, opts ...grpc.CallOption) (*RestoreGrantResponse, error)
 	RevokeGrants(ctx context.Context, in *RevokeGrantsRequest, opts ...grpc.CallOption) (*RevokeGrantsResponse, error)
 	ImportGrantsFromProvider(ctx context.Context, in *ImportGrantsFromProviderRequest, opts ...grpc.CallOption) (*ImportGrantsFromProviderResponse, error)
 }
@@ -424,6 +425,15 @@ func (c *guardianServiceClient) RevokeGrant(ctx context.Context, in *RevokeGrant
 	return out, nil
 }
 
+func (c *guardianServiceClient) RestoreGrant(ctx context.Context, in *RestoreGrantRequest, opts ...grpc.CallOption) (*RestoreGrantResponse, error) {
+	out := new(RestoreGrantResponse)
+	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/RestoreGrant", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *guardianServiceClient) RevokeGrants(ctx context.Context, in *RevokeGrantsRequest, opts ...grpc.CallOption) (*RevokeGrantsResponse, error) {
 	out := new(RevokeGrantsResponse)
 	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/RevokeGrants", in, out, opts...)
@@ -485,6 +495,7 @@ type GuardianServiceServer interface {
 	GetGrant(context.Context, *GetGrantRequest) (*GetGrantResponse, error)
 	UpdateGrant(context.Context, *UpdateGrantRequest) (*UpdateGrantResponse, error)
 	RevokeGrant(context.Context, *RevokeGrantRequest) (*RevokeGrantResponse, error)
+	RestoreGrant(context.Context, *RestoreGrantRequest) (*RestoreGrantResponse, error)
 	RevokeGrants(context.Context, *RevokeGrantsRequest) (*RevokeGrantsResponse, error)
 	ImportGrantsFromProvider(context.Context, *ImportGrantsFromProviderRequest) (*ImportGrantsFromProviderResponse, error)
 	mustEmbedUnimplementedGuardianServiceServer()
@@ -610,6 +621,9 @@ func (UnimplementedGuardianServiceServer) UpdateGrant(context.Context, *UpdateGr
 }
 func (UnimplementedGuardianServiceServer) RevokeGrant(context.Context, *RevokeGrantRequest) (*RevokeGrantResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RevokeGrant not implemented")
+}
+func (UnimplementedGuardianServiceServer) RestoreGrant(context.Context, *RestoreGrantRequest) (*RestoreGrantResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RestoreGrant not implemented")
 }
 func (UnimplementedGuardianServiceServer) RevokeGrants(context.Context, *RevokeGrantsRequest) (*RevokeGrantsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RevokeGrants not implemented")
@@ -1332,6 +1346,24 @@ func _GuardianService_RevokeGrant_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GuardianService_RestoreGrant_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RestoreGrantRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuardianServiceServer).RestoreGrant(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gotocompany.guardian.v1beta1.GuardianService/RestoreGrant",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuardianServiceServer).RestoreGrant(ctx, req.(*RestoreGrantRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _GuardianService_RevokeGrants_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RevokeGrantsRequest)
 	if err := dec(in); err != nil {
@@ -1530,6 +1562,10 @@ var GuardianService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RevokeGrant",
 			Handler:    _GuardianService_RevokeGrant_Handler,
+		},
+		{
+			MethodName: "RestoreGrant",
+			Handler:    _GuardianService_RestoreGrant_Handler,
 		},
 		{
 			MethodName: "RevokeGrants",

@@ -354,6 +354,63 @@ func (_c *GrantService_ListUserRoles_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
+// Restore provides a mock function with given fields: ctx, id, actor, reason
+func (_m *GrantService) Restore(ctx context.Context, id string, actor string, reason string) (*domain.Grant, error) {
+	ret := _m.Called(ctx, id, actor, reason)
+
+	var r0 *domain.Grant
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (*domain.Grant, error)); ok {
+		return rf(ctx, id, actor, reason)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *domain.Grant); ok {
+		r0 = rf(ctx, id, actor, reason)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Grant)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, id, actor, reason)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GrantService_Restore_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Restore'
+type GrantService_Restore_Call struct {
+	*mock.Call
+}
+
+// Restore is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id string
+//   - actor string
+//   - reason string
+func (_e *GrantService_Expecter) Restore(ctx interface{}, id interface{}, actor interface{}, reason interface{}) *GrantService_Restore_Call {
+	return &GrantService_Restore_Call{Call: _e.mock.On("Restore", ctx, id, actor, reason)}
+}
+
+func (_c *GrantService_Restore_Call) Run(run func(ctx context.Context, id string, actor string, reason string)) *GrantService_Restore_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *GrantService_Restore_Call) Return(_a0 *domain.Grant, _a1 error) *GrantService_Restore_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *GrantService_Restore_Call) RunAndReturn(run func(context.Context, string, string, string) (*domain.Grant, error)) *GrantService_Restore_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Revoke provides a mock function with given fields: ctx, id, actor, reason, opts
 func (_m *GrantService) Revoke(ctx context.Context, id string, actor string, reason string, opts ...grant.Option) (*domain.Grant, error) {
 	_va := make([]interface{}, len(opts))

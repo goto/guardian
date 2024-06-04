@@ -29,6 +29,9 @@ type Grant struct {
 	RevokedBy               string
 	RevokedAt               time.Time
 	RevokeReason            string
+	RestoredBy              sql.NullString
+	RestoredAt              sql.NullTime
+	RestoreReason           sql.NullString
 	Owner                   string
 	CreatedAt               time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt               time.Time      `gorm:"autoUpdateTime"`
@@ -55,11 +58,9 @@ func (m *Grant) FromDomain(g domain.Grant) error {
 		m.Resource = r
 	}
 
-	if g.AppealID != "" {
-		m.AppealID = sql.NullString{
-			String: g.AppealID,
-			Valid:  true,
-		}
+	m.AppealID = sql.NullString{
+		String: g.AppealID,
+		Valid:  g.AppealID != "",
 	}
 
 	if g.Appeal != nil {
@@ -79,15 +80,30 @@ func (m *Grant) FromDomain(g domain.Grant) error {
 			Valid: true,
 		}
 	}
-	if g.ExpirationDateReason != "" {
-		m.ExpirationDateReason = sql.NullString{
-			String: g.ExpirationDateReason,
-			Valid:  true,
-		}
+	m.ExpirationDateReason = sql.NullString{
+		String: g.ExpirationDateReason,
+		Valid:  g.ExpirationDateReason != "",
 	}
 
 	if g.RevokedAt != nil {
 		m.RevokedAt = *g.RevokedAt
+	}
+
+	m.RestoreReason = sql.NullString{
+		String: g.RestoreReason,
+		Valid:  g.RestoreReason != "",
+	}
+	m.RestoredBy = sql.NullString{
+		String: g.RestoredBy,
+		Valid:  g.RestoredBy != "",
+	}
+
+	if g.RestoredAt != nil {
+		m.RestoredAt = sql.NullTime{
+			Time:  *g.RestoredAt,
+			Valid: true,
+		}
+
 	}
 
 	m.Status = string(g.Status)
@@ -130,9 +146,7 @@ func (m Grant) ToDomain() (*domain.Grant, error) {
 		UpdatedAt:        m.UpdatedAt,
 	}
 
-	if m.AppealID.Valid {
-		grant.AppealID = m.AppealID.String
-	}
+	grant.AppealID = m.AppealID.String
 
 	if m.Resource != nil {
 		r, err := m.Resource.ToDomain()
@@ -156,11 +170,14 @@ func (m Grant) ToDomain() (*domain.Grant, error) {
 	if m.RequestedExpirationDate.Valid {
 		grant.RequestedExpirationDate = &m.RequestedExpirationDate.Time
 	}
-	if m.ExpirationDateReason.Valid {
-		grant.ExpirationDateReason = m.ExpirationDateReason.String
-	}
+	grant.ExpirationDateReason = m.ExpirationDateReason.String
 	if !m.RevokedAt.IsZero() {
 		grant.RevokedAt = &m.RevokedAt
+	}
+	grant.RestoreReason = m.RestoreReason.String
+	grant.RestoredBy = m.RestoredBy.String
+	if m.RestoredAt.Valid {
+		grant.RestoredAt = &m.RestoredAt.Time
 	}
 
 	return grant, nil

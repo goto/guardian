@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -17,10 +18,14 @@ const (
 	GrantSourceAppeal GrantSource = "appeal"
 	GrantSourceImport GrantSource = "import"
 
-	GrantExpirationReasonDormant = "grant/access hasn't been used for a while"
+	GrantExpirationReasonDormant  = "grant/access hasn't been used for a while"
+	GrantExpirationReasonRestored = "grant restored with new duration"
 )
 
-var ErrDuplicateActiveGrant = errors.New("grant already exists")
+var (
+	ErrDuplicateActiveGrant      = errors.New("grant already exists")
+	ErrInvalidGrantRestoreParams = errors.New("invalid grant restore parameters")
+)
 
 type Grant struct {
 	ID                      string      `json:"id" yaml:"id"`
@@ -40,6 +45,9 @@ type Grant struct {
 	RevokedBy               string      `json:"revoked_by,omitempty" yaml:"revoked_by,omitempty"`
 	RevokedAt               *time.Time  `json:"revoked_at,omitempty" yaml:"revoked_at,omitempty"`
 	RevokeReason            string      `json:"revoke_reason,omitempty" yaml:"revoke_reason,omitempty"`
+	RestoredBy              string      `json:"restored_by,omitempty" yaml:"restored_by,omitempty"`
+	RestoredAt              *time.Time  `json:"restored_at,omitempty" yaml:"restored_at,omitempty"`
+	RestoreReason           string      `json:"restore_reason,omitempty" yaml:"restore_reason,omitempty"`
 	CreatedBy               string      `json:"created_by" yaml:"created_by"` // Deprecated: use Owner instead
 	Owner                   string      `json:"owner" yaml:"owner"`
 	CreatedAt               time.Time   `json:"created_at" yaml:"created_at"`
@@ -78,6 +86,34 @@ func (g *Grant) Revoke(actor, reason string) error {
 	now := time.Now()
 	g.RevokedAt = &now
 	return nil
+}
+
+func (g *Grant) Restore(actor, reason string) error {
+	if actor == "" {
+		return fmt.Errorf("%w: actor is required", ErrInvalidGrantRestoreParams)
+	}
+	if reason == "" {
+		return fmt.Errorf("%w: reason is required", ErrInvalidGrantRestoreParams)
+	}
+
+	if g.isExpired() {
+		return fmt.Errorf("%w: grant is already expired at: %s", ErrInvalidGrantRestoreParams, g.ExpirationDate)
+	}
+
+	g.Status = GrantStatusActive
+	g.StatusInProvider = GrantStatusActive
+
+	now := time.Now()
+	g.RestoredAt = &now
+	g.RestoredBy = actor
+	g.RestoreReason = reason
+	g.UpdatedAt = now
+
+	return nil
+}
+
+func (g *Grant) isExpired() bool {
+	return !g.IsPermanent && g.ExpirationDate != nil && time.Now().After(*g.ExpirationDate)
 }
 
 func (g *Grant) GetPermissions() []string {

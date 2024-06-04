@@ -177,6 +177,34 @@ func (s *GRPCServer) RevokeGrants(ctx context.Context, req *guardianv1beta1.Revo
 	}, nil
 }
 
+func (s *GRPCServer) RestoreGrant(ctx context.Context, req *guardianv1beta1.RestoreGrantRequest) (*guardianv1beta1.RestoreGrantResponse, error) {
+	actor, err := s.getUser(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, "failed to get metadata: actor")
+	}
+
+	g, err := s.grantService.Restore(ctx, req.GetId(), actor, req.GetReason())
+	if err != nil {
+		switch {
+		case errors.Is(err, grant.ErrGrantNotFound):
+			return nil, status.Error(codes.NotFound, err.Error())
+		case errors.Is(err, domain.ErrInvalidGrantRestoreParams):
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		default:
+			return nil, s.internalError(ctx, "failed to restore grant: %v", err)
+		}
+	}
+
+	grantProto, err := s.adapter.ToGrantProto(g)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to parse grant: %v", err)
+	}
+
+	return &guardianv1beta1.RestoreGrantResponse{
+		Grant: grantProto,
+	}, nil
+}
+
 func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFilter) ([]*guardianv1beta1.Grant, int64, error) {
 	eg, ctx := errgroup.WithContext(ctx)
 	var grants []domain.Grant

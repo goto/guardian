@@ -15,6 +15,7 @@ import (
 	"github.com/goto/guardian/core/grant/mocks"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -595,6 +596,216 @@ func (s *ServiceTestSuite) TestPrepare() {
 				}
 			})
 		}
+	})
+}
+
+func (s *ServiceTestSuite) TestRestore() {
+	s.Run("should return grant details on success", func() {
+		tomorrow := time.Now().Add(24 * time.Hour)
+		testCases := []struct {
+			name         string
+			grantDetails *domain.Grant
+		}{
+			{
+				name: "inactive permanent grant",
+				grantDetails: &domain.Grant{
+					Status:         domain.GrantStatusInactive,
+					IsPermanent:    true,
+					ExpirationDate: nil,
+				},
+			},
+			{
+				name: "active permanent grant",
+				grantDetails: &domain.Grant{
+					Status:         domain.GrantStatusActive,
+					IsPermanent:    true,
+					ExpirationDate: nil,
+				},
+			},
+			{
+				name: "active temporary grant",
+				grantDetails: &domain.Grant{
+					Status:         domain.GrantStatusActive,
+					IsPermanent:    false,
+					ExpirationDate: &tomorrow,
+				},
+			},
+		}
+
+		for _, tc := range testCases {
+			s.Run(tc.name, func() {
+				s.setup()
+
+				id := "test-id"
+				tc.grantDetails.ID = id
+				actor := "user@example.com"
+				reason := "test reason"
+
+				now := time.Now()
+
+				s.mockRepository.EXPECT().
+					GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), id).
+					Return(tc.grantDetails, nil)
+				s.mockRepository.EXPECT().
+					Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(g *domain.Grant) bool {
+						return g.ID == id &&
+							g.RestoredBy == actor &&
+							g.RestoreReason == reason &&
+							g.RestoredAt != nil &&
+							cmp.Equal(now, *g.RestoredAt, cmpopts.EquateApproxTime(time.Second)) &&
+							g.Status == domain.GrantStatusActive &&
+							g.StatusInProvider == domain.GrantStatusActive &&
+							cmp.Equal(now, g.UpdatedAt, cmpopts.EquateApproxTime(time.Second))
+					})).
+					Return(nil)
+				s.mockProviderService.EXPECT().
+					GrantAccess(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(g domain.Grant) bool {
+						return g.ID == id
+					})).
+					Return(nil)
+				s.mockAuditLogger.EXPECT().
+					Log(mock.MatchedBy(func(ctx context.Context) bool { return true }), grant.AuditKeyRestore, map[string]any{
+						"grant_id": id,
+						"reason":   reason,
+					}).
+					Return(nil)
+
+				actualGrant, actualError := s.service.Restore(context.Background(), id, actor, reason)
+				s.NoError(actualError)
+				s.Equal(id, actualGrant.ID)
+				s.Equal(actor, actualGrant.RestoredBy)
+				s.Equal(reason, actualGrant.RestoreReason)
+				s.NotNil(actualGrant.RestoredAt)
+				s.True(cmp.Equal(&now, actualGrant.RestoredAt, cmpopts.EquateApproxTime(time.Second)))
+				s.Equal(domain.GrantStatusActive, actualGrant.Status)
+				s.Equal(domain.GrantStatusActive, actualGrant.StatusInProvider)
+				s.True(cmp.Equal(now, actualGrant.UpdatedAt, cmpopts.EquateApproxTime(time.Second)))
+
+				s.mockRepository.AssertExpectations(s.T())
+				s.mockProviderService.AssertExpectations(s.T())
+
+				time.Sleep(time.Millisecond)
+				s.mockAuditLogger.AssertExpectations(s.T())
+			})
+		}
+	})
+
+	s.Run("should rollback grant record if provider restore fails", func() {
+		s.setup()
+
+		id := "test-id"
+		grantDetails := &domain.Grant{
+			ID:          id,
+			Status:      domain.GrantStatusInactive,
+			IsPermanent: true,
+		}
+		actor := "user@example.com"
+		reason := "test reason"
+
+		now := time.Now()
+
+		s.mockRepository.EXPECT().
+			GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), id).
+			Return(grantDetails, nil)
+		s.mockRepository.EXPECT().
+			Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(g *domain.Grant) bool {
+				return g.ID == id &&
+					g.RestoredBy == actor &&
+					g.RestoreReason == reason &&
+					g.RestoredAt != nil &&
+					cmp.Equal(now, *g.RestoredAt, cmpopts.EquateApproxTime(time.Second)) &&
+					g.Status == domain.GrantStatusActive &&
+					g.StatusInProvider == domain.GrantStatusActive &&
+					cmp.Equal(now, g.UpdatedAt, cmpopts.EquateApproxTime(time.Second))
+			})).
+			Return(nil)
+		s.mockProviderService.EXPECT().
+			GrantAccess(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(g domain.Grant) bool {
+				return g.ID == id
+			})).
+			Return(assert.AnError)
+
+		// rollback
+		s.mockRepository.EXPECT().
+			Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(g *domain.Grant) bool {
+				return cmp.Equal(grantDetails, g, cmpopts.IgnoreFields(*grantDetails, "UpdatedAt"))
+			})).
+			Return(nil)
+
+		actualGrant, actualError := s.service.Restore(context.Background(), id, actor, reason)
+		s.ErrorIs(actualError, assert.AnError)
+		s.Nil(actualGrant)
+
+		s.mockRepository.AssertExpectations(s.T())
+		s.mockProviderService.AssertExpectations(s.T())
+		s.mockAuditLogger.AssertExpectations(s.T()) // assert no calls
+	})
+
+	s.Run("should return error if grant restore request is invalid", func() {
+		yesterday := time.Now().Add(-24 * time.Hour)
+		testCases := []struct {
+			name          string
+			grantDetails  *domain.Grant
+			actor         string
+			reason        string
+			expectedError error
+		}{
+			{
+				name:          "actor is empty",
+				grantDetails:  &domain.Grant{},
+				actor:         "",
+				reason:        "test reason",
+				expectedError: domain.ErrInvalidGrantRestoreParams,
+			},
+			{
+				name:          "reason is empty",
+				grantDetails:  &domain.Grant{},
+				actor:         "user@example.com",
+				reason:        "",
+				expectedError: domain.ErrInvalidGrantRestoreParams,
+			},
+			{
+				name: "grant is already expired",
+				grantDetails: &domain.Grant{
+					ExpirationDate: &yesterday,
+					IsPermanent:    false,
+				},
+				actor:         "user@example.com",
+				reason:        "test reason",
+				expectedError: domain.ErrInvalidGrantRestoreParams,
+			},
+		}
+
+		for _, tc := range testCases {
+			s.Run(tc.name, func() {
+				s.setup()
+
+				id := "test-id"
+				tc.grantDetails.ID = id
+
+				s.mockRepository.EXPECT().
+					GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), id).
+					Return(tc.grantDetails, nil)
+
+				actualGrant, actualError := s.service.Restore(context.Background(), id, tc.actor, tc.reason)
+				s.ErrorIs(actualError, tc.expectedError)
+				s.Nil(actualGrant)
+			})
+		}
+	})
+
+	s.Run("should return error if grant is not found", func() {
+		s.setup()
+
+		id := "test-id"
+		expectedError := grant.ErrGrantNotFound
+		s.mockRepository.EXPECT().
+			GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), id).
+			Return(nil, expectedError)
+
+		actualGrant, actualError := s.service.Restore(context.Background(), id, "", "")
+		s.ErrorIs(actualError, expectedError)
+		s.Nil(actualGrant)
 	})
 }
 

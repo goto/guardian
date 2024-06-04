@@ -791,21 +791,24 @@ func (a *adapter) FromGrantProto(g *guardianv1beta1.Grant) *domain.Grant {
 	}
 
 	grant := &domain.Grant{
-		ID:               g.GetId(),
-		Status:           domain.GrantStatus(g.GetStatus()),
-		StatusInProvider: domain.GrantStatus(g.GetStatusInProvider()),
-		AccountID:        g.GetAccountId(),
-		AccountType:      g.GetAccountType(),
-		ResourceID:       g.GetResourceId(),
-		Role:             g.GetRole(),
-		Permissions:      g.GetPermissions(),
-		AppealID:         g.GetAppealId(),
-		Source:           domain.GrantSource(g.Source),
-		RevokedBy:        g.GetRevokedBy(),
-		RevokeReason:     g.GetRevokeReason(),
-		CreatedBy:        g.GetCreatedBy(),
-		Owner:            g.GetOwner(),
-		Resource:         a.FromResourceProto(g.GetResource()),
+		ID:                   g.GetId(),
+		Status:               domain.GrantStatus(g.GetStatus()),
+		StatusInProvider:     domain.GrantStatus(g.GetStatusInProvider()),
+		AccountID:            g.GetAccountId(),
+		AccountType:          g.GetAccountType(),
+		ResourceID:           g.GetResourceId(),
+		Role:                 g.GetRole(),
+		Permissions:          g.GetPermissions(),
+		AppealID:             g.GetAppealId(),
+		Source:               domain.GrantSource(g.Source),
+		RevokedBy:            g.GetRevokedBy(),
+		RevokeReason:         g.GetRevokeReason(),
+		CreatedBy:            g.GetCreatedBy(),
+		Owner:                g.GetOwner(),
+		Resource:             a.FromResourceProto(g.GetResource()),
+		ExpirationDateReason: g.GetExpirationDateReason(),
+		RestoreReason:        g.GetRestoreReason(),
+		RestoredBy:           g.GetRestoredBy(),
 	}
 
 	if g.GetExpirationDate() != nil {
@@ -822,6 +825,10 @@ func (a *adapter) FromGrantProto(g *guardianv1beta1.Grant) *domain.Grant {
 	if g.GetUpdatedAt() != nil {
 		grant.UpdatedAt = g.GetUpdatedAt().AsTime()
 	}
+	if g.GetRestoredAt() != nil {
+		t := g.GetRestoredAt().AsTime()
+		grant.RestoredAt = &t
+	}
 
 	return grant
 }
@@ -832,21 +839,24 @@ func (a *adapter) ToGrantProto(grant *domain.Grant) (*guardianv1beta1.Grant, err
 	}
 
 	grantProto := &guardianv1beta1.Grant{
-		Id:               grant.ID,
-		Status:           string(grant.Status),
-		StatusInProvider: string(grant.StatusInProvider),
-		AccountId:        grant.AccountID,
-		AccountType:      grant.AccountType,
-		ResourceId:       grant.ResourceID,
-		Role:             grant.Role,
-		Permissions:      grant.Permissions,
-		IsPermanent:      grant.IsPermanent,
-		AppealId:         grant.AppealID,
-		Source:           string(grant.Source),
-		RevokedBy:        grant.RevokedBy,
-		RevokeReason:     grant.RevokeReason,
-		CreatedBy:        grant.CreatedBy,
-		Owner:            grant.Owner,
+		Id:                   grant.ID,
+		Status:               string(grant.Status),
+		StatusInProvider:     string(grant.StatusInProvider),
+		AccountId:            grant.AccountID,
+		AccountType:          grant.AccountType,
+		ResourceId:           grant.ResourceID,
+		Role:                 grant.Role,
+		Permissions:          grant.Permissions,
+		IsPermanent:          grant.IsPermanent,
+		AppealId:             grant.AppealID,
+		Source:               string(grant.Source),
+		RevokedBy:            grant.RevokedBy,
+		RevokeReason:         grant.RevokeReason,
+		CreatedBy:            grant.CreatedBy,
+		Owner:                grant.Owner,
+		ExpirationDateReason: grant.ExpirationDateReason,
+		RestoreReason:        grant.RestoreReason,
+		RestoredBy:           grant.RestoredBy,
 	}
 
 	if grant.ExpirationDate != nil {
@@ -874,6 +884,9 @@ func (a *adapter) ToGrantProto(grant *domain.Grant) (*guardianv1beta1.Grant, err
 			return nil, fmt.Errorf("parsing appeal: %w", err)
 		}
 		grantProto.Appeal = appealProto
+	}
+	if grant.RestoredAt != nil {
+		grantProto.RestoredAt = timestamppb.New(*grant.RestoredAt)
 	}
 
 	return grantProto, nil
