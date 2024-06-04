@@ -4644,6 +4644,36 @@ func (s *ServiceTestSuite) TestAddApprover() {
 		s.ErrorIs(err, expectedError)
 	})
 
+	s.Run("should return error if approval is stale", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+		dummyAppealID := uuid.New().String()
+		approvalID := uuid.New().String()
+		expectedError := appeal.ErrUnableToAddApprover
+		expectedAppeal := &domain.Appeal{
+			Status: domain.AppealStatusPending,
+			Approvals: []*domain.Approval{
+				{
+					ID:      approvalID,
+					IsStale: true,
+				},
+				{
+					ID:      uuid.New().String(),
+					IsStale: false,
+				},
+			},
+		}
+		h.mockRepository.EXPECT().
+			GetByID(h.ctxMatcher, mock.Anything).
+			Return(expectedAppeal, nil).Once()
+
+		appeal, err := h.service.AddApprover(context.Background(), dummyAppealID, approvalID, "user@example.com")
+
+		s.Nil(appeal)
+		s.ErrorIs(err, expectedError)
+		s.EqualError(err, "unable to add a new approver: can't add new approver to a stale approval")
+	})
+
 	s.Run("should return error if approval not found", func() {
 		h := newServiceTestHelper()
 		defer h.assertExpectations(s.T())
@@ -4914,6 +4944,36 @@ func (s *ServiceTestSuite) TestDeleteApprover() {
 
 		s.Nil(appeal)
 		s.ErrorIs(err, expectedError)
+	})
+
+	s.Run("should return error if approval is stale", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+		dummyAppealID := uuid.New().String()
+		approvalID := uuid.New().String()
+		expectedError := appeal.ErrUnableToDeleteApprover
+		expectedAppeal := &domain.Appeal{
+			Status: domain.AppealStatusPending,
+			Approvals: []*domain.Approval{
+				{
+					ID:      approvalID,
+					IsStale: true,
+				},
+				{
+					ID:      uuid.New().String(),
+					IsStale: false,
+				},
+			},
+		}
+		h.mockRepository.EXPECT().
+			GetByID(h.ctxMatcher, mock.Anything).
+			Return(expectedAppeal, nil).Once()
+
+		appeal, err := h.service.DeleteApprover(context.Background(), dummyAppealID, approvalID, "user@example.com")
+
+		s.Nil(appeal)
+		s.ErrorIs(err, expectedError)
+		s.EqualError(err, "unable to remove approver: can't delete approver in a stale approval")
 	})
 
 	s.Run("should return error if approval status is not pending or blocked", func() {
