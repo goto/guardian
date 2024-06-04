@@ -35,6 +35,8 @@ type Appeal struct {
 	Approvals []*Approval
 	Grant     *Grant
 
+	Revision uint
+
 	CreatedAt time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `gorm:"index"`
@@ -113,6 +115,7 @@ func (m *Appeal) FromDomain(a *domain.Appeal) error {
 	m.Details = datatypes.JSON(details)
 	m.Description = a.Description
 	m.Approvals = approvals
+	m.Revision = a.Revision
 	m.CreatedAt = a.CreatedAt
 	m.UpdatedAt = a.UpdatedAt
 
@@ -196,6 +199,7 @@ func (m *Appeal) ToDomain() (*domain.Appeal, error) {
 		Labels:        labels,
 		Approvals:     approvals,
 		Resource:      resource,
+		Revision:      m.Revision,
 		Grant:         grant,
 		CreatedAt:     m.CreatedAt,
 		UpdatedAt:     m.UpdatedAt,

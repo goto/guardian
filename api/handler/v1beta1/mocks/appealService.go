@@ -568,6 +568,49 @@ func (_c *AppealService_ListComments_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
+// Patch provides a mock function with given fields: _a0, _a1
+func (_m *AppealService) Patch(_a0 context.Context, _a1 *domain.Appeal) error {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.Appeal) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// AppealService_Patch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Patch'
+type AppealService_Patch_Call struct {
+	*mock.Call
+}
+
+// Patch is a helper method to define mock.On call
+//   - _a0 context.Context
+//   - _a1 *domain.Appeal
+func (_e *AppealService_Expecter) Patch(_a0 interface{}, _a1 interface{}) *AppealService_Patch_Call {
+	return &AppealService_Patch_Call{Call: _e.mock.On("Patch", _a0, _a1)}
+}
+
+func (_c *AppealService_Patch_Call) Run(run func(_a0 context.Context, _a1 *domain.Appeal)) *AppealService_Patch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*domain.Appeal))
+	})
+	return _c
+}
+
+func (_c *AppealService_Patch_Call) Return(_a0 error) *AppealService_Patch_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *AppealService_Patch_Call) RunAndReturn(run func(context.Context, *domain.Appeal) error) *AppealService_Patch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateApproval provides a mock function with given fields: ctx, approvalAction
 func (_m *AppealService) UpdateApproval(ctx context.Context, approvalAction domain.ApprovalAction) (*domain.Appeal, error) {
 	ret := _m.Called(ctx, approvalAction)

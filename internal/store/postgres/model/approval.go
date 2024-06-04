@@ -24,6 +24,9 @@ type Approval struct {
 	Approvers []Approver
 	Appeal    *Appeal
 
+	IsStale        bool
+	AppealRevision uint
+
 	CreatedAt time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `gorm:"index"`
@@ -68,6 +71,8 @@ func (m *Approval) FromDomain(a *domain.Approval) error {
 	m.PolicyID = a.PolicyID
 	m.PolicyVersion = a.PolicyVersion
 	m.Approvers = approvers
+	m.IsStale = a.IsStale
+	m.AppealRevision = a.AppealRevision
 	m.CreatedAt = a.CreatedAt
 	m.UpdatedAt = a.UpdatedAt
 
@@ -94,18 +99,20 @@ func (m *Approval) ToDomain() (*domain.Approval, error) {
 	}
 
 	return &domain.Approval{
-		ID:            m.ID.String(),
-		Name:          m.Name,
-		Index:         m.Index,
-		AppealID:      m.AppealID,
-		Status:        m.Status,
-		Actor:         m.Actor,
-		Reason:        m.Reason,
-		PolicyID:      m.PolicyID,
-		PolicyVersion: m.PolicyVersion,
-		Approvers:     approvers,
-		Appeal:        appeal,
-		CreatedAt:     m.CreatedAt,
-		UpdatedAt:     m.UpdatedAt,
+		ID:             m.ID.String(),
+		Name:           m.Name,
+		Index:          m.Index,
+		AppealID:       m.AppealID,
+		Status:         m.Status,
+		Actor:          m.Actor,
+		Reason:         m.Reason,
+		PolicyID:       m.PolicyID,
+		PolicyVersion:  m.PolicyVersion,
+		Approvers:      approvers,
+		Appeal:         appeal,
+		AppealRevision: m.AppealRevision,
+		IsStale:        m.IsStale,
+		CreatedAt:      m.CreatedAt,
+		UpdatedAt:      m.UpdatedAt,
 	}, nil
 }

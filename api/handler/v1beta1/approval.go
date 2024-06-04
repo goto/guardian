@@ -29,6 +29,7 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		Size:           int(req.GetSize()),
 		Offset:         int(req.GetOffset()),
 		AppealStatuses: req.GetAppealStatuses(),
+		Stale:          req.GetStale(),
 	})
 	if err != nil {
 		return nil, err
@@ -52,6 +53,7 @@ func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.Lis
 		Size:           int(req.GetSize()),
 		Offset:         int(req.GetOffset()),
 		AppealStatuses: req.GetAppealStatuses(),
+		Stale:          req.GetStale(),
 	})
 	if err != nil {
 		return nil, err

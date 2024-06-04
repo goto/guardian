@@ -574,6 +574,153 @@ func (s *GrpcHandlersSuite) TestCreateAppeal() {
 	})
 }
 
+func (s *GrpcHandlersSuite) TestPatchAppeal() {
+	expectedUser := "user@example.com"
+	s.Run("should return updated appeal on success", func() {
+		s.setup()
+		expectedAppeal := &domain.Appeal{
+			ID:          "test-id",
+			AccountID:   expectedUser,
+			AccountType: "user",
+			CreatedBy:   expectedUser,
+			ResourceID:  "test-resource-id",
+			Role:        "test-role",
+			Options: &domain.AppealOptions{
+				Duration: "24h",
+			},
+			Details: map[string]interface{}{
+				"foo": "bar",
+			},
+			Description: "The answer is 42",
+		}
+		expectedDetails, err := structpb.NewStruct(map[string]interface{}{
+			"foo": "bar",
+		})
+		s.Require().NoError(err)
+
+		updatedAppeal := &domain.Appeal{
+			ID:            "test-id",
+			ResourceID:    "test-resource-id",
+			AccountID:     expectedUser,
+			AccountType:   "user",
+			CreatedBy:     expectedUser,
+			Role:          "test-role",
+			PolicyID:      "test-policy-id",
+			PolicyVersion: 1,
+			Status:        "pending",
+			Options: &domain.AppealOptions{
+				Duration: "24h",
+			},
+			Details: map[string]interface{}{
+				"foo": "bar",
+			},
+			Resource: &domain.Resource{
+				ID:           "test-resource-id",
+				ProviderType: "test-provider-type",
+				ProviderURN:  "test-provider-urn",
+				Type:         "test-resource-type",
+				URN:          "test-resource-urn",
+				Name:         "test-name",
+			},
+			Description: "The answer is 42",
+		}
+		expectedResponse := &guardianv1beta1.PatchAppealResponse{
+			Appeal: &guardianv1beta1.Appeal{
+				Id:            "test-id",
+				ResourceId:    "test-resource-id",
+				AccountId:     expectedUser,
+				AccountType:   "user",
+				CreatedBy:     expectedUser,
+				Role:          "test-role",
+				PolicyId:      "test-policy-id",
+				PolicyVersion: 1,
+				Status:        "pending",
+				Resource: &guardianv1beta1.Resource{
+					Id:           "test-resource-id",
+					ProviderType: "test-provider-type",
+					ProviderUrn:  "test-provider-urn",
+					Type:         "test-resource-type",
+					Urn:          "test-resource-urn",
+					Name:         "test-name",
+				},
+				Options: &guardianv1beta1.AppealOptions{
+					Duration: "24h",
+				},
+				Details:     expectedDetails,
+				Description: "The answer is 42",
+			},
+		}
+		s.appealService.EXPECT().Patch(mock.AnythingOfType("*context.valueCtx"), expectedAppeal).
+			Return(nil).Once()
+
+		reqOptions, err := structpb.NewStruct(map[string]interface{}{
+			"duration": "24h",
+		})
+		s.Require().NoError(err)
+
+		req := &guardianv1beta1.PatchAppealRequest{
+			Id:          "test-id",
+			AccountId:   expectedUser,
+			AccountType: "user",
+			ResourceId:  "test-resource-id",
+			Role:        "test-role",
+			Options:     reqOptions,
+			Details:     expectedDetails,
+			Description: "The answer is 42",
+		}
+
+		s.appealService.EXPECT().GetByID(mock.Anything, mock.Anything).Return(updatedAppeal, nil).Once()
+
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, expectedUser)
+		res, err := s.grpcServer.PatchAppeal(ctx, req)
+
+		s.NoError(err)
+		s.Equal(expectedResponse, res)
+		s.appealService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return error if appeal ID is missing in request", func() {
+		s.setup()
+		req := &guardianv1beta1.PatchAppealRequest{}
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, expectedUser)
+		md := metadata.New(map[string]string{})
+		ctx = metadata.NewIncomingContext(ctx, md)
+		res, err := s.grpcServer.PatchAppeal(ctx, req)
+
+		s.Equal(codes.FailedPrecondition, status.Code(err))
+		s.Nil(res)
+		s.appealService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return unauthenticated error if request is unauthenticated", func() {
+		s.setup()
+		req := &guardianv1beta1.PatchAppealRequest{Id: "test-id"}
+		ctx := context.Background()
+		md := metadata.New(map[string]string{})
+		ctx = metadata.NewIncomingContext(ctx, md)
+		res, err := s.grpcServer.PatchAppeal(ctx, req)
+
+		s.Equal(codes.Unauthenticated, status.Code(err))
+		s.Nil(res)
+		s.appealService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return internal error if appeal service returns an error", func() {
+		s.setup()
+
+		expectedError := errors.New("random error")
+		s.appealService.EXPECT().Patch(mock.AnythingOfType("*context.valueCtx"), mock.Anything).Return(expectedError).Once()
+
+		req := &guardianv1beta1.PatchAppealRequest{Id: "test-id"}
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.com")
+		res, err := s.grpcServer.PatchAppeal(ctx, req)
+
+		s.Equal(codes.Internal, status.Code(err))
+		s.Nil(res)
+		s.appealService.AssertExpectations(s.T())
+	})
+}
+
 func (s *GrpcHandlersSuite) TestGetAppeal() {
 	s.Run("should return appeal details on success", func() {
 		s.setup()

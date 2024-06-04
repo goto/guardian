@@ -26,6 +26,9 @@ type Approval struct {
 	Approvers []string `json:"approvers,omitempty" yaml:"approvers,omitempty"`
 	Appeal    *Appeal  `json:"appeal,omitempty" yaml:"appeal,omitempty"`
 
+	IsStale        bool `json:"is_stale,omitempty" yaml:"is_stale,omitempty"`
+	AppealRevision uint `json:"appeal_revision" yaml:"appeal_revision"`
+
 	CreatedAt time.Time `json:"created_at,omitempty" yaml:"created_at,omitempty"`
 	UpdatedAt time.Time `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
 }
@@ -57,4 +60,5 @@ type ListApprovalsFilter struct {
 	Size           int      `mapstructure:"size" validate:"omitempty"`
 	Offset         int      `mapstructure:"offset" validate:"omitempty"`
 	AppealStatuses []string `mapstructure:"appeal_statuses" validate:"omitempty,min=1"`
+	Stale          bool     `mapstructure:"stale" validate:"omitempty"`
 }
