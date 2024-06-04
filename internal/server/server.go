@@ -85,16 +85,17 @@ func RunServer(config *Config) error {
 			otelgrpc.StreamServerInterceptor(),
 		)),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			grpc_logrus.UnaryServerInterceptor(logrusEntry),
+			authInterceptor,
+			enrichLogrusFields(),
+			otelgrpc.UnaryServerInterceptor(),
+
 			grpc_recovery.UnaryServerInterceptor(
 				grpc_recovery.WithRecoveryHandler(func(p interface{}) (err error) {
 					logger.Error(context.Background(), string(debug.Stack()))
 					return status.Errorf(codes.Internal, "Internal error, please check log")
 				}),
 			),
-			grpc_logrus.UnaryServerInterceptor(logrusEntry),
-			authInterceptor,
-			enrichLogrusFields(),
-			otelgrpc.UnaryServerInterceptor(),
 		)),
 	)
 
