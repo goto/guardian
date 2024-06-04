@@ -270,21 +270,27 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 }
 
 func (s *Service) Restore(ctx context.Context, id, actor, reason string) (*domain.Grant, error) {
-	grant, err := s.GetByID(ctx, id)
+	originalGrant, err := s.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("getting grant details: %w", err)
 	}
+
+	grant := &domain.Grant{}
+	*grant = *originalGrant // copy values
 
 	if err := grant.Restore(actor, reason); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrInvalidRequest, err.Error())
 	}
 
-	if err := s.providerService.GrantAccess(ctx, *grant); err != nil {
-		return nil, fmt.Errorf("granting access in provider: %w", err)
-	}
-
 	if err := s.repo.Update(ctx, grant); err != nil {
 		return nil, fmt.Errorf("updating grant record in db: %w", err)
+	}
+
+	if err := s.providerService.GrantAccess(ctx, *grant); err != nil {
+		if err := s.repo.Update(ctx, originalGrant); err != nil {
+			return nil, fmt.Errorf("failed to rollback grant record after restore failed: %w", err)
+		}
+		return nil, fmt.Errorf("granting access in provider: %w", err)
 	}
 
 	go func() {

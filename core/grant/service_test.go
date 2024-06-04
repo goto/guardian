@@ -15,6 +15,7 @@ import (
 	"github.com/goto/guardian/core/grant/mocks"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -645,11 +646,6 @@ func (s *ServiceTestSuite) TestRestore() {
 				s.mockRepository.EXPECT().
 					GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), id).
 					Return(tc.grantDetails, nil)
-				s.mockProviderService.EXPECT().
-					GrantAccess(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(g domain.Grant) bool {
-						return g.ID == id
-					})).
-					Return(nil)
 				s.mockRepository.EXPECT().
 					Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(g *domain.Grant) bool {
 						return g.ID == id &&
@@ -660,6 +656,11 @@ func (s *ServiceTestSuite) TestRestore() {
 							g.Status == domain.GrantStatusActive &&
 							g.StatusInProvider == domain.GrantStatusActive &&
 							cmp.Equal(now, g.UpdatedAt, cmpopts.EquateApproxTime(time.Second))
+					})).
+					Return(nil)
+				s.mockProviderService.EXPECT().
+					GrantAccess(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(g domain.Grant) bool {
+						return g.ID == id
 					})).
 					Return(nil)
 				s.mockAuditLogger.EXPECT().
@@ -687,6 +688,57 @@ func (s *ServiceTestSuite) TestRestore() {
 				s.mockAuditLogger.AssertExpectations(s.T())
 			})
 		}
+	})
+
+	s.Run("should rollback grant record if provider restore fails", func() {
+		s.setup()
+
+		id := "test-id"
+		grantDetails := &domain.Grant{
+			ID:          id,
+			Status:      domain.GrantStatusInactive,
+			IsPermanent: true,
+		}
+		actor := "user@example.com"
+		reason := "test reason"
+
+		now := time.Now()
+
+		s.mockRepository.EXPECT().
+			GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), id).
+			Return(grantDetails, nil)
+		s.mockRepository.EXPECT().
+			Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(g *domain.Grant) bool {
+				return g.ID == id &&
+					g.RestoredBy == actor &&
+					g.RestoreReason == reason &&
+					g.RestoredAt != nil &&
+					cmp.Equal(now, *g.RestoredAt, cmpopts.EquateApproxTime(time.Second)) &&
+					g.Status == domain.GrantStatusActive &&
+					g.StatusInProvider == domain.GrantStatusActive &&
+					cmp.Equal(now, g.UpdatedAt, cmpopts.EquateApproxTime(time.Second))
+			})).
+			Return(nil)
+		s.mockProviderService.EXPECT().
+			GrantAccess(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(g domain.Grant) bool {
+				return g.ID == id
+			})).
+			Return(assert.AnError)
+
+		// rollback
+		s.mockRepository.EXPECT().
+			Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(g *domain.Grant) bool {
+				return cmp.Equal(grantDetails, g, cmpopts.IgnoreFields(*grantDetails, "UpdatedAt"))
+			})).
+			Return(nil)
+
+		actualGrant, actualError := s.service.Restore(context.Background(), id, actor, reason)
+		s.ErrorIs(actualError, assert.AnError)
+		s.Nil(actualGrant)
+
+		s.mockRepository.AssertExpectations(s.T())
+		s.mockProviderService.AssertExpectations(s.T())
+		s.mockAuditLogger.AssertExpectations(s.T()) // assert no calls
 	})
 
 	s.Run("should return error if grant restore request is invalid", func() {
