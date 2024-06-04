@@ -193,13 +193,21 @@ func TestAppeal_GetApproval(t *testing.T) {
 			appeal: &domain.Appeal{
 				Approvals: []*domain.Approval{
 					{
-						ID: "approval-1",
+						ID:      "approval_id_1",
+						Name:    "approval_name",
+						IsStale: true,
+					},
+					{
+						ID:   "approval_id_2",
+						Name: "approval_name",
 					},
 				},
 			},
-			id: "approval-1",
+			id: "approval_id_1",
 			want: &domain.Approval{
-				ID: "approval-1",
+				ID:      "approval_id_1",
+				Name:    "approval_name",
+				IsStale: true,
 			},
 		},
 		{
@@ -207,12 +215,33 @@ func TestAppeal_GetApproval(t *testing.T) {
 			appeal: &domain.Appeal{
 				Approvals: []*domain.Approval{
 					{
-						ID: "approval-1",
+						ID: "approval_id_1",
 					},
 				},
 			},
 			id:   "non-existing",
 			want: nil,
+		},
+		{
+			name: "return the non-stale approval with the given name",
+			appeal: &domain.Appeal{
+				Approvals: []*domain.Approval{
+					{
+						ID:      "approval_id_1",
+						Name:    "approval_name",
+						IsStale: true,
+					},
+					{
+						ID:   "approval_id_2",
+						Name: "approval_name",
+					},
+				},
+			},
+			id: "approval_name",
+			want: &domain.Approval{
+				ID:   "approval_id_2",
+				Name: "approval_name",
+			},
 		},
 	}
 	for _, tt := range tests {

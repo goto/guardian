@@ -1123,6 +1123,9 @@ func (s *Service) AddApprover(ctx context.Context, appealID, approvalID, email s
 	if appeal.Status != domain.AppealStatusPending {
 		return nil, fmt.Errorf("%w: can't add new approver to appeal with %q status", ErrUnableToAddApprover, appeal.Status)
 	}
+	if approval.IsStale {
+		return nil, fmt.Errorf("%w: can't add new approver to a stale approval", ErrUnableToAddApprover)
+	}
 	for _, existingApprover := range approval.Approvers {
 		if email == existingApprover {
 			return nil, fmt.Errorf("%w: approver %q already exists", ErrUnableToAddApprover, email)
@@ -1217,6 +1220,9 @@ func (s *Service) DeleteApprover(ctx context.Context, appealID, approvalID, emai
 	}
 	if appeal.Status != domain.AppealStatusPending {
 		return nil, fmt.Errorf("%w: can't delete approver to appeal with %q status", ErrUnableToDeleteApprover, appeal.Status)
+	}
+	if approval.IsStale {
+		return nil, fmt.Errorf("%w: can't delete approver in a stale approval", ErrUnableToDeleteApprover)
 	}
 
 	switch approval.Status {

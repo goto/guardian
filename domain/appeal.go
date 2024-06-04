@@ -134,9 +134,12 @@ func (a *Appeal) SetDefaults() {
 	}
 }
 
-func (a *Appeal) GetApproval(id string) *Approval {
+// GetApproval returns an approval within the appeal.
+// If the ID is provided, it will return the approval with the given ID.
+// If the name is provided, it will return the approval with the given name AND !is_stale.
+func (a *Appeal) GetApproval(identifier string) *Approval {
 	for _, approval := range a.Approvals {
-		if approval.ID == id || approval.Name == id {
+		if approval.ID == identifier || (approval.Name == identifier && !approval.IsStale) {
 			return approval
 		}
 	}
