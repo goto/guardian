@@ -706,10 +706,12 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		"revision":  appeal.Revision,
 		"diff":      diffLog,
 	}
-
-	if err := s.auditLogger.Log(ctx, AuditKeyUpdate, auditLog); err != nil {
-		s.logger.Error(ctx, "failed to record audit log", "error", err)
-	}
+	go func() {
+		ctx := context.WithoutCancel(ctx)
+		if err := s.auditLogger.Log(ctx, AuditKeyUpdate, auditLog); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
 
 	appeal.Approvals = newApprovals
 	if appeal.Status == domain.AppealStatusApproved {
