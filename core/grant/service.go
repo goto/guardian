@@ -287,12 +287,15 @@ func (s *Service) Restore(ctx context.Context, id, actor, reason string) (*domai
 		return nil, fmt.Errorf("updating grant record in db: %w", err)
 	}
 
-	if err := s.auditLogger.Log(ctx, AuditKeyRestore, map[string]interface{}{
-		"grant_id": id,
-		"reason":   reason,
-	}); err != nil {
-		s.logger.Error(ctx, "failed to record audit log", "error", err)
-	}
+	go func() {
+		ctx := context.WithoutCancel(ctx)
+		if err := s.auditLogger.Log(ctx, AuditKeyRestore, map[string]interface{}{
+			"grant_id": id,
+			"reason":   reason,
+		}); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
 
 	return grant, nil
 }

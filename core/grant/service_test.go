@@ -679,6 +679,12 @@ func (s *ServiceTestSuite) TestRestore() {
 				s.Equal(domain.GrantStatusActive, actualGrant.Status)
 				s.Equal(domain.GrantStatusActive, actualGrant.StatusInProvider)
 				s.True(cmp.Equal(now, actualGrant.UpdatedAt, cmpopts.EquateApproxTime(time.Second)))
+
+				s.mockRepository.AssertExpectations(s.T())
+				s.mockProviderService.AssertExpectations(s.T())
+
+				time.Sleep(time.Millisecond)
+				s.mockAuditLogger.AssertExpectations(s.T())
 			})
 		}
 	})
