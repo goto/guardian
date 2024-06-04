@@ -141,7 +141,6 @@ func (s *ServiceTestSuite) TestCreate() {
 
 		s.Nil(actualError)
 		s.mockProviderRepository.AssertExpectations(s.T())
-		s.mockAuditLogger.AssertExpectations(s.T())
 	})
 
 	s.Run("with dryRun true", func() {

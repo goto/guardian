@@ -1099,9 +1099,10 @@ func (s *ServiceTestSuite) TestCreate() {
 		h.mockNotifier.EXPECT().
 			Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 		h.mockAuditLogger.EXPECT().
-			Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
+			Log(h.ctxMatcher, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 
 		actualError := h.service.Create(context.Background(), appeals)
+		time.Sleep(time.Millisecond)
 
 		s.Nil(actualError)
 		s.Equal(expectedResult, appeals)
@@ -1564,7 +1565,7 @@ func (s *ServiceTestSuite) TestCreate() {
 		h.mockNotifier.EXPECT().
 			Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 		h.mockAuditLogger.EXPECT().
-			Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).
+			Log(h.ctxMatcher, appeal.AuditKeyBulkInsert, mock.Anything).
 			Return(nil).Once()
 
 		actualError := h.service.Create(context.Background(), appeals)
@@ -1657,7 +1658,7 @@ func (s *ServiceTestSuite) TestCreate() {
 				BulkUpsert(h.ctxMatcher, mock.Anything).
 				Return(nil).Once()
 			h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
-			h.mockAuditLogger.EXPECT().Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
+			h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 			h.mockProviderService.EXPECT().
 				IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
 				Return(false).Once()
@@ -1942,9 +1943,10 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprov
 			}
 		}).Once()
 	h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
-	h.mockAuditLogger.EXPECT().Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
+	h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 
 	actualError := h.service.Create(context.Background(), appeals)
+	time.Sleep(time.Millisecond)
 
 	s.Nil(actualError)
 	s.Equal(expectedResult, appeals)
@@ -2126,7 +2128,7 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithAdditionalAppeals() {
 		appeal := appeals[0]
 		s.Equal(targetResource.ID, appeal.Resource.ID)
 	})
-	h.mockAuditLogger.EXPECT().Log(mock.AnythingOfType("*context.cancelCtx"), appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
+	h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 	h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 
 	// 1.b grant access for the main appeal
@@ -2143,6 +2145,7 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithAdditionalAppeals() {
 	h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 
 	err := h.service.Create(context.Background(), appealsPayload)
+	time.Sleep(time.Millisecond)
 
 	s.NoError(err)
 
@@ -3939,10 +3942,11 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 		h.mockRepository.EXPECT().Update(h.ctxMatcher, appealDetails).Return(nil).Once()
 		h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
-		h.mockAuditLogger.EXPECT().Log(mock.Anything, mock.Anything, mock.Anything).
+		h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, mock.Anything, mock.Anything).
 			Return(nil).Once()
 
 		_, actualError := h.service.UpdateApproval(context.Background(), action)
+		time.Sleep(time.Millisecond)
 
 		s.Nil(actualError)
 
@@ -4342,7 +4346,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 
 				h.mockRepository.EXPECT().Update(h.ctxMatcher, tc.expectedResult).Return(nil).Once()
 				h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
-				h.mockAuditLogger.EXPECT().Log(mock.Anything, mock.Anything, mock.Anything).
+				h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, mock.Anything, mock.Anything).
 					Return(nil).Once()
 
 				actualResult, actualError := h.service.UpdateApproval(context.Background(), tc.expectedApprovalAction)
@@ -4553,6 +4557,7 @@ func (s *ServiceTestSuite) TestAddApprover() {
 					Return(nil).Once()
 
 				actualAppeal, actualError := h.service.AddApprover(context.Background(), appealID, approvalID, newApprover)
+				time.Sleep(time.Millisecond)
 
 				s.NoError(actualError)
 				s.Equal(expectedApproval, actualAppeal.Approvals[0])
@@ -4827,6 +4832,7 @@ func (s *ServiceTestSuite) TestDeleteApprover() {
 					})).Return(nil).Once()
 
 				actualAppeal, actualError := h.service.DeleteApprover(context.Background(), appealID, approvalID, approverEmail)
+				time.Sleep(time.Millisecond)
 
 				s.NoError(actualError)
 				s.Equal(expectedApproval, actualAppeal.Approvals[0])
