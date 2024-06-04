@@ -519,7 +519,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	}
 
 	if !isAppealUpdated {
-		return ErrUnprocessableEntity
+		return ErrNoChanges
 	}
 
 	eg, egctx := errgroup.WithContext(ctx)

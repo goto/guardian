@@ -2465,7 +2465,7 @@ func (s *ServiceTestSuite) TestPatch() {
 		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(a, nil).Once()
 		err := h.service.Patch(context.Background(), a)
 
-		s.ErrorIs(err, appeal.ErrUnprocessableEntity)
+		s.ErrorIs(err, appeal.ErrNoChanges)
 	})
 
 	s.Run("should return error if got error from resource service", func() {

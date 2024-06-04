@@ -172,7 +172,7 @@ func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.Patch
 			errors.Is(err, provider.ErrAppealValidationMissingRequiredParameter),
 			errors.Is(err, provider.ErrAppealValidationMissingRequiredQuestion),
 			errors.Is(err, appeal.ErrDurationNotAllowed),
-			errors.Is(err, appeal.ErrUnprocessableEntity),
+			errors.Is(err, appeal.ErrNoChanges),
 			errors.Is(err, appeal.ErrCannotCreateAppealForOtherUser):
 			return nil, s.invalidArgument(ctx, err.Error())
 		case errors.Is(err, appeal.ErrAppealDuplicate):

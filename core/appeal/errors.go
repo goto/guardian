@@ -49,8 +49,8 @@ var (
 	ErrAppealNotEligibleForApproval = errors.New("appeal status not eligible for approval")
 	ErrApprovalNotEligibleForAction = errors.New("approval not eligible for action")
 
-	ErrAppealStatusInvalid = errors.New("appeal should be in pending state")
-	ErrUnprocessableEntity = errors.New("invalid appeal status")
+	ErrAppealStatusInvalid = errors.New("invalid appeal status")
+	ErrNoChanges           = errors.New("no changes found")
 )
 
 type InvalidError struct {
