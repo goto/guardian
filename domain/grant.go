@@ -22,7 +22,10 @@ const (
 	GrantExpirationReasonRestored = "grant restored with new duration"
 )
 
-var ErrDuplicateActiveGrant = errors.New("grant already exists")
+var (
+	ErrDuplicateActiveGrant      = errors.New("grant already exists")
+	ErrInvalidGrantRestoreParams = errors.New("invalid grant restore parameters")
+)
 
 type Grant struct {
 	ID                      string      `json:"id" yaml:"id"`
@@ -87,14 +90,14 @@ func (g *Grant) Revoke(actor, reason string) error {
 
 func (g *Grant) Restore(actor, reason string) error {
 	if actor == "" {
-		return errors.New("actor is required")
+		return fmt.Errorf("%w: actor is required", ErrInvalidGrantRestoreParams)
 	}
 	if reason == "" {
-		return errors.New("reason is required")
+		return fmt.Errorf("%w: reason is required", ErrInvalidGrantRestoreParams)
 	}
 
 	if g.isExpired() {
-		return fmt.Errorf("grant is already expired at: %s", g.ExpirationDate)
+		return fmt.Errorf("%w: grant is already expired at: %s", ErrInvalidGrantRestoreParams, g.ExpirationDate)
 	}
 
 	g.Status = GrantStatusActive

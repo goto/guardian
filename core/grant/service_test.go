@@ -755,14 +755,14 @@ func (s *ServiceTestSuite) TestRestore() {
 				grantDetails:  &domain.Grant{},
 				actor:         "",
 				reason:        "test reason",
-				expectedError: grant.ErrInvalidRequest,
+				expectedError: domain.ErrInvalidGrantRestoreParams,
 			},
 			{
 				name:          "reason is empty",
 				grantDetails:  &domain.Grant{},
 				actor:         "user@example.com",
 				reason:        "",
-				expectedError: grant.ErrInvalidRequest,
+				expectedError: domain.ErrInvalidGrantRestoreParams,
 			},
 			{
 				name: "grant is already expired",
@@ -772,7 +772,7 @@ func (s *ServiceTestSuite) TestRestore() {
 				},
 				actor:         "user@example.com",
 				reason:        "test reason",
-				expectedError: grant.ErrInvalidRequest,
+				expectedError: domain.ErrInvalidGrantRestoreParams,
 			},
 		}
 

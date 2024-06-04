@@ -188,7 +188,7 @@ func (s *GRPCServer) RestoreGrant(ctx context.Context, req *guardianv1beta1.Rest
 		switch {
 		case errors.Is(err, grant.ErrGrantNotFound):
 			return nil, status.Error(codes.NotFound, err.Error())
-		case errors.Is(err, grant.ErrInvalidRequest):
+		case errors.Is(err, domain.ErrInvalidGrantRestoreParams):
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		default:
 			return nil, s.internalError(ctx, "failed to restore grant: %v", err)

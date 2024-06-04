@@ -279,7 +279,7 @@ func (s *Service) Restore(ctx context.Context, id, actor, reason string) (*domai
 	*grant = *originalGrant // copy values
 
 	if err := grant.Restore(actor, reason); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidRequest, err.Error())
+		return nil, err
 	}
 
 	if err := s.repo.Update(ctx, grant); err != nil {
