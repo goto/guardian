@@ -172,7 +172,6 @@ func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.Patch
 			errors.Is(err, provider.ErrAppealValidationMissingRequiredParameter),
 			errors.Is(err, provider.ErrAppealValidationMissingRequiredQuestion),
 			errors.Is(err, appeal.ErrDurationNotAllowed),
-			errors.Is(err, appeal.ErrNoChanges),
 			errors.Is(err, appeal.ErrCannotCreateAppealForOtherUser):
 			return nil, s.invalidArgument(ctx, err.Error())
 		case errors.Is(err, appeal.ErrAppealDuplicate):
@@ -191,7 +190,8 @@ func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.Patch
 			errors.Is(err, domain.ErrFailedToGetApprovers),
 			errors.Is(err, domain.ErrApproversNotFound),
 			errors.Is(err, domain.ErrUnexpectedApproverType),
-			errors.Is(err, domain.ErrInvalidApproverValue):
+			errors.Is(err, domain.ErrInvalidApproverValue),
+			errors.Is(err, appeal.ErrNoChanges):
 			return nil, s.failedPrecondition(ctx, err.Error())
 		default:
 			return nil, s.internalError(ctx, "failed to update appeal: %v", err)
