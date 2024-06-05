@@ -2456,14 +2456,38 @@ func (s *ServiceTestSuite) TestPatch() {
 				Duration: "1d",
 			},
 			Description: "test-appeal",
-			Details:     map[string]interface{}{},
+			Details: map[string]interface{}{
+				"__policy_questions": map[string]string{
+					"dataRequirement": "test edit appeal",
+				},
+				"__original_account": map[string]string{
+					"account_id":   "xxxx",
+					"account_type": "gitlab_user_id",
+				},
+				"__policy_metadata": map[string]interface{}{
+					"resource_owners": []string{"xyz@gojek.com"},
+				},
+			},
+		}
+
+		reqAppeal := &domain.Appeal{
+			ID: appealID,
+			Details: map[string]interface{}{
+				"__policy_questions": map[string]string{
+					"dataRequirement": "test edit appeal",
+				},
+				"__original_account": map[string]string{
+					"account_id":   "xxxx",
+					"account_type": "gitlab_user_id",
+				},
+			},
 		}
 
 		h := newServiceTestHelper()
 		defer h.assertExpectations(s.T())
 
 		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(a, nil).Once()
-		err := h.service.Patch(context.Background(), a)
+		err := h.service.Patch(context.Background(), reqAppeal)
 
 		s.ErrorIs(err, appeal.ErrNoChanges)
 	})
@@ -3326,9 +3350,9 @@ func (s *ServiceTestSuite) TestPatch() {
 				},
 			},
 			{
-				name:            "should update policy questions",
+				name:            "should update details",
 				mockGetResource: false,
-				reqAppeal:       &domain.Appeal{ID: appealID, Details: map[string]interface{}{"__policy_questions": map[string]string{"dataRequirement": "updated reason", "new question": "test response"}}},
+				reqAppeal:       &domain.Appeal{ID: appealID, Details: map[string]interface{}{"__policy_questions": map[string]string{"dataRequirement": "test edit appeal"}}},
 				existingAppeal: &domain.Appeal{
 					ID:            appealID,
 					ResourceID:    resources[0].ID,
@@ -3345,6 +3369,10 @@ func (s *ServiceTestSuite) TestPatch() {
 					Details: map[string]interface{}{
 						"__policy_questions": map[string]string{
 							"dataRequirement": "test",
+						},
+						"__original_account": map[string]string{
+							"account_id":   "1234",
+							"account_type": "user",
 						},
 					},
 					Approvals: []*domain.Approval{

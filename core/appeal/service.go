@@ -883,7 +883,11 @@ func validatePatchReq(appeal, existingAppeal *domain.Appeal) (bool, error) {
 	if appeal.Details == nil || reflect.DeepEqual(appeal.Details, existingAppeal.Details) {
 		appeal.Details = existingAppeal.Details
 	} else {
-		isAppealUpdated = true
+		for key, value := range appeal.Details {
+			if existingValue, found := existingAppeal.Details[key]; !found || !reflect.DeepEqual(existingValue, value) {
+				isAppealUpdated = true
+			}
+		}
 	}
 
 	if appeal.Labels == nil || reflect.DeepEqual(appeal.Labels, existingAppeal.Labels) {
