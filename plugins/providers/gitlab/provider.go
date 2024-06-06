@@ -162,6 +162,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		return fmt.Errorf("invalid grant permission: %q", g.Permissions[0])
 	}
 
+	empty := ""
 	switch g.Resource.Type {
 	case resourceTypeGroup:
 		_, res, err := client.GroupMembers.AddGroupMember(g.Resource.URN, &gitlab.AddGroupMemberOptions{
@@ -171,6 +172,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		if res != nil && res.StatusCode == http.StatusConflict {
 			_, _, err = client.GroupMembers.EditGroupMember(g.Resource.URN, userID, &gitlab.EditGroupMemberOptions{
 				AccessLevel: &accessLevel,
+				ExpiresAt:   &empty,
 			})
 		}
 		if err != nil {
@@ -184,6 +186,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		if res != nil && res.StatusCode == http.StatusConflict {
 			_, _, err = client.ProjectMembers.EditProjectMember(g.Resource.URN, userID, &gitlab.EditProjectMemberOptions{
 				AccessLevel: &accessLevel,
+				ExpiresAt:   &empty,
 			})
 		}
 		if err != nil {
