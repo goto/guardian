@@ -224,7 +224,8 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		var member *gitlab.GroupMember
 		member, res, err = client.GroupMembers.GetGroupMember(g.Resource.URN, userID, gitlab.WithContext(ctx))
 		if member != nil && member.AccessLevel == accessLevel {
-			res, err = client.GroupMembers.RemoveGroupMember(g.Resource.URN, userID, &gitlab.RemoveGroupMemberOptions{}, gitlab.WithContext(ctx))
+			trueBool := true
+			res, err = client.GroupMembers.RemoveGroupMember(g.Resource.URN, userID, &gitlab.RemoveGroupMemberOptions{SkipSubresources: &trueBool}, gitlab.WithContext(ctx))
 		}
 	case resourceTypeProject:
 		var member *gitlab.ProjectMember

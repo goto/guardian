@@ -433,6 +433,13 @@ func TestRevokeAccess(t *testing.T) {
 									}`))
 							return
 						case http.MethodDelete: // remove member
+							t.Run("should pass skip_subresources=true", func(t *testing.T) {
+								q := r.URL.Query()
+								skipSubresources, keyExists := q["skip_subresources"]
+								assert.True(t, keyExists)
+								assert.Equal(t, []string{"true"}, skipSubresources)
+							})
+
 							w.WriteHeader(http.StatusNoContent)
 							w.Write([]byte(""))
 							return
