@@ -70,15 +70,6 @@ type Appeal struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
 }
 
-func (a *Appeal) GetNextPendingApproval() *Approval {
-	for _, approval := range a.Approvals {
-		if approval.Status == ApprovalStatusPending && approval.IsManualApproval() {
-			return approval
-		}
-	}
-	return nil
-}
-
 func (a *Appeal) Init(policy *Policy) {
 	a.Status = AppealStatusPending
 	a.PolicyID = policy.ID
@@ -149,6 +140,15 @@ func (a *Appeal) GetApproval(identifier string) *Approval {
 func (a *Appeal) GetApprovalByIndex(index int) *Approval {
 	for _, approval := range a.Approvals {
 		if approval.Index == index && !approval.IsStale {
+			return approval
+		}
+	}
+	return nil
+}
+
+func (a *Appeal) GetNextPendingApproval() *Approval {
+	for _, approval := range a.Approvals {
+		if approval.Status == ApprovalStatusPending && approval.IsManualApproval() && !approval.IsStale {
 			return approval
 		}
 	}

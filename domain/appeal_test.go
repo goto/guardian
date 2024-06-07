@@ -45,6 +45,45 @@ func TestAppeal_GetNextPendingApproval(t *testing.T) {
 				Approvers: []string{"user1"},
 			},
 		},
+		{
+			name: "should return non-stale pending approval",
+			appeal: domain.Appeal{
+				Approvals: []*domain.Approval{
+					{
+						ID:        "1a",
+						Status:    domain.ApprovalStatusApproved,
+						Index:     0,
+						Approvers: []string{"user1"},
+						IsStale:   true,
+					},
+					{
+						ID:        "2a",
+						Status:    domain.ApprovalStatusApproved,
+						Index:     0,
+						Approvers: []string{"user1"},
+					},
+					{
+						ID:        "1b",
+						Status:    domain.ApprovalStatusPending,
+						Index:     1,
+						Approvers: []string{"user1"},
+						IsStale:   true,
+					},
+					{
+						ID:        "2b",
+						Status:    domain.ApprovalStatusPending,
+						Index:     1,
+						Approvers: []string{"user1"},
+					},
+				},
+			},
+			want: &domain.Approval{
+				ID:        "2b",
+				Status:    domain.ApprovalStatusPending,
+				Index:     1,
+				Approvers: []string{"user1"},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
