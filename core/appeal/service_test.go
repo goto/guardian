@@ -3719,9 +3719,21 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 				appealStatus: domain.AppealStatusPending,
 				approvals: []*domain.Approval{
 					{
+						Name:    "approval_0",
+						Status:  domain.ApprovalStatusPending,
+						Index:   0,
+						IsStale: true,
+					},
+					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusPending,
 						Index:  0,
+					},
+					{
+						Name:    "approval_1",
+						Status:  domain.ApprovalStatusPending,
+						Index:   1,
+						IsStale: true,
 					},
 					{
 						Name:   "approval_1",
@@ -3736,9 +3748,21 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 				appealStatus: domain.AppealStatusPending,
 				approvals: []*domain.Approval{
 					{
+						Name:    "approval_0",
+						Status:  domain.ApprovalStatusRejected,
+						Index:   0,
+						IsStale: true,
+					},
+					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusRejected,
 						Index:  0,
+					},
+					{
+						Name:    "approval_1",
+						Status:  domain.ApprovalStatusPending,
+						Index:   1,
+						IsStale: true,
 					},
 					{
 						Name:   "approval_1",
@@ -4046,9 +4070,22 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					Status: domain.AppealStatusPending,
 					Approvals: []*domain.Approval{
 						{
+							Name:    "approval_0",
+							Status:  domain.ApprovalStatusApproved,
+							Index:   0,
+							IsStale: true,
+						},
+						{
 							Name:   "approval_0",
 							Status: domain.ApprovalStatusApproved,
 							Index:  0,
+						},
+						{
+							Name:      "approval_1",
+							Status:    domain.ApprovalStatusPending,
+							IsStale:   true,
+							Index:     1,
+							Approvers: []string{"user@email.com"},
 						},
 						{
 							Name:      "approval_1",
@@ -4068,9 +4105,22 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					Status:     domain.AppealStatusApproved,
 					Approvals: []*domain.Approval{
 						{
+							Name:    "approval_0",
+							Index:   0,
+							Status:  domain.ApprovalStatusApproved,
+							IsStale: true,
+						},
+						{
 							Name:   "approval_0",
 							Index:  0,
 							Status: domain.ApprovalStatusApproved,
+						},
+						{
+							Name:      "approval_1",
+							Index:     1,
+							Status:    domain.ApprovalStatusPending,
+							IsStale:   true,
+							Approvers: []string{"user@email.com"},
 						},
 						{
 							Name:      "approval_1",
