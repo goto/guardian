@@ -1679,7 +1679,7 @@ func (s *ServiceTestSuite) TestCreate() {
 	})
 }
 
-func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprovalSteps() {
+func (s *ServiceTestSuite) TestCreate__WithExistingAppealAndWithAutoApprovalSteps() {
 	h := newServiceTestHelper()
 
 	appeal.TimeNow = func() time.Time {
@@ -1955,7 +1955,7 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprov
 	h.assertExpectations(s.T())
 }
 
-func (s *ServiceTestSuite) TestCreateAppeal__WithAdditionalAppeals() {
+func (s *ServiceTestSuite) TestCreate__WithAdditionalAppeals() {
 	h := newServiceTestHelper()
 	providerType := "test-provider-type"
 	providerURN := "test-provider-urn"

@@ -335,6 +335,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		appeal.Policy = nil
 
 		for _, approval := range appeal.Approvals {
+			// TODO: direcly check on appeal.Status==domain.AppealStatusApproved instead of manual looping through approvals
 			if approval.Index == len(appeal.Approvals)-1 && (approval.Status == domain.ApprovalStatusApproved || appeal.Status == domain.AppealStatusApproved) {
 				newGrant, prevGrant, err := s.prepareGrant(ctx, appeal)
 				if err != nil {
