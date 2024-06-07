@@ -689,7 +689,11 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	// mark previous approvals as stale
 	for _, approval := range existingAppeal.Approvals {
 		approval.IsStale = true
+
+		// clear approvers so it won't get inserted to db
+		// TODO: change Approvers type to Approver[] instead of string[] to keep each ID
 		approval.Approvers = []string{}
+
 		appeal.Approvals = append(appeal.Approvals, approval)
 	}
 
