@@ -146,6 +146,15 @@ func (a *Appeal) GetApproval(identifier string) *Approval {
 	return nil
 }
 
+func (a *Appeal) GetApprovalByIndex(index int) *Approval {
+	for _, approval := range a.Approvals {
+		if approval.Index == index && !approval.IsStale {
+			return approval
+		}
+	}
+	return nil
+}
+
 func (a Appeal) ToGrant() (*Grant, error) {
 	grant := &Grant{
 		Status:      GrantStatusActive,
@@ -227,7 +236,10 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 
 				isFalsy := reflect.ValueOf(v).IsZero()
 				if isFalsy {
+					// mark current as skipped
 					approval.Status = ApprovalStatusSkipped
+
+					// mark next as pending
 					if i < len(a.Approvals)-1 {
 						a.Approvals[i+1].Status = ApprovalStatusPending
 					}

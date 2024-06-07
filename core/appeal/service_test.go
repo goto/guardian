@@ -3721,10 +3721,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusPending,
+						Index:  0,
 					},
 					{
 						Name:   "approval_1",
 						Status: domain.ApprovalStatusPending,
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
@@ -3736,10 +3738,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusRejected,
+						Index:  0,
 					},
 					{
 						Name:   "approval_1",
 						Status: domain.ApprovalStatusPending,
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
@@ -3751,10 +3755,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: "invalidstatus",
+						Index:  0,
 					},
 					{
 						Name:   "approval_1",
 						Status: domain.ApprovalStatusPending,
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalStatusUnrecognized,
@@ -3766,10 +3772,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusApproved,
+						Index:  0,
 					},
 					{
 						Name:   "approval_1",
 						Status: domain.ApprovalStatusApproved,
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
@@ -3781,10 +3789,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusApproved,
+						Index:  0,
 					},
 					{
 						Name:   "approval_1",
 						Status: domain.ApprovalStatusRejected,
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
@@ -3796,10 +3806,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusApproved,
+						Index:  0,
 					},
 					{
 						Name:   "approval_1",
 						Status: domain.ApprovalStatusSkipped,
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
@@ -3811,10 +3823,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusApproved,
+						Index:  0,
 					},
 					{
 						Name:   "approval_1",
 						Status: "invalidstatus",
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalStatusUnrecognized,
@@ -3826,10 +3840,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusApproved,
+						Index:  0,
 					},
 					{
 						Name:      "approval_1",
 						Status:    domain.ApprovalStatusPending,
+						Index:     1,
 						Approvers: []string{"another.user@email.com"},
 					},
 				},
@@ -3842,10 +3858,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusApproved,
+						Index:  0,
 					},
 					{
 						Name:   "approval_x",
 						Status: domain.ApprovalStatusApproved,
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalNotFound,
@@ -3853,19 +3871,21 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		}
 
 		for _, tc := range testCases {
-			expectedAppeal := &domain.Appeal{
-				ID:        validApprovalActionParam.AppealID,
-				Status:    tc.appealStatus,
-				Approvals: tc.approvals,
-			}
-			h.mockRepository.EXPECT().
-				GetByID(h.ctxMatcher, validApprovalActionParam.AppealID).
-				Return(expectedAppeal, nil).Once()
+			s.Run(tc.name, func() {
+				expectedAppeal := &domain.Appeal{
+					ID:        validApprovalActionParam.AppealID,
+					Status:    tc.appealStatus,
+					Approvals: tc.approvals,
+				}
+				h.mockRepository.EXPECT().
+					GetByID(h.ctxMatcher, validApprovalActionParam.AppealID).
+					Return(expectedAppeal, nil).Once()
 
-			actualResult, actualError := h.service.UpdateApproval(context.Background(), validApprovalActionParam)
+				actualResult, actualError := h.service.UpdateApproval(context.Background(), validApprovalActionParam)
 
-			s.Nil(actualResult)
-			s.ErrorIs(actualError, tc.expectedError)
+				s.Nil(actualResult)
+				s.ErrorIs(actualError, tc.expectedError)
+			})
 		}
 	})
 
@@ -4180,14 +4200,17 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 						{
 							Name:   "approval_0",
 							Status: domain.ApprovalStatusApproved,
+							Index:  0,
 						},
 						{
 							Name:      "approval_1",
 							Status:    domain.ApprovalStatusPending,
+							Index:     1,
 							Approvers: []string{"user@email.com"},
 						},
 						{
 							Name:   "approval_2",
+							Index:  2,
 							Status: domain.ApprovalStatusPending,
 						},
 					},
@@ -4209,10 +4232,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 						{
 							Name:   "approval_0",
 							Status: domain.ApprovalStatusApproved,
+							Index:  0,
 						},
 						{
 							Name:      "approval_1",
 							Status:    domain.ApprovalStatusRejected,
+							Index:     1,
 							Approvers: []string{"user@email.com"},
 							Actor:     &user,
 							UpdatedAt: timeNow,
@@ -4220,6 +4245,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 						{
 							Name:      "approval_2",
 							Status:    domain.ApprovalStatusSkipped,
+							Index:     2,
 							UpdatedAt: timeNow,
 						},
 					},
@@ -4262,11 +4288,13 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 						{
 							Name:      "approval_0",
 							Status:    domain.ApprovalStatusPending,
+							Index:     0,
 							Approvers: []string{user},
 						},
 						{
 							Name:   "approval_1",
 							Status: domain.ApprovalStatusBlocked,
+							Index:  1,
 							Approvers: []string{
 								"nextapprover1@email.com",
 								"nextapprover2@email.com",
@@ -4291,6 +4319,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 						{
 							Name:      "approval_0",
 							Status:    domain.ApprovalStatusApproved,
+							Index:     0,
 							Approvers: []string{user},
 							Actor:     &user,
 							UpdatedAt: timeNow,
@@ -4298,6 +4327,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 						{
 							Name:   "approval_1",
 							Status: domain.ApprovalStatusPending,
+							Index:  1,
 							Approvers: []string{
 								"nextapprover1@email.com",
 								"nextapprover2@email.com",

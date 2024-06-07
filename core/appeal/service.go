@@ -925,153 +925,168 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 		return nil, err
 	}
 
-	for i, approval := range appeal.Approvals {
-		if approval.Name != approvalAction.ApprovalName {
-			if err := checkPreviousApprovalStatus(approval.Status, approval.Name); err != nil {
-				return nil, err
-			}
-			continue
-		}
-
-		if err := checkApprovalStatus(approval.Status); err != nil {
-			return nil, err
-		}
-
-		if !utils.ContainsString(approval.Approvers, approvalAction.Actor) {
-			return nil, ErrActionForbidden
-		}
-
-		approval.Actor = &approvalAction.Actor
-		approval.Reason = approvalAction.Reason
-		approval.UpdatedAt = TimeNow()
-
-		if approvalAction.Action == domain.AppealActionNameApprove {
-			approval.Approve()
-			if i+1 <= len(appeal.Approvals)-1 {
-				appeal.Approvals[i+1].Status = domain.ApprovalStatusPending
-			}
-			if appeal.Policy == nil {
-				appeal.Policy, err = s.policyService.GetOne(ctx, appeal.PolicyID, appeal.PolicyVersion)
-				if err != nil {
-					return nil, err
-				}
-			}
-			if err := appeal.AdvanceApproval(appeal.Policy); err != nil {
-				return nil, err
-			}
-		} else if approvalAction.Action == domain.AppealActionNameReject {
-			approval.Reject()
-			appeal.Reject()
-
-			if i < len(appeal.Approvals)-1 {
-				for j := i + 1; j < len(appeal.Approvals); j++ {
-					appeal.Approvals[j].Skip()
-					appeal.Approvals[j].UpdatedAt = TimeNow()
-				}
-			}
-		} else {
-			return nil, ErrActionInvalidValue
-		}
-
-		if appeal.Status == domain.AppealStatusApproved {
-			newGrant, prevGrant, err := s.prepareGrant(ctx, appeal)
-			if err != nil {
-				return nil, fmt.Errorf("preparing grant: %w", err)
-			}
-			newGrant.Resource = appeal.Resource
-			appeal.Grant = newGrant
-			if prevGrant != nil {
-				if _, err := s.grantService.Revoke(ctx, prevGrant.ID, domain.SystemActorName, prevGrant.RevokeReason,
-					grant.SkipNotifications(),
-					grant.SkipRevokeAccessInProvider(),
-				); err != nil {
-					return nil, fmt.Errorf("revoking previous grant: %w", err)
-				}
-			}
-
-			if err := s.GrantAccessToProvider(ctx, appeal); err != nil {
-				return nil, fmt.Errorf("granting access: %w", err)
-			}
-		}
-
-		if err := s.Update(ctx, appeal); err != nil {
-			if !errors.Is(err, domain.ErrDuplicateActiveGrant) {
-				if err := s.providerService.RevokeAccess(ctx, *appeal.Grant); err != nil {
-					return nil, fmt.Errorf("revoking access: %w", err)
-				}
-			}
-			return nil, fmt.Errorf("updating appeal: %w", err)
-		}
-
-		notifications := []domain.Notification{}
-		if appeal.Status == domain.AppealStatusApproved {
-			notifications = append(notifications, domain.Notification{
-				User: appeal.CreatedBy,
-				Labels: map[string]string{
-					"appeal_id": appeal.ID,
-				},
-				Message: domain.NotificationMessage{
-					Type: domain.NotificationTypeAppealApproved,
-					Variables: map[string]interface{}{
-						"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-						"role":          appeal.Role,
-						"account_id":    appeal.AccountID,
-						"appeal_id":     appeal.ID,
-						"requestor":     appeal.CreatedBy,
-					},
-				},
-			})
-			notifications = addOnBehalfApprovedNotification(appeal, notifications)
-		} else if appeal.Status == domain.AppealStatusRejected {
-			notifications = append(notifications, domain.Notification{
-				User: appeal.CreatedBy,
-				Labels: map[string]string{
-					"appeal_id": appeal.ID,
-				},
-				Message: domain.NotificationMessage{
-					Type: domain.NotificationTypeAppealRejected,
-					Variables: map[string]interface{}{
-						"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-						"role":          appeal.Role,
-						"account_id":    appeal.AccountID,
-						"appeal_id":     appeal.ID,
-						"requestor":     appeal.CreatedBy,
-					},
-				},
-			})
-		} else {
-			notifications = append(notifications, s.getApprovalNotifications(ctx, appeal)...)
-		}
-		if len(notifications) > 0 {
-			go func() {
-				ctx := context.WithoutCancel(ctx)
-				if errs := s.notifier.Notify(ctx, notifications); errs != nil {
-					for _, err1 := range errs {
-						s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
-					}
-				}
-			}()
-		}
-
-		var auditKey string
-		if approvalAction.Action == string(domain.ApprovalActionReject) {
-			auditKey = AuditKeyReject
-		} else if approvalAction.Action == string(domain.ApprovalActionApprove) {
-			auditKey = AuditKeyApprove
-		}
-		if auditKey != "" {
-			go func() {
-				ctx := context.WithoutCancel(ctx)
-				if err := s.auditLogger.Log(ctx, auditKey, approvalAction); err != nil {
-					s.logger.Error(ctx, "failed to record audit log", "error", err)
-				}
-			}()
-		}
-
-		return appeal, nil
+	currentApproval := appeal.GetApproval(approvalAction.ApprovalName)
+	if currentApproval == nil {
+		return nil, fmt.Errorf("%w: %q", ErrApprovalNotFound, approvalAction.ApprovalName)
 	}
 
-	return nil, fmt.Errorf("%w: %q", ErrApprovalNotFound, approvalAction.ApprovalName)
+	// validate previous approvals status
+	for i := 0; i < currentApproval.Index; i++ {
+		prevApproval := appeal.GetApprovalByIndex(i)
+		if prevApproval == nil {
+			return nil, fmt.Errorf("unable to find approval with index %d", i)
+		}
+		if err := checkPreviousApprovalStatus(prevApproval.Status, prevApproval.Name); err != nil {
+			return nil, err
+		}
+	}
+
+	// validate current approval status
+	if err := checkApprovalStatus(currentApproval.Status); err != nil {
+		return nil, err
+	}
+	if !utils.ContainsString(currentApproval.Approvers, approvalAction.Actor) {
+		return nil, ErrActionForbidden
+	}
+
+	// update approval
+	currentApproval.Actor = &approvalAction.Actor
+	currentApproval.Reason = approvalAction.Reason
+	currentApproval.UpdatedAt = TimeNow()
+	if approvalAction.Action == domain.AppealActionNameApprove {
+		currentApproval.Approve()
+
+		// mark next approval as pending
+		nextApproval := appeal.GetApprovalByIndex(currentApproval.Index + 1)
+		if nextApproval != nil {
+			nextApproval.Status = domain.ApprovalStatusPending
+		}
+
+		if appeal.Policy == nil {
+			appeal.Policy, err = s.policyService.GetOne(ctx, appeal.PolicyID, appeal.PolicyVersion)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if err := appeal.AdvanceApproval(appeal.Policy); err != nil {
+			return nil, err
+		}
+	} else if approvalAction.Action == domain.AppealActionNameReject {
+		currentApproval.Reject()
+		appeal.Reject()
+
+		// mark the rest of approvals as skipped
+		i := currentApproval.Index
+		for {
+			nextApproval := appeal.GetApprovalByIndex(i + 1)
+			if nextApproval == nil {
+				break
+			}
+			nextApproval.Skip()
+			nextApproval.UpdatedAt = TimeNow()
+			i++
+		}
+	} else {
+		return nil, ErrActionInvalidValue
+	}
+
+	// evaluate final appeal status
+	if appeal.Status == domain.AppealStatusApproved {
+		newGrant, prevGrant, err := s.prepareGrant(ctx, appeal)
+		if err != nil {
+			return nil, fmt.Errorf("preparing grant: %w", err)
+		}
+		newGrant.Resource = appeal.Resource
+		appeal.Grant = newGrant
+		if prevGrant != nil {
+			if _, err := s.grantService.Revoke(ctx, prevGrant.ID, domain.SystemActorName, prevGrant.RevokeReason,
+				grant.SkipNotifications(),
+				grant.SkipRevokeAccessInProvider(),
+			); err != nil {
+				return nil, fmt.Errorf("revoking previous grant: %w", err)
+			}
+		}
+
+		if err := s.GrantAccessToProvider(ctx, appeal); err != nil {
+			return nil, fmt.Errorf("granting access: %w", err)
+		}
+	}
+
+	if err := s.Update(ctx, appeal); err != nil {
+		if !errors.Is(err, domain.ErrDuplicateActiveGrant) {
+			if err := s.providerService.RevokeAccess(ctx, *appeal.Grant); err != nil {
+				return nil, fmt.Errorf("revoking access: %w", err)
+			}
+		}
+		return nil, fmt.Errorf("updating appeal: %w", err)
+	}
+
+	notifications := []domain.Notification{}
+	if appeal.Status == domain.AppealStatusApproved {
+		notifications = append(notifications, domain.Notification{
+			User: appeal.CreatedBy,
+			Labels: map[string]string{
+				"appeal_id": appeal.ID,
+			},
+			Message: domain.NotificationMessage{
+				Type: domain.NotificationTypeAppealApproved,
+				Variables: map[string]interface{}{
+					"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+					"role":          appeal.Role,
+					"account_id":    appeal.AccountID,
+					"appeal_id":     appeal.ID,
+					"requestor":     appeal.CreatedBy,
+				},
+			},
+		})
+		notifications = addOnBehalfApprovedNotification(appeal, notifications)
+	} else if appeal.Status == domain.AppealStatusRejected {
+		notifications = append(notifications, domain.Notification{
+			User: appeal.CreatedBy,
+			Labels: map[string]string{
+				"appeal_id": appeal.ID,
+			},
+			Message: domain.NotificationMessage{
+				Type: domain.NotificationTypeAppealRejected,
+				Variables: map[string]interface{}{
+					"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+					"role":          appeal.Role,
+					"account_id":    appeal.AccountID,
+					"appeal_id":     appeal.ID,
+					"requestor":     appeal.CreatedBy,
+				},
+			},
+		})
+	} else {
+		notifications = append(notifications, s.getApprovalNotifications(ctx, appeal)...)
+	}
+	if len(notifications) > 0 {
+		go func() {
+			ctx := context.WithoutCancel(ctx)
+			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
+				for _, err1 := range errs {
+					s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+				}
+			}
+		}()
+	}
+
+	var auditKey string
+	if approvalAction.Action == string(domain.ApprovalActionReject) {
+		auditKey = AuditKeyReject
+	} else if approvalAction.Action == string(domain.ApprovalActionApprove) {
+		auditKey = AuditKeyApprove
+	}
+	if auditKey != "" {
+		go func() {
+			ctx := context.WithoutCancel(ctx)
+			if err := s.auditLogger.Log(ctx, auditKey, approvalAction); err != nil {
+				s.logger.Error(ctx, "failed to record audit log", "error", err)
+			}
+		}()
+	}
+
+	return appeal, nil
 }
 
 func (s *Service) Update(ctx context.Context, appeal *domain.Appeal) error {

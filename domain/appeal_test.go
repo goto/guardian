@@ -253,6 +253,124 @@ func TestAppeal_GetApproval(t *testing.T) {
 	}
 }
 
+func TestAppeal_GetApprovalByIndex(t *testing.T) {
+	testCases := []struct {
+		name   string
+		appeal *domain.Appeal
+		index  int
+		want   *domain.Approval
+	}{
+		{
+			name: "should return approval with given index",
+			appeal: &domain.Appeal{
+				Approvals: []*domain.Approval{
+					{
+						ID:    "approval_id_1",
+						Name:  "approval_name",
+						Index: 0,
+					},
+					{
+						ID:    "approval_id_2",
+						Name:  "approval_name",
+						Index: 1,
+					},
+				},
+			},
+			index: 1,
+			want: &domain.Approval{
+				ID:    "approval_id_2",
+				Name:  "approval_name",
+				Index: 1,
+			},
+		},
+		{
+			name: "should return nil if approval with given index does not exist",
+			appeal: &domain.Appeal{
+				Approvals: []*domain.Approval{
+					{
+						ID:    "approval_id_1",
+						Index: 0,
+					},
+				},
+			},
+			index: 1,
+			want:  nil,
+		},
+		{
+			name: "should return non-stale approval with given index",
+			appeal: &domain.Appeal{
+				Approvals: []*domain.Approval{
+					{
+						ID:      "approval_id_1a",
+						Index:   0,
+						IsStale: true,
+					},
+					{
+						ID:    "approval_id_1b",
+						Index: 0,
+					},
+					{
+						ID:      "approval_id_1c",
+						Index:   0,
+						IsStale: true,
+					},
+				},
+			},
+			index: 0,
+			want: &domain.Approval{
+				ID:    "approval_id_1b",
+				Index: 0,
+			},
+		},
+		{
+			name: "should return non-stale approval with given index #2",
+			appeal: &domain.Appeal{
+				Approvals: []*domain.Approval{
+					{
+						ID:      "approval_id_1a",
+						Index:   0,
+						IsStale: true,
+					},
+					{
+						ID:    "approval_id_1b",
+						Index: 0,
+					},
+					{
+						ID:      "approval_id_1c",
+						Index:   0,
+						IsStale: true,
+					},
+					{
+						ID:      "approval_id_2a",
+						Index:   1,
+						IsStale: true,
+					},
+					{
+						ID:      "approval_id_2b",
+						Index:   1,
+						IsStale: true,
+					},
+					{
+						ID:    "approval_id_2c",
+						Index: 1,
+					},
+				},
+			},
+			index: 1,
+			want: &domain.Approval{
+				ID:    "approval_id_2c",
+				Index: 1,
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.appeal.GetApprovalByIndex(tc.index)
+			assert.Equal(t, tc.want, actual)
+		})
+	}
+}
+
 func TestAppeal_ToGrant(t *testing.T) {
 	tests := []struct {
 		name    string
