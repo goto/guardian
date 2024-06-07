@@ -3936,6 +3936,15 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			Action:       "approve",
 			Actor:        "approver@example.com",
 		}
+		dummyPolicy := &domain.Policy{
+			Steps: []*domain.Step{
+				{
+					Name:      "test-approval-step",
+					Strategy:  "manual",
+					Approvers: []string{"approver@example.com"},
+				},
+			},
+		}
 		appealDetails := &domain.Appeal{
 			ID:         appealID,
 			AccountID:  "user@example.com",
@@ -3986,7 +3995,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			Revoke(mock.Anything, expectedRevokedGrant.ID, domain.SystemActorName,
 				appeal.RevokeReasonForExtension, mock.Anything, mock.Anything).
 			Return(expectedNewGrant, nil).Once()
-		h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(&domain.Policy{}, nil).Once()
+		h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(dummyPolicy, nil).Once()
 		h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 		h.mockRepository.EXPECT().Update(h.ctxMatcher, appealDetails).Return(nil).Once()
 		h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
@@ -4039,10 +4048,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 						{
 							Name:   "approval_0",
 							Status: domain.ApprovalStatusApproved,
+							Index:  0,
 						},
 						{
 							Name:      "approval_1",
 							Status:    domain.ApprovalStatusPending,
+							Index:     1,
 							Approvers: []string{"user@email.com"},
 						},
 					},
@@ -4058,10 +4069,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					Approvals: []*domain.Approval{
 						{
 							Name:   "approval_0",
+							Index:  0,
 							Status: domain.ApprovalStatusApproved,
 						},
 						{
 							Name:      "approval_1",
+							Index:     1,
 							Status:    domain.ApprovalStatusApproved,
 							Approvers: []string{"user@email.com"},
 							Actor:     &user,
@@ -4125,10 +4138,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					Approvals: []*domain.Approval{
 						{
 							Name:   "approval_0",
+							Index:  0,
 							Status: domain.ApprovalStatusApproved,
 						},
 						{
 							Name:      "approval_1",
+							Index:     1,
 							Status:    domain.ApprovalStatusPending,
 							Approvers: []string{"user@email.com"},
 						},
@@ -4150,10 +4165,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					Approvals: []*domain.Approval{
 						{
 							Name:   "approval_0",
+							Index:  0,
 							Status: domain.ApprovalStatusApproved,
 						},
 						{
 							Name:      "approval_1",
+							Index:     1,
 							Status:    domain.ApprovalStatusRejected,
 							Approvers: []string{"user@email.com"},
 							Actor:     &user,

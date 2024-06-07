@@ -209,12 +209,12 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 		return fmt.Errorf("appeal has no policy")
 	}
 
-	stepNameIndex := map[string]int{}
-	for i, s := range policy.Steps {
-		stepNameIndex[s.Name] = i
-	}
+	for i := 0; i < len(policy.Steps); i++ {
+		approval := a.GetApprovalByIndex(i)
+		if approval == nil {
+			return fmt.Errorf(`unable to find approval with index %q under policy "%s:%d"`, i, policy.ID, policy.Version)
+		}
 
-	for i, approval := range a.Approvals {
 		if approval.Status == ApprovalStatusRejected {
 			break
 		}
@@ -240,8 +240,9 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 					approval.Status = ApprovalStatusSkipped
 
 					// mark next as pending
-					if i < len(a.Approvals)-1 {
-						a.Approvals[i+1].Status = ApprovalStatusPending
+					nextApproval := a.GetApprovalByIndex(approval.Index + 1)
+					if nextApproval != nil {
+						nextApproval.Status = ApprovalStatusPending
 					}
 				}
 			}
@@ -257,9 +258,13 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 				isFalsy := reflect.ValueOf(v).IsZero()
 				if isFalsy {
 					if stepConfig.AllowFailed {
+						// mark current as skipped
 						approval.Status = ApprovalStatusSkipped
-						if i+1 <= len(a.Approvals)-1 {
-							a.Approvals[i+1].Status = ApprovalStatusPending
+
+						// mark next as pending
+						nextApproval := a.GetApprovalByIndex(approval.Index + 1)
+						if nextApproval != nil {
+							nextApproval.Status = ApprovalStatusPending
 						}
 					} else {
 						approval.Status = ApprovalStatusRejected
@@ -267,14 +272,19 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 						a.Status = AppealStatusRejected
 					}
 				} else {
+					// mark current as approved
 					approval.Status = ApprovalStatusApproved
-					if i+1 <= len(a.Approvals)-1 {
-						a.Approvals[i+1].Status = ApprovalStatusPending
+
+					// mark next as pending
+					nextApproval := a.GetApprovalByIndex(approval.Index + 1)
+					if nextApproval != nil {
+						nextApproval.Status = ApprovalStatusPending
 					}
 				}
 			}
 		}
-		if i == len(a.Approvals)-1 && (approval.Status == ApprovalStatusSkipped || approval.Status == ApprovalStatusApproved) {
+		isLastApproval := approval.Index == len(policy.Steps)-1
+		if isLastApproval && (approval.Status == ApprovalStatusSkipped || approval.Status == ApprovalStatusApproved) {
 			a.Status = AppealStatusApproved
 		}
 	}
