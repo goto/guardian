@@ -556,34 +556,51 @@ func TestAppeal_AdvanceApproval(t *testing.T) {
 					Steps: []*domain.Step{
 						{
 							Name:      "step-1",
+							Strategy:  "auto",
 							ApproveIf: `$appeal.resource.details.owner == "test-owner"`,
 						},
 						{
 							Name:      "step-2",
+							Strategy:  "auto",
 							ApproveIf: `$appeal.resource.details.owner == "test-owner"`,
 						},
 						{
 							Name:      "step-3",
+							Strategy:  "auto",
 							ApproveIf: `$appeal.resource.details.owner == "test-owner"`,
 						},
 					},
 				},
 				Approvals: []*domain.Approval{
 					{
-						Status: "pending",
+						Status: domain.ApprovalStatusPending,
 						Index:  0,
 					},
 					{
-						Status: "blocked",
+						Status: domain.ApprovalStatusBlocked,
 						Index:  1,
 					},
 					{
-						Status: "blocked",
+						Status: domain.ApprovalStatusBlocked,
 						Index:  2,
 					},
 				},
 			},
 			wantErr: false,
+			wantApprovals: []*domain.Approval{
+				{
+					Status: domain.ApprovalStatusApproved,
+					Index:  0,
+				},
+				{
+					Status: domain.ApprovalStatusApproved,
+					Index:  1,
+				},
+				{
+					Status: domain.ApprovalStatusApproved,
+					Index:  2,
+				},
+			},
 		},
 		{
 			name: "should autofill rejection reason on auto-reject",
@@ -686,12 +703,68 @@ func TestAppeal_AdvanceApproval(t *testing.T) {
 				},
 				Approvals: []*domain.Approval{
 					{
-						Status: domain.AppealStatusPending,
+						Status: domain.ApprovalStatusPending,
 						Index:  0,
 					},
 				},
 			},
 			wantErr: true,
+		},
+		{
+			name: "should mark approval as skipped if auto approval condition is not met but AllowFailed=true",
+			appeal: &domain.Appeal{
+				PolicyID:      "test-id",
+				PolicyVersion: 1,
+				Resource: &domain.Resource{
+					Name: "grafana",
+					Details: map[string]interface{}{
+						"owner": "test-owner",
+					},
+				},
+				Policy: &domain.Policy{
+					ID:      "test-id",
+					Version: 1,
+					Steps: []*domain.Step{
+						{
+							Name:        "step-1",
+							Strategy:    "auto",
+							ApproveIf:   "false",
+							AllowFailed: true,
+						},
+						{
+							Name:        "step-2",
+							Strategy:    "manual",
+							Approvers:   []string{"user@example.com"},
+							AllowFailed: true,
+						},
+					},
+				},
+				Approvals: []*domain.Approval{
+					{
+						Name:   "step-1",
+						Status: domain.ApprovalStatusPending,
+						Index:  0,
+					},
+					{
+						Name:   "step-2",
+						Status: domain.ApprovalStatusBlocked,
+						Index:  1,
+					},
+				},
+			},
+			wantErr: false,
+			wantApprovals: []*domain.Approval{
+				{
+					Name:   "step-1",
+					Status: domain.ApprovalStatusSkipped,
+					Index:  0,
+				},
+				{
+					Name:   "step-2",
+					Status: domain.ApprovalStatusPending,
+					Index:  1,
+				},
+			},
 		},
 	}
 	for _, tt := range tests {
