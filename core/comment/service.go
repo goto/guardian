@@ -67,6 +67,7 @@ func (s *Service) Create(ctx context.Context, c *domain.Comment) error {
 	}
 
 	go func() {
+		ctx := context.WithoutCancel(ctx)
 		if err := s.auditLogger.Log(ctx, AuditKeyCreate, c); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err, "appeal_id", c.ParentID, "comment_id", c.ID)
 		}
