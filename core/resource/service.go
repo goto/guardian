@@ -79,6 +79,7 @@ func (s *Service) BulkUpsert(ctx context.Context, resources []*domain.Resource) 
 	}
 
 	go func() {
+		ctx := context.WithoutCancel(ctx)
 		if err := s.auditLogger.Log(ctx, AuditKeyResoruceBulkUpsert, resources); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
@@ -122,6 +123,7 @@ func (s *Service) Update(ctx context.Context, r *domain.Resource) error {
 	r.UpdatedAt = res.UpdatedAt
 
 	go func() {
+		ctx := context.WithoutCancel(ctx)
 		if err := s.auditLogger.Log(ctx, AuditKeyResourceUpdate, r); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
@@ -165,6 +167,7 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	s.logger.Info(ctx, "resource deleted", "resource", id)
 
 	go func() {
+		ctx := context.WithoutCancel(ctx)
 		if err := s.auditLogger.Log(ctx, AuditKeyResourceDelete, map[string]interface{}{"id": id}); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
@@ -181,6 +184,7 @@ func (s *Service) BatchDelete(ctx context.Context, ids []string) error {
 	s.logger.Info(ctx, "resources deleted", "resources", len(ids))
 
 	go func() {
+		ctx := context.WithoutCancel(ctx)
 		if err := s.auditLogger.Log(ctx, AuditKeyResourceBatchDelete, map[string]interface{}{"ids": ids}); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
