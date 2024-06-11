@@ -3,101 +3,62 @@ package diff
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/wI2L/jsondiff"
 )
 
 type PatchOp struct {
-	Op       string      `json:"op"`
-	Actor    string      `json:"actor"`
-	Path     string      `json:"path"`
-	NewValue interface{} `json:"new_value,omitempty"`
-	OldValue interface{} `json:"old_value,omitempty"`
+	Op       string `json:"op"`
+	Actor    string `json:"actor"`
+	Path     string `json:"path"`
+	OldValue any    `json:"old_value,omitempty"`
+	NewValue any    `json:"new_value,omitempty"`
 }
 
-func GetChangelog(a, b interface{}) ([]PatchOp, error) {
+func GetChangelog(a, b any) ([]*PatchOp, error) {
 	jsonA, err := json.Marshal(a)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal a: %w", err)
 	}
 
 	jsonB, err := json.Marshal(b)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal b: %w", err)
 	}
 
 	diff, err := jsondiff.CompareJSON(jsonA, jsonB)
 	if err != nil {
 		return nil, err
 	}
-
-	var originalMap interface{}
-	err = json.Unmarshal(jsonA, &originalMap)
-	if err != nil {
-		return nil, err
+	if diff == nil {
+		return nil, nil
 	}
 
-	patchWithOldValues := []PatchOp{}
-
-	for _, op := range diff {
-		patchOp := PatchOp{
-			Op:       op.Type,
-			Path:     op.Path,
-			NewValue: op.Value,
-		}
-
-		if op.Type == "remove" || op.Type == "replace" {
-			oldValue, err := getOldValue(originalMap, op.Path)
-			if err != nil {
-				return nil, err
-			}
-			patchOp.OldValue = oldValue
-		}
-
-		patchWithOldValues = append(patchWithOldValues, patchOp)
+	changes := make([]*PatchOp, 0, len(diff))
+	for _, d := range diff {
+		changes = append(changes, &PatchOp{
+			Op:       d.Type,
+			Path:     transformPath(d.Path),
+			NewValue: d.Value,
+			OldValue: d.OldValue,
+		})
 	}
-
-	return patchWithOldValues, nil
+	return changes, nil
 }
 
-func getOldValue(original interface{}, path string) (interface{}, error) {
-	parts := parseJSONPointer(path)
-	var current interface{} = original
+func transformPath(path string) string {
+	result := path
+	result = strings.TrimPrefix(result, "/")
 
-	for _, part := range parts {
-		switch curr := current.(type) {
-		case map[string]interface{}:
-			current = curr[part]
-		case []interface{}:
-			index, err := strconv.Atoi(part)
-			if err != nil {
-				return nil, fmt.Errorf("invalid array index: %s", part)
-			}
-			if index < 0 || index >= len(curr) {
-				return nil, fmt.Errorf("index out of range: %d", index)
-			}
-			current = curr[index]
-		default:
-			return nil, fmt.Errorf("invalid path: %s", path)
-		}
-	}
+	// escape . to \.
+	result = strings.ReplaceAll(result, ".", "\\.")
 
-	return current, nil
-}
+	// unescape ~1 to / and ~0 to ~ as per RFC 6901
+	result = strings.ReplaceAll(result, "~1", "/")
+	result = strings.ReplaceAll(result, "~0", "~")
 
-func parseJSONPointer(path string) []string {
-	if path == "" {
-		return []string{}
-	}
-
-	// Remove leading '/' and split by '/'
-	parts := strings.Split(path[1:], "/")
-	for i := range parts {
-		// Unescape ~1 to / and ~0 to ~ as per RFC 6901
-		parts[i] = strings.ReplaceAll(parts[i], "~1", "/")
-		parts[i] = strings.ReplaceAll(parts[i], "~0", "~")
-	}
-	return parts
+	// use dot as separator
+	result = strings.ReplaceAll(result, "/", ".")
+	return result
 }
