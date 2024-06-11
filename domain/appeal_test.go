@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -1022,7 +1023,7 @@ func TestAppeal_Compare(t *testing.T) {
 					Duration: "24h",
 				},
 				Details: map[string]interface{}{
-					"__policy_questions": map[string]interface{}{
+					domain.ReservedDetailsKeyPolicyQuestions: map[string]interface{}{
 						"question-1": "answer-1",
 						"question-2": "answer-2",
 					},
@@ -1040,7 +1041,7 @@ func TestAppeal_Compare(t *testing.T) {
 					Duration: "48h",
 				},
 				Details: map[string]interface{}{
-					"__policy_questions": map[string]interface{}{
+					domain.ReservedDetailsKeyPolicyQuestions: map[string]interface{}{
 						"question-1": "answer-1-edit",
 						"question-2": "answer-2-edit",
 					},
@@ -1081,14 +1082,14 @@ func TestAppeal_Compare(t *testing.T) {
 				},
 				{
 					Op:       "replace",
-					Path:     "details.__policy_questions.question-1",
+					Path:     fmt.Sprintf("details.%s.question-1", domain.ReservedDetailsKeyPolicyQuestions),
 					OldValue: "answer-1",
 					NewValue: "answer-1-edit",
 					Actor:    "user@example.com",
 				},
 				{
 					Op:       "replace",
-					Path:     "details.__policy_questions.question-2",
+					Path:     fmt.Sprintf("details.%s.question-2", domain.ReservedDetailsKeyPolicyQuestions),
 					OldValue: "answer-2",
 					NewValue: "answer-2-edit",
 					Actor:    "user@example.com",

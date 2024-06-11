@@ -28,6 +28,10 @@ const (
 	PermanentDurationLabel   = "Permanent"
 
 	ExpirationDateReasonFromAppeal = "Expiration date is set based on the appeal options"
+
+	ReservedDetailsKeyProviderParameters = "__provider_parameters"
+	ReservedDetailsKeyPolicyQuestions    = "__policy_questions"
+	ReservedDetailsKeyPolicyMetadata     = "__policy_metadata"
 )
 
 var (
@@ -344,7 +348,7 @@ func (a *Appeal) Compare(old *Appeal, actor string) ([]*DiffItem, error) {
 			c.Path == "creator",
 			c.Path == "revision",
 			strings.HasPrefix(c.Path, "permissions"),
-			strings.HasPrefix(c.Path, fmt.Sprintf("details.%s", "__policy_metadata")):
+			strings.HasPrefix(c.Path, fmt.Sprintf("details.%s", ReservedDetailsKeyPolicyMetadata)):
 			diff.Actor = SystemActorName
 		default:
 			diff.Actor = actor

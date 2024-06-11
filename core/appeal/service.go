@@ -39,9 +39,6 @@ const (
 
 	RevokeReasonForExtension = "Automatically revoked for grant extension"
 	RevokeReasonForOverride  = "Automatically revoked for grant override"
-
-	PolicyQuestionsKey = "__policy_questions"
-	PolicyMetadataKey  = "__policy_metadata"
 )
 
 var TimeNow = time.Now
@@ -1639,7 +1636,7 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 	if a.Details == nil {
 		a.Details = map[string]interface{}{}
 	}
-	a.Details[PolicyMetadataKey] = appealMetadata
+	a.Details[domain.ReservedDetailsKeyPolicyMetadata] = appealMetadata
 
 	return nil
 }

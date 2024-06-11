@@ -2243,7 +2243,7 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 					Name:     "step_2",
 					Strategy: "manual",
 					Approvers: []string{
-						"$appeal.details.__policy_metadata.creator.managers",
+						fmt.Sprintf("$appeal.details.%s.creator.managers", domain.ReservedDetailsKeyPolicyMetadata),
 					},
 				},
 			},
@@ -2294,7 +2294,7 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 			},
 			Description: "The answer is 42",
 			Details: map[string]interface{}{
-				"__policy_metadata": map[string]interface{}{
+				domain.ReservedDetailsKeyPolicyMetadata: map[string]interface{}{
 					"creator": map[string]interface{}{
 						"managers": []interface{}{"user.approver@email.com"},
 					},
@@ -2337,7 +2337,7 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 			},
 			Description: "The answer is 42",
 			Details: map[string]interface{}{
-				"__policy_metadata": map[string]interface{}{
+				domain.ReservedDetailsKeyPolicyMetadata: map[string]interface{}{
 					"creator": map[string]interface{}{
 						"managers": []interface{}{"user.approver@email.com"},
 					},
@@ -2457,14 +2457,14 @@ func (s *ServiceTestSuite) TestPatch() {
 			},
 			Description: "test-appeal",
 			Details: map[string]interface{}{
-				"__policy_questions": map[string]string{
+				domain.ReservedDetailsKeyPolicyQuestions: map[string]string{
 					"dataRequirement": "test edit appeal",
 				},
 				"__original_account": map[string]string{
 					"account_id":   "xxxx",
 					"account_type": "gitlab_user_id",
 				},
-				"__policy_metadata": map[string]interface{}{
+				domain.ReservedDetailsKeyPolicyMetadata: map[string]interface{}{
 					"resource_owners": []string{"xyz@gojek.com"},
 				},
 			},
@@ -2473,7 +2473,7 @@ func (s *ServiceTestSuite) TestPatch() {
 		reqAppeal := &domain.Appeal{
 			ID: appealID,
 			Details: map[string]interface{}{
-				"__policy_questions": map[string]string{
+				domain.ReservedDetailsKeyPolicyQuestions: map[string]string{
 					"dataRequirement": "test edit appeal",
 				},
 				"__original_account": map[string]string{
@@ -3352,7 +3352,7 @@ func (s *ServiceTestSuite) TestPatch() {
 			{
 				name:            "should update details",
 				mockGetResource: false,
-				reqAppeal:       &domain.Appeal{ID: appealID, Details: map[string]interface{}{"__policy_questions": map[string]string{"dataRequirement": "test edit appeal"}}},
+				reqAppeal:       &domain.Appeal{ID: appealID, Details: map[string]interface{}{domain.ReservedDetailsKeyPolicyQuestions: map[string]string{"dataRequirement": "test edit appeal"}}},
 				existingAppeal: &domain.Appeal{
 					ID:            appealID,
 					ResourceID:    resources[0].ID,
@@ -3367,7 +3367,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					Role:          "role_id",
 					Permissions:   []string{"test-permission-1"},
 					Details: map[string]interface{}{
-						"__policy_questions": map[string]string{
+						domain.ReservedDetailsKeyPolicyQuestions: map[string]string{
 							"dataRequirement": "test",
 						},
 						"__original_account": map[string]string{
@@ -3417,7 +3417,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					Role:          "role_id",
 					Permissions:   []string{"test-permission-1"},
 					Details: map[string]interface{}{
-						"__policy_questions": map[string]string{
+						domain.ReservedDetailsKeyPolicyQuestions: map[string]string{
 							"dataRequirement": "test",
 						},
 					},
@@ -3463,7 +3463,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					Role:          "role_id",
 					Permissions:   []string{"test-permission-1"},
 					Details: map[string]interface{}{
-						"__policy_questions": map[string]string{
+						domain.ReservedDetailsKeyPolicyQuestions: map[string]string{
 							"dataRequirement": "test",
 						},
 					},
@@ -3517,7 +3517,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					Role:        "test-permission",
 					Permissions: []string{"viewer"},
 					Details: map[string]interface{}{
-						"__policy_questions": map[string]string{
+						domain.ReservedDetailsKeyPolicyQuestions: map[string]string{
 							"dataRequirement": "test",
 						},
 					},
