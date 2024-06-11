@@ -9,11 +9,10 @@ import (
 )
 
 type Change struct {
-	Op       string `json:"op"`
-	Actor    string `json:"actor"`
-	Path     string `json:"path"`
-	OldValue any    `json:"old_value,omitempty"`
-	NewValue any    `json:"new_value,omitempty"`
+	Op       string
+	Path     string
+	OldValue any
+	NewValue any
 }
 
 func Compare(a, b any) ([]*Change, error) {

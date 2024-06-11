@@ -17,7 +17,6 @@ import (
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/core/policy"
 	"github.com/goto/guardian/domain"
-	"github.com/goto/guardian/pkg/diff"
 	"github.com/goto/guardian/pkg/evaluator"
 	"github.com/goto/guardian/pkg/http"
 	"github.com/goto/guardian/pkg/log"
@@ -701,9 +700,9 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		return fmt.Errorf("error saving appeal to db: %w", err)
 	}
 
-	diff, err := getAppealDiff(existingAppeal, appeal)
+	diff, err := appeal.Compare(existingAppeal, appeal.CreatedBy)
 	if err != nil {
-		return err
+		return fmt.Errorf("error comparing appeals: %w", err)
 	}
 
 	auditLog := map[string]interface{}{
@@ -778,49 +777,6 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	}
 
 	return nil
-}
-
-func getAppealDiff(old, new *domain.Appeal) ([]*diff.Change, error) {
-	oldCopy := *old
-	oldCopy.ID = ""
-	oldCopy.Policy = nil
-	oldCopy.Resource = nil
-	oldCopy.Approvals = nil
-	oldCopy.Grant = nil
-	oldCopy.CreatedAt = time.Time{}
-	oldCopy.UpdatedAt = time.Time{}
-
-	newCopy := *new
-	newCopy.ID = ""
-	newCopy.Policy = nil
-	newCopy.Resource = nil
-	newCopy.Approvals = nil
-	newCopy.Grant = nil
-	newCopy.CreatedAt = time.Time{}
-	newCopy.UpdatedAt = time.Time{}
-
-	changes, err := diff.Compare(oldCopy, newCopy)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, change := range changes {
-		switch {
-		case change.Path == "policy_id",
-			change.Path == "policy_version",
-			change.Path == "status",
-			change.Path == "creator",
-			change.Path == "revision",
-			strings.HasPrefix(change.Path, "permissions."),
-			strings.HasPrefix(change.Path, fmt.Sprintf("details.%s", PolicyQuestionsKey)),
-			strings.HasPrefix(change.Path, fmt.Sprintf("details.%s", PolicyMetadataKey)):
-			change.Actor = domain.SystemActorName
-		default:
-			change.Actor = new.CreatedBy
-		}
-	}
-
-	return changes, nil
 }
 
 func validatePatchReq(appeal, existingAppeal *domain.Appeal) (bool, error) {

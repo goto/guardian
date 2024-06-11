@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/goto/guardian/domain"
 	"github.com/stretchr/testify/assert"
 )
@@ -988,6 +990,132 @@ func TestAppeal_ApplyPolicy(t *testing.T) {
 				t.Errorf("Appeal.ApplyPolicy() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			assert.Equal(t, tt.appeal.Approvals, tt.wantApprovals)
+		})
+	}
+}
+
+func TestAppeal_Compare(t *testing.T) {
+	testCases := []struct {
+		name      string
+		oldAppeal *domain.Appeal
+		newAppeal *domain.Appeal
+		wantDiff  []*domain.DiffItem
+	}{
+		{
+			name: "should return empty diff if appeals are the same",
+			oldAppeal: &domain.Appeal{
+				ID: "appeal-1",
+			},
+			newAppeal: &domain.Appeal{
+				ID: "appeal-1",
+			},
+			wantDiff: []*domain.DiffItem{},
+		},
+		{
+			name: "should return diff if appeals are different",
+			oldAppeal: &domain.Appeal{
+				ID:          "appeal-1",
+				ResourceID:  "resource-1",
+				Role:        "role-1",
+				Permissions: []string{"permission-1"},
+				Options: &domain.AppealOptions{
+					Duration: "24h",
+				},
+				Details: map[string]interface{}{
+					"__policy_questions": map[string]interface{}{
+						"question-1": "answer-1",
+						"question-2": "answer-2",
+					},
+				},
+				PolicyID:      "policy-1",
+				PolicyVersion: 1,
+				CreatedBy:     "user@example.com",
+			},
+			newAppeal: &domain.Appeal{
+				ID:          "appeal-1",
+				ResourceID:  "resource-2",
+				Role:        "role-2",
+				Permissions: []string{"permission-2"},
+				Options: &domain.AppealOptions{
+					Duration: "48h",
+				},
+				Details: map[string]interface{}{
+					"__policy_questions": map[string]interface{}{
+						"question-1": "answer-1-edit",
+						"question-2": "answer-2-edit",
+					},
+					"extra": "extra-value",
+				},
+				PolicyID:      "policy-1",
+				PolicyVersion: 2,
+				CreatedBy:     "user@example.com",
+			},
+			wantDiff: []*domain.DiffItem{
+				{
+					Op:       "replace",
+					Path:     "resource_id",
+					OldValue: "resource-1",
+					NewValue: "resource-2",
+					Actor:    "user@example.com",
+				},
+				{
+					Op:       "replace",
+					Path:     "role",
+					OldValue: "role-1",
+					NewValue: "role-2",
+					Actor:    "user@example.com",
+				},
+				{
+					Op:       "replace",
+					Path:     "permissions.0",
+					OldValue: "permission-1",
+					NewValue: "permission-2",
+					Actor:    domain.SystemActorName,
+				},
+				{
+					Op:       "replace",
+					Path:     "options.duration",
+					OldValue: "24h",
+					NewValue: "48h",
+					Actor:    "user@example.com",
+				},
+				{
+					Op:       "replace",
+					Path:     "details.__policy_questions.question-1",
+					OldValue: "answer-1",
+					NewValue: "answer-1-edit",
+					Actor:    "user@example.com",
+				},
+				{
+					Op:       "replace",
+					Path:     "details.__policy_questions.question-2",
+					OldValue: "answer-2",
+					NewValue: "answer-2-edit",
+					Actor:    "user@example.com",
+				},
+				{
+					Op:       "add",
+					Path:     "details.extra",
+					NewValue: "extra-value",
+					Actor:    "user@example.com",
+				},
+				{
+					Op:       "replace",
+					Path:     "policy_version",
+					OldValue: float64(1),
+					NewValue: float64(2),
+					Actor:    domain.SystemActorName,
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualDiff, err := tc.newAppeal.Compare(tc.oldAppeal, "user@example.com")
+			assert.NoError(t, err)
+			assert.Empty(t, cmp.Diff(tc.wantDiff, actualDiff, cmpopts.SortSlices(func(a, b *domain.DiffItem) bool {
+				return a.Path < b.Path || (a.Path == b.Path && a.Op < b.Op)
+			})))
 		})
 	}
 }
