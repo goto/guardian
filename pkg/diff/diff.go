@@ -8,7 +8,7 @@ import (
 	"github.com/wI2L/jsondiff"
 )
 
-type PatchOp struct {
+type Change struct {
 	Op       string `json:"op"`
 	Actor    string `json:"actor"`
 	Path     string `json:"path"`
@@ -16,7 +16,7 @@ type PatchOp struct {
 	NewValue any    `json:"new_value,omitempty"`
 }
 
-func GetChangelog(a, b any) ([]*PatchOp, error) {
+func Compare(a, b any) ([]*Change, error) {
 	jsonA, err := json.Marshal(a)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal a: %w", err)
@@ -35,9 +35,9 @@ func GetChangelog(a, b any) ([]*PatchOp, error) {
 		return nil, nil
 	}
 
-	changes := make([]*PatchOp, 0, len(diff))
+	changes := make([]*Change, 0, len(diff))
 	for _, d := range diff {
-		changes = append(changes, &PatchOp{
+		changes = append(changes, &Change{
 			Op:       d.Type,
 			Path:     transformPath(d.Path),
 			NewValue: d.Value,

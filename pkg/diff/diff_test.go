@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetChangelog(t *testing.T) {
+func TestCompare(t *testing.T) {
 	testCases := []struct {
 		name     string
 		a        any
 		b        any
-		expected []*diff.PatchOp
+		expected []*diff.Change
 	}{
 		{
 			name: "no diff",
@@ -34,7 +34,7 @@ func TestGetChangelog(t *testing.T) {
 				"key": "value",
 			},
 			b: map[string]interface{}{},
-			expected: []*diff.PatchOp{
+			expected: []*diff.Change{
 				{
 					Op:       "remove",
 					Path:     "key",
@@ -54,7 +54,7 @@ func TestGetChangelog(t *testing.T) {
 				"int":  2,
 				"str":  "new value",
 			},
-			expected: []*diff.PatchOp{
+			expected: []*diff.Change{
 				{
 					Op:       "replace",
 					Path:     "bool",
@@ -87,7 +87,7 @@ func TestGetChangelog(t *testing.T) {
 					"nested_key": "new value",
 				},
 			},
-			expected: []*diff.PatchOp{
+			expected: []*diff.Change{
 				{
 					Op:       "replace",
 					Path:     "key.nested_key",
@@ -102,7 +102,7 @@ func TestGetChangelog(t *testing.T) {
 			name: "slice item addition",
 			a:    []string{"a", "b"},
 			b:    []string{"a", "b", "c"},
-			expected: []*diff.PatchOp{
+			expected: []*diff.Change{
 				{
 					Op:       "add",
 					Path:     "-",
@@ -114,7 +114,7 @@ func TestGetChangelog(t *testing.T) {
 			name: "slice item removal",
 			a:    []string{"a", "b", "c"},
 			b:    []string{"a", "b"},
-			expected: []*diff.PatchOp{
+			expected: []*diff.Change{
 				{
 					Op:       "remove",
 					Path:     "2",
@@ -126,7 +126,7 @@ func TestGetChangelog(t *testing.T) {
 			name: "slice item change",
 			a:    []string{"a", "b", "c"},
 			b:    []string{"a", "d", "c"},
-			expected: []*diff.PatchOp{
+			expected: []*diff.Change{
 				{
 					Op:       "replace",
 					Path:     "1",
@@ -154,7 +154,7 @@ func TestGetChangelog(t *testing.T) {
 					},
 				},
 			},
-			expected: []*diff.PatchOp{
+			expected: []*diff.Change{
 				{
 					Op:       "remove",
 					Path:     "details.data.baz",
@@ -181,9 +181,9 @@ func TestGetChangelog(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, err := diff.GetChangelog(tc.a, tc.b)
+			actual, err := diff.Compare(tc.a, tc.b)
 			assert.NoError(t, err)
-			assert.Empty(t, cmp.Diff(tc.expected, actual, cmpopts.SortSlices(func(a, b *diff.PatchOp) bool {
+			assert.Empty(t, cmp.Diff(tc.expected, actual, cmpopts.SortSlices(func(a, b *diff.Change) bool {
 				return a.Path < b.Path && a.Op < b.Op
 			})))
 		})
