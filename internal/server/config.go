@@ -28,6 +28,7 @@ type Jobs struct {
 	ExpiringGrantNotification  jobs.Job `mapstructure:"expiring_grant_notification"`
 	RevokeGrantsByUserCriteria jobs.Job `mapstructure:"revoke_grants_by_user_criteria"`
 	GrantDormancyCheck         jobs.Job `mapstructure:"grant_dormancy_check"`
+	PendingApprovalsReminder   jobs.Job `mapstructure:"pending_approvals_reminder"`
 }
 
 type Config struct {

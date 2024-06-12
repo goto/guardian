@@ -7,6 +7,7 @@ You can run jobs using `guardian` cli command to perform one time actions. You c
 - `revoke_expired_grants`
 - `revoke_grants_by_user_criteria`
 - `grant_dormancy_check`
+- `pending_approvals_reminder`
 
 Reference: [Jobs](https://github.com/goto/guardian/blob/main/jobs/jobs.go)
 
@@ -17,3 +18,4 @@ Reference: [Jobs](https://github.com/goto/guardian/blob/main/jobs/jobs.go)
 | `EXPIRING_GRANT_NOTIFICATION`    | When Enabled, the Guardian server will notify the user on the notifier (currently `slack` only) before the user appeal is about to expire.<br/><br/>The user gets notified before 7 days, 3 days and 1 day of appeal expiry |
 | `REVOKE_GRANTS_BY_USER_CRITERIA` | When Enabled, the Guardian server will revoke the user permissions for the resource based on the criteria provided in the `user_criteria` field.                                                                            |
 | `GRANT_DORMANCY_CHECK`           | When Enabled, the Guardian server will check for the dormancy of the grant and will update the expiry date of the grant based on `retain_grant_for` field                                                                   |                                                                                           
+| `pending_approvals_reminder`       | When Enabled, the Guardian server will notify the user on the notifier (currently `slack` only) to give the decision on the pending approvals|                                                                                           
