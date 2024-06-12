@@ -10,6 +10,7 @@ const (
 	TypeRevokeExpiredGrants        Type = "revoke_expired_grants"
 	TypeRevokeGrantsByUserCriteria Type = "revoke_grants_by_user_criteria"
 	TypeGrantDormancyCheck         Type = "grant_dormancy_check"
+	TypePendingApprovalsReminder   Type = "pending_approvals_reminder"
 )
 
 type Job struct {

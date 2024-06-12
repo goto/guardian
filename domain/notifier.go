@@ -13,15 +13,16 @@ type NotificationMessages struct {
 }
 
 const (
-	NotificationTypeExpirationReminder     = "ExpirationReminder"
-	NotificationTypeAppealApproved         = "AppealApproved"
-	NotificationTypeOnBehalfAppealApproved = "OnBehalfAppealApproved"
-	NotificationTypeAppealRejected         = "AppealRejected"
-	NotificationTypeAccessRevoked          = "AccessRevoked"
-	NotificationTypeApproverNotification   = "ApproverNotification"
-	NotificationTypeGrantOwnerChanged      = "GrantOwnerChanged"
-	NotificationTypeUnusedGrant            = "UnusedGrant"
-	NotificationTypeNewComment             = "NewComment"
+	NotificationTypeExpirationReminder       = "ExpirationReminder"
+	NotificationTypePendingApprovalsReminder = "PendingApprovalsReminder"
+	NotificationTypeAppealApproved           = "AppealApproved"
+	NotificationTypeOnBehalfAppealApproved   = "OnBehalfAppealApproved"
+	NotificationTypeAppealRejected           = "AppealRejected"
+	NotificationTypeAccessRevoked            = "AccessRevoked"
+	NotificationTypeApproverNotification     = "ApproverNotification"
+	NotificationTypeGrantOwnerChanged        = "GrantOwnerChanged"
+	NotificationTypeUnusedGrant              = "UnusedGrant"
+	NotificationTypeNewComment               = "NewComment"
 )
 
 type NotificationMessage struct {

@@ -17,6 +17,7 @@ import (
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/core/policy"
 	"github.com/goto/guardian/core/provider"
+	"github.com/goto/guardian/core/report"
 	"github.com/goto/guardian/core/resource"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres"
@@ -46,6 +47,7 @@ type Services struct {
 	AppealService   *appeal.Service
 	GrantService    *grant.Service
 	CommentService  *comment.Service
+	ReportService   *report.Service
 }
 
 type ServiceDeps struct {
@@ -187,6 +189,9 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		Logger:          deps.Logger,
 		AuditLogger:     auditLogger,
 	})
+	reportService := report.NewService(report.ServiceDeps{
+		DB: store.DB(),
+	})
 
 	return &Services{
 		resourceService,
@@ -197,6 +202,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		appealService,
 		grantService,
 		commentService,
+		reportService,
 	}, nil
 }
 

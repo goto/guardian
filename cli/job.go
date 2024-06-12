@@ -45,6 +45,7 @@ func runJobCmd() *cobra.Command {
 			$ guardian job run revoke_expired_grants
 			$ guardian job run revoke_grants_by_user_criteria
 			$ guardian job run grant_dormancy_check
+			$ guardian job run pending_approvals_reminder
 		`),
 		Args: cobra.ExactValidArgs(1),
 		ValidArgs: []string{
@@ -53,6 +54,7 @@ func runJobCmd() *cobra.Command {
 			string(jobs.TypeRevokeExpiredGrants),
 			string(jobs.TypeRevokeGrantsByUserCriteria),
 			string(jobs.TypeGrantDormancyCheck),
+			string(jobs.TypePendingApprovalsReminder),
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configFile, err := cmd.Flags().GetString("config")
@@ -86,6 +88,7 @@ func runJobCmd() *cobra.Command {
 			handler := jobs.NewHandler(
 				logger,
 				services.GrantService,
+				services.ReportService,
 				services.ProviderService,
 				notifier,
 				crypto,
@@ -115,6 +118,10 @@ func runJobCmd() *cobra.Command {
 				jobs.TypeGrantDormancyCheck: {
 					handler: handler.GrantDormancyCheck,
 					config:  config.Jobs.GrantDormancyCheck.Config,
+				},
+				jobs.TypePendingApprovalsReminder: {
+					handler: handler.PendingApprovalsReminder,
+					config:  config.Jobs.PendingApprovalsReminder.Config,
 				},
 			}
 
