@@ -14,7 +14,6 @@ type NotificationMessages struct {
 
 const (
 	NotificationTypeExpirationReminder       = "ExpirationReminder"
-	NotificationTypePendingApprovalsReminder = "PendingApprovalsReminder"
 	NotificationTypeAppealApproved           = "AppealApproved"
 	NotificationTypeOnBehalfAppealApproved   = "OnBehalfAppealApproved"
 	NotificationTypeAppealRejected           = "AppealRejected"
@@ -23,6 +22,7 @@ const (
 	NotificationTypeGrantOwnerChanged        = "GrantOwnerChanged"
 	NotificationTypeUnusedGrant              = "UnusedGrant"
 	NotificationTypeNewComment               = "NewComment"
+	NotificationTypePendingApprovalsReminder = "PendingApprovalsReminder"
 )
 
 type NotificationMessage struct {
