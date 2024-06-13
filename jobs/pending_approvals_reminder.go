@@ -2,13 +2,24 @@ package jobs
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/goto/guardian/core/report"
 	"github.com/goto/guardian/domain"
 )
 
+type PendingApprovalsReminderConfig struct {
+	DryRun bool `mapstructure:"dry_run"`
+}
+
 func (h *handler) PendingApprovalsReminder(ctx context.Context, cfg Config) error {
-	h.logger.Info(ctx, "running pending approvals reminder job")
+	h.logger.Info(ctx, fmt.Sprintf("starting %q job", TypePendingApprovalsReminder))
+	defer h.logger.Info(ctx, fmt.Sprintf("finished %q job", TypePendingApprovalsReminder))
+
+	var c PendingApprovalsReminderConfig
+	if err := cfg.Decode(&c); err != nil {
+		return fmt.Errorf("invalid config for %s job: %w", TypePendingApprovalsReminder, err)
+	}
 
 	h.logger.Info(ctx, "retrieving pending approvals...")
 	pendingApprovals, err := h.reportService.GetPendingApprovalsList(ctx, report.ReportFilter{
@@ -40,12 +51,14 @@ func (h *handler) PendingApprovalsReminder(ctx context.Context, cfg Config) erro
 		})
 	}
 
-	if errs := h.notifier.Notify(ctx, notifications); errs != nil {
-		for _, e := range errs {
-			h.logger.Error(ctx, "failed to send notifications", "error", e)
+	if !c.DryRun {
+		if errs := h.notifier.Notify(ctx, notifications); errs != nil {
+			for _, e := range errs {
+				h.logger.Error(ctx, "failed to send notifications", "error", e)
+			}
+			h.logger.Info(ctx, "pending approvals notifications sent")
 		}
 	}
 
-	h.logger.Info(ctx, "pending approvals notifications sent")
 	return nil
 }
