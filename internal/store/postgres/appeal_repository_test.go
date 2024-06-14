@@ -32,7 +32,7 @@ type AppealRepositoryTestSuite struct {
 func (s *AppealRepositoryTestSuite) SetupSuite() {
 	var err error
 	logger := log.NewCtxLogger("debug", []string{"test"})
-	s.store, s.pool, s.resource, err = newTestStore(logger)
+	s.store, s.pool, s.resource, err = postgres.NewTestStore(logger)
 	if err != nil {
 		s.T().Fatal(err)
 	}
@@ -93,7 +93,7 @@ func (s *AppealRepositoryTestSuite) TearDownSuite() {
 		s.T().Fatal(err)
 	}
 
-	err = purgeTestDocker(s.pool, s.resource)
+	err = postgres.PurgeTestDocker(s.pool, s.resource)
 	if err != nil {
 		s.T().Fatal(err)
 	}
