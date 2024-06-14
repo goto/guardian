@@ -1,4 +1,4 @@
-package postgres_test
+package postgres
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/goto/guardian/internal/store"
-	"github.com/goto/guardian/internal/store/postgres"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
@@ -19,10 +18,11 @@ var (
 		Password: "test_pass",
 		Name:     "test_db",
 		SslMode:  "disable",
+		Port:     "32787",
 	}
 )
 
-func newTestStore(logger log.Logger) (*postgres.Store, *dockertest.Pool, *dockertest.Resource, error) {
+func NewTestStore(logger log.Logger) (*Store, *dockertest.Pool, *dockertest.Resource, error) {
 	ctx := context.Background()
 	opts := &dockertest.RunOptions{
 		Repository: "postgres",
@@ -87,10 +87,10 @@ func newTestStore(logger log.Logger) (*postgres.Store, *dockertest.Pool, *docker
 	// exponential backoff-retry, because the application in the container might not be ready to accept connections yet
 	pool.MaxWait = 60 * time.Second
 
-	var st *postgres.Store
+	var st *Store
 	time.Sleep(5 * time.Second)
 	if err = pool.Retry(func() error {
-		st, err = postgres.NewStore(&storeConfig)
+		st, err = NewStore(&storeConfig)
 		if err != nil {
 			return err
 		}
@@ -100,21 +100,21 @@ func newTestStore(logger log.Logger) (*postgres.Store, *dockertest.Pool, *docker
 		return nil, nil, nil, fmt.Errorf("could not connect to docker: %w", err)
 	}
 
-	err = setup(st)
+	err = Setup(st)
 	if err != nil {
 		logger.Fatal(ctx, "failed to setup and migrate DB", "error", err)
 	}
 	return st, pool, resource, nil
 }
 
-func purgeTestDocker(pool *dockertest.Pool, resource *dockertest.Resource) error {
+func PurgeTestDocker(pool *dockertest.Pool, resource *dockertest.Resource) error {
 	if err := pool.Purge(resource); err != nil {
 		return fmt.Errorf("could not purge resource: %w", err)
 	}
 	return nil
 }
 
-func setup(store *postgres.Store) error {
+func Setup(store *Store) error {
 	var queries = []string{
 		"DROP SCHEMA public CASCADE",
 		"CREATE SCHEMA public",
@@ -130,7 +130,7 @@ func setup(store *postgres.Store) error {
 	return nil
 }
 
-func truncateTable(store *postgres.Store, tableName string) error {
+func TruncateTable(store *Store, tableName string) error {
 	query := fmt.Sprintf(`TRUNCATE "%s" CASCADE;`, tableName)
 	return store.DB().Exec(query).Error
 }

@@ -31,7 +31,7 @@ func (s *ServiceTestSuite) SetupTest() {
 	})
 }
 
-func (s *ServiceTestSuite) TestListApprovals() {
+func (s *ServiceTestSuite) TestGetPendingApprovalsList() {
 	s.Run("should return error if got error from repository", func() {
 		expectedError := errors.New("repository error")
 		s.mockRepository.EXPECT().

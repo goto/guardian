@@ -38,7 +38,7 @@ func TestActivityRepository(t *testing.T) {
 
 func (s *ActivityRepositoryTestSuite) SetupSuite() {
 	logger := log.NewCtxLogger("info", []string{"test"})
-	store, pool, resource, err := newTestStore(logger)
+	store, pool, resource, err := postgres.NewTestStore(logger)
 	if err != nil {
 		s.T().Fatal(err)
 	}
@@ -55,7 +55,7 @@ func (s *ActivityRepositoryTestSuite) SetupSuite() {
 		if err := db.Close(); err != nil {
 			s.T().Fatal(err)
 		}
-		if err := purgeTestDocker(pool, resource); err != nil {
+		if err := postgres.PurgeTestDocker(pool, resource); err != nil {
 			s.T().Fatal(err)
 		}
 	})
