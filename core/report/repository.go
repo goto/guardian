@@ -14,39 +14,41 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db}
 }
 
-func (r *Repository) GetPendingApprovalsList(ctx context.Context, filters *ReportFilter) (*[]Report, error) {
-	m := new([]Report)
+func (r *Repository) GetPendingApprovalsList(ctx context.Context, filters *ReportFilter) ([]*Report, error) {
+	records := []*Report{}
+
 	db := r.db.WithContext(ctx)
 	var err error
 	db, err = applyAppealFilter(db, filters)
 	if err != nil {
 		return nil, err
 	}
+
 	rows, err := db.Rows()
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		db.ScanRows(rows, &m)
+		db.ScanRows(rows, &records)
 	}
 
-	return m, nil
+	return records, nil
 }
 
 func applyAppealFilter(db *gorm.DB, filters *ReportFilter) (*gorm.DB, error) {
-	db = db.Table("appeals as ap").
-		Select("ap.id, aprs.email as approver, ap.created_by as requestor, apr.name as project, rs.provider_type as resource, ap.status as status, ap.created_by").
-		Joins("join resources rs on ap.resource_id = rs.id").
-		Joins("join approvals apr on ap.id = apr.appeal_id").
-		Joins("join approvers aprs on aprs.approval_id = apr.id")
+	db = db.Table("appeals").
+		Select("appeals.id, approvers.email as approver, appeals.created_by as requestor, approvals.name as project, resources.provider_type as resource, appeals.status as status, appeals.created_by").
+		Joins("join resources on appeals.resource_id = resources.id").
+		Joins("join approvals on appeals.id = approvals.appeal_id").
+		Joins("join approvers on approvers.approval_id = approvals.id")
 
 	if filters.ApprovalStatuses != nil {
 		db = db.Where(`"appeals"."status" IN ?`, filters.AppealStatuses)
 	}
 
 	if filters.ApprovalStatuses != nil {
-		db = db.Where(`"appeals"."status" IN ?`, filters.ApprovalStatuses)
+		db = db.Where(`"approvals"."status" IN ?`, filters.ApprovalStatuses)
 	}
 
 	return db, nil
