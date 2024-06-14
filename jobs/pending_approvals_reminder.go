@@ -22,9 +22,9 @@ func (h *handler) PendingApprovalsReminder(ctx context.Context, cfg Config) erro
 	}
 
 	h.logger.Info(ctx, "retrieving pending approvals...")
-	pendingApprovals, err := h.reportService.GetPendingApprovalsList(ctx, report.ReportFilter{
+	pendingApprovals, err := h.reportService.GetPendingApprovalsList(ctx, &report.ReportFilter{
 		ApprovalStatuses: []string{domain.ApprovalStatusPending},
-		AppealStatuses:   []string{domain.AppealStatusPending, domain.AppealStatusCanceled},
+		AppealStatuses:   []string{domain.AppealStatusPending},
 	})
 	if err != nil {
 		h.logger.Info(ctx, "failed to retrieve pending approvals")
@@ -32,7 +32,7 @@ func (h *handler) PendingApprovalsReminder(ctx context.Context, cfg Config) erro
 	}
 	h.logger.Info(ctx, "retrieved pending approvals", "count", len(pendingApprovals))
 
-	approverPendingApprovalsMap := make(map[string][]report.Report)
+	approverPendingApprovalsMap := make(map[string][]*report.Report)
 	for _, approval := range pendingApprovals {
 		approverPendingApprovalsMap[approval.Approver] = append(approverPendingApprovalsMap[approval.Approver], approval)
 	}

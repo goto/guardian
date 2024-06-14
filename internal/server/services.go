@@ -109,6 +109,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 	grantRepository := postgres.NewGrantRepository(store.DB())
 	commentRepository := postgres.NewCommentRepository(store.DB())
 	auditLogRepository := postgres.NewAuditLogRepository(store.DB())
+	reportRepository := report.NewRepository(store.DB())
 
 	providerClients := []provider.Client{
 		bigquery.NewProvider(domain.ProviderTypeBigQuery, deps.Crypto, deps.Logger),
@@ -190,7 +191,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		AuditLogger:     auditLogger,
 	})
 	reportService := report.NewService(report.ServiceDeps{
-		DB: store.DB(),
+		Repository: reportRepository,
 	})
 
 	return &Services{
