@@ -29,22 +29,13 @@ func (s *Service) GetPendingApprovalsList(ctx context.Context, filters ReportFil
 
 	records := []Report{}
 	db := s.db.WithContext(ctx)
-	query := `
-		select
-			ap.id,
-			aprs.email as approver,
-			ap.created_by as requestor,
-			apr.name as project,
-			rs.provider_type as resource,
-			ap.status as status,
-			ap.created_by
-		from appeals ap 
-		join resources rs on ap.resource_id = rs.id 
-		join approvals apr on ap.id = apr.appeal_id 
-		join approvers aprs on aprs.approval_id = apr.id 
-		where ap.status in ? and apr.status in ?
-	`
-	rows, err := db.Raw(query, filters.ApprovalStatuses, filters.AppealStatuses).Rows()
+	rows, err := db.Table("appeals as ap").
+		Select("ap.id, aprs.email as approver, ap.created_by as requestor, apr.name as project, rs.provider_type as resource, ap.status as status, ap.created_by").
+		Joins("join resources rs on ap.resource_id = rs.id").
+		Joins("join approvals apr on ap.id = apr.appeal_id").
+		Joins("join approvers aprs on aprs.approval_id = apr.id").
+		Where("ap.status IN ?", filters.ApprovalStatuses).
+		Where("apr.status IN ?", filters.AppealStatuses).Rows()
 	if err != nil {
 		return nil, err
 	}
