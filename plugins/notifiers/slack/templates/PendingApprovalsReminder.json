@@ -1,0 +1,9 @@
+[
+  {
+    "type": "section",
+    "text": {
+      "type": "mrkdwn",
+      "text": "Hi *{{.approver}}*, you have `{{.pending_approvals_count}}` pending requests waiting for your approval on Console Access."
+    }
+  }
+]

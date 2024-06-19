@@ -238,14 +238,15 @@ func getDefaultTemplate(messageType string, defaultTemplateFiles embed.FS) (stri
 
 func ParseMessage(message domain.NotificationMessage, templates domain.NotificationMessages, defaultTemplateFiles embed.FS) (string, error) {
 	messageTypeTemplateMap := map[string]string{
-		domain.NotificationTypeAccessRevoked:          templates.AccessRevoked,
-		domain.NotificationTypeAppealApproved:         templates.AppealApproved,
-		domain.NotificationTypeAppealRejected:         templates.AppealRejected,
-		domain.NotificationTypeApproverNotification:   templates.ApproverNotification,
-		domain.NotificationTypeExpirationReminder:     templates.ExpirationReminder,
-		domain.NotificationTypeOnBehalfAppealApproved: templates.OthersAppealApproved,
-		domain.NotificationTypeGrantOwnerChanged:      templates.GrantOwnerChanged,
-		domain.NotificationTypeNewComment:             templates.NewComment,
+		domain.NotificationTypeAccessRevoked:            templates.AccessRevoked,
+		domain.NotificationTypeAppealApproved:           templates.AppealApproved,
+		domain.NotificationTypeAppealRejected:           templates.AppealRejected,
+		domain.NotificationTypeApproverNotification:     templates.ApproverNotification,
+		domain.NotificationTypeExpirationReminder:       templates.ExpirationReminder,
+		domain.NotificationTypeOnBehalfAppealApproved:   templates.OthersAppealApproved,
+		domain.NotificationTypeGrantOwnerChanged:        templates.GrantOwnerChanged,
+		domain.NotificationTypeNewComment:               templates.NewComment,
+		domain.NotificationTypePendingApprovalsReminder: templates.PendingApprovalsReminder,
 	}
 
 	messageBlock, ok := messageTypeTemplateMap[message.Type]
