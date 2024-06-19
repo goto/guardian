@@ -1679,7 +1679,7 @@ func (s *ServiceTestSuite) TestCreate() {
 	})
 }
 
-func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprovalSteps() {
+func (s *ServiceTestSuite) TestCreate__WithExistingAppealAndWithAutoApprovalSteps() {
 	h := newServiceTestHelper()
 
 	appeal.TimeNow = func() time.Time {
@@ -1955,7 +1955,7 @@ func (s *ServiceTestSuite) TestCreateAppeal__WithExistingAppealAndWithAutoApprov
 	h.assertExpectations(s.T())
 }
 
-func (s *ServiceTestSuite) TestCreateAppeal__WithAdditionalAppeals() {
+func (s *ServiceTestSuite) TestCreate__WithAdditionalAppeals() {
 	h := newServiceTestHelper()
 	providerType := "test-provider-type"
 	providerURN := "test-provider-urn"
@@ -2243,7 +2243,7 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 					Name:     "step_2",
 					Strategy: "manual",
 					Approvers: []string{
-						"$appeal.details.__policy_metadata.creator.managers",
+						fmt.Sprintf("$appeal.details.%s.creator.managers", domain.ReservedDetailsKeyPolicyMetadata),
 					},
 				},
 			},
@@ -2294,7 +2294,7 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 			},
 			Description: "The answer is 42",
 			Details: map[string]interface{}{
-				"__policy_metadata": map[string]interface{}{
+				domain.ReservedDetailsKeyPolicyMetadata: map[string]interface{}{
 					"creator": map[string]interface{}{
 						"managers": []interface{}{"user.approver@email.com"},
 					},
@@ -2337,7 +2337,7 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 			},
 			Description: "The answer is 42",
 			Details: map[string]interface{}{
-				"__policy_metadata": map[string]interface{}{
+				domain.ReservedDetailsKeyPolicyMetadata: map[string]interface{}{
 					"creator": map[string]interface{}{
 						"managers": []interface{}{"user.approver@email.com"},
 					},
@@ -2456,14 +2456,38 @@ func (s *ServiceTestSuite) TestPatch() {
 				Duration: "1d",
 			},
 			Description: "test-appeal",
-			Details:     map[string]interface{}{},
+			Details: map[string]interface{}{
+				domain.ReservedDetailsKeyPolicyQuestions: map[string]string{
+					"dataRequirement": "test edit appeal",
+				},
+				"__original_account": map[string]string{
+					"account_id":   "xxxx",
+					"account_type": "gitlab_user_id",
+				},
+				domain.ReservedDetailsKeyPolicyMetadata: map[string]interface{}{
+					"resource_owners": []string{"xyz@gojek.com"},
+				},
+			},
+		}
+
+		reqAppeal := &domain.Appeal{
+			ID: appealID,
+			Details: map[string]interface{}{
+				domain.ReservedDetailsKeyPolicyQuestions: map[string]string{
+					"dataRequirement": "test edit appeal",
+				},
+				"__original_account": map[string]string{
+					"account_id":   "xxxx",
+					"account_type": "gitlab_user_id",
+				},
+			},
 		}
 
 		h := newServiceTestHelper()
 		defer h.assertExpectations(s.T())
 
 		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(a, nil).Once()
-		err := h.service.Patch(context.Background(), a)
+		err := h.service.Patch(context.Background(), reqAppeal)
 
 		s.ErrorIs(err, appeal.ErrNoChanges)
 	})
@@ -3326,9 +3350,9 @@ func (s *ServiceTestSuite) TestPatch() {
 				},
 			},
 			{
-				name:            "should update policy questions",
+				name:            "should update details",
 				mockGetResource: false,
-				reqAppeal:       &domain.Appeal{ID: appealID, Details: map[string]interface{}{"__policy_questions": map[string]string{"dataRequirement": "updated reason", "new question": "test response"}}},
+				reqAppeal:       &domain.Appeal{ID: appealID, Details: map[string]interface{}{domain.ReservedDetailsKeyPolicyQuestions: map[string]string{"dataRequirement": "test edit appeal"}}},
 				existingAppeal: &domain.Appeal{
 					ID:            appealID,
 					ResourceID:    resources[0].ID,
@@ -3343,8 +3367,12 @@ func (s *ServiceTestSuite) TestPatch() {
 					Role:          "role_id",
 					Permissions:   []string{"test-permission-1"},
 					Details: map[string]interface{}{
-						"__policy_questions": map[string]string{
+						domain.ReservedDetailsKeyPolicyQuestions: map[string]string{
 							"dataRequirement": "test",
+						},
+						"__original_account": map[string]string{
+							"account_id":   "1234",
+							"account_type": "user",
 						},
 					},
 					Approvals: []*domain.Approval{
@@ -3389,7 +3417,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					Role:          "role_id",
 					Permissions:   []string{"test-permission-1"},
 					Details: map[string]interface{}{
-						"__policy_questions": map[string]string{
+						domain.ReservedDetailsKeyPolicyQuestions: map[string]string{
 							"dataRequirement": "test",
 						},
 					},
@@ -3435,7 +3463,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					Role:          "role_id",
 					Permissions:   []string{"test-permission-1"},
 					Details: map[string]interface{}{
-						"__policy_questions": map[string]string{
+						domain.ReservedDetailsKeyPolicyQuestions: map[string]string{
 							"dataRequirement": "test",
 						},
 					},
@@ -3489,7 +3517,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					Role:        "test-permission",
 					Permissions: []string{"viewer"},
 					Details: map[string]interface{}{
-						"__policy_questions": map[string]string{
+						domain.ReservedDetailsKeyPolicyQuestions: map[string]string{
 							"dataRequirement": "test",
 						},
 					},
@@ -3691,12 +3719,26 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 				appealStatus: domain.AppealStatusPending,
 				approvals: []*domain.Approval{
 					{
+						Name:    "approval_0",
+						Status:  domain.ApprovalStatusPending,
+						Index:   0,
+						IsStale: true,
+					},
+					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusPending,
+						Index:  0,
+					},
+					{
+						Name:    "approval_1",
+						Status:  domain.ApprovalStatusPending,
+						Index:   1,
+						IsStale: true,
 					},
 					{
 						Name:   "approval_1",
 						Status: domain.ApprovalStatusPending,
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
@@ -3706,12 +3748,26 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 				appealStatus: domain.AppealStatusPending,
 				approvals: []*domain.Approval{
 					{
+						Name:    "approval_0",
+						Status:  domain.ApprovalStatusRejected,
+						Index:   0,
+						IsStale: true,
+					},
+					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusRejected,
+						Index:  0,
+					},
+					{
+						Name:    "approval_1",
+						Status:  domain.ApprovalStatusPending,
+						Index:   1,
+						IsStale: true,
 					},
 					{
 						Name:   "approval_1",
 						Status: domain.ApprovalStatusPending,
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
@@ -3723,10 +3779,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: "invalidstatus",
+						Index:  0,
 					},
 					{
 						Name:   "approval_1",
 						Status: domain.ApprovalStatusPending,
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalStatusUnrecognized,
@@ -3738,10 +3796,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusApproved,
+						Index:  0,
 					},
 					{
 						Name:   "approval_1",
 						Status: domain.ApprovalStatusApproved,
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
@@ -3753,10 +3813,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusApproved,
+						Index:  0,
 					},
 					{
 						Name:   "approval_1",
 						Status: domain.ApprovalStatusRejected,
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
@@ -3768,10 +3830,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusApproved,
+						Index:  0,
 					},
 					{
 						Name:   "approval_1",
 						Status: domain.ApprovalStatusSkipped,
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
@@ -3783,10 +3847,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusApproved,
+						Index:  0,
 					},
 					{
 						Name:   "approval_1",
 						Status: "invalidstatus",
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalStatusUnrecognized,
@@ -3798,10 +3864,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusApproved,
+						Index:  0,
 					},
 					{
 						Name:      "approval_1",
 						Status:    domain.ApprovalStatusPending,
+						Index:     1,
 						Approvers: []string{"another.user@email.com"},
 					},
 				},
@@ -3814,10 +3882,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					{
 						Name:   "approval_0",
 						Status: domain.ApprovalStatusApproved,
+						Index:  0,
 					},
 					{
 						Name:   "approval_x",
 						Status: domain.ApprovalStatusApproved,
+						Index:  1,
 					},
 				},
 				expectedError: appeal.ErrApprovalNotFound,
@@ -3825,19 +3895,21 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		}
 
 		for _, tc := range testCases {
-			expectedAppeal := &domain.Appeal{
-				ID:        validApprovalActionParam.AppealID,
-				Status:    tc.appealStatus,
-				Approvals: tc.approvals,
-			}
-			h.mockRepository.EXPECT().
-				GetByID(h.ctxMatcher, validApprovalActionParam.AppealID).
-				Return(expectedAppeal, nil).Once()
+			s.Run(tc.name, func() {
+				expectedAppeal := &domain.Appeal{
+					ID:        validApprovalActionParam.AppealID,
+					Status:    tc.appealStatus,
+					Approvals: tc.approvals,
+				}
+				h.mockRepository.EXPECT().
+					GetByID(h.ctxMatcher, validApprovalActionParam.AppealID).
+					Return(expectedAppeal, nil).Once()
 
-			actualResult, actualError := h.service.UpdateApproval(context.Background(), validApprovalActionParam)
+				actualResult, actualError := h.service.UpdateApproval(context.Background(), validApprovalActionParam)
 
-			s.Nil(actualResult)
-			s.ErrorIs(actualError, tc.expectedError)
+				s.Nil(actualResult)
+				s.ErrorIs(actualError, tc.expectedError)
+			})
 		}
 	})
 
@@ -3887,6 +3959,15 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			ApprovalName: "test-approval-step",
 			Action:       "approve",
 			Actor:        "approver@example.com",
+		}
+		dummyPolicy := &domain.Policy{
+			Steps: []*domain.Step{
+				{
+					Name:      "test-approval-step",
+					Strategy:  "manual",
+					Approvers: []string{"approver@example.com"},
+				},
+			},
 		}
 		appealDetails := &domain.Appeal{
 			ID:         appealID,
@@ -3938,7 +4019,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			Revoke(mock.Anything, expectedRevokedGrant.ID, domain.SystemActorName,
 				appeal.RevokeReasonForExtension, mock.Anything, mock.Anything).
 			Return(expectedNewGrant, nil).Once()
-		h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(&domain.Policy{}, nil).Once()
+		h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(dummyPolicy, nil).Once()
 		h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 		h.mockRepository.EXPECT().Update(h.ctxMatcher, appealDetails).Return(nil).Once()
 		h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
@@ -3989,12 +4070,27 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					Status: domain.AppealStatusPending,
 					Approvals: []*domain.Approval{
 						{
+							Name:    "approval_0",
+							Status:  domain.ApprovalStatusApproved,
+							Index:   0,
+							IsStale: true,
+						},
+						{
 							Name:   "approval_0",
 							Status: domain.ApprovalStatusApproved,
+							Index:  0,
 						},
 						{
 							Name:      "approval_1",
 							Status:    domain.ApprovalStatusPending,
+							IsStale:   true,
+							Index:     1,
+							Approvers: []string{"user@email.com"},
+						},
+						{
+							Name:      "approval_1",
+							Status:    domain.ApprovalStatusPending,
+							Index:     1,
 							Approvers: []string{"user@email.com"},
 						},
 					},
@@ -4009,11 +4105,26 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					Status:     domain.AppealStatusApproved,
 					Approvals: []*domain.Approval{
 						{
+							Name:    "approval_0",
+							Index:   0,
+							Status:  domain.ApprovalStatusApproved,
+							IsStale: true,
+						},
+						{
 							Name:   "approval_0",
+							Index:  0,
 							Status: domain.ApprovalStatusApproved,
 						},
 						{
 							Name:      "approval_1",
+							Index:     1,
+							Status:    domain.ApprovalStatusPending,
+							IsStale:   true,
+							Approvers: []string{"user@email.com"},
+						},
+						{
+							Name:      "approval_1",
+							Index:     1,
 							Status:    domain.ApprovalStatusApproved,
 							Approvers: []string{"user@email.com"},
 							Actor:     &user,
@@ -4077,10 +4188,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					Approvals: []*domain.Approval{
 						{
 							Name:   "approval_0",
+							Index:  0,
 							Status: domain.ApprovalStatusApproved,
 						},
 						{
 							Name:      "approval_1",
+							Index:     1,
 							Status:    domain.ApprovalStatusPending,
 							Approvers: []string{"user@email.com"},
 						},
@@ -4102,10 +4215,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					Approvals: []*domain.Approval{
 						{
 							Name:   "approval_0",
+							Index:  0,
 							Status: domain.ApprovalStatusApproved,
 						},
 						{
 							Name:      "approval_1",
+							Index:     1,
 							Status:    domain.ApprovalStatusRejected,
 							Approvers: []string{"user@email.com"},
 							Actor:     &user,
@@ -4152,14 +4267,17 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 						{
 							Name:   "approval_0",
 							Status: domain.ApprovalStatusApproved,
+							Index:  0,
 						},
 						{
 							Name:      "approval_1",
 							Status:    domain.ApprovalStatusPending,
+							Index:     1,
 							Approvers: []string{"user@email.com"},
 						},
 						{
 							Name:   "approval_2",
+							Index:  2,
 							Status: domain.ApprovalStatusPending,
 						},
 					},
@@ -4181,10 +4299,12 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 						{
 							Name:   "approval_0",
 							Status: domain.ApprovalStatusApproved,
+							Index:  0,
 						},
 						{
 							Name:      "approval_1",
 							Status:    domain.ApprovalStatusRejected,
+							Index:     1,
 							Approvers: []string{"user@email.com"},
 							Actor:     &user,
 							UpdatedAt: timeNow,
@@ -4192,6 +4312,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 						{
 							Name:      "approval_2",
 							Status:    domain.ApprovalStatusSkipped,
+							Index:     2,
 							UpdatedAt: timeNow,
 						},
 					},
@@ -4234,11 +4355,13 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 						{
 							Name:      "approval_0",
 							Status:    domain.ApprovalStatusPending,
+							Index:     0,
 							Approvers: []string{user},
 						},
 						{
 							Name:   "approval_1",
 							Status: domain.ApprovalStatusBlocked,
+							Index:  1,
 							Approvers: []string{
 								"nextapprover1@email.com",
 								"nextapprover2@email.com",
@@ -4263,6 +4386,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 						{
 							Name:      "approval_0",
 							Status:    domain.ApprovalStatusApproved,
+							Index:     0,
 							Approvers: []string{user},
 							Actor:     &user,
 							UpdatedAt: timeNow,
@@ -4270,6 +4394,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 						{
 							Name:   "approval_1",
 							Status: domain.ApprovalStatusPending,
+							Index:  1,
 							Approvers: []string{
 								"nextapprover1@email.com",
 								"nextapprover2@email.com",

@@ -1007,7 +1007,7 @@ func (s *ServiceTestSuite) TestValidateAppeal() {
 				Duration: "24h",
 			},
 			Details: map[string]interface{}{
-				provider.ReservedDetailsKeyProviderParameters: map[string]interface{}{
+				domain.ReservedDetailsKeyProviderParameters: map[string]interface{}{
 					"username": "",
 				},
 			},
@@ -1097,10 +1097,10 @@ func (s *ServiceTestSuite) TestValidateAppeal() {
 				Duration: "24h",
 			},
 			Details: map[string]interface{}{
-				provider.ReservedDetailsKeyProviderParameters: map[string]interface{}{
+				domain.ReservedDetailsKeyProviderParameters: map[string]interface{}{
 					"username": "john.doe",
 				},
-				provider.ReservedDetailsKeyPolicyQuestions: map[string]interface{}{
+				domain.ReservedDetailsKeyPolicyQuestions: map[string]interface{}{
 					"team": "green",
 				},
 			},

@@ -2,10 +2,13 @@ package domain_test
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/goto/guardian/domain"
 	"github.com/stretchr/testify/assert"
 )
@@ -42,6 +45,45 @@ func TestAppeal_GetNextPendingApproval(t *testing.T) {
 			want: &domain.Approval{
 				ID:        "2",
 				Status:    domain.ApprovalStatusPending,
+				Approvers: []string{"user1"},
+			},
+		},
+		{
+			name: "should return non-stale pending approval",
+			appeal: domain.Appeal{
+				Approvals: []*domain.Approval{
+					{
+						ID:        "1a",
+						Status:    domain.ApprovalStatusApproved,
+						Index:     0,
+						Approvers: []string{"user1"},
+						IsStale:   true,
+					},
+					{
+						ID:        "2a",
+						Status:    domain.ApprovalStatusApproved,
+						Index:     0,
+						Approvers: []string{"user1"},
+					},
+					{
+						ID:        "1b",
+						Status:    domain.ApprovalStatusPending,
+						Index:     1,
+						Approvers: []string{"user1"},
+						IsStale:   true,
+					},
+					{
+						ID:        "2b",
+						Status:    domain.ApprovalStatusPending,
+						Index:     1,
+						Approvers: []string{"user1"},
+					},
+				},
+			},
+			want: &domain.Approval{
+				ID:        "2b",
+				Status:    domain.ApprovalStatusPending,
+				Index:     1,
 				Approvers: []string{"user1"},
 			},
 		},
@@ -253,6 +295,124 @@ func TestAppeal_GetApproval(t *testing.T) {
 	}
 }
 
+func TestAppeal_GetApprovalByIndex(t *testing.T) {
+	testCases := []struct {
+		name   string
+		appeal *domain.Appeal
+		index  int
+		want   *domain.Approval
+	}{
+		{
+			name: "should return approval with given index",
+			appeal: &domain.Appeal{
+				Approvals: []*domain.Approval{
+					{
+						ID:    "approval_id_1",
+						Name:  "approval_name",
+						Index: 0,
+					},
+					{
+						ID:    "approval_id_2",
+						Name:  "approval_name",
+						Index: 1,
+					},
+				},
+			},
+			index: 1,
+			want: &domain.Approval{
+				ID:    "approval_id_2",
+				Name:  "approval_name",
+				Index: 1,
+			},
+		},
+		{
+			name: "should return nil if approval with given index does not exist",
+			appeal: &domain.Appeal{
+				Approvals: []*domain.Approval{
+					{
+						ID:    "approval_id_1",
+						Index: 0,
+					},
+				},
+			},
+			index: 1,
+			want:  nil,
+		},
+		{
+			name: "should return non-stale approval with given index",
+			appeal: &domain.Appeal{
+				Approvals: []*domain.Approval{
+					{
+						ID:      "approval_id_1a",
+						Index:   0,
+						IsStale: true,
+					},
+					{
+						ID:    "approval_id_1b",
+						Index: 0,
+					},
+					{
+						ID:      "approval_id_1c",
+						Index:   0,
+						IsStale: true,
+					},
+				},
+			},
+			index: 0,
+			want: &domain.Approval{
+				ID:    "approval_id_1b",
+				Index: 0,
+			},
+		},
+		{
+			name: "should return non-stale approval with given index #2",
+			appeal: &domain.Appeal{
+				Approvals: []*domain.Approval{
+					{
+						ID:      "approval_id_1a",
+						Index:   0,
+						IsStale: true,
+					},
+					{
+						ID:    "approval_id_1b",
+						Index: 0,
+					},
+					{
+						ID:      "approval_id_1c",
+						Index:   0,
+						IsStale: true,
+					},
+					{
+						ID:      "approval_id_2a",
+						Index:   1,
+						IsStale: true,
+					},
+					{
+						ID:      "approval_id_2b",
+						Index:   1,
+						IsStale: true,
+					},
+					{
+						ID:    "approval_id_2c",
+						Index: 1,
+					},
+				},
+			},
+			index: 1,
+			want: &domain.Approval{
+				ID:    "approval_id_2c",
+				Index: 1,
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.appeal.GetApprovalByIndex(tc.index)
+			assert.Equal(t, tc.want, actual)
+		})
+	}
+}
+
 func TestAppeal_ToGrant(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -399,34 +559,51 @@ func TestAppeal_AdvanceApproval(t *testing.T) {
 					Steps: []*domain.Step{
 						{
 							Name:      "step-1",
+							Strategy:  "auto",
 							ApproveIf: `$appeal.resource.details.owner == "test-owner"`,
 						},
 						{
 							Name:      "step-2",
+							Strategy:  "auto",
 							ApproveIf: `$appeal.resource.details.owner == "test-owner"`,
 						},
 						{
 							Name:      "step-3",
+							Strategy:  "auto",
 							ApproveIf: `$appeal.resource.details.owner == "test-owner"`,
 						},
 					},
 				},
 				Approvals: []*domain.Approval{
 					{
-						Status: "pending",
+						Status: domain.ApprovalStatusPending,
 						Index:  0,
 					},
 					{
-						Status: "blocked",
+						Status: domain.ApprovalStatusBlocked,
 						Index:  1,
 					},
 					{
-						Status: "blocked",
+						Status: domain.ApprovalStatusBlocked,
 						Index:  2,
 					},
 				},
 			},
 			wantErr: false,
+			wantApprovals: []*domain.Approval{
+				{
+					Status: domain.ApprovalStatusApproved,
+					Index:  0,
+				},
+				{
+					Status: domain.ApprovalStatusApproved,
+					Index:  1,
+				},
+				{
+					Status: domain.ApprovalStatusApproved,
+					Index:  2,
+				},
+			},
 		},
 		{
 			name: "should autofill rejection reason on auto-reject",
@@ -529,12 +706,68 @@ func TestAppeal_AdvanceApproval(t *testing.T) {
 				},
 				Approvals: []*domain.Approval{
 					{
-						Status: domain.AppealStatusPending,
+						Status: domain.ApprovalStatusPending,
 						Index:  0,
 					},
 				},
 			},
 			wantErr: true,
+		},
+		{
+			name: "should mark approval as skipped if auto approval condition is not met but AllowFailed=true",
+			appeal: &domain.Appeal{
+				PolicyID:      "test-id",
+				PolicyVersion: 1,
+				Resource: &domain.Resource{
+					Name: "grafana",
+					Details: map[string]interface{}{
+						"owner": "test-owner",
+					},
+				},
+				Policy: &domain.Policy{
+					ID:      "test-id",
+					Version: 1,
+					Steps: []*domain.Step{
+						{
+							Name:        "step-1",
+							Strategy:    "auto",
+							ApproveIf:   "false",
+							AllowFailed: true,
+						},
+						{
+							Name:        "step-2",
+							Strategy:    "manual",
+							Approvers:   []string{"user@example.com"},
+							AllowFailed: true,
+						},
+					},
+				},
+				Approvals: []*domain.Approval{
+					{
+						Name:   "step-1",
+						Status: domain.ApprovalStatusPending,
+						Index:  0,
+					},
+					{
+						Name:   "step-2",
+						Status: domain.ApprovalStatusBlocked,
+						Index:  1,
+					},
+				},
+			},
+			wantErr: false,
+			wantApprovals: []*domain.Approval{
+				{
+					Name:   "step-1",
+					Status: domain.ApprovalStatusSkipped,
+					Index:  0,
+				},
+				{
+					Name:   "step-2",
+					Status: domain.ApprovalStatusPending,
+					Index:  1,
+				},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -758,6 +991,132 @@ func TestAppeal_ApplyPolicy(t *testing.T) {
 				t.Errorf("Appeal.ApplyPolicy() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			assert.Equal(t, tt.appeal.Approvals, tt.wantApprovals)
+		})
+	}
+}
+
+func TestAppeal_Compare(t *testing.T) {
+	testCases := []struct {
+		name      string
+		oldAppeal *domain.Appeal
+		newAppeal *domain.Appeal
+		wantDiff  []*domain.DiffItem
+	}{
+		{
+			name: "should return empty diff if appeals are the same",
+			oldAppeal: &domain.Appeal{
+				ID: "appeal-1",
+			},
+			newAppeal: &domain.Appeal{
+				ID: "appeal-1",
+			},
+			wantDiff: []*domain.DiffItem{},
+		},
+		{
+			name: "should return diff if appeals are different",
+			oldAppeal: &domain.Appeal{
+				ID:          "appeal-1",
+				ResourceID:  "resource-1",
+				Role:        "role-1",
+				Permissions: []string{"permission-1"},
+				Options: &domain.AppealOptions{
+					Duration: "24h",
+				},
+				Details: map[string]interface{}{
+					domain.ReservedDetailsKeyPolicyQuestions: map[string]interface{}{
+						"question-1": "answer-1",
+						"question-2": "answer-2",
+					},
+				},
+				PolicyID:      "policy-1",
+				PolicyVersion: 1,
+				CreatedBy:     "user@example.com",
+			},
+			newAppeal: &domain.Appeal{
+				ID:          "appeal-1",
+				ResourceID:  "resource-2",
+				Role:        "role-2",
+				Permissions: []string{"permission-2"},
+				Options: &domain.AppealOptions{
+					Duration: "48h",
+				},
+				Details: map[string]interface{}{
+					domain.ReservedDetailsKeyPolicyQuestions: map[string]interface{}{
+						"question-1": "answer-1-edit",
+						"question-2": "answer-2-edit",
+					},
+					"extra": "extra-value",
+				},
+				PolicyID:      "policy-1",
+				PolicyVersion: 2,
+				CreatedBy:     "user@example.com",
+			},
+			wantDiff: []*domain.DiffItem{
+				{
+					Op:       "replace",
+					Path:     "resource_id",
+					OldValue: "resource-1",
+					NewValue: "resource-2",
+					Actor:    "user@example.com",
+				},
+				{
+					Op:       "replace",
+					Path:     "role",
+					OldValue: "role-1",
+					NewValue: "role-2",
+					Actor:    "user@example.com",
+				},
+				{
+					Op:       "replace",
+					Path:     "permissions.0",
+					OldValue: "permission-1",
+					NewValue: "permission-2",
+					Actor:    domain.SystemActorName,
+				},
+				{
+					Op:       "replace",
+					Path:     "options.duration",
+					OldValue: "24h",
+					NewValue: "48h",
+					Actor:    "user@example.com",
+				},
+				{
+					Op:       "replace",
+					Path:     fmt.Sprintf("details.%s.question-1", domain.ReservedDetailsKeyPolicyQuestions),
+					OldValue: "answer-1",
+					NewValue: "answer-1-edit",
+					Actor:    "user@example.com",
+				},
+				{
+					Op:       "replace",
+					Path:     fmt.Sprintf("details.%s.question-2", domain.ReservedDetailsKeyPolicyQuestions),
+					OldValue: "answer-2",
+					NewValue: "answer-2-edit",
+					Actor:    "user@example.com",
+				},
+				{
+					Op:       "add",
+					Path:     "details.extra",
+					NewValue: "extra-value",
+					Actor:    "user@example.com",
+				},
+				{
+					Op:       "replace",
+					Path:     "policy_version",
+					OldValue: float64(1),
+					NewValue: float64(2),
+					Actor:    domain.SystemActorName,
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualDiff, err := tc.newAppeal.Compare(tc.oldAppeal, "user@example.com")
+			assert.NoError(t, err)
+			assert.Empty(t, cmp.Diff(tc.wantDiff, actualDiff, cmpopts.SortSlices(func(a, b *domain.DiffItem) bool {
+				return a.Path < b.Path || (a.Path == b.Path && a.Op < b.Op)
+			})))
 		})
 	}
 }

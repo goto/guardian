@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/goto/guardian/pkg/diff"
 	"github.com/goto/guardian/pkg/evaluator"
 	"github.com/goto/guardian/utils"
 )
@@ -26,6 +28,10 @@ const (
 	PermanentDurationLabel   = "Permanent"
 
 	ExpirationDateReasonFromAppeal = "Expiration date is set based on the appeal options"
+
+	ReservedDetailsKeyProviderParameters = "__provider_parameters"
+	ReservedDetailsKeyPolicyQuestions    = "__policy_questions"
+	ReservedDetailsKeyPolicyMetadata     = "__policy_metadata"
 )
 
 var (
@@ -68,15 +74,6 @@ type Appeal struct {
 
 	CreatedAt time.Time `json:"created_at,omitempty" yaml:"created_at,omitempty"`
 	UpdatedAt time.Time `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
-}
-
-func (a *Appeal) GetNextPendingApproval() *Approval {
-	for _, approval := range a.Approvals {
-		if approval.Status == ApprovalStatusPending && approval.IsManualApproval() {
-			return approval
-		}
-	}
-	return nil
 }
 
 func (a *Appeal) Init(policy *Policy) {
@@ -146,6 +143,24 @@ func (a *Appeal) GetApproval(identifier string) *Approval {
 	return nil
 }
 
+func (a *Appeal) GetApprovalByIndex(index int) *Approval {
+	for _, approval := range a.Approvals {
+		if approval.Index == index && !approval.IsStale {
+			return approval
+		}
+	}
+	return nil
+}
+
+func (a *Appeal) GetNextPendingApproval() *Approval {
+	for _, approval := range a.Approvals {
+		if approval.Status == ApprovalStatusPending && approval.IsManualApproval() && !approval.IsStale {
+			return approval
+		}
+	}
+	return nil
+}
+
 func (a Appeal) ToGrant() (*Grant, error) {
 	grant := &Grant{
 		Status:      GrantStatusActive,
@@ -200,12 +215,12 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 		return fmt.Errorf("appeal has no policy")
 	}
 
-	stepNameIndex := map[string]int{}
-	for i, s := range policy.Steps {
-		stepNameIndex[s.Name] = i
-	}
+	for i := 0; i < len(policy.Steps); i++ {
+		approval := a.GetApprovalByIndex(i)
+		if approval == nil {
+			return fmt.Errorf(`unable to find approval with index %q under policy "%s:%d"`, i, policy.ID, policy.Version)
+		}
 
-	for i, approval := range a.Approvals {
 		if approval.Status == ApprovalStatusRejected {
 			break
 		}
@@ -227,9 +242,13 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 
 				isFalsy := reflect.ValueOf(v).IsZero()
 				if isFalsy {
+					// mark current as skipped
 					approval.Status = ApprovalStatusSkipped
-					if i < len(a.Approvals)-1 {
-						a.Approvals[i+1].Status = ApprovalStatusPending
+
+					// mark next as pending
+					nextApproval := a.GetApprovalByIndex(approval.Index + 1)
+					if nextApproval != nil {
+						nextApproval.Status = ApprovalStatusPending
 					}
 				}
 			}
@@ -245,9 +264,13 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 				isFalsy := reflect.ValueOf(v).IsZero()
 				if isFalsy {
 					if stepConfig.AllowFailed {
+						// mark current as skipped
 						approval.Status = ApprovalStatusSkipped
-						if i+1 <= len(a.Approvals)-1 {
-							a.Approvals[i+1].Status = ApprovalStatusPending
+
+						// mark next as pending
+						nextApproval := a.GetApprovalByIndex(approval.Index + 1)
+						if nextApproval != nil {
+							nextApproval.Status = ApprovalStatusPending
 						}
 					} else {
 						approval.Status = ApprovalStatusRejected
@@ -255,14 +278,19 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 						a.Status = AppealStatusRejected
 					}
 				} else {
+					// mark current as approved
 					approval.Status = ApprovalStatusApproved
-					if i+1 <= len(a.Approvals)-1 {
-						a.Approvals[i+1].Status = ApprovalStatusPending
+
+					// mark next as pending
+					nextApproval := a.GetApprovalByIndex(approval.Index + 1)
+					if nextApproval != nil {
+						nextApproval.Status = ApprovalStatusPending
 					}
 				}
 			}
 		}
-		if i == len(a.Approvals)-1 && (approval.Status == ApprovalStatusSkipped || approval.Status == ApprovalStatusApproved) {
+		isLastApproval := approval.Index == len(policy.Steps)-1
+		if isLastApproval && (approval.Status == ApprovalStatusSkipped || approval.Status == ApprovalStatusApproved) {
 			a.Status = AppealStatusApproved
 		}
 	}
@@ -272,6 +300,63 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 
 func (a *Appeal) ToMap() (map[string]interface{}, error) {
 	return utils.StructToMap(a)
+}
+
+func (a *Appeal) getComparable() Appeal {
+	copy := *a
+	copy.ID = ""
+	copy.Policy = nil
+	copy.Resource = nil
+	copy.Approvals = nil
+	copy.Grant = nil
+	copy.CreatedAt = time.Time{}
+	copy.UpdatedAt = time.Time{}
+	return copy
+}
+
+func (a *Appeal) Compare(old *Appeal, actor string) ([]*DiffItem, error) {
+	if a == nil {
+		return nil, fmt.Errorf("cannot compare nil appeal")
+	}
+	if old == nil {
+		return nil, fmt.Errorf("cannot compare with nil appeal")
+	}
+	if actor == "" {
+		return nil, fmt.Errorf("actor is required")
+	}
+
+	oldComparable := old.getComparable()
+	newComparable := a.getComparable()
+	changes, err := diff.Compare(oldComparable, newComparable)
+	if err != nil {
+		return nil, err
+	}
+
+	diffItems := make([]*DiffItem, 0, len(changes))
+	for _, c := range changes {
+		diff := &DiffItem{
+			Op:       c.Op,
+			Path:     c.Path,
+			OldValue: c.OldValue,
+			NewValue: c.NewValue,
+		}
+
+		switch {
+		case c.Path == "policy_id",
+			c.Path == "policy_version",
+			c.Path == "status",
+			c.Path == "creator",
+			c.Path == "revision",
+			strings.HasPrefix(c.Path, "permissions"),
+			strings.HasPrefix(c.Path, fmt.Sprintf("details.%s", ReservedDetailsKeyPolicyMetadata)):
+			diff.Actor = SystemActorName
+		default:
+			diff.Actor = actor
+		}
+
+		diffItems = append(diffItems, diff)
+	}
+	return diffItems, nil
 }
 
 type ApprovalActionType string
@@ -323,4 +408,12 @@ type ListAppealsFilter struct {
 	OrderBy                   []string  `mapstructure:"order_by" validate:"omitempty,min=1"`
 	Size                      int       `mapstructure:"size" validate:"omitempty"`
 	Offset                    int       `mapstructure:"offset" validate:"omitempty"`
+}
+
+type DiffItem struct {
+	Op       string `json:"op"`
+	Actor    string `json:"actor"`
+	Path     string `json:"path"`
+	OldValue any    `json:"old_value,omitempty"`
+	NewValue any    `json:"new_value,omitempty"`
 }

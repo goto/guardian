@@ -21,9 +21,6 @@ const (
 	AuditKeyCreate = "provider.create"
 	AuditKeyUpdate = "provider.update"
 	AuditKeyDelete = "provider.delete"
-
-	ReservedDetailsKeyProviderParameters = "__provider_parameters"
-	ReservedDetailsKeyPolicyQuestions    = "__policy_questions"
 )
 
 //go:generate mockery --name=repository --exported --with-expecter
@@ -372,13 +369,13 @@ func (s *Service) ValidateAppeal(ctx context.Context, a *domain.Appeal, p *domai
 }
 
 func (*Service) validateQuestionsAndParameters(a *domain.Appeal, p *domain.Provider, policy *domain.Policy) error {
-	parameterKeys := getFilledKeys(a, ReservedDetailsKeyProviderParameters)
-	questionKeys := getFilledKeys(a, ReservedDetailsKeyPolicyQuestions)
+	parameterKeys := getFilledKeys(a, domain.ReservedDetailsKeyProviderParameters)
+	questionKeys := getFilledKeys(a, domain.ReservedDetailsKeyPolicyQuestions)
 
 	if p != nil && p.Config.Parameters != nil {
 		for _, param := range p.Config.Parameters {
 			if param.Required && !utils.ContainsString(parameterKeys, param.Key) {
-				return fmt.Errorf("%w: %q", ErrAppealValidationMissingRequiredParameter, fmt.Sprintf("details.%s.%s", ReservedDetailsKeyProviderParameters, param.Key))
+				return fmt.Errorf("%w: %q", ErrAppealValidationMissingRequiredParameter, fmt.Sprintf("details.%s.%s", domain.ReservedDetailsKeyProviderParameters, param.Key))
 			}
 		}
 	}
@@ -387,7 +384,7 @@ func (*Service) validateQuestionsAndParameters(a *domain.Appeal, p *domain.Provi
 	if policy != nil && policy.AppealConfig != nil && len(policy.AppealConfig.Questions) > 0 {
 		for _, question := range policy.AppealConfig.Questions {
 			if question.Required && !utils.ContainsString(questionKeys, question.Key) {
-				return fmt.Errorf("%w: %q", ErrAppealValidationMissingRequiredQuestion, fmt.Sprintf("details.%s.%s", ReservedDetailsKeyPolicyQuestions, question.Key))
+				return fmt.Errorf("%w: %q", ErrAppealValidationMissingRequiredQuestion, fmt.Sprintf("details.%s.%s", domain.ReservedDetailsKeyPolicyQuestions, question.Key))
 			}
 		}
 	}
