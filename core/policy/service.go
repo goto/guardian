@@ -120,6 +120,7 @@ func (s *Service) Create(ctx context.Context, p *domain.Policy) error {
 		}
 
 		go func() {
+			ctx := context.WithoutCancel(ctx)
 			if err := s.auditLogger.Log(ctx, AuditKeyPolicyCreate, p); err != nil {
 				s.logger.Error(ctx, "failed to record audit log", "error", err)
 			}
@@ -232,6 +233,7 @@ func (s *Service) Update(ctx context.Context, p *domain.Policy) error {
 		}
 
 		go func() {
+			ctx := context.WithoutCancel(ctx)
 			if err := s.auditLogger.Log(ctx, AuditKeyPolicyUpdate, p); err != nil {
 				s.logger.Error(ctx, "failed to record audit log", "error", err)
 			}
