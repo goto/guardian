@@ -41,9 +41,10 @@ func applyAppealFilter(db *gorm.DB, filters *ReportFilter) (*gorm.DB, error) {
 		Select("appeals.id, approvers.email as approver, appeals.created_by as requestor, approvals.name as project, resources.provider_type as resource, appeals.status as status, appeals.created_by").
 		Joins("join resources on appeals.resource_id = resources.id").
 		Joins("join approvals on appeals.id = approvals.appeal_id").
-		Joins("join approvers on approvers.approval_id = approvals.id")
+		Joins("join approvers on approvers.approval_id = approvals.id").
+		Where("approvers.deleted_at IS NULL")
 
-	if filters.ApprovalStatuses != nil {
+	if filters.AppealStatuses != nil {
 		db = db.Where(`"appeals"."status" IN ?`, filters.AppealStatuses)
 	}
 
