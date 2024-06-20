@@ -64,7 +64,6 @@ func (s *Service) GetPendingApprovalsList(ctx context.Context, cfg *GetPendingAp
 	}
 
 	var report []*PendingApproval
-	var notifications []domain.Notification
 	for approver, appeals := range approverPendingApprovalsMap {
 		count := len(appeals)
 		report = append(report, &PendingApproval{
@@ -74,7 +73,7 @@ func (s *Service) GetPendingApprovalsList(ctx context.Context, cfg *GetPendingAp
 		})
 
 		s.logger.Info(ctx, "preparing notification", "pending approvals count", count, "to", approver)
-		notifications = append(notifications, domain.Notification{
+		notification := domain.Notification{
 			User: approver,
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypePendingApprovalsReminder,
@@ -83,15 +82,14 @@ func (s *Service) GetPendingApprovalsList(ctx context.Context, cfg *GetPendingAp
 					"pending_approvals_count": count,
 				},
 			},
-		})
-	}
-
-	if !cfg.DryRun {
-		if errs := s.notifier.Notify(ctx, notifications); errs != nil {
-			for _, e := range errs {
-				s.logger.Error(ctx, "failed to send notifications", "error", e.Error())
+		}
+		if !cfg.DryRun {
+			if errs := s.notifier.Notify(ctx, []domain.Notification{notification}); errs != nil {
+				for _, e := range errs {
+					s.logger.Error(ctx, "failed to send notifications", "error", e.Error())
+				}
+				s.logger.Info(ctx, "pending approvals notifications sent")
 			}
-			s.logger.Info(ctx, "pending approvals notifications sent")
 		}
 	}
 
