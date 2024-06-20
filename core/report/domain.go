@@ -4,10 +4,20 @@ import (
 	"time"
 )
 
-type PendingApprovalsReport struct {
+type PendingApprovalModel struct {
 	AppealID        string    `json:"id" yaml:"id"`
 	Approver        string    `json:"approver" yaml:"approver"`
 	AppealCreatedAt time.Time `json:"created_at" yaml:"created_at"`
+}
+
+type PendingApproval struct {
+	Approver string
+	Count    int
+	Appeals  []PendingAppeal // ideally []*domain.Appeal, but only ID is needed for now
+}
+
+type PendingAppeal struct {
+	ID string
 }
 
 type PendingApprovalsReportFilter struct {

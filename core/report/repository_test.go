@@ -142,7 +142,7 @@ func (s *RepositoryTestSuite) TearDownSuite() {
 }
 
 func (s *RepositoryTestSuite) TestGetPendingApprovalsList() {
-	expectedReports := []report.PendingApprovalsReport{
+	expectedReports := []report.PendingApprovalModel{
 		{
 			AppealID:        "1",
 			Approver:        "approver@example.com",

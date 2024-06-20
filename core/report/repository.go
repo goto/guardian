@@ -14,8 +14,8 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db}
 }
 
-func (r *Repository) GetPendingApprovalsList(ctx context.Context, filters *PendingApprovalsReportFilter) ([]*PendingApprovalsReport, error) {
-	records := []*PendingApprovalsReport{}
+func (r *Repository) GetPendingApprovalsList(ctx context.Context, filters *PendingApprovalsReportFilter) ([]*PendingApprovalModel, error) {
+	records := []*PendingApprovalModel{}
 
 	db := r.db.WithContext(ctx)
 	var err error

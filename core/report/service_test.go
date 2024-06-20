@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
-	"github.com/google/uuid"
 	"github.com/goto/guardian/core/report"
 	reportmocks "github.com/goto/guardian/core/report/mocks"
+	"github.com/goto/guardian/pkg/log"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -15,8 +16,10 @@ import (
 type ServiceTestSuite struct {
 	suite.Suite
 	mockRepository *reportmocks.Repository
+	mockNotifier   *reportmocks.Notifier
 
-	service *report.Service
+	service    *report.Service
+	ctxMatcher interface{}
 }
 
 func TestService(t *testing.T) {
@@ -24,10 +27,15 @@ func TestService(t *testing.T) {
 }
 
 func (s *ServiceTestSuite) SetupTest() {
+	logger := log.NewNoop()
 	s.mockRepository = new(reportmocks.Repository)
+	s.mockNotifier = new(reportmocks.Notifier)
+	s.ctxMatcher = mock.MatchedBy(func(ctx context.Context) bool { return true })
 
 	s.service = report.NewService(report.ServiceDeps{
 		s.mockRepository,
+		logger,
+		s.mockNotifier,
 	})
 }
 
@@ -38,23 +46,48 @@ func (s *ServiceTestSuite) TestGetPendingApprovalsList() {
 			GetPendingApprovalsList(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
 			Return(nil, expectedError).Once()
 
-		actualApprovals, actualError := s.service.GetPendingApprovalsList(context.Background(), &report.PendingApprovalsReportFilter{})
+		actualApprovals, actualError := s.service.GetPendingApprovalsList(context.Background(), &report.GetPendingApprovalsListConfig{})
 
 		s.Nil(actualApprovals)
 		s.EqualError(actualError, expectedError.Error())
 	})
 
 	s.Run("should return approvals from repository", func() {
-		expectedApprovals := []*report.PendingApprovalsReport{
+		expectedApprovals := []*report.PendingApproval{
 			{
-				AppealID: uuid.New().String(),
+				Approver: "approver@example.com",
+				Count:    2,
+				Appeals: []report.PendingAppeal{
+					{
+						ID: "appeal01",
+					},
+					{
+						ID: "appeal02",
+					},
+				},
 			},
 		}
+
+		pendingApprovals := []*report.PendingApprovalModel{
+			{
+				AppealID:        "appeal01",
+				Approver:        "approver@example.com",
+				AppealCreatedAt: time.Now(),
+			},
+			{
+				AppealID:        "appeal02",
+				Approver:        "approver@example.com",
+				AppealCreatedAt: time.Now(),
+			},
+		}
+
 		s.mockRepository.EXPECT().
 			GetPendingApprovalsList(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
-			Return(expectedApprovals, nil).Once()
+			Return(pendingApprovals, nil).Once()
+		s.mockNotifier.EXPECT().
+			Notify(s.ctxMatcher, mock.Anything).Return(nil).Once()
 
-		actualApprovals, actualError := s.service.GetPendingApprovalsList(context.Background(), &report.PendingApprovalsReportFilter{})
+		actualApprovals, actualError := s.service.GetPendingApprovalsList(context.Background(), &report.GetPendingApprovalsListConfig{})
 
 		s.Equal(expectedApprovals, actualApprovals)
 		s.NoError(actualError)

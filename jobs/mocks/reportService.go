@@ -24,19 +24,19 @@ func (_m *ReportService) EXPECT() *ReportService_Expecter {
 }
 
 // GetPendingApprovalsList provides a mock function with given fields: ctx, filters
-func (_m *ReportService) GetPendingApprovalsList(ctx context.Context, filters *report.PendingApprovalsReportFilter) ([]*report.PendingApprovalsReport, error) {
+func (_m *ReportService) GetPendingApprovalsList(ctx context.Context, filters *report.PendingApprovalsReportFilter) ([]*report.PendingApprovalModel, error) {
 	ret := _m.Called(ctx, filters)
 
-	var r0 []*report.PendingApprovalsReport
+	var r0 []*report.PendingApprovalModel
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *report.PendingApprovalsReportFilter) ([]*report.PendingApprovalsReport, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *report.PendingApprovalsReportFilter) ([]*report.PendingApprovalModel, error)); ok {
 		return rf(ctx, filters)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *report.PendingApprovalsReportFilter) []*report.PendingApprovalsReport); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *report.PendingApprovalsReportFilter) []*report.PendingApprovalModel); ok {
 		r0 = rf(ctx, filters)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*report.PendingApprovalsReport)
+			r0 = ret.Get(0).([]*report.PendingApprovalModel)
 		}
 	}
 
@@ -68,12 +68,12 @@ func (_c *ReportService_GetPendingApprovalsList_Call) Run(run func(ctx context.C
 	return _c
 }
 
-func (_c *ReportService_GetPendingApprovalsList_Call) Return(_a0 []*report.PendingApprovalsReport, _a1 error) *ReportService_GetPendingApprovalsList_Call {
+func (_c *ReportService_GetPendingApprovalsList_Call) Return(_a0 []*report.PendingApprovalModel, _a1 error) *ReportService_GetPendingApprovalsList_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *ReportService_GetPendingApprovalsList_Call) RunAndReturn(run func(context.Context, *report.PendingApprovalsReportFilter) ([]*report.PendingApprovalsReport, error)) *ReportService_GetPendingApprovalsList_Call {
+func (_c *ReportService_GetPendingApprovalsList_Call) RunAndReturn(run func(context.Context, *report.PendingApprovalsReportFilter) ([]*report.PendingApprovalModel, error)) *ReportService_GetPendingApprovalsList_Call {
 	_c.Call.Return(run)
 	return _c
 }

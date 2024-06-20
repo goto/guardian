@@ -28,7 +28,7 @@ type providerService interface {
 
 //go:generate mockery --name=reportService --exported --with-expecter
 type reportService interface {
-	GetPendingApprovalsList(ctx context.Context, filters *report.PendingApprovalsReportFilter) ([]*report.PendingApprovalsReport, error)
+	GetPendingApprovalsList(ctx context.Context, cfg *report.GetPendingApprovalsListConfig) ([]*report.PendingApproval, error)
 }
 
 type crypto interface {
