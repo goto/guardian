@@ -24,23 +24,23 @@ func (_m *ReportService) EXPECT() *ReportService_Expecter {
 }
 
 // GetPendingApprovalsList provides a mock function with given fields: ctx, filters
-func (_m *ReportService) GetPendingApprovalsList(ctx context.Context, filters *report.ReportFilter) ([]*report.Report, error) {
+func (_m *ReportService) GetPendingApprovalsList(ctx context.Context, filters *report.PendingApprovalsReportFilter) ([]*report.PendingApprovalsReport, error) {
 	ret := _m.Called(ctx, filters)
 
-	var r0 []*report.Report
+	var r0 []*report.PendingApprovalsReport
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *report.ReportFilter) ([]*report.Report, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *report.PendingApprovalsReportFilter) ([]*report.PendingApprovalsReport, error)); ok {
 		return rf(ctx, filters)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *report.ReportFilter) []*report.Report); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *report.PendingApprovalsReportFilter) []*report.PendingApprovalsReport); ok {
 		r0 = rf(ctx, filters)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*report.Report)
+			r0 = ret.Get(0).([]*report.PendingApprovalsReport)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *report.ReportFilter) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *report.PendingApprovalsReportFilter) error); ok {
 		r1 = rf(ctx, filters)
 	} else {
 		r1 = ret.Error(1)
@@ -56,24 +56,24 @@ type ReportService_GetPendingApprovalsList_Call struct {
 
 // GetPendingApprovalsList is a helper method to define mock.On call
 //   - ctx context.Context
-//   - filters *report.ReportFilter
+//   - filters *report.PendingApprovalsReportFilter
 func (_e *ReportService_Expecter) GetPendingApprovalsList(ctx interface{}, filters interface{}) *ReportService_GetPendingApprovalsList_Call {
 	return &ReportService_GetPendingApprovalsList_Call{Call: _e.mock.On("GetPendingApprovalsList", ctx, filters)}
 }
 
-func (_c *ReportService_GetPendingApprovalsList_Call) Run(run func(ctx context.Context, filters *report.ReportFilter)) *ReportService_GetPendingApprovalsList_Call {
+func (_c *ReportService_GetPendingApprovalsList_Call) Run(run func(ctx context.Context, filters *report.PendingApprovalsReportFilter)) *ReportService_GetPendingApprovalsList_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*report.ReportFilter))
+		run(args[0].(context.Context), args[1].(*report.PendingApprovalsReportFilter))
 	})
 	return _c
 }
 
-func (_c *ReportService_GetPendingApprovalsList_Call) Return(_a0 []*report.Report, _a1 error) *ReportService_GetPendingApprovalsList_Call {
+func (_c *ReportService_GetPendingApprovalsList_Call) Return(_a0 []*report.PendingApprovalsReport, _a1 error) *ReportService_GetPendingApprovalsList_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *ReportService_GetPendingApprovalsList_Call) RunAndReturn(run func(context.Context, *report.ReportFilter) ([]*report.Report, error)) *ReportService_GetPendingApprovalsList_Call {
+func (_c *ReportService_GetPendingApprovalsList_Call) RunAndReturn(run func(context.Context, *report.PendingApprovalsReportFilter) ([]*report.PendingApprovalsReport, error)) *ReportService_GetPendingApprovalsList_Call {
 	_c.Call.Return(run)
 	return _c
 }

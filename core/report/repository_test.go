@@ -140,7 +140,7 @@ func (s *RepositoryTestSuite) TearDownSuite() {
 }
 
 func (s *RepositoryTestSuite) TestGetPendingApprovalsList() {
-	dummyReports := []report.Report{
+	dummyReports := []report.PendingApprovalsReport{
 		{
 			Approver:  "approver@gojek.com",
 			Requestor: "user@gojek.com",
@@ -148,7 +148,7 @@ func (s *RepositoryTestSuite) TestGetPendingApprovalsList() {
 		},
 	}
 	s.Run("should return nil and error if got error from repository", func() {
-		reports, err := s.repository.GetPendingApprovalsList(context.Background(), &report.ReportFilter{
+		reports, err := s.repository.GetPendingApprovalsList(context.Background(), &report.PendingApprovalsReportFilter{
 			AppealStatuses:   []string{"pending"},
 			ApprovalStatuses: []string{"pending"},
 		})

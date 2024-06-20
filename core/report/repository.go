@@ -14,8 +14,8 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db}
 }
 
-func (r *Repository) GetPendingApprovalsList(ctx context.Context, filters *ReportFilter) ([]*Report, error) {
-	records := []*Report{}
+func (r *Repository) GetPendingApprovalsList(ctx context.Context, filters *PendingApprovalsReportFilter) ([]*PendingApprovalsReport, error) {
+	records := []*PendingApprovalsReport{}
 
 	db := r.db.WithContext(ctx)
 	var err error
@@ -36,7 +36,7 @@ func (r *Repository) GetPendingApprovalsList(ctx context.Context, filters *Repor
 	return records, nil
 }
 
-func applyAppealFilter(db *gorm.DB, filters *ReportFilter) (*gorm.DB, error) {
+func applyAppealFilter(db *gorm.DB, filters *PendingApprovalsReportFilter) (*gorm.DB, error) {
 	db = db.Table("appeals").
 		Select("appeals.id, approvers.email as approver, appeals.created_by as requestor, approvals.name as project, resources.provider_type as resource, appeals.status as status, appeals.created_by").
 		Joins("join resources on appeals.resource_id = resources.id").

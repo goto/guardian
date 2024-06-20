@@ -38,14 +38,14 @@ func (s *ServiceTestSuite) TestGetPendingApprovalsList() {
 			GetPendingApprovalsList(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
 			Return(nil, expectedError).Once()
 
-		actualApprovals, actualError := s.service.GetPendingApprovalsList(context.Background(), &report.ReportFilter{})
+		actualApprovals, actualError := s.service.GetPendingApprovalsList(context.Background(), &report.PendingApprovalsReportFilter{})
 
 		s.Nil(actualApprovals)
 		s.EqualError(actualError, expectedError.Error())
 	})
 
 	s.Run("should return approvals from repository", func() {
-		expectedApprovals := []*report.Report{
+		expectedApprovals := []*report.PendingApprovalsReport{
 			{
 				ID: uuid.New().String(),
 			},
@@ -54,7 +54,7 @@ func (s *ServiceTestSuite) TestGetPendingApprovalsList() {
 			GetPendingApprovalsList(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
 			Return(expectedApprovals, nil).Once()
 
-		actualApprovals, actualError := s.service.GetPendingApprovalsList(context.Background(), &report.ReportFilter{})
+		actualApprovals, actualError := s.service.GetPendingApprovalsList(context.Background(), &report.PendingApprovalsReportFilter{})
 
 		s.Equal(expectedApprovals, actualApprovals)
 		s.NoError(actualError)

@@ -8,7 +8,7 @@ import (
 
 //go:generate mockery --name=repository --exported --with-expecter
 type repository interface {
-	GetPendingApprovalsList(ctx context.Context, filters *ReportFilter) ([]*Report, error)
+	GetPendingApprovalsList(ctx context.Context, filters *PendingApprovalsReportFilter) ([]*PendingApprovalsReport, error)
 }
 
 type ServiceDeps struct {
@@ -25,7 +25,7 @@ func NewService(deps ServiceDeps) *Service {
 	}
 }
 
-func (s *Service) GetPendingApprovalsList(ctx context.Context, filters *ReportFilter) ([]*Report, error) {
+func (s *Service) GetPendingApprovalsList(ctx context.Context, filters *PendingApprovalsReportFilter) ([]*PendingApprovalsReport, error) {
 	if err := utils.ValidateStruct(filters); err != nil {
 		return nil, err
 	}
