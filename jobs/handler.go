@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/core/grant"
+	"github.com/goto/guardian/core/report"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/notifiers"
@@ -25,6 +26,11 @@ type providerService interface {
 	Find(context.Context) ([]*domain.Provider, error)
 }
 
+//go:generate mockery --name=reportService --exported --with-expecter
+type reportService interface {
+	GetPendingApprovalsList(ctx context.Context, cfg *report.GetPendingApprovalsListConfig) ([]*report.PendingApproval, error)
+}
+
 type crypto interface {
 	domain.Crypto
 }
@@ -32,6 +38,7 @@ type crypto interface {
 type handler struct {
 	logger          log.Logger
 	grantService    grantService
+	reportService   reportService
 	providerService providerService
 	notifier        notifiers.Client
 	crypto          crypto
@@ -41,6 +48,7 @@ type handler struct {
 func NewHandler(
 	logger log.Logger,
 	grantService grantService,
+	reportService reportService,
 	providerService providerService,
 	notifier notifiers.Client,
 	crypto crypto,
@@ -49,6 +57,7 @@ func NewHandler(
 	return &handler{
 		logger:          logger,
 		grantService:    grantService,
+		reportService:   reportService,
 		providerService: providerService,
 		notifier:        notifier,
 		crypto:          crypto,

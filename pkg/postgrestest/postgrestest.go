@@ -1,4 +1,4 @@
-package postgres_test
+package postgrestest
 
 import (
 	"context"
@@ -22,7 +22,7 @@ var (
 	}
 )
 
-func newTestStore(logger log.Logger) (*postgres.Store, *dockertest.Pool, *dockertest.Resource, error) {
+func NewTestStore(logger log.Logger) (*postgres.Store, *dockertest.Pool, *dockertest.Resource, error) {
 	ctx := context.Background()
 	opts := &dockertest.RunOptions{
 		Repository: "postgres",
@@ -100,21 +100,21 @@ func newTestStore(logger log.Logger) (*postgres.Store, *dockertest.Pool, *docker
 		return nil, nil, nil, fmt.Errorf("could not connect to docker: %w", err)
 	}
 
-	err = setup(st)
+	err = Setup(st)
 	if err != nil {
 		logger.Fatal(ctx, "failed to setup and migrate DB", "error", err)
 	}
 	return st, pool, resource, nil
 }
 
-func purgeTestDocker(pool *dockertest.Pool, resource *dockertest.Resource) error {
+func PurgeTestDocker(pool *dockertest.Pool, resource *dockertest.Resource) error {
 	if err := pool.Purge(resource); err != nil {
 		return fmt.Errorf("could not purge resource: %w", err)
 	}
 	return nil
 }
 
-func setup(store *postgres.Store) error {
+func Setup(store *postgres.Store) error {
 	var queries = []string{
 		"DROP SCHEMA public CASCADE",
 		"CREATE SCHEMA public",
@@ -130,7 +130,7 @@ func setup(store *postgres.Store) error {
 	return nil
 }
 
-func truncateTable(store *postgres.Store, tableName string) error {
+func TruncateTable(store *postgres.Store, tableName string) error {
 	query := fmt.Sprintf(`TRUNCATE "%s" CASCADE;`, tableName)
 	return store.DB().Exec(query).Error
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/core/policy"
 	"github.com/goto/guardian/core/provider"
+	"github.com/goto/guardian/core/report"
 	"github.com/goto/guardian/core/resource"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres"
@@ -46,6 +47,7 @@ type Services struct {
 	AppealService   *appeal.Service
 	GrantService    *grant.Service
 	CommentService  *comment.Service
+	ReportService   *report.Service
 }
 
 type ServiceDeps struct {
@@ -107,6 +109,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 	grantRepository := postgres.NewGrantRepository(store.DB())
 	commentRepository := postgres.NewCommentRepository(store.DB())
 	auditLogRepository := postgres.NewAuditLogRepository(store.DB())
+	reportRepository := report.NewRepository(store.DB())
 
 	providerClients := []provider.Client{
 		bigquery.NewProvider(domain.ProviderTypeBigQuery, deps.Crypto, deps.Logger),
@@ -187,6 +190,11 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		Logger:          deps.Logger,
 		AuditLogger:     auditLogger,
 	})
+	reportService := report.NewService(report.ServiceDeps{
+		Repository: reportRepository,
+		Logger:     deps.Logger,
+		Notifier:   deps.Notifier,
+	})
 
 	return &Services{
 		resourceService,
@@ -197,6 +205,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		appealService,
 		grantService,
 		commentService,
+		reportService,
 	}, nil
 }
 

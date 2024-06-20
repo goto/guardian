@@ -13,6 +13,7 @@ import (
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/goto/guardian/pkg/postgrestest"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/suite"
 )
@@ -31,7 +32,7 @@ func (s *ProviderRepositoryTestSuite) SetupSuite() {
 	var err error
 
 	logger := log.NewCtxLogger("debug", []string{"test"})
-	s.store, s.pool, s.resource, err = newTestStore(logger)
+	s.store, s.pool, s.resource, err = postgrestest.NewTestStore(logger)
 	if err != nil {
 		s.T().Fatal(err)
 	}
@@ -52,7 +53,7 @@ func (s *ProviderRepositoryTestSuite) TearDownSuite() {
 		s.T().Fatal(err)
 	}
 
-	err = purgeTestDocker(s.pool, s.resource)
+	err = postgrestest.PurgeTestDocker(s.pool, s.resource)
 	if err != nil {
 		s.T().Fatal(err)
 	}
@@ -92,7 +93,7 @@ func (s *ProviderRepositoryTestSuite) TestCreate() {
 	})
 
 	s.Run("should return error if db returns an error", func() {
-		err := setup(s.store)
+		err := postgrestest.Setup(s.store)
 		s.NoError(err)
 
 		ctx := context.Background()
@@ -108,7 +109,7 @@ func (s *ProviderRepositoryTestSuite) TestCreate() {
 }
 
 func (s *ProviderRepositoryTestSuite) TestFind() {
-	err1 := setup(s.store)
+	err1 := postgrestest.Setup(s.store)
 	s.Nil(err1)
 
 	s.Run("should return list of records on success", func() {
@@ -156,7 +157,7 @@ func (s *ProviderRepositoryTestSuite) TestGetByID() {
 	})
 
 	s.Run("should return record and nil error on success", func() {
-		err := setup(s.store)
+		err := postgrestest.Setup(s.store)
 		s.Nil(err)
 
 		p := &domain.Provider{
@@ -343,7 +344,7 @@ func (s *ProviderRepositoryTestSuite) TestUpdate() {
 }
 
 func (s *ProviderRepositoryTestSuite) TestDelete() {
-	err1 := setup(s.store)
+	err1 := postgrestest.Setup(s.store)
 	s.Nil(err1)
 
 	s.Run("should return error if ID param is empty", func() {
