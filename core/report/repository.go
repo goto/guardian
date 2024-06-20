@@ -37,12 +37,13 @@ func (r *Repository) GetPendingApprovalsList(ctx context.Context, filters *Pendi
 }
 
 func applyAppealFilter(db *gorm.DB, filters *PendingApprovalsReportFilter) (*gorm.DB, error) {
-	db = db.Table("appeals").
-		Select("appeals.id, approvers.email as approver, appeals.created_by as requestor, approvals.name as project, resources.provider_type as resource, appeals.status as status, appeals.created_by").
-		Joins("join resources on appeals.resource_id = resources.id").
-		Joins("join approvals on appeals.id = approvals.appeal_id").
-		Joins("join approvers on approvers.approval_id = approvals.id").
-		Where("approvers.deleted_at IS NULL")
+	db = db.Table("approvers").
+		Select("appeals.id as appeal_id, approvers.email as approver, appeals.created_at as appeal_created_at").
+		Joins("join approvals on approvals.id = approvers.approval_id").
+		Joins("join appeals on appeals.id = approvals.appeal_id").
+		Where("approvers.deleted_at IS NULL").
+		Where("approvals.deleted_at IS NULL").
+		Where("appeals.deleted_at IS NULL")
 
 	if filters.AppealStatuses != nil {
 		db = db.Where(`"appeals"."status" IN ?`, filters.AppealStatuses)
@@ -50,6 +51,10 @@ func applyAppealFilter(db *gorm.DB, filters *PendingApprovalsReportFilter) (*gor
 
 	if filters.ApprovalStatuses != nil {
 		db = db.Where(`"approvals"."status" IN ?`, filters.ApprovalStatuses)
+	}
+
+	if filters.ApprovalStale != nil {
+		db = db.Where(`"approvals"."is_stale" = ?`, *filters.ApprovalStale)
 	}
 
 	return db, nil

@@ -47,7 +47,7 @@ func (s *ServiceTestSuite) TestGetPendingApprovalsList() {
 	s.Run("should return approvals from repository", func() {
 		expectedApprovals := []*report.PendingApprovalsReport{
 			{
-				ID: uuid.New().String(),
+				AppealID: uuid.New().String(),
 			},
 		}
 		s.mockRepository.EXPECT().

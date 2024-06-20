@@ -3,6 +3,7 @@ package report_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/goto/guardian/core/report"
 	"github.com/goto/guardian/domain"
@@ -141,11 +142,11 @@ func (s *RepositoryTestSuite) TearDownSuite() {
 }
 
 func (s *RepositoryTestSuite) TestGetPendingApprovalsList() {
-	dummyReports := []report.PendingApprovalsReport{
+	expectedReports := []report.PendingApprovalsReport{
 		{
-			Approver:  "approver@gojek.com",
-			Requestor: "user@gojek.com",
-			Status:    "pending",
+			AppealID:        "1",
+			Approver:        "approver@example.com",
+			AppealCreatedAt: time.Now(),
 		},
 	}
 	s.Run("should return nil and error if got error from repository", func() {
@@ -156,6 +157,6 @@ func (s *RepositoryTestSuite) TestGetPendingApprovalsList() {
 
 		s.NoError(err)
 		s.Len(reports, 1)
-		s.Equal(dummyReports[0].Approver, dummyReports[0].Approver)
+		s.Equal(expectedReports[0].Approver, reports[0].Approver)
 	})
 }
