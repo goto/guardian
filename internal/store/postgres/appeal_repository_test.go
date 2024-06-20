@@ -12,6 +12,7 @@ import (
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/goto/guardian/pkg/postgrestest"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/suite"
 )
@@ -32,7 +33,7 @@ type AppealRepositoryTestSuite struct {
 func (s *AppealRepositoryTestSuite) SetupSuite() {
 	var err error
 	logger := log.NewCtxLogger("debug", []string{"test"})
-	s.store, s.pool, s.resource, err = postgres.NewTestStore(logger)
+	s.store, s.pool, s.resource, err = postgrestest.NewTestStore(logger)
 	if err != nil {
 		s.T().Fatal(err)
 	}
@@ -93,7 +94,7 @@ func (s *AppealRepositoryTestSuite) TearDownSuite() {
 		s.T().Fatal(err)
 	}
 
-	err = postgres.PurgeTestDocker(s.pool, s.resource)
+	err = postgrestest.PurgeTestDocker(s.pool, s.resource)
 	if err != nil {
 		s.T().Fatal(err)
 	}

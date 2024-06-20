@@ -12,6 +12,7 @@ import (
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/goto/guardian/pkg/postgrestest"
 	"github.com/goto/guardian/utils"
 	"github.com/stretchr/testify/suite"
 )
@@ -38,7 +39,7 @@ func TestActivityRepository(t *testing.T) {
 
 func (s *ActivityRepositoryTestSuite) SetupSuite() {
 	logger := log.NewCtxLogger("info", []string{"test"})
-	store, pool, resource, err := postgres.NewTestStore(logger)
+	store, pool, resource, err := postgrestest.NewTestStore(logger)
 	if err != nil {
 		s.T().Fatal(err)
 	}
@@ -55,7 +56,7 @@ func (s *ActivityRepositoryTestSuite) SetupSuite() {
 		if err := db.Close(); err != nil {
 			s.T().Fatal(err)
 		}
-		if err := postgres.PurgeTestDocker(pool, resource); err != nil {
+		if err := postgrestest.PurgeTestDocker(pool, resource); err != nil {
 			s.T().Fatal(err)
 		}
 	})

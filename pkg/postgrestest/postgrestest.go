@@ -1,4 +1,4 @@
-package postgres
+package postgrestest
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/goto/guardian/internal/store"
+	"github.com/goto/guardian/internal/store/postgres"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
@@ -22,7 +23,7 @@ var (
 	}
 )
 
-func NewTestStore(logger log.Logger) (*Store, *dockertest.Pool, *dockertest.Resource, error) {
+func NewTestStore(logger log.Logger) (*postgres.Store, *dockertest.Pool, *dockertest.Resource, error) {
 	ctx := context.Background()
 	opts := &dockertest.RunOptions{
 		Repository: "postgres",
@@ -87,10 +88,10 @@ func NewTestStore(logger log.Logger) (*Store, *dockertest.Pool, *dockertest.Reso
 	// exponential backoff-retry, because the application in the container might not be ready to accept connections yet
 	pool.MaxWait = 60 * time.Second
 
-	var st *Store
+	var st *postgres.Store
 	time.Sleep(5 * time.Second)
 	if err = pool.Retry(func() error {
-		st, err = NewStore(&storeConfig)
+		st, err = postgres.NewStore(&storeConfig)
 		if err != nil {
 			return err
 		}
@@ -114,7 +115,7 @@ func PurgeTestDocker(pool *dockertest.Pool, resource *dockertest.Resource) error
 	return nil
 }
 
-func Setup(store *Store) error {
+func Setup(store *postgres.Store) error {
 	var queries = []string{
 		"DROP SCHEMA public CASCADE",
 		"CREATE SCHEMA public",
@@ -130,7 +131,7 @@ func Setup(store *Store) error {
 	return nil
 }
 
-func TruncateTable(store *Store, tableName string) error {
+func TruncateTable(store *postgres.Store, tableName string) error {
 	query := fmt.Sprintf(`TRUNCATE "%s" CASCADE;`, tableName)
 	return store.DB().Exec(query).Error
 }
