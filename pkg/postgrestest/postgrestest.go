@@ -19,7 +19,6 @@ var (
 		Password: "test_pass",
 		Name:     "test_db",
 		SslMode:  "disable",
-		Port:     "32787",
 	}
 )
 

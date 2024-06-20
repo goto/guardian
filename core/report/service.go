@@ -79,7 +79,8 @@ func (s *Service) GetPendingApprovalsList(ctx context.Context, cfg *GetPendingAp
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypePendingApprovalsReminder,
 				Variables: map[string]interface{}{
-					"pending_approvals_count": len(appeals),
+					"approver":                approver,
+					"pending_approvals_count": count,
 				},
 			},
 		})
