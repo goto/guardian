@@ -2,6 +2,7 @@ package report
 
 import (
 	"context"
+	"time"
 
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
@@ -90,6 +91,7 @@ func (s *Service) GetPendingApprovalsList(ctx context.Context, cfg *GetPendingAp
 				}
 				s.logger.Info(ctx, "pending approvals notifications sent")
 			}
+			time.Sleep(time.Second)
 		}
 	}
 
