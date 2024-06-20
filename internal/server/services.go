@@ -192,6 +192,8 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 	})
 	reportService := report.NewService(report.ServiceDeps{
 		Repository: reportRepository,
+		Logger:     deps.Logger,
+		Notifier:   deps.Notifier,
 	})
 
 	return &Services{
