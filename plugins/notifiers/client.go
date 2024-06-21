@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	retryablehttp "github.com/goto/guardian/pkg/http"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/mitchellh/mapstructure"
 
@@ -33,8 +34,10 @@ type Config struct {
 	Provider string `mapstructure:"provider" validate:"omitempty,oneof=slack"`
 
 	// slack
-	AccessToken string      `mapstructure:"access_token" validate:"required_without=SlackConfig"`
-	SlackConfig SlackConfig `mapstructure:"slack_config" validate:"required_without=AccessToken,dive"`
+	AccessToken      string      `mapstructure:"access_token" validate:"required_without=SlackConfig"`
+	SlackConfig      SlackConfig `mapstructure:"slack_config" validate:"required_without=AccessToken,dive"`
+	TimeoutInSeconds int         `mapstructure:"timeout_in_seconds"`
+	MaxRetryCount    int         `mapstructure:"max_retry_count"`
 
 	// custom messages
 	Messages domain.NotificationMessages
@@ -47,7 +50,14 @@ func NewClient(config *Config, logger log.Logger) (Client, error) {
 			return nil, err
 		}
 
-		httpClient := &http.Client{Timeout: 10 * time.Second}
+		retryableTransport := &retryablehttp.RetryableTransport{
+			Transport:  &http.Transport{},
+			RetryCount: config.MaxRetryCount,
+		}
+		httpClient := &http.Client{
+			Timeout:   time.Duration(config.TimeoutInSeconds) * time.Second,
+			Transport: retryableTransport,
+		}
 
 		return slack.NewNotifier(slackConfig, httpClient, logger), nil
 	}
