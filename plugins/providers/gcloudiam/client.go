@@ -42,11 +42,14 @@ func newIamClient(credentialsJSON []byte, resourceName string) (*iamClient, erro
 }
 
 func (c *iamClient) ListServiceAccounts(ctx context.Context) ([]*iam.ServiceAccount, error) {
-	res, err := c.iamService.Projects.ServiceAccounts.List(c.resourceName).Context(ctx).Do()
-	if err != nil {
+	serviceAccounts := []*iam.ServiceAccount{}
+	if err := c.iamService.Projects.ServiceAccounts.List(c.resourceName).Pages(ctx, func(res *iam.ListServiceAccountsResponse) error {
+		serviceAccounts = append(serviceAccounts, res.Accounts...)
+		return nil
+	}); err != nil {
 		return nil, err
 	}
-	return res.Accounts, nil
+	return serviceAccounts, nil
 }
 
 func (c *iamClient) GetGrantableRoles(ctx context.Context, resourceType string) ([]*iam.Role, error) {
