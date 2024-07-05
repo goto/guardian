@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"io"
 	"net/http"
 
 	"github.com/goto/guardian/pkg/evaluator"
@@ -77,7 +76,6 @@ type Config struct {
 var defaultTemplates embed.FS
 
 func NewNotifier(config *Config, httpClient utils.HTTPClient, logger log.Logger) *Notifier {
-	fmt.Println("lark client 3")
 	return &Notifier{
 		workspaces:          config.Workspaces,
 		larkCache:           map[string]*larkCacheItem{},
@@ -89,7 +87,6 @@ func NewNotifier(config *Config, httpClient utils.HTTPClient, logger log.Logger)
 }
 
 func (n *Notifier) Notify(ctx context.Context, items []domain.Notification) []error {
-	fmt.Println("lark notify")
 	errs := make([]error, 0)
 	for _, item := range items {
 		var larkWorkspace *LarkWorkspace
@@ -209,45 +206,35 @@ func (n *Notifier) findTenantAccessToken(clientId string, clientSecret string, w
 		AppSecret: clientSecret,
 	}
 	data, err := json.Marshal(payload)
-
-	fmt.Println("lark token 1")
 	req, err := http.NewRequest(http.MethodPost, larkURL, bytes.NewBuffer(data))
 	if err != nil {
 		return "", err
 	}
 	req.Header.Add("Content-Type", "application/json")
-	fmt.Println("lark token 1")
 	result, err := n.sendRequest(req)
-	fmt.Println("lark token 1" + result.Token)
 	if err != nil {
 		return "", fmt.Errorf("error get tenant access token for workspace: %s - %s", ws.WorkspaceName, err)
 	}
 	if result.OK != "ok" {
 		return "", errors.New(fmt.Sprintf("could not get token for workspace: %s - %s", ws.WorkspaceName, result.OK))
 	}
-	fmt.Println("lark token " + result.Token)
 	return result.Token, nil
 }
 
 func (n *Notifier) sendRequest(req *http.Request) (*tokenResponse, error) {
 
-	bodyBytes, err := io.ReadAll(req.Body)
-	fmt.Println("lark request 1 " + string(bodyBytes))
 	resp, err := n.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(resp.Status)
 	var result tokenResponse
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("lark request 2 ")
 	if result.OK != "ok" {
 		return &result, errors.New(result.OK)
 	}
-	fmt.Println("lark request 3 " + result.Token)
 	return &result, nil
 }
 
@@ -284,7 +271,6 @@ func ParseMessage(message domain.NotificationMessage, templates domain.Notificat
 		}
 		messageBlock = defaultMsgBlock
 	}
-	fmt.Println("lark msgs block 1 " + messageBlock)
 	t, err := template.New("notification_messages").Parse(messageBlock)
 	if err != nil {
 		return "", err
