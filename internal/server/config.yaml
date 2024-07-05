@@ -28,12 +28,18 @@ DB:
   PORT: 5432
   SSLMODE: disable
 NOTIFIER:
-  PROVIDER: slack
+  PROVIDER: slack,lark
   ACCESS_TOKEN:
   WORKSPACES:
     - WORKSPACE: goto
       ACCESS_TOKEN:
       CRITERIA: "email contains '@goto'"
+      CLIENT_ID: xx
+      SECRET: xx
+  TENANT: goto
+    CLIENT_ID: xx
+    SECRET: xx
+    CRITERIA: "email contains '@gojek'"
 JOBS:
   REVOKE_GRANTS_BY_USER_CRITERIA:
     CONFIG:

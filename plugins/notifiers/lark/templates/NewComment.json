@@ -1,0 +1,7 @@
+[
+  {
+    "receive_id":"{{.requestor}}",
+    "msg_type":"interactive",
+    "content":"{\n    \"config\": {\n        \"wide_screen_mode\": true\n    },\n    \"elements\": [\n        {\n            \"tag\": \"div\",\n            \"fields\": [\n                {\n                    \"is_short\": true,\n                    \"text\": {\n                        \"tag\": \"lark_md\",\n                        \"content\": \"**{{.comment_created_by}}** commented on an appeal made by **{{.appeal_created_by}}**\"\n                    }\n                },\n                {\n                    \"is_short\": true,\n                    \"text\": {\n                        \"tag\": \"lark_md\",\n                        \"content\": \">**Appeal ID**: **{{.appeal_id}}**\"\n                    }\n                },\n                {\n                    \"is_short\": true,\n                    \"text\": {\n                        \"tag\": \"lark_md\",\n                        \"content\": \">**Requested resource**: **{{.resource_name}}**\"\n                    }\n                },\n                {\n                    \"is_short\": true,\n                    \"text\": {\n                        \"tag\": \"lark_md\",\n                        \"content\": \">**Comment**: **{{.body}}**\"\n                    }\n                }\n            ]\n        }\n    ]\n}"  
+  }
+]
