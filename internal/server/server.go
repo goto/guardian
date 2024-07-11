@@ -62,26 +62,10 @@ func RunServer(config *Config) error {
 				},
 			},
 		}
-		//var provider = config.Notifier.Provider
-		// Notifiers := map[string]notifiers.Notifier {
-		// 	provider     : notifiers.Notifier{},
-		// }
-		//notifierConfig = *notifiers.ConfigMultiClient{{Notifiers: Notifiers},}
-		// notifierConfig = *notifiers.ConfigMultiClient{
-		// 	Notifiers: map[string]notifiers.Notifier {
-		// 		provider     : domain.Provider,
-		// 		// AccessToken  : `mapstructure:"access_token,omitempty"`,
-		// 		// ClientID     : `mapstructure:"client_id,omitempty"`,
-		// 		// ClientSecret : `mapstructure:"client_id,omitempty"`,
-		// 		// Criteria: `mapstructure:"criteria"`,
-		// 	},
-
-		// }
 	} else {
 		notifierConfig = config.Notifiers
 
 	}
-	//notifier, err := notifiers.NewClient(&config.Notifier, logger)
 	notifier, err := notifiers.NewMultiClient(&notifierConfig, logger)
 	if err != nil {
 		return err
