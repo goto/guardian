@@ -40,6 +40,16 @@ NOTIFIER:
     CLIENT_ID: xx
     SECRET: xx
     CRITERIA: "email contains '@gojek'"
+NOTIFIERS:
+  gojek:
+    PROVIDER: slack
+    ACCESS_TOKEN:
+    Criteria: '.send_to_slack == true' // example value of custom expression
+  GOTO:
+    PROVIDER: lark
+    CLIENT_ID:
+    CLIENT_SECRET:
+    criteria: '.send_to_lark == true' 
 JOBS:
   REVOKE_GRANTS_BY_USER_CRITERIA:
     CONFIG:

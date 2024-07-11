@@ -49,7 +49,40 @@ func RunServer(config *Config) error {
 	logger := log.NewCtxLogger(config.LogLevel, []string{domain.TraceIDKey})
 	crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 	validator := validator.New()
-	notifier, err := notifiers.NewClient(&config.Notifier, logger)
+	notifierConfig := notifiers.ConfigMultiClient{}
+	if &config.Notifier != nil {
+		// map old to the new format
+		var provider = config.Notifier.Provider
+		notifierConfig = notifiers.ConfigMultiClient{
+			Notifiers: map[string]notifiers.Notifier{
+				provider: {
+					Provider:    provider,
+					AccessToken: config.Notifier.AccessToken,
+					Criteria:    ".send_to_slack == true",
+				},
+			},
+		}
+		//var provider = config.Notifier.Provider
+		// Notifiers := map[string]notifiers.Notifier {
+		// 	provider     : notifiers.Notifier{},
+		// }
+		//notifierConfig = *notifiers.ConfigMultiClient{{Notifiers: Notifiers},}
+		// notifierConfig = *notifiers.ConfigMultiClient{
+		// 	Notifiers: map[string]notifiers.Notifier {
+		// 		provider     : domain.Provider,
+		// 		// AccessToken  : `mapstructure:"access_token,omitempty"`,
+		// 		// ClientID     : `mapstructure:"client_id,omitempty"`,
+		// 		// ClientSecret : `mapstructure:"client_id,omitempty"`,
+		// 		// Criteria: `mapstructure:"criteria"`,
+		// 	},
+
+		// }
+	} else {
+		notifierConfig = config.Notifiers
+
+	}
+	//notifier, err := notifiers.NewClient(&config.Notifier, logger)
+	notifier, err := notifiers.NewMultiClient(&notifierConfig, logger)
 	if err != nil {
 		return err
 	}
