@@ -27,23 +27,16 @@ DB:
   NAME:
   PORT: 5432
   SSLMODE: disable
-NOTIFIER:
-  PROVIDER: slack
-  ACCESS_TOKEN:
-  WORKSPACES:
-    - WORKSPACE: goto
-      ACCESS_TOKEN:
-      CRITERIA: "email contains '@goto'"
 NOTIFIERS:
-  gojek:
+  MY_SLACK:
     PROVIDER: slack
     ACCESS_TOKEN:
-    Criteria: '.send_to_slack == true' // example value of custom expression
-  GOTO:
+    Criteria: 'email contains "@gojek.com"' // example value of custom expression
+  MY_LARK:
     PROVIDER: lark
     CLIENT_ID:
     CLIENT_SECRET:
-    criteria: '.send_to_lark == true' 
+    criteria: 'true' 
 JOBS:
   REVOKE_GRANTS_BY_USER_CRITERIA:
     CONFIG:

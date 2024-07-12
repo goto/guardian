@@ -25,6 +25,7 @@ type NotifyManager struct {
 
 func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notification) {
 	for _, client := range m.clients {
+		// TODO evaludate ctiteria
 		client.Notify(ctx, notification)
 	}
 }
@@ -62,7 +63,7 @@ func (c SlackLarkConfig) Decode(v interface{}) error {
 }
 
 type Config struct {
-	Provider string `mapstructure:"provider" validate:"omitempty,oneof=slack slack,lark lark"`
+	Provider string `mapstructure:"provider" validate:"omitempty,oneof=slack lark"`
 
 	// slack
 	AccessToken string      `mapstructure:"access_token" validate:"required_without=SlackConfig"`
@@ -100,7 +101,7 @@ func NewMultiClient(config *ConfigMultiClient, logger log.Logger) (NotifyManager
 
 			} else {
 				slackClient := slack.NewNotifier(slackConfig, httpClient, logger)
-				notifyManager.AddClient(slackClient)
+				notifyManager.addClient(slackClient)
 			}
 
 		}
@@ -114,7 +115,7 @@ func NewMultiClient(config *ConfigMultiClient, logger log.Logger) (NotifyManager
 
 			} else {
 				slackClient := lark.NewNotifier(larkConfig, httpClient, logger)
-				notifyManager.AddClient(slackClient)
+				notifyManager.addClient(slackClient)
 			}
 
 		}
@@ -123,7 +124,6 @@ func NewMultiClient(config *ConfigMultiClient, logger log.Logger) (NotifyManager
 
 	return *notifyManager, nil
 
-	//return nil, errors.New("invalid notifier provider type")
 }
 
 func NewClient(config *Config, logger log.Logger) (Client, error) {
@@ -189,9 +189,9 @@ func GetSlackConfig(config *Notifier, messages domain.NotificationMessages) (*sl
 	if config.AccessToken != "" {
 		workspaces := []slack.SlackWorkspace{
 			{
-				WorkspaceName: "default",
+				WorkspaceName: config.Provider,
 				AccessToken:   config.AccessToken,
-				Criteria:      "1==1",
+				Criteria:      config.Criteria,
 			},
 		}
 		slackConfig = &slack.Config{
@@ -201,12 +201,6 @@ func GetSlackConfig(config *Notifier, messages domain.NotificationMessages) (*sl
 		return slackConfig, nil
 
 	}
-	// var workSpaceConfig slack.WorkSpaceConfig
-
-	// slackConfig = &slack.Config{
-	// 	Workspaces: workSpaceConfig.Workspaces,
-	// 	Messages:   messages,
-	// }
 
 	return slackConfig, nil
 }
@@ -240,67 +234,10 @@ func GetLarkConfig(config *Notifier, messages domain.NotificationMessages) (*lar
 		return larkConfig, nil
 
 	}
-	// var workSpaceConfig lark.WorkSpaceConfig
-	// if err := config.LarkConfig.Decode(&workSpaceConfig); err != nil {
-	// 	return nil, fmt.Errorf("invalid lark workspace config: %w", err)
-	// }
-
-	// larkConfig = &lark.Config{
-	// 	Workspaces: workSpaceConfig.Workspaces,
-	// 	Messages:   config.Messages,
-	// }
 
 	return larkConfig, nil
 }
 
-// func NewMultiClientConfig(config *ConfigMultiClient) (*multiclient.Config, error) {
-// 	// validation
-// 	if config.Provider == "" {
-// 		return nil, errors.New("multiConfig must be provided")
-// 	}
-// 	var configg ConfigMultiClient
-// 	// Unmarshal YAML into map[string]interface{}
-// 	var c map[string]interface{}
-
-// 	// Use mapstructure to decode map into struct
-// 	errrr := mapstructure.Decode(c, &configg)
-// 	if errrr != nil {
-// 		//log.Fatalf("error decoding: %v", errrr)
-// 	}
-// 	fmt.Println("lark send config 3" + configg.ClientConfig + "multiConfig.Workspaces")
-// 	var multiConfig *multiclient.Config
-// 	if config.Provider != "" {
-// 		workspaces := []multiclient.Workspace{
-// 			{
-// 				WorkspaceName: "config.Decode()",
-// 				ClientId:      "config.Decode()",
-// 				Criteria:      "1==1",
-// 			},
-// 		}
-// 		multiConfig = &multiclient.Config{
-// 			Workspaces: workspaces,
-// 			Messages:   config.Messages,
-// 		}
-
-// 		for _, obj := range workspaces {
-// 			fmt.Println("lark send config 4 " + obj.ClientId)
-// 		}
-// 		return multiConfig, nil
-// 	}
-// 	fmt.Println("lark send config 3" + config.Provider + "multiConfig.Workspaces")
-// 	var workSpaceConfig multiclient.WorkSpaceConfig
-// 	if err := config.MultiConfig.Decode(&workSpaceConfig); err != nil {
-// 		return nil, fmt.Errorf("invalid slack workspace config: %w", err)
-// 	}
-
-// 	multiConfig = &multiclient.Config{
-// 		Workspaces: workSpaceConfig.Workspaces,
-// 		Messages:   config.Messages,
-// 	}
-// 	fmt.Println("lark send workspace 2 " + "multiConfig.Workspaces")
-// 	return multiConfig, nil
-// }
-
-func (nm *NotifyManager) AddClient(client Client) {
+func (nm *NotifyManager) addClient(client Client) {
 	nm.clients = append(nm.clients, client)
 }

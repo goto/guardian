@@ -50,21 +50,25 @@ func RunServer(config *Config) error {
 	crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 	validator := validator.New()
 	notifierConfig := notifiers.ConfigMultiClient{}
-	if &config.Notifier != nil {
-		// map old to the new format
-		var provider = config.Notifier.Provider
-		notifierConfig = notifiers.ConfigMultiClient{
-			Notifiers: map[string]notifiers.Notifier{
-				provider: {
-					Provider:    provider,
-					AccessToken: config.Notifier.AccessToken,
-					Criteria:    ".send_to_slack == true",
-				},
-			},
-		}
-	} else {
+	if &config.Notifiers != nil {
 		notifierConfig = config.Notifiers
 
+	} else {
+		// map old to the new format
+		var provider = config.Notifier.Provider
+		configSlack, err := notifiers.NewSlackConfig(&config.Notifier)
+		if err != nil {
+			return err
+		}
+		for n, workspace := range configSlack.Workspaces {
+			notifier_ := notifiers.Notifier{
+				Provider:    provider,
+				AccessToken: workspace.AccessToken,
+				Criteria:    "true",
+			}
+			notifierConfig.Notifiers[provider+string(n)] = notifier_
+
+		}
 	}
 	notifier, err := notifiers.NewMultiClient(&notifierConfig, logger)
 	if err != nil {
