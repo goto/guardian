@@ -2,6 +2,6 @@
   {
     "receive_id":"{{.requestor}}",
     "msg_type":"interactive",
-    "content":"{\n  \"config\": {\n    \"wide_screen_mode\": true\n  },\n  \"elements\": [\n    {\n      \"tag\": \"div\",\n      \"fields\": [\n        {\n          \"is_short\": true,\n          \"text\": {\n            \"tag\": \"lark_md\",\n            \"content\": \"Hi **{{.approver}}**, you have {{.pending_approvals_count}} pending requests waiting for your approval on Console Access.\"\n          }\n        }\n      ]\n    }\n    \n  ]\n}"  
+    "content":"{\n  \"config\": {\n    \"wide_screen_mode\": true\n  },\n  \"elements\": [\n    {\n      \"tag\": \"div\",\n      \"fields\": [\n        {\n          \"is_short\": true,\n          \"text\": {\n            \"tag\": \"lark_md\",\n            \"content\": \"Hi **{{.approver}}**, you have {{.pending_approvals_count}} pending requests waiting for your approval on Console Access.\"\n          }\n        }\n      ]\n    },\n{\n      \"tag\": \"hr\"\n    },\n    {\n      \"tag\": \"action\",\n      \"layout\": \"bisected\",\n      \"actions\": [\n        \n        {\n          \"tag\": \"button\",\n          \"text\": {\n            \"tag\": \"lark_md\",\n            \"content\": \"View it on console\"\n          },\n          \"url\":\"https://console.integration.golabs.io/access/manage-requests\",\n          \"type\":\"primary\",\n          \"value\": {\n            \"chosen\": \"manage-requests-page\"\n          }\n        }\n      ]\n    }\n    \n  ]\n}"
   }
 ]
