@@ -31,7 +31,7 @@ NOTIFIERS:
   MY_SLACK:
     PROVIDER: slack
     ACCESS_TOKEN:
-    Criteria: 'email contains "@gojek.com"' // example value of custom expression
+    Criteria: 'email contains "@example.com"' // example value of custom expression
   MY_LARK:
     PROVIDER: lark
     CLIENT_ID:

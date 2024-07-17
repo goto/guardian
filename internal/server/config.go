@@ -32,13 +32,14 @@ type Jobs struct {
 }
 
 type Config struct {
-	Port                   int                         `mapstructure:"port" default:"8080"`
-	GRPC                   GRPCConfig                  `mapstructure:"grpc"`
-	EncryptionSecretKeyKey string                      `mapstructure:"encryption_secret_key"`
-	Notifier               notifiers.Config            `mapstructure:"notifier"`
-	Notifiers              notifiers.ConfigMultiClient `mapstructure:"notifiers"`
-	LogLevel               string                      `mapstructure:"log_level" default:"info"`
-	DB                     store.Config                `mapstructure:"db"`
+	Port                   int        `mapstructure:"port" default:"8080"`
+	GRPC                   GRPCConfig `mapstructure:"grpc"`
+	EncryptionSecretKeyKey string     `mapstructure:"encryption_secret_key"`
+	// Deprecated: use Notifiers instead
+	Notifier  notifiers.Config            `mapstructure:"notifier"`
+	Notifiers notifiers.ConfigMultiClient `mapstructure:"notifiers"`
+	LogLevel  string                      `mapstructure:"log_level" default:"info"`
+	DB        store.Config                `mapstructure:"db"`
 	// Deprecated: use Auth.Default.HeaderKey instead note on the AuthenticatedUserHeaderKey
 	AuthenticatedUserHeaderKey string         `mapstructure:"authenticated_user_header_key"`
 	AuditLogTraceIDHeaderKey   string         `mapstructure:"audit_log_trace_id_header_key" default:"X-Trace-Id"`
