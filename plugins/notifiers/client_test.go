@@ -137,7 +137,7 @@ func TestNewSlackLarkConfig(t *testing.T) {
 							AccessToken:  "",
 							ClientID:     "foo",
 							ClientSecret: "foo",
-							Criteria:     ".send_to_slack == true",
+							Criteria:     "$email contains '@gojek'",
 						},
 					},
 				},
@@ -145,10 +145,10 @@ func TestNewSlackLarkConfig(t *testing.T) {
 			want: &lark.Config{
 				Workspaces: []lark.LarkWorkspace{
 					{
-						WorkspaceName: "default",
+						WorkspaceName: "lark",
 						ClientId:      "foo",
 						ClientSecret:  "foo",
-						Criteria:      "1==1",
+						Criteria:      "$email contains '@gojek'",
 					},
 				},
 				Messages: domain.NotificationMessages{},
@@ -207,10 +207,10 @@ func TestNewSlackLarkConfig(t *testing.T) {
 			want: &lark.Config{
 				Workspaces: []lark.LarkWorkspace{
 					{
-						WorkspaceName: "default",
+						WorkspaceName: "provider",
 						ClientId:      "foo",
 						ClientSecret:  "foo",
-						Criteria:      "1==1",
+						Criteria:      ".send_to_slack == true",
 					},
 				},
 				Messages: domain.NotificationMessages{},
@@ -222,7 +222,7 @@ func TestNewSlackLarkConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			for _, notifier := range tt.args.config.Notifiers {
-				got, err := GetLarkConfig(&notifier, domain.NotificationMessages{})
+				got, err := getLarkConfig(&notifier, domain.NotificationMessages{})
 
 				if (err != nil) != tt.wantErr {
 					t.Errorf("NewSlackConfig() error = %v, wantErr %v", err, tt.wantErr)
