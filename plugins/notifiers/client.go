@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/goto/guardian/pkg/evaluator"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/notifiers/lark"
 	"github.com/goto/guardian/plugins/notifiers/slack"
@@ -21,12 +22,28 @@ type Client interface {
 
 type NotifyManager struct {
 	clients []Client
+	configs []Notifier
 }
 
 func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notification) {
-	for _, client := range m.clients {
-		// TODO evaludate ctiteria
-		client.Notify(ctx, notification)
+	for i, client := range m.clients {
+		// evaludate criteria
+		config := m.configs[i]
+		v, err := evaluator.Expression(config.Criteria).EvaluateWithVars(map[string]interface{}{
+			"email": notification[0].User,
+		})
+		if err != nil {
+			fmt.Sprintf("error evaluating notifier expression: %w", err)
+			continue
+		}
+
+		// if the expression evaluates to true, notify the client
+		if match, ok := v.(bool); !ok {
+			fmt.Sprintf("notifier expression did not evaluate to a boolean: %s", config.Criteria)
+		} else if match {
+			client.Notify(ctx, notification)
+		}
+
 	}
 }
 
@@ -86,6 +103,7 @@ func NewMultiClient(config *ConfigMultiClient, logger log.Logger) (NotifyManager
 			} else {
 				slackClient := slack.NewNotifier(slackConfig, httpClient, logger)
 				notifyManager.addClient(slackClient)
+				notifyManager.addNotifier(notifier)
 			}
 
 		}
@@ -100,6 +118,7 @@ func NewMultiClient(config *ConfigMultiClient, logger log.Logger) (NotifyManager
 			} else {
 				larkClient := lark.NewNotifier(larkConfig, httpClient, logger)
 				notifyManager.addClient(larkClient)
+				notifyManager.addNotifier(notifier)
 			}
 
 		}
@@ -224,4 +243,8 @@ func getLarkConfig(config *Notifier, messages domain.NotificationMessages) (*lar
 
 func (nm *NotifyManager) addClient(client Client) {
 	nm.clients = append(nm.clients, client)
+}
+
+func (nm *NotifyManager) addNotifier(notifier Notifier) {
+	nm.configs = append(nm.configs, notifier)
 }

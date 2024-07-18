@@ -118,7 +118,6 @@ func (n *Notifier) Notify(ctx context.Context, items []domain.Notification) []er
 		}
 
 		n.logger.Debug(ctx, fmt.Sprintf("%v | sending lark notification to user:%s in workspace:%s", labelSlice, item.User, larkWorkspace.WorkspaceName))
-
 		msg, err := ParseMessage(item.Message, n.Messages, n.defaultMessageFiles)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%v | error parsing message : %w", labelSlice, err))
@@ -135,7 +134,6 @@ func (n *Notifier) Notify(ctx context.Context, items []domain.Notification) []er
 }
 
 func (n *Notifier) sendMessage(workspace LarkWorkspace, channelEmail, messageBlock string) error {
-	fmt.Println("lark send notif " + messageBlock)
 	url := larkHost + "/open-apis/im/v1/messages?receive_id_type=email"
 	var messageblockList []interface{}
 
@@ -167,8 +165,6 @@ func (n *Notifier) sendMessage(workspace LarkWorkspace, channelEmail, messageBlo
 	token, err := n.findTenantAccessToken(workspace.ClientId, workspace.ClientSecret, workspace)
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Content-Type", "application/json")
-
-	fmt.Println("lark send " + token)
 	_, err = n.sendRequest(req)
 	return err
 }
