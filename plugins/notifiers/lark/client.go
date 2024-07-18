@@ -144,14 +144,13 @@ func (n *Notifier) sendMessage(workspace LarkWorkspace, channelEmail, messageBlo
 	var messages []map[string]interface{}
 	err := json.Unmarshal([]byte(messageBlock), &messages)
 	for _, message := range messages {
-		fmt.Printf("Message: %+v\n", message)
+
 		payload = message
 	}
 	if err != nil {
 		fmt.Println("Error unmarshaling JSON:", err)
 
 	}
-	//payload := strings.NewReader(messageBlock)
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return err

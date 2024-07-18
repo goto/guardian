@@ -33,13 +33,13 @@ func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notifi
 			"email": notification[0].User,
 		})
 		if err != nil {
-			fmt.Sprintf("error evaluating notifier expression: %w", err)
+			fmt.Printf("error evaluating notifier expression: %s", err.Error())
 			continue
 		}
 
 		// if the expression evaluates to true, notify the client
 		if match, ok := v.(bool); !ok {
-			fmt.Sprintf("notifier expression did not evaluate to a boolean: %s", config.Criteria)
+			fmt.Printf("notifier expression did not evaluate to a boolean: %s", config.Criteria)
 		} else if match {
 			client.Notify(ctx, notification)
 		}
@@ -113,7 +113,7 @@ func NewMultiClient(config *ConfigMultiClient, logger log.Logger) (NotifyManager
 
 			larkConfig, err := getLarkConfig(&notifier, config.Messages)
 			if err != nil {
-				fmt.Println("lark send config 2" + notifier.Provider + err.Error())
+				return *notifyManager, err
 
 			} else {
 				larkClient := lark.NewNotifier(larkConfig, httpClient, logger)
