@@ -52,18 +52,11 @@ type LarkWorkspace struct {
 }
 
 type Notifier struct {
-	workspace LarkWorkspace
-
-	//larkCache           map[string]*larkCacheItem
+	workspace           LarkWorkspace
 	Messages            domain.NotificationMessages
 	httpClient          utils.HTTPClient
 	defaultMessageFiles embed.FS
 	logger              log.Logger
-}
-
-type larkCacheItem struct {
-	Email     string
-	Workspace *LarkWorkspace
 }
 
 type Config struct {
@@ -76,8 +69,7 @@ var defaultTemplates embed.FS
 
 func NewNotifier(config *Config, httpClient utils.HTTPClient, logger log.Logger) *Notifier {
 	return &Notifier{
-		workspace: config.Workspace,
-		//larkCache:           map[string]*larkCacheItem{},
+		workspace:           config.Workspace,
 		Messages:            config.Messages,
 		httpClient:          httpClient,
 		defaultMessageFiles: defaultTemplates,
@@ -91,30 +83,8 @@ func (n *Notifier) Notify(ctx context.Context, items []domain.Notification) []er
 		var larkWorkspace *LarkWorkspace
 		var email string
 		labelSlice := utils.MapToSlice(item.Labels)
-
-		// check cache
-		// if n.larkCache[item.User] != nil {
 		email = item.User
 		larkWorkspace = &n.workspace
-		// } else {
-		// 	ws, err := n.GetLarkWorkspaceForUser(item.User)
-		// 	if err != nil {
-		// 		errs = append(errs, fmt.Errorf("%v | %w", labelSlice, err))
-		// 		continue
-		// 	}
-
-		// 	// cache
-		// 	n.larkCache[item.User] = &larkCacheItem{
-		// 		Email:     email,
-		// 		Workspace: ws,
-		// 	}
-		// 	larkWorkspace = ws
-		// }
-
-		// if larkWorkspace == nil {
-		// 	errs = append(errs, fmt.Errorf("%v | no lark workspace found for user: %s", labelSlice, item.User))
-		// 	continue
-		// }
 
 		n.logger.Debug(ctx, fmt.Sprintf("%v | sending lark notification to user:%s ", labelSlice, item.User))
 		msg, err := ParseMessage(item.Message, n.Messages, n.defaultMessageFiles)
@@ -132,10 +102,10 @@ func (n *Notifier) Notify(ctx context.Context, items []domain.Notification) []er
 	return errs
 }
 
-func (n *Notifier) sendMessage(workspace LarkWorkspace, channelEmail, messageBlock string) error {
+func (n *Notifier) sendMessage(workspace LarkWorkspace, email string, messageBlock string) error {
 	url := larkHost + "/open-apis/im/v1/messages?receive_id_type=email"
 	var messageblockList []interface{}
-
+	fmt.Println("message ---- " + messageBlock)
 	if err := json.Unmarshal([]byte(messageBlock), &messageblockList); err != nil {
 		return fmt.Errorf("error in parsing message block %s", err)
 	}
@@ -161,37 +131,14 @@ func (n *Notifier) sendMessage(workspace LarkWorkspace, channelEmail, messageBlo
 	}
 	// create tanent_access_token
 	token, err := n.findTenantAccessToken(workspace.ClientId, workspace.ClientSecret, workspace)
+	if err != nil {
+		return err
+	}
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Content-Type", "application/json")
 	_, err = n.sendRequest(req)
 	return err
 }
-
-// func (n *Notifier) GetLarkWorkspaceForUser(email string) (*LarkWorkspace, error) {
-// 	var ws *LarkWorkspace
-// 	for _, workspace := range n.workspaces {
-// 		v, err := evaluator.Expression(workspace.Criteria).EvaluateWithVars(map[string]interface{}{
-// 			"email": email,
-// 		})
-// 		if err != nil {
-// 			return ws, fmt.Errorf("error evaluating notifier expression: %w", err)
-// 		}
-
-// 		// if the expression evaluates to true, return the workspace
-// 		if match, ok := v.(bool); !ok {
-// 			return ws, errors.New("notifier expression did not evaluate to a boolean")
-// 		} else if match {
-// 			ws = &workspace
-// 			break
-// 		}
-// 	}
-
-// 	if ws == nil {
-// 		return ws, errors.New(fmt.Sprintf("no lark workspace found for user: %s", email))
-// 	}
-
-// 	return ws, nil
-// }
 
 func (n *Notifier) findTenantAccessToken(clientId string, clientSecret string, ws LarkWorkspace) (string, error) {
 	larkURL := larkHost + "/open-apis/auth/v3/tenant_access_token/internal/"
