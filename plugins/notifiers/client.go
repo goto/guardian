@@ -25,7 +25,8 @@ type NotifyManager struct {
 	configs []Notifier
 }
 
-func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notification) {
+func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notification) []error {
+	//error := []error
 	for i, client := range m.clients {
 		// evaludate criteria
 		config := m.configs[i]
@@ -45,6 +46,8 @@ func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notifi
 		}
 
 	}
+	return nil
+	// return []error
 }
 
 const (
@@ -89,7 +92,7 @@ type Notifier struct {
 	Criteria     string `mapstructure:"criteria"`
 }
 
-func NewMultiClient(config *ConfigMultiClient, logger log.Logger) (NotifyManager, error) {
+func NewMultiClient(config *ConfigMultiClient, logger log.Logger) (*NotifyManager, error) {
 	notifyManager := &NotifyManager{}
 	for _, notifier := range config.Notifiers {
 		if notifier.Provider == ProviderTypeSlack {
@@ -98,7 +101,7 @@ func NewMultiClient(config *ConfigMultiClient, logger log.Logger) (NotifyManager
 
 			slackConfig, err := getSlackConfig(&notifier, config.Messages)
 			if err != nil {
-				return *notifyManager, err
+				return nil, err
 
 			} else {
 				slackClient := slack.NewNotifier(slackConfig, httpClient, logger)
@@ -113,7 +116,7 @@ func NewMultiClient(config *ConfigMultiClient, logger log.Logger) (NotifyManager
 
 			larkConfig, err := getLarkConfig(&notifier, config.Messages)
 			if err != nil {
-				return *notifyManager, err
+				return nil, err
 
 			} else {
 				larkClient := lark.NewNotifier(larkConfig, httpClient, logger)
@@ -125,7 +128,7 @@ func NewMultiClient(config *ConfigMultiClient, logger log.Logger) (NotifyManager
 
 	}
 
-	return *notifyManager, nil
+	return notifyManager, nil
 
 }
 

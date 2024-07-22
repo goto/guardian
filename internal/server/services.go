@@ -55,7 +55,7 @@ type ServiceDeps struct {
 	// TODO: make items below as options
 	Logger    log.Logger
 	Validator *validator.Validate
-	Notifier  notifiers.NotifyManager
+	Notifier  notifiers.Client
 	Crypto    domain.Crypto
 }
 
