@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/goto/guardian/domain"
+
 	"github.com/goto/guardian/plugins/notifiers/lark"
 	"github.com/goto/guardian/plugins/notifiers/slack"
 )
@@ -119,7 +120,7 @@ func TestNewSlackConfig(t *testing.T) {
 
 func TestNewSlackLarkConfig(t *testing.T) {
 	type args struct {
-		config *ConfigMultiClient
+		config Notifier
 	}
 	tests := []struct {
 		name    string
@@ -130,16 +131,12 @@ func TestNewSlackLarkConfig(t *testing.T) {
 		{
 			name: "should return lark config when clientid is provided",
 			args: args{
-				config: &ConfigMultiClient{
-					Notifiers: map[string]Notifier{
-						"provider": {
-							Provider:     "lark",
-							AccessToken:  "",
-							ClientID:     "foo",
-							ClientSecret: "foo",
-							Criteria:     "$email contains '@gojek'",
-						},
-					},
+				config: Notifier{
+					Provider:     "lark",
+					AccessToken:  "",
+					ClientID:     "foo",
+					ClientSecret: "foo",
+					Criteria:     "$email contains '@gojek'",
 				},
 			},
 			want: &lark.Config{
@@ -158,16 +155,12 @@ func TestNewSlackLarkConfig(t *testing.T) {
 		{
 			name: "should return error when no Client id or workspaces are provided",
 			args: args{
-				config: &ConfigMultiClient{
-					Notifiers: map[string]Notifier{
-						"provider": {
-							Provider:     "provider",
-							AccessToken:  "config.Notifier.AccessToken",
-							ClientID:     "",
-							ClientSecret: "",
-							Criteria:     ".send_to_slack == true",
-						},
-					},
+				config: Notifier{
+					Provider:     "provider",
+					AccessToken:  "config.Notifier.AccessToken",
+					ClientID:     "",
+					ClientSecret: "",
+					Criteria:     ".send_to_slack == true",
 				},
 			},
 			want:    nil,
@@ -175,16 +168,12 @@ func TestNewSlackLarkConfig(t *testing.T) {
 		}, {
 			name: "should return error when both Client id and workspaces are provided",
 			args: args{
-				config: &ConfigMultiClient{
-					Notifiers: map[string]Notifier{
-						"provider": {
-							Provider:     "provider",
-							AccessToken:  "config.Notifier.AccessToken",
-							ClientID:     "",
-							ClientSecret: "",
-							Criteria:     ".send_to_slack == true",
-						},
-					},
+				config: Notifier{
+					Provider:     "provider",
+					AccessToken:  "config.Notifier.AccessToken",
+					ClientID:     "",
+					ClientSecret: "",
+					Criteria:     ".send_to_slack == true",
 				},
 			},
 			want:    nil,
@@ -192,16 +181,12 @@ func TestNewSlackLarkConfig(t *testing.T) {
 		}, {
 			name: "should return lark config when workspaces are provided",
 			args: args{
-				config: &ConfigMultiClient{
-					Notifiers: map[string]Notifier{
-						"provider": {
-							Provider:     "provider",
-							AccessToken:  "config.Notifier.AccessToken",
-							ClientID:     "foo",
-							ClientSecret: "foo",
-							Criteria:     ".send_to_slack == true",
-						},
-					},
+				config: Notifier{
+					Provider:     "provider",
+					AccessToken:  "config.Notifier.AccessToken",
+					ClientID:     "foo",
+					ClientSecret: "foo",
+					Criteria:     ".send_to_slack == true",
 				},
 			},
 			want: &lark.Config{
@@ -221,17 +206,14 @@ func TestNewSlackLarkConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			for _, notifier := range tt.args.config.Notifiers {
-				got, err := getLarkConfig(&notifier, domain.NotificationMessages{})
+			got, err := getLarkConfig(&tt.args.config, domain.NotificationMessages{})
 
-				if (err != nil) != tt.wantErr {
-					t.Errorf("NewSlackConfig() error = %v, wantErr %v", err, tt.wantErr)
-					return
-				}
-				if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("NewSlackConfig() got = %v, want %v", got, tt.want)
-				}
-
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewSlackConfig() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewSlackConfig() got = %v, want %v", got, tt.want)
 			}
 
 		})
