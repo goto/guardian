@@ -67,7 +67,6 @@ func RunServer(config *Config) error {
 				Criteria:    "true",
 			}
 			notifierConfig = append(notifierConfig, notifier_)
-			//notifierConfig.Notifiers[provider+string(n)] = notifier_
 
 		}
 	}

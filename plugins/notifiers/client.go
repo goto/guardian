@@ -43,7 +43,9 @@ func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notifi
 			err = fmt.Errorf("notifier expression did not evaluate to a boolean: %s", config.Criteria)
 			errs = append(errs, err)
 		} else if match {
-			client.Notify(ctx, notification)
+			if notifyErrs := client.Notify(ctx, notification); notifyErrs != nil {
+				errs = append(errs, notifyErrs...)
+			}
 		}
 
 	}
@@ -216,17 +218,15 @@ func getLarkConfig(config *Config, messages domain.NotificationMessages) (*lark.
 
 	var larkConfig *lark.Config
 	if config.ClientID != "" {
-		workspaces := []lark.LarkWorkspace{
-			{
-				WorkspaceName: config.Provider,
-				ClientId:      config.ClientID,
-				ClientSecret:  config.ClientSecret,
-				Criteria:      config.Criteria,
-			},
+		workspace := lark.LarkWorkspace{
+			WorkspaceName: config.Provider,
+			ClientId:      config.ClientID,
+			ClientSecret:  config.ClientSecret,
+			Criteria:      config.Criteria,
 		}
 		larkConfig = &lark.Config{
-			Workspaces: workspaces,
-			Messages:   messages,
+			Workspace: workspace,
+			Messages:  messages,
 		}
 		return larkConfig, nil
 

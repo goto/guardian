@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/goto/guardian/domain"
-
 	"github.com/goto/guardian/plugins/notifiers/lark"
 	"github.com/goto/guardian/plugins/notifiers/slack"
 )
@@ -140,13 +139,11 @@ func TestNewSlackLarkConfig(t *testing.T) {
 				},
 			},
 			want: &lark.Config{
-				Workspaces: []lark.LarkWorkspace{
-					{
-						WorkspaceName: "lark",
-						ClientId:      "foo",
-						ClientSecret:  "foo",
-						Criteria:      "$email contains '@gojek'",
-					},
+				Workspace: lark.LarkWorkspace{
+					WorkspaceName: "lark",
+					ClientId:      "foo",
+					ClientSecret:  "foo",
+					Criteria:      "$email contains '@gojek'",
 				},
 				Messages: domain.NotificationMessages{},
 			},
@@ -190,13 +187,11 @@ func TestNewSlackLarkConfig(t *testing.T) {
 				},
 			},
 			want: &lark.Config{
-				Workspaces: []lark.LarkWorkspace{
-					{
-						WorkspaceName: "provider",
-						ClientId:      "foo",
-						ClientSecret:  "foo",
-						Criteria:      ".send_to_slack == true",
-					},
+				Workspace: lark.LarkWorkspace{
+					WorkspaceName: "provider",
+					ClientId:      "foo",
+					ClientSecret:  "foo",
+					Criteria:      ".send_to_slack == true",
 				},
 				Messages: domain.NotificationMessages{},
 			},
@@ -204,6 +199,7 @@ func TestNewSlackLarkConfig(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+
 		t.Run(tt.name, func(t *testing.T) {
 
 			got, err := getLarkConfig(&tt.args.config, domain.NotificationMessages{})
