@@ -22,11 +22,11 @@ type Client interface {
 
 type NotifyManager struct {
 	clients []Client
-	configs []Notifier
+	configs []Config
 }
 
 func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notification) []error {
-	//error := []error
+	var errs []error
 	for i, client := range m.clients {
 		// evaludate criteria
 		config := m.configs[i]
@@ -34,20 +34,20 @@ func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notifi
 			"email": notification[0].User,
 		})
 		if err != nil {
-			fmt.Printf("error evaluating notifier expression: %s", err.Error())
+			errs = append(errs, err)
 			continue
 		}
 
 		// if the expression evaluates to true, notify the client
 		if match, ok := v.(bool); !ok {
-			fmt.Printf("notifier expression did not evaluate to a boolean: %s", config.Criteria)
+			err = fmt.Errorf("notifier expression did not evaluate to a boolean: %s", config.Criteria)
+			errs = append(errs, err)
 		} else if match {
 			client.Notify(ctx, notification)
 		}
 
 	}
-	return nil
-	// return []error
+	return errs
 }
 
 const (
@@ -70,7 +70,11 @@ func (c MultiConfig) Decode(v interface{}) error {
 }
 
 type Config struct {
-	Provider string `mapstructure:"provider" validate:"omitempty,oneof=slack lark"`
+	Provider     string `mapstructure:"provider" validate:"omitempty,oneof=slack lark"`
+	Name         string `mapstructure:"name"`
+	ClientID     string `mapstructure:"client_id,omitempty"`
+	ClientSecret string `mapstructure:"client_id,omitempty"`
+	Criteria     string `mapstructure:"criteria"`
 
 	// slack
 	AccessToken string      `mapstructure:"access_token" validate:"required_without=SlackConfig"`
@@ -79,23 +83,7 @@ type Config struct {
 	Messages domain.NotificationMessages
 }
 
-type ConfigMultiClient struct {
-	Notifiers map[string]Notifier `mapstructure:"notifiers"`
-	// custom messages
-	Messages domain.NotificationMessages
-}
-type Notifier struct {
-	Name         string `mapstructure:"name"`
-	Provider     string `mapstructure:"provider"`
-	AccessToken  string `mapstructure:"access_token,omitempty"`
-	ClientID     string `mapstructure:"client_id,omitempty"`
-	ClientSecret string `mapstructure:"client_id,omitempty"`
-	Criteria     string `mapstructure:"criteria"`
-	// custom messages
-	Messages domain.NotificationMessages
-}
-
-func NewMultiClient(notifiers *[]Notifier, logger log.Logger) (*NotifyManager, error) {
+func NewMultiClient(notifiers *[]Config, logger log.Logger) (*NotifyManager, error) {
 	notifyManager := &NotifyManager{}
 	for _, notifier := range *notifiers {
 		if notifier.Provider == ProviderTypeSlack {
@@ -188,7 +176,7 @@ func NewSlackConfig(config *Config) (*slack.Config, error) {
 	return slackConfig, nil
 }
 
-func getSlackConfig(config *Notifier, messages domain.NotificationMessages) (*slack.Config, error) {
+func getSlackConfig(config *Config, messages domain.NotificationMessages) (*slack.Config, error) {
 	// validation
 	if config.AccessToken == "" {
 		return nil, errors.New("slack access token or workSpaceConfig must be provided")
@@ -214,7 +202,7 @@ func getSlackConfig(config *Notifier, messages domain.NotificationMessages) (*sl
 	return slackConfig, nil
 }
 
-func getLarkConfig(config *Notifier, messages domain.NotificationMessages) (*lark.Config, error) {
+func getLarkConfig(config *Config, messages domain.NotificationMessages) (*lark.Config, error) {
 	// validation
 	if config.ClientID == "" && config.ClientSecret == "" {
 		return nil, errors.New("lark clientid & clientSecret must be provided")
@@ -251,6 +239,6 @@ func (nm *NotifyManager) addClient(client Client) {
 	nm.clients = append(nm.clients, client)
 }
 
-func (nm *NotifyManager) addNotifier(notifier Notifier) {
+func (nm *NotifyManager) addNotifier(notifier Config) {
 	nm.configs = append(nm.configs, notifier)
 }

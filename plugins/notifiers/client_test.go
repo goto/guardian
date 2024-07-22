@@ -120,7 +120,7 @@ func TestNewSlackConfig(t *testing.T) {
 
 func TestNewSlackLarkConfig(t *testing.T) {
 	type args struct {
-		config Notifier
+		config Config
 	}
 	tests := []struct {
 		name    string
@@ -131,7 +131,7 @@ func TestNewSlackLarkConfig(t *testing.T) {
 		{
 			name: "should return lark config when clientid is provided",
 			args: args{
-				config: Notifier{
+				config: Config{
 					Provider:     "lark",
 					AccessToken:  "",
 					ClientID:     "foo",
@@ -155,7 +155,7 @@ func TestNewSlackLarkConfig(t *testing.T) {
 		{
 			name: "should return error when no Client id or workspaces are provided",
 			args: args{
-				config: Notifier{
+				config: Config{
 					Provider:     "provider",
 					AccessToken:  "config.Notifier.AccessToken",
 					ClientID:     "",
@@ -168,7 +168,7 @@ func TestNewSlackLarkConfig(t *testing.T) {
 		}, {
 			name: "should return error when both Client id and workspaces are provided",
 			args: args{
-				config: Notifier{
+				config: Config{
 					Provider:     "provider",
 					AccessToken:  "config.Notifier.AccessToken",
 					ClientID:     "",
@@ -181,7 +181,7 @@ func TestNewSlackLarkConfig(t *testing.T) {
 		}, {
 			name: "should return lark config when workspaces are provided",
 			args: args{
-				config: Notifier{
+				config: Config{
 					Provider:     "provider",
 					AccessToken:  "config.Notifier.AccessToken",
 					ClientID:     "foo",
