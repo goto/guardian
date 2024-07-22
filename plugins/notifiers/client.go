@@ -28,7 +28,7 @@ type NotifyManager struct {
 func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notification) []error {
 	var errs []error
 	for i, client := range m.clients {
-		// evaludate criteria
+		// evaluate criteria
 		config := m.configs[i]
 		v, err := evaluator.Expression(config.Criteria).EvaluateWithVars(map[string]interface{}{
 			"email": notification[0].User,
