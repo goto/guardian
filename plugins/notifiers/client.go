@@ -85,21 +85,24 @@ type ConfigMultiClient struct {
 	Messages domain.NotificationMessages
 }
 type Notifier struct {
+	Name         string `mapstructure:"name"`
 	Provider     string `mapstructure:"provider"`
 	AccessToken  string `mapstructure:"access_token,omitempty"`
 	ClientID     string `mapstructure:"client_id,omitempty"`
 	ClientSecret string `mapstructure:"client_id,omitempty"`
 	Criteria     string `mapstructure:"criteria"`
+	// custom messages
+	Messages domain.NotificationMessages
 }
 
-func NewMultiClient(config *ConfigMultiClient, logger log.Logger) (*NotifyManager, error) {
+func NewMultiClient(notifiers *[]Notifier, logger log.Logger) (*NotifyManager, error) {
 	notifyManager := &NotifyManager{}
-	for _, notifier := range config.Notifiers {
+	for _, notifier := range *notifiers {
 		if notifier.Provider == ProviderTypeSlack {
 
 			httpClient := &http.Client{Timeout: 10 * time.Second}
 
-			slackConfig, err := getSlackConfig(&notifier, config.Messages)
+			slackConfig, err := getSlackConfig(&notifier, notifier.Messages)
 			if err != nil {
 				return nil, err
 
@@ -114,7 +117,7 @@ func NewMultiClient(config *ConfigMultiClient, logger log.Logger) (*NotifyManage
 
 			httpClient := &http.Client{Timeout: 10 * time.Second}
 
-			larkConfig, err := getLarkConfig(&notifier, config.Messages)
+			larkConfig, err := getLarkConfig(&notifier, notifier.Messages)
 			if err != nil {
 				return nil, err
 

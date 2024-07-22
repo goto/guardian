@@ -49,7 +49,7 @@ func RunServer(config *Config) error {
 	logger := log.NewCtxLogger(config.LogLevel, []string{domain.TraceIDKey})
 	crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 	validator := validator.New()
-	notifierConfig := notifiers.ConfigMultiClient{}
+	notifierConfig := []notifiers.Notifier{}
 	if &config.Notifiers != nil {
 		notifierConfig = config.Notifiers
 
@@ -60,13 +60,14 @@ func RunServer(config *Config) error {
 		if err != nil {
 			return err
 		}
-		for n, workspace := range configSlack.Workspaces {
+		for _, workspace := range configSlack.Workspaces {
 			notifier_ := notifiers.Notifier{
 				Provider:    provider,
 				AccessToken: workspace.AccessToken,
 				Criteria:    "true",
 			}
-			notifierConfig.Notifiers[provider+string(n)] = notifier_
+			notifierConfig = append(notifierConfig, notifier_)
+			//notifierConfig.Notifiers[provider+string(n)] = notifier_
 
 		}
 	}
