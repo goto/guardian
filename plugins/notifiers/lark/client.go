@@ -81,9 +81,8 @@ func (n *Notifier) Notify(ctx context.Context, items []domain.Notification) []er
 	errs := make([]error, 0)
 	for _, item := range items {
 		var larkWorkspace *LarkWorkspace
-		var email string
+		email := item.User
 		labelSlice := utils.MapToSlice(item.Labels)
-		email = item.User
 		larkWorkspace = &n.workspace
 
 		n.logger.Debug(ctx, fmt.Sprintf("%v | sending lark notification to user:%s ", labelSlice, item.User))
@@ -105,7 +104,6 @@ func (n *Notifier) Notify(ctx context.Context, items []domain.Notification) []er
 func (n *Notifier) sendMessage(workspace LarkWorkspace, email string, messageBlock string) error {
 	url := larkHost + "/open-apis/im/v1/messages?receive_id_type=email"
 	var messageblockList []interface{}
-	fmt.Println("message ---- " + messageBlock)
 	if err := json.Unmarshal([]byte(messageBlock), &messageblockList); err != nil {
 		return fmt.Errorf("error in parsing message block %s", err)
 	}
@@ -120,6 +118,7 @@ func (n *Notifier) sendMessage(workspace LarkWorkspace, email string, messageBlo
 		fmt.Println("Error unmarshaling JSON:", err)
 
 	}
+	payload["receive_id"] = email
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return err
