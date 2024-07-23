@@ -75,7 +75,7 @@ type Config struct {
 	Provider     string `mapstructure:"provider" validate:"omitempty,oneof=slack lark"`
 	Name         string `mapstructure:"name"`
 	ClientID     string `mapstructure:"client_id,omitempty"`
-	ClientSecret string `mapstructure:"client_id,omitempty"`
+	ClientSecret string `mapstructure:"client_secret,omitempty"`
 	Criteria     string `mapstructure:"criteria"`
 
 	// slack
