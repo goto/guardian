@@ -21,13 +21,6 @@ const (
 	larkHost = "https://open.larksuite.com"
 )
 
-type user struct {
-	ID       string `json:"id"`
-	TeamID   string `json:"team_id"`
-	Name     string `json:"name"`
-	RealName string `json:"real_name"`
-}
-
 type tokenResponse struct {
 	OK     string `json:"msg"`
 	Token  string `json:"tenant_access_token"`
@@ -146,6 +139,9 @@ func (n *Notifier) findTenantAccessToken(clientId string, clientSecret string, w
 		AppSecret: clientSecret,
 	}
 	data, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
 	req, err := http.NewRequest(http.MethodPost, larkURL, bytes.NewBuffer(data))
 	if err != nil {
 		return "", err
@@ -156,7 +152,7 @@ func (n *Notifier) findTenantAccessToken(clientId string, clientSecret string, w
 		return "", fmt.Errorf("error get tenant access token for workspace: %s - %s", ws.WorkspaceName, err)
 	}
 	if result.OK != "ok" {
-		return "", errors.New(fmt.Sprintf("could not get token for workspace: %s - %s", ws.WorkspaceName, result.OK))
+		return "", fmt.Errorf("could not get token for workspace: %s - %s", ws.WorkspaceName, result.OK)
 	}
 	return result.Token, nil
 }
