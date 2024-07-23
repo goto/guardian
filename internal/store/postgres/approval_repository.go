@@ -161,13 +161,13 @@ func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, err
 		)
 	}
 	if filter.CreatedBy != "" {
-		db = db.Where(`"approvers"."email" = ?`, filter.CreatedBy)
+		db = db.Where(`LOWER("approvers"."email") = LOWER(?)`, filter.CreatedBy)
 	}
 	if filter.Statuses != nil {
 		db = db.Where(`"approvals"."status" IN ?`, filter.Statuses)
 	}
 	if filter.AccountID != "" {
-		db = db.Where(`"Appeal"."account_id" = ?`, filter.AccountID)
+		db = db.Where(`LOWER("Appeal"."account_id") = LOWER(?)`, filter.AccountID)
 	}
 	if filter.AccountTypes != nil {
 		db = db.Where(`"Appeal"."account_type" IN ?`, filter.AccountTypes)
