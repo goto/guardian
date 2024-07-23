@@ -89,40 +89,28 @@ func NewMultiClient(notifiers *[]Config, logger log.Logger) (*NotifyManager, err
 	notifyManager := &NotifyManager{}
 	for _, notifier := range *notifiers {
 		if notifier.Provider == ProviderTypeSlack {
-
-			httpClient := &http.Client{Timeout: 10 * time.Second}
-
-			slackConfig, err := getSlackConfig(&notifier, notifier.Messages)
+			slackConfig, err := NewSlackConfig(&notifier)
 			if err != nil {
 				return nil, err
-
-			} else {
-				slackClient := slack.NewNotifier(slackConfig, httpClient, logger)
-				notifyManager.addClient(slackClient)
-				notifyManager.addNotifier(notifier)
 			}
-
+			httpClient := &http.Client{Timeout: 10 * time.Second}
+			slackClient := slack.NewNotifier(slackConfig, httpClient, logger)
+			notifyManager.addClient(slackClient)
+			notifyManager.addNotifier(notifier)
 		}
 		if notifier.Provider == ProviderTypeLark {
-
-			httpClient := &http.Client{Timeout: 10 * time.Second}
-
 			larkConfig, err := getLarkConfig(&notifier, notifier.Messages)
 			if err != nil {
 				return nil, err
-
-			} else {
-				larkClient := lark.NewNotifier(larkConfig, httpClient, logger)
-				notifyManager.addClient(larkClient)
-				notifyManager.addNotifier(notifier)
 			}
-
+			httpClient := &http.Client{Timeout: 10 * time.Second}
+			larkClient := lark.NewNotifier(larkConfig, httpClient, logger)
+			notifyManager.addClient(larkClient)
+			notifyManager.addNotifier(notifier)
 		}
-
 	}
 
 	return notifyManager, nil
-
 }
 
 func NewClient(config *Config, logger log.Logger) (Client, error) {
@@ -173,32 +161,6 @@ func NewSlackConfig(config *Config) (*slack.Config, error) {
 	slackConfig = &slack.Config{
 		Workspaces: workSpaceConfig.Workspaces,
 		Messages:   config.Messages,
-	}
-
-	return slackConfig, nil
-}
-
-func getSlackConfig(config *Config, messages domain.NotificationMessages) (*slack.Config, error) {
-	// validation
-	if config.AccessToken == "" {
-		return nil, errors.New("slack access token or workSpaceConfig must be provided")
-	}
-
-	var slackConfig *slack.Config
-	if config.AccessToken != "" {
-		workspaces := []slack.SlackWorkspace{
-			{
-				WorkspaceName: config.Provider,
-				AccessToken:   config.AccessToken,
-				Criteria:      config.Criteria,
-			},
-		}
-		slackConfig = &slack.Config{
-			Workspaces: workspaces,
-			Messages:   messages,
-		}
-		return slackConfig, nil
-
 	}
 
 	return slackConfig, nil
