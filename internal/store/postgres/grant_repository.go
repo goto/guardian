@@ -259,9 +259,9 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, er
 		db = db.Where(`"grants"."permissions" @> ?`, pq.StringArray(filter.Permissions))
 	}
 	if filter.Owner != "" {
-		db = db.Where(`"grants"."owner" = ?`, filter.Owner)
+		db = db.Where(`LOWER("grants"."owner") = LOWER(?)`, filter.Owner)
 	} else if filter.CreatedBy != "" {
-		db = db.Where(`"grants"."owner" = ?`, filter.CreatedBy)
+		db = db.Where(`LOWER("grants"."owner") = LOWER(?)`, filter.CreatedBy)
 	}
 	if filter.IsPermanent != nil {
 		db = db.Where(`"grants"."is_permanent" = ?`, *filter.IsPermanent)

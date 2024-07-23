@@ -231,7 +231,7 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.DB
 	}
 
 	if filters.CreatedBy != "" {
-		db = db.Where(`"appeals"."created_by" = ?`, filters.CreatedBy)
+		db = db.Where(`LOWER("appeals"."created_by") = LOWER(?)`, filters.CreatedBy)
 	}
 	accounts := make([]string, 0)
 	if filters.AccountID != "" {
