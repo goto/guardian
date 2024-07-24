@@ -10,6 +10,8 @@ import (
 
 	"github.com/goto/guardian/domain"
 
+	"encoding/json"
+
 	"github.com/go-playground/validator/v10"
 	handlerv1beta1 "github.com/goto/guardian/api/handler/v1beta1"
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
@@ -49,16 +51,24 @@ func RunServer(config *Config) error {
 	logger := log.NewCtxLogger(config.LogLevel, []string{domain.TraceIDKey})
 	crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 	validator := validator.New()
-
+	var notifierMap map[string]notifiers.Config
+	err := json.Unmarshal([]byte(config.Notifiers), &notifierMap)
+	if err != nil {
+		fmt.Println(err)
+	}
 	notifierConfig := []notifiers.Config{}
-	if config.Notifiers != nil {
-		notifierConfig = config.Notifiers
+	if config.Notifiers != "" {
+		for _, val := range notifierMap {
+			notifierConfig = append(notifierConfig, val)
+
+		}
 	} else {
 		// map old to the new format
 		oldConfig := config.Notifier
 		oldConfig.Criteria = "true"
 		notifierConfig = append(notifierConfig, oldConfig)
 	}
+	fmt.Println(notifierConfig)
 	notifier, err := notifiers.NewMultiClient(&notifierConfig, logger)
 	if err != nil {
 		return err

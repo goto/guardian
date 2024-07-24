@@ -85,6 +85,18 @@ type Config struct {
 	Messages domain.NotificationMessages
 }
 
+type ConfigMultiClient struct {
+	Notifiers map[string]Config `mapstructure:"configs"`
+	// custom messages
+	Messages domain.NotificationMessages
+}
+type NOTIFIERSS struct {
+	Notifier1 Config `mapstructure:"lark"`
+	Notifier2 Config `mapstructure:"slack"`
+	// custom messages
+	//Messages domain.NotificationMessages
+}
+
 func NewMultiClient(notifiers *[]Config, logger log.Logger) (*NotifyManager, error) {
 	notifyManager := &NotifyManager{}
 	for _, notifier := range *notifiers {
@@ -182,7 +194,7 @@ func getLarkConfig(config *Config, messages domain.NotificationMessages) (*lark.
 	if config.ClientID != "" {
 		workspace := lark.LarkWorkspace{
 			WorkspaceName: config.Provider,
-			ClientId:      config.ClientID,
+			ClientID:      config.ClientID,
 			ClientSecret:  config.ClientSecret,
 			Criteria:      config.Criteria,
 		}

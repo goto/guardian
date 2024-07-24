@@ -39,7 +39,7 @@ type WorkSpaceConfig struct {
 
 type LarkWorkspace struct {
 	WorkspaceName string `mapstructure:"workspace" validate:"required"`
-	ClientId      string `mapstructure:"client_id" validate:"required"`
+	ClientID      string `mapstructure:"client_id" validate:"required"`
 	ClientSecret  string `mapstructure:"client_secret" validate:"required"`
 	Criteria      string `mapstructure:"criteria" validate:"required"`
 }
@@ -122,7 +122,7 @@ func (n *Notifier) sendMessage(workspace LarkWorkspace, email string, messageBlo
 		return err
 	}
 	// create tanent_access_token
-	token, err := n.findTenantAccessToken(workspace.ClientId, workspace.ClientSecret, workspace)
+	token, err := n.findTenantAccessToken(workspace.ClientID, workspace.ClientSecret, workspace)
 	if err != nil {
 		return err
 	}

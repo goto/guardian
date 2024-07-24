@@ -27,17 +27,17 @@ DB:
   NAME:
   PORT: 5432
   SSLMODE: disable
-NOTIFIERS:
-  - Name: Lark
-    PROVIDER: lark
-    CLIENT_ID: 
-    CLIENT_SECRET: 
-    criteria: 'email contains "@example.com"' // example value of custom expression
-  - Name: Slack
-    PROVIDER: slack
-    ACCESS_TOKEN: 
-    CLIENT_SECRET: 
-    criteria: 'email contains "@example.com"' // example value of custom expression
+# NOTIFIERS:
+#   - Name: Lark
+#     PROVIDER: lark
+#     CLIENT_ID: 
+#     CLIENT_SECRET: 
+#     criteria: 'email contains "@example.com"' // example value of custom expression
+#   - Name: Slack
+#     PROVIDER: slack
+#     ACCESS_TOKEN: 
+#     CLIENT_SECRET: 
+#     criteria: 'email contains "@example.com"' // example value of custom expression
 JOBS:
   REVOKE_GRANTS_BY_USER_CRITERIA:
     CONFIG:
