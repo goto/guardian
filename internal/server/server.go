@@ -53,21 +53,20 @@ func RunServer(config *Config) error {
 	crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 	validator := validator.New()
 
-	var result map[string]interface{}
-	err := json.Unmarshal([]byte(config.Notifiers), &result)
+	var notifierMap map[string]interface{}
+	err := json.Unmarshal([]byte(config.Notifiers), &notifierMap)
 	if err != nil {
 		fmt.Println(err)
 	}
-	var notifierMap map[string]notifiers.Config
-	//var notifiers Notifiers
-	err = mapstructure.Decode(result, &notifierMap)
+	var notifierConfigMap map[string]notifiers.Config
+	err = mapstructure.Decode(notifierMap, &notifierConfigMap)
 	if err != nil {
 		fmt.Println(err)
 
 	}
 	notifierConfig := []notifiers.Config{}
 	if config.Notifiers != "" {
-		for _, val := range notifierMap {
+		for _, val := range notifierConfigMap {
 			notifierConfig = append(notifierConfig, val)
 
 		}
