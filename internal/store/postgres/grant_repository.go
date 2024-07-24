@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/domain"
@@ -240,8 +241,14 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, er
 		db = db.Offset(filter.Offset)
 	}
 
+	accounts := make([]string, 0)
 	if filter.AccountIDs != nil {
-		db = db.Where(`"grants"."account_id" IN ?`, filter.AccountIDs)
+		for _, account := range filter.AccountIDs {
+			accounts = append(accounts, strings.ToLower(account))
+		}
+	}
+	if len(accounts) > 0 {
+		db = db.Where(`LOWER("grants"."account_id") IN ?`, accounts)
 	}
 	if filter.AccountTypes != nil {
 		db = db.Where(`"grants"."account_type" IN ?`, filter.AccountTypes)
@@ -259,9 +266,9 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, er
 		db = db.Where(`"grants"."permissions" @> ?`, pq.StringArray(filter.Permissions))
 	}
 	if filter.Owner != "" {
-		db = db.Where(`LOWER("grants"."owner") = LOWER(?)`, filter.Owner)
+		db = db.Where(`LOWER("grants"."owner") = ?`, strings.ToLower(filter.Owner))
 	} else if filter.CreatedBy != "" {
-		db = db.Where(`LOWER("grants"."owner") = LOWER(?)`, filter.CreatedBy)
+		db = db.Where(`LOWER("grants"."owner") = ?`, strings.ToLower(filter.CreatedBy))
 	}
 	if filter.IsPermanent != nil {
 		db = db.Where(`"grants"."is_permanent" = ?`, *filter.IsPermanent)
