@@ -27,6 +27,7 @@ import (
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
 	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -51,10 +52,18 @@ func RunServer(config *Config) error {
 	logger := log.NewCtxLogger(config.LogLevel, []string{domain.TraceIDKey})
 	crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 	validator := validator.New()
-	var notifierMap map[string]notifiers.Config
-	err := json.Unmarshal([]byte(config.Notifiers), &notifierMap)
+
+	var result map[string]interface{}
+	err := json.Unmarshal([]byte(config.Notifiers), &result)
 	if err != nil {
 		fmt.Println(err)
+	}
+	var notifierMap map[string]notifiers.Config
+	//var notifiers Notifiers
+	err = mapstructure.Decode(result, &notifierMap)
+	if err != nil {
+		fmt.Println(err)
+
 	}
 	notifierConfig := []notifiers.Config{}
 	if config.Notifiers != "" {
