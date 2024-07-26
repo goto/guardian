@@ -76,7 +76,6 @@ func RunServer(config *Config) error {
 		oldConfig.Criteria = "true"
 		notifierConfig = append(notifierConfig, oldConfig)
 	}
-	fmt.Println(notifierConfig)
 	notifier, err := notifiers.NewMultiClient(&notifierConfig, logger)
 	if err != nil {
 		return err
