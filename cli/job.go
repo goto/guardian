@@ -2,9 +2,11 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/goto/guardian/pkg/log"
+	"github.com/mitchellh/mapstructure"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/go-playground/validator/v10"
@@ -69,7 +71,30 @@ func runJobCmd() *cobra.Command {
 			logger := log.NewCtxLogger(config.LogLevel, []string{config.AuditLogTraceIDHeaderKey})
 			crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 			validator := validator.New()
-			notifier, err := notifiers.NewClient(&config.Notifier, logger)
+			var notifierMap map[string]interface{}
+			errr := json.Unmarshal([]byte(config.Notifiers), &notifierMap)
+			if errr != nil {
+				fmt.Println(errr)
+			}
+			var notifierConfigMap map[string]notifiers.Config
+			err = mapstructure.Decode(notifierMap, &notifierConfigMap)
+			if err != nil {
+				fmt.Println(err)
+
+			}
+			notifierConfig := []notifiers.Config{}
+			if config.Notifiers != "" {
+				for _, val := range notifierConfigMap {
+					notifierConfig = append(notifierConfig, val)
+
+				}
+			} else {
+				// map old to the new format
+				oldConfig := config.Notifier
+				oldConfig.Criteria = "true"
+				notifierConfig = append(notifierConfig, oldConfig)
+			}
+			notifier, err := notifiers.NewMultiClient(&notifierConfig, logger)
 			if err != nil {
 				return err
 			}

@@ -10,6 +10,8 @@ import (
 
 	"github.com/goto/guardian/domain"
 
+	"encoding/json"
+
 	"github.com/go-playground/validator/v10"
 	handlerv1beta1 "github.com/goto/guardian/api/handler/v1beta1"
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
@@ -25,6 +27,7 @@ import (
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
 	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -49,7 +52,31 @@ func RunServer(config *Config) error {
 	logger := log.NewCtxLogger(config.LogLevel, []string{domain.TraceIDKey})
 	crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 	validator := validator.New()
-	notifier, err := notifiers.NewClient(&config.Notifier, logger)
+
+	var notifierMap map[string]interface{}
+	err := json.Unmarshal([]byte(config.Notifiers), &notifierMap)
+	if err != nil {
+		fmt.Println(err)
+	}
+	var notifierConfigMap map[string]notifiers.Config
+	err = mapstructure.Decode(notifierMap, &notifierConfigMap)
+	if err != nil {
+		fmt.Println(err)
+
+	}
+	notifierConfig := []notifiers.Config{}
+	if config.Notifiers != "" {
+		for _, val := range notifierConfigMap {
+			notifierConfig = append(notifierConfig, val)
+
+		}
+	} else {
+		// map old to the new format
+		oldConfig := config.Notifier
+		oldConfig.Criteria = "true"
+		notifierConfig = append(notifierConfig, oldConfig)
+	}
+	notifier, err := notifiers.NewMultiClient(&notifierConfig, logger)
 	if err != nil {
 		return err
 	}
