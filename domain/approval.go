@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"strings"
 	"time"
 )
 
@@ -47,6 +48,16 @@ func (a *Approval) Skip() {
 
 func (a *Approval) IsManualApproval() bool {
 	return len(a.Approvers) > 0
+}
+
+func (a *Approval) IsExistingApprover(approver string) bool {
+	for _, v := range a.Approvers {
+		if strings.EqualFold(approver, v) {
+			return true
+		}
+	}
+
+	return false
 }
 
 type ListApprovalsFilter struct {

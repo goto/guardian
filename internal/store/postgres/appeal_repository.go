@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/domain"
@@ -231,17 +232,19 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.DB
 	}
 
 	if filters.CreatedBy != "" {
-		db = db.Where(`"appeals"."created_by" = ?`, filters.CreatedBy)
+		db = db.Where(`LOWER("appeals"."created_by") = ?`, strings.ToLower(filters.CreatedBy))
 	}
 	accounts := make([]string, 0)
 	if filters.AccountID != "" {
-		accounts = append(accounts, filters.AccountID)
+		accounts = append(accounts, strings.ToLower(filters.AccountID))
 	}
 	if filters.AccountIDs != nil {
-		accounts = append(accounts, filters.AccountIDs...)
+		for _, account := range filters.AccountIDs {
+			accounts = append(accounts, strings.ToLower(account))
+		}
 	}
 	if len(accounts) > 0 {
-		db = db.Where(`"appeals"."account_id" IN ?`, accounts)
+		db = db.Where(`LOWER("appeals"."account_id") IN ?`, accounts)
 	}
 	if filters.Statuses != nil {
 		db = db.Where(`"appeals"."status" IN ?`, filters.Statuses)
