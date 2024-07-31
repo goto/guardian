@@ -40,8 +40,7 @@ func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notifi
 
 		// if the expression evaluates to true, notify the client
 		if match, ok := v.(bool); !ok {
-			err = fmt.Errorf("notifier expression did not evaluate to a boolean: %s", config.Criteria)
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("notifier expression did not evaluate to a boolean: %s", config.Criteria))
 		} else if match {
 			if notifyErrs := client.Notify(ctx, notification); notifyErrs != nil {
 				errs = append(errs, notifyErrs...)
@@ -64,13 +63,6 @@ func (c SlackConfig) Decode(v interface{}) error {
 	return mapstructure.Decode(c, v)
 }
 
-// LarkConfig is a map of workspace name to config
-type MultiConfig map[string]interface{}
-
-func (c MultiConfig) Decode(v interface{}) error {
-	return mapstructure.Decode(c, v)
-}
-
 type Config struct {
 	Provider     string `mapstructure:"provider" validate:"omitempty,oneof=slack lark"`
 	Name         string `mapstructure:"name"`
@@ -83,18 +75,6 @@ type Config struct {
 	SlackConfig SlackConfig `mapstructure:"slack_config" validate:"required_without=AccessToken,dive"`
 	// custom messages
 	Messages domain.NotificationMessages
-}
-
-type ConfigMultiClient struct {
-	Notifiers map[string]Config `mapstructure:"configs"`
-	// custom messages
-	Messages domain.NotificationMessages
-}
-type NOTIFIERSS struct {
-	Notifier1 Config `mapstructure:"lark"`
-	Notifier2 Config `mapstructure:"slack"`
-	// custom messages
-	//Messages domain.NotificationMessages
 }
 
 func NewMultiClient(notifiers *[]Config, logger log.Logger) (*NotifyManager, error) {

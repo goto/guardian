@@ -104,12 +104,10 @@ func (n *Notifier) sendMessage(workspace LarkWorkspace, email string, messageBlo
 	var messages []map[string]interface{}
 	err := json.Unmarshal([]byte(messageBlock), &messages)
 	for _, message := range messages {
-
 		payload = message
 	}
 	if err != nil {
-		fmt.Println("Error unmarshaling JSON:", err)
-
+		return err
 	}
 	payload["receive_id"] = email
 	data, err := json.Marshal(payload)

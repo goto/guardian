@@ -27,7 +27,20 @@ DB:
   NAME:
   PORT: 5432
   SSLMODE: disable
-NOTIFIERS: "{\"gojek\":{\"provider\":\"lark\",\"client_id\":\"x\",\"client_secret\":\"x\"}}"
+NOTIFIERS: |
+  {
+    "my_lark": {
+      "provider": "lark",
+      "client_id": "",
+      "client_secret": "",
+      "messages": {}
+    },
+    "my_slack": {
+      "provider": "slack",
+      "access_token": "",
+      "messages": {}
+    }
+  }
 
 JOBS:
   REVOKE_GRANTS_BY_USER_CRITERIA:

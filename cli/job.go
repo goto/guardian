@@ -74,19 +74,17 @@ func runJobCmd() *cobra.Command {
 			var notifierMap map[string]interface{}
 			errr := json.Unmarshal([]byte(config.Notifiers), &notifierMap)
 			if errr != nil {
-				fmt.Println(errr)
+				return fmt.Errorf("failed to parse notifier config: %w", errr)
 			}
 			var notifierConfigMap map[string]notifiers.Config
 			err = mapstructure.Decode(notifierMap, &notifierConfigMap)
 			if err != nil {
-				fmt.Println(err)
-
+				return fmt.Errorf("failed to parse notifier config: %w", err)
 			}
 			notifierConfig := []notifiers.Config{}
 			if config.Notifiers != "" {
 				for _, val := range notifierConfigMap {
 					notifierConfig = append(notifierConfig, val)
-
 				}
 			} else {
 				// map old to the new format
