@@ -867,7 +867,7 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 	if err := checkApprovalStatus(currentApproval.Status); err != nil {
 		return nil, err
 	}
-	if !utils.ContainsString(currentApproval.Approvers, approvalAction.Actor) {
+	if !currentApproval.IsExistingApprover(approvalAction.Actor) {
 		return nil, ErrActionForbidden
 	}
 
@@ -1067,10 +1067,8 @@ func (s *Service) AddApprover(ctx context.Context, appealID, approvalID, email s
 	if approval.IsStale {
 		return nil, fmt.Errorf("%w: can't add new approver to a stale approval", ErrUnableToAddApprover)
 	}
-	for _, existingApprover := range approval.Approvers {
-		if email == existingApprover {
-			return nil, fmt.Errorf("%w: approver %q already exists", ErrUnableToAddApprover, email)
-		}
+	if approval.IsExistingApprover(email) {
+		return nil, fmt.Errorf("%w: approver %q already exists", ErrUnableToAddApprover, email)
 	}
 
 	switch approval.Status {
@@ -1241,13 +1239,14 @@ func (s *Service) getAppealsMap(ctx context.Context, filters *domain.ListAppeals
 
 	appealsMap := map[string]map[string]map[string]*domain.Appeal{}
 	for _, a := range appeals {
-		if appealsMap[a.AccountID] == nil {
-			appealsMap[a.AccountID] = map[string]map[string]*domain.Appeal{}
+		accountID := strings.ToLower(a.AccountID)
+		if appealsMap[accountID] == nil {
+			appealsMap[accountID] = map[string]map[string]*domain.Appeal{}
 		}
-		if appealsMap[a.AccountID][a.ResourceID] == nil {
-			appealsMap[a.AccountID][a.ResourceID] = map[string]*domain.Appeal{}
+		if appealsMap[accountID][a.ResourceID] == nil {
+			appealsMap[accountID][a.ResourceID] = map[string]*domain.Appeal{}
 		}
-		appealsMap[a.AccountID][a.ResourceID][a.Role] = a
+		appealsMap[accountID][a.ResourceID][a.Role] = a
 	}
 
 	return appealsMap, nil
@@ -1717,9 +1716,10 @@ func getProvider(a *domain.Appeal, providersMap map[string]map[string]*domain.Pr
 }
 
 func validateAppeal(a *domain.Appeal, pendingAppealsMap map[string]map[string]map[string]*domain.Appeal) error {
-	if pendingAppealsMap[a.AccountID] != nil &&
-		pendingAppealsMap[a.AccountID][a.ResourceID] != nil &&
-		pendingAppealsMap[a.AccountID][a.ResourceID][a.Role] != nil {
+	accountID := strings.ToLower(a.AccountID)
+	if pendingAppealsMap[accountID] != nil &&
+		pendingAppealsMap[accountID][a.ResourceID] != nil &&
+		pendingAppealsMap[accountID][a.ResourceID][a.Role] != nil {
 		return ErrAppealDuplicate
 	}
 
