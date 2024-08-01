@@ -119,8 +119,15 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body inter
 	}
 	req.Header.Add("Content-Type", "application/json")
 
+	// auth
 	if c.options.token != "" {
-		req.Header.Add("Authorization", c.options.token)
+		if c.options.queryParamAuthKey != "" {
+			q := req.URL.Query()
+			q.Add(c.options.queryParamAuthKey, c.options.token)
+			req.URL.RawQuery = q.Encode()
+		} else {
+			req.Header.Add("Authorization", c.options.token)
+		}
 	}
 
 	return req, nil
