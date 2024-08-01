@@ -3,9 +3,6 @@ package server
 import (
 	"context"
 
-	"github.com/goto/guardian/plugins/providers/dataplex"
-	"github.com/goto/guardian/plugins/providers/gitlab"
-
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/goto/guardian/core"
@@ -26,8 +23,11 @@ import (
 	"github.com/goto/guardian/plugins/identities"
 	"github.com/goto/guardian/plugins/notifiers"
 	"github.com/goto/guardian/plugins/providers/bigquery"
+	"github.com/goto/guardian/plugins/providers/dataplex"
+	"github.com/goto/guardian/plugins/providers/gate"
 	"github.com/goto/guardian/plugins/providers/gcloudiam"
 	"github.com/goto/guardian/plugins/providers/gcs"
+	"github.com/goto/guardian/plugins/providers/gitlab"
 	"github.com/goto/guardian/plugins/providers/grafana"
 	"github.com/goto/guardian/plugins/providers/metabase"
 	"github.com/goto/guardian/plugins/providers/noop"
@@ -122,6 +122,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		dataplex.NewProvider(domain.ProviderTypePolicyTag, deps.Crypto),
 		shield.NewProvider(domain.ProviderTypeShield, deps.Logger),
 		gitlab.NewProvider(domain.ProviderTypeGitlab, deps.Crypto, deps.Logger),
+		gate.NewProvider(domain.ProviderTypeGate, deps.Crypto),
 	}
 
 	iamManager := identities.NewManager(deps.Crypto, deps.Validator)
