@@ -17,7 +17,6 @@ const (
 	ProviderTypePolicyTag = "dataplex"
 	ProviderTypeShield    = "shield"
 	ProviderTypeGitlab    = "gitlab"
-	ProviderTypeGate      = "gate"
 )
 
 // Role is the configuration to define a role and mapping the permissions in the provider
