@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"slices"
 	"strconv"
 	"sync"
@@ -161,9 +162,12 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 	resources := []*domain.Resource{}
 	page := 1
 	for {
-		groups, _, err := client.ListGroups(ctx, &gate.ListGroupsRequest{Page: page})
+		groups, res, err := client.ListGroups(ctx, &gate.ListGroupsRequest{Page: page})
 		if err != nil {
 			return nil, err
+		}
+		if res.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("failed to list groups: %s", res.Status)
 		}
 
 		if len(groups) == 0 {
@@ -205,9 +209,12 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 
 	switch g.Resource.Type {
 	case GroupResourceType:
-		_, err := client.AddUserToGroup(ctx, groupID, userID)
+		res, err := client.AddUserToGroup(ctx, groupID, userID)
 		if err != nil {
-			return fmt.Errorf("failed to add user %q to gate group %q: %w", userID, groupID, err)
+			return fmt.Errorf("failed to add user %q to gate group %q: %w", g.AccountID, g.Resource.URN, err)
+		}
+		if res.StatusCode != http.StatusNoContent {
+			return fmt.Errorf("failed to add user %q to gate group %q: %s", g.AccountID, g.Resource.URN, res.Status)
 		}
 	default:
 		return fmt.Errorf("unexpected resource type: %q", g.Resource.Type)
@@ -234,9 +241,12 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 
 	switch g.Resource.Type {
 	case GroupResourceType:
-		_, err := client.RemoveUserFromGroup(ctx, groupID, userID)
+		res, err := client.RemoveUserFromGroup(ctx, groupID, userID)
 		if err != nil {
-			return fmt.Errorf("failed to remove user %q from gate group %q: %w", userID, groupID, err)
+			return fmt.Errorf("failed to remove user %q from gate group %q: %w", g.AccountID, g.Resource.URN, err)
+		}
+		if res.StatusCode != http.StatusNoContent {
+			return fmt.Errorf("failed to remove user %q from gate group %q: %s", g.AccountID, g.Resource.URN, res.Status)
 		}
 	default:
 		return fmt.Errorf("unexpected resource type: %q", g.Resource.Type)
