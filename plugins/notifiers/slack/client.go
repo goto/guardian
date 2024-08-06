@@ -93,7 +93,7 @@ func (n *Notifier) Notify(ctx context.Context, items []domain.Notification) []er
 			slackID = n.slackIDCache[item.User].SlackID
 			slackWorkspace = n.slackIDCache[item.User].Workspace
 		} else {
-			ws, err := n.GetSlackWorkspaceForUser(item.User)
+			ws, err := n.GetSlackWorkspaceForUser(item.User, item.Message.Variables)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("%v | %w", labelSlice, err))
 				continue
@@ -160,11 +160,12 @@ func (n *Notifier) sendMessage(workspace SlackWorkspace, channel, messageBlock s
 	return err
 }
 
-func (n *Notifier) GetSlackWorkspaceForUser(email string) (*SlackWorkspace, error) {
+func (n *Notifier) GetSlackWorkspaceForUser(email string, variables map[string]any) (*SlackWorkspace, error) {
 	var ws *SlackWorkspace
 	for _, workspace := range n.workspaces {
 		v, err := evaluator.Expression(workspace.Criteria).EvaluateWithVars(map[string]interface{}{
 			"email": email,
+			"vars":  variables,
 		})
 		if err != nil {
 			return ws, fmt.Errorf("error evaluating notifier expression: %w", err)
