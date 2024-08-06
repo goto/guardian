@@ -38,6 +38,11 @@ func (s *ClientTestSuite) setup() {
 			AccessToken:   "XXXXX-TOKEN-2-XXXXX",
 			Criteria:      "$email contains '@xyz'",
 		},
+		{
+			WorkspaceName: "ws-3",
+			AccessToken:   "XXXXX-TOKEN-3-XXXXX",
+			Criteria:      `$vars.foo == "bar"`,
+		},
 	}
 	s.accessToken = "XXXXX-TOKEN-XXXXX"
 	s.messages = domain.NotificationMessages{
@@ -135,7 +140,22 @@ func (s *ClientTestSuite) TestGetSlackWorkspaceForUser() {
 			AccessToken:   "XXXXX-TOKEN-1-XXXXX",
 			Criteria:      "$email contains '@abc'",
 		}
-		actualWs, err := s.notifier.GetSlackWorkspaceForUser(userEmail)
+		actualWs, err := s.notifier.GetSlackWorkspaceForUser(userEmail, nil)
+		s.Nil(err)
+		s.Equal(expectedWs, actualWs)
+	})
+
+	s.Run("should return slack workspace 3 based on expression using vars", func() {
+		userEmail := "example-user@example.com"
+		vars := map[string]any{
+			"foo": "bar",
+		}
+		expectedWs := &slack.SlackWorkspace{
+			WorkspaceName: "ws-3",
+			AccessToken:   "XXXXX-TOKEN-3-XXXXX",
+			Criteria:      `$vars.foo == "bar"`,
+		}
+		actualWs, err := s.notifier.GetSlackWorkspaceForUser(userEmail, vars)
 		s.Nil(err)
 		s.Equal(expectedWs, actualWs)
 	})
@@ -147,7 +167,7 @@ func (s *ClientTestSuite) TestGetSlackWorkspaceForUser() {
 			AccessToken:   "XXXXX-TOKEN-2-XXXXX",
 			Criteria:      "$email contains '@xyz'",
 		}
-		actualWs, err := s.notifier.GetSlackWorkspaceForUser(userEmail)
+		actualWs, err := s.notifier.GetSlackWorkspaceForUser(userEmail, nil)
 		s.Nil(err)
 		s.Equal(expectedWs, actualWs)
 	})
@@ -155,7 +175,7 @@ func (s *ClientTestSuite) TestGetSlackWorkspaceForUser() {
 	s.Run("should return error if slack workspace not found for user", func() {
 		userEmail := "example-user@def.com"
 		expectedErr := fmt.Errorf("no slack workspace found for user: %s", userEmail)
-		_, actualErr := s.notifier.GetSlackWorkspaceForUser(userEmail)
+		_, actualErr := s.notifier.GetSlackWorkspaceForUser(userEmail, nil)
 		s.Equal(expectedErr, actualErr)
 	})
 }
