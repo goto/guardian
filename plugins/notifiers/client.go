@@ -7,19 +7,53 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/goto/guardian/pkg/evaluator"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/goto/guardian/plugins/notifiers/lark"
+	"github.com/goto/guardian/plugins/notifiers/slack"
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/goto/guardian/domain"
-	"github.com/goto/guardian/plugins/notifiers/slack"
 )
 
 type Client interface {
 	Notify(context.Context, []domain.Notification) []error
 }
 
+type NotifyManager struct {
+	clients []Client
+	configs []Config
+}
+
+func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notification) []error {
+	var errs []error
+	for i, client := range m.clients {
+		// evaluate criteria
+		config := m.configs[i]
+		v, err := evaluator.Expression(config.Criteria).EvaluateWithVars(map[string]interface{}{
+			"email": notification[0].User,
+		})
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		// if the expression evaluates to true, notify the client
+		if match, ok := v.(bool); !ok {
+			errs = append(errs, fmt.Errorf("notifier expression did not evaluate to a boolean: %s", config.Criteria))
+		} else if match {
+			if notifyErrs := client.Notify(ctx, notification); notifyErrs != nil {
+				errs = append(errs, notifyErrs...)
+			}
+		}
+
+	}
+	return errs
+}
+
 const (
 	ProviderTypeSlack = "slack"
+	ProviderTypeLark  = "lark"
 )
 
 // SlackConfig is a map of workspace name to config
@@ -30,14 +64,45 @@ func (c SlackConfig) Decode(v interface{}) error {
 }
 
 type Config struct {
-	Provider string `mapstructure:"provider" validate:"omitempty,oneof=slack"`
+	Provider     string `mapstructure:"provider" validate:"omitempty,oneof=slack lark"`
+	Name         string `mapstructure:"name"`
+	ClientID     string `mapstructure:"client_id,omitempty"`
+	ClientSecret string `mapstructure:"client_secret,omitempty"`
+	Criteria     string `mapstructure:"criteria"`
 
 	// slack
 	AccessToken string      `mapstructure:"access_token" validate:"required_without=SlackConfig"`
 	SlackConfig SlackConfig `mapstructure:"slack_config" validate:"required_without=AccessToken,dive"`
-
 	// custom messages
 	Messages domain.NotificationMessages
+}
+
+func NewMultiClient(notifiers *[]Config, logger log.Logger) (*NotifyManager, error) {
+	notifyManager := &NotifyManager{}
+	for _, notifier := range *notifiers {
+		if notifier.Provider == ProviderTypeSlack {
+			slackConfig, err := NewSlackConfig(&notifier)
+			if err != nil {
+				return nil, err
+			}
+			httpClient := &http.Client{Timeout: 10 * time.Second}
+			slackClient := slack.NewNotifier(slackConfig, httpClient, logger)
+			notifyManager.addClient(slackClient)
+			notifyManager.addNotifier(notifier)
+		}
+		if notifier.Provider == ProviderTypeLark {
+			larkConfig, err := getLarkConfig(&notifier, notifier.Messages)
+			if err != nil {
+				return nil, err
+			}
+			httpClient := &http.Client{Timeout: 10 * time.Second}
+			larkClient := lark.NewNotifier(larkConfig, httpClient, logger)
+			notifyManager.addClient(larkClient)
+			notifyManager.addNotifier(notifier)
+		}
+	}
+
+	return notifyManager, nil
 }
 
 func NewClient(config *Config, logger log.Logger) (Client, error) {
@@ -91,4 +156,43 @@ func NewSlackConfig(config *Config) (*slack.Config, error) {
 	}
 
 	return slackConfig, nil
+}
+
+func getLarkConfig(config *Config, messages domain.NotificationMessages) (*lark.Config, error) {
+	// validation
+	if config.ClientID == "" && config.ClientSecret == "" {
+		return nil, errors.New("lark clientid & clientSecret must be provided")
+	}
+	if config.ClientID == "" && config.ClientSecret != "" {
+		return nil, errors.New("lark clientid & clientSecret must be provided")
+	}
+	if config.ClientID != "" && config.ClientSecret == "" {
+		return nil, errors.New("lark clientid & clientSecret must be provided")
+	}
+
+	var larkConfig *lark.Config
+	if config.ClientID != "" {
+		workspace := lark.LarkWorkspace{
+			WorkspaceName: config.Provider,
+			ClientID:      config.ClientID,
+			ClientSecret:  config.ClientSecret,
+			Criteria:      config.Criteria,
+		}
+		larkConfig = &lark.Config{
+			Workspace: workspace,
+			Messages:  messages,
+		}
+		return larkConfig, nil
+
+	}
+
+	return larkConfig, nil
+}
+
+func (nm *NotifyManager) addClient(client Client) {
+	nm.clients = append(nm.clients, client)
+}
+
+func (nm *NotifyManager) addNotifier(notifier Config) {
+	nm.configs = append(nm.configs, notifier)
 }
