@@ -1571,7 +1571,8 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 					cfg.URL = urlStr
 				}
 
-				metadataCl, err := http.NewHTTPClient(&cfg.HTTPClientConfig)
+				clientCreator := &http.HttpClientCreatorStruct{}
+				metadataCl, err := http.NewHTTPClient(&cfg.HTTPClientConfig, clientCreator)
 				if err != nil {
 					return fmt.Errorf("key: %s, %w", key, err)
 				}

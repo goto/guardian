@@ -49,12 +49,18 @@ type HTTPClientConfig struct {
 type HTTPClient struct {
 	httpClient *http.Client
 	config     *HTTPClientConfig
+	url        string
+}
+type HttpClientCreatorStruct struct {
+}
 
-	url string
+type HttpClientCreator interface {
+	GetHttpClientForGoogleOAuth2(ctx context.Context, creds []byte) (*http.Client, error)
+	GetHttpClientForGoogleIdToken(ctx context.Context, creds []byte, audience string) (*http.Client, error)
 }
 
 // NewHTTPClient returns *iam.Client
-func NewHTTPClient(config *HTTPClientConfig) (*HTTPClient, error) {
+func NewHTTPClient(config *HTTPClientConfig, clientCreator HttpClientCreator) (*HTTPClient, error) {
 	defaults.SetDefaults(config)
 	if err := validator.New().Struct(config); err != nil {
 		return nil, err
@@ -74,22 +80,21 @@ func NewHTTPClient(config *HTTPClientConfig) (*HTTPClient, error) {
 				return nil, err
 			}
 		default:
-			return nil, fmt.Errorf("missing credentials for google_idtoken auth")
+			return nil, fmt.Errorf("missing credentials for google_idtoken or  google_oauth2 auth")
 		}
 
 		ctx := context.Background()
+		var err error
 		if config.Auth.Type == "google_idtoken" {
-			ts, err := idtoken.NewTokenSource(ctx, config.Auth.Audience, idtoken.WithCredentialsJSON(creds))
+			httpClient, err = clientCreator.GetHttpClientForGoogleIdToken(ctx, creds, config.Auth.Audience)
 			if err != nil {
 				return nil, err
 			}
-			httpClient = oauth2.NewClient(ctx, ts)
 		} else if config.Auth.Type == "google_oauth2" {
-			credsConfig, err := google.CredentialsFromJSON(ctx, creds, "https://www.googleapis.com/auth/cloud-platform")
+			httpClient, err = clientCreator.GetHttpClientForGoogleOAuth2(ctx, creds)
 			if err != nil {
 				return nil, err
 			}
-			httpClient = oauth2.NewClient(ctx, credsConfig.TokenSource)
 		}
 	}
 
@@ -98,6 +103,26 @@ func NewHTTPClient(config *HTTPClientConfig) (*HTTPClient, error) {
 		config:     config,
 		url:        config.URL,
 	}, nil
+}
+
+func (c *HTTPClient) GetClient() string {
+	return c.url
+}
+
+func (c *HttpClientCreatorStruct) GetHttpClientForGoogleOAuth2(ctx context.Context, creds []byte) (*http.Client, error) {
+	credsConfig, err := google.CredentialsFromJSON(ctx, creds, "https://www.googleapis.com/auth/cloud-platform")
+	if err != nil {
+		return nil, err
+	}
+	return oauth2.NewClient(ctx, credsConfig.TokenSource), nil
+}
+
+func (c *HttpClientCreatorStruct) GetHttpClientForGoogleIdToken(ctx context.Context, creds []byte, audience string) (*http.Client, error) {
+	ts, err := idtoken.NewTokenSource(ctx, audience, idtoken.WithCredentialsJSON(creds))
+	if err != nil {
+		return nil, err
+	}
+	return oauth2.NewClient(ctx, ts), nil
 }
 
 func decodeCredentials(encodedCreds string) ([]byte, error) {
