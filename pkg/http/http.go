@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	validator "github.com/go-playground/validator/v10"
 	defaults "github.com/mcuadros/go-defaults"
@@ -40,8 +39,8 @@ type HTTPClientConfig struct {
 	URL        string            `mapstructure:"url" json:"url" yaml:"url" validate:"required,url"`
 	Headers    map[string]string `mapstructure:"headers,omitempty" json:"headers,omitempty" yaml:"headers,omitempty"`
 	Auth       *HTTPAuthConfig   `mapstructure:"auth,omitempty" json:"auth,omitempty" yaml:"auth,omitempty" validate:"omitempty,dive"`
-	Method     string            `mapstructure:"method,omitmepty" json:"method,omitempty" yaml:"method,omitempty"`
-	Body       interface{}       `mapstructure:"body,omitempty" json:"body,omitempty" yaml:"body,omitempty"`
+	Method     string            `mapstructure:"method,omitempty" json:"method,omitempty" yaml:"method,omitempty"`
+	Body       string            `mapstructure:"body,omitempty" json:"body,omitempty" yaml:"body,omitempty"`
 	HTTPClient *http.Client      `mapstructure:"-" json:"-" yaml:"-"`
 	Validator  *validator.Validate
 }
@@ -138,14 +137,8 @@ func (c *HTTPClient) MakeRequest(ctx context.Context) (*http.Response, error) {
 	}
 	var body []byte
 	if c.config.Method == "POST" {
-		var err error
-		if c.config.Body == "" {
-			return nil, fmt.Errorf("body is required for POST method")
-		} else {
-			body, err = json.Marshal(c.config.Body)
-			if err != nil {
-				return nil, err
-			}
+		if c.config.Body != "" {
+			body = []byte(c.config.Body)
 		}
 	}
 
