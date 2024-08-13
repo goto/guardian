@@ -80,7 +80,7 @@ func NewHTTPClient(config *HTTPClientConfig, clientCreator HttpClientCreator) (*
 				return nil, err
 			}
 		default:
-			return nil, fmt.Errorf("missing credentials for google_idtoken or  google_oauth2 auth")
+			return nil, fmt.Errorf("missing credentials for %q auth type", config.Auth.Type)
 		}
 
 		ctx := context.Background()
