@@ -1554,25 +1554,20 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 				if cfg.URL == "" {
 					return fmt.Errorf("URL cannot be empty for http type")
 				}
-				if strings.Contains(cfg.URL, "$appeal") {
-					appealMap, err := a.ToMap()
-					if err != nil {
-						return fmt.Errorf("error converting appeal to map: %w", err)
-					}
-					params := map[string]interface{}{"appeal": appealMap}
-					url, err := evaluator.Expression(cfg.URL).EvaluateWithVars(params)
-					if err != nil {
-						return fmt.Errorf("error evaluating URL expression: %w", err)
-					}
-					urlStr, ok := url.(string)
-					if !ok {
-						return fmt.Errorf("URL expression must evaluate to a string")
-					}
-					cfg.URL = urlStr
+
+				var err error
+				cfg.URL, err = evaluateExpressionWithAppeal(a, cfg.URL)
+				if err != nil {
+					return err
 				}
 
+				cfg.Body, err = evaluateExpressionWithAppeal(a, cfg.Body)
+				if err != nil {
+					return err
+				}
 				clientCreator := &http.HttpClientCreatorStruct{}
 				metadataCl, err := http.NewHTTPClient(&cfg.HTTPClientConfig, clientCreator)
+
 				if err != nil {
 					return fmt.Errorf("key: %s, %w", key, err)
 				}
@@ -1605,6 +1600,7 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 					"response": responseMap,
 					"appeal":   a,
 				}
+
 				value, err := metadata.EvaluateValue(params)
 				if err != nil {
 					return fmt.Errorf("error parsing value: %w", err)
@@ -1784,4 +1780,24 @@ func (s *Service) prepareGrant(ctx context.Context, appeal *domain.Appeal) (newG
 
 func (s *Service) GetAppealsTotalCount(ctx context.Context, filters *domain.ListAppealsFilter) (int64, error) {
 	return s.repo.GetAppealsTotalCount(ctx, filters)
+}
+
+func evaluateExpressionWithAppeal(a *domain.Appeal, expression string) (string, error) {
+	if expression != "" && strings.Contains(expression, "$appeal") {
+		appealMap, err := a.ToMap()
+		if err != nil {
+			return "", fmt.Errorf("error converting appeal to map: %w", err)
+		}
+		params := map[string]interface{}{"appeal": appealMap}
+		evaluated, err := evaluator.Expression(expression).EvaluateWithVars(params)
+		if err != nil {
+			return "", fmt.Errorf("error evaluating expression %w", err)
+		}
+		evaluatedStr, ok := evaluated.(string)
+		if !ok {
+			return "", fmt.Errorf("expression must evaluate to a string")
+		}
+		return evaluatedStr, nil
+	}
+	return expression, nil
 }
