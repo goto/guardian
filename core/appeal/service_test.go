@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"io"
 )
 
 var (
@@ -1580,6 +1581,13 @@ func (s *ServiceTestSuite) TestCreate() {
 	s.Run("should return appeals on success with metadata sources", func() {
 		h := newServiceTestHelper()
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "GET" && r.URL.RawQuery == "/?user=addOnBehalfApprovedNotification-user" {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"message": "success"}`))
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+			}
+
 			// Here you can specify what the server should return when it receives a request
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"message": "success"}`))
@@ -1878,9 +1886,13 @@ func (s *ServiceTestSuite) TestCreate() {
 	s.Run("should return appeals on success with metadata sources for invalid expression", func() {
 		h := newServiceTestHelper()
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Here you can specify what the server should return when it receives a request
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"message": "success"}`))
+			body, _ := io.ReadAll(r.Body)
+			if r.Method == "POST" && string(body) == "{\"user\": addOnBehalfApprovedNotification-user}" {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"message": "success"}`))
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+			}
 		}))
 		url := fmt.Sprintf("'%s?user= + $appeal.account_id", server.URL)
 		expDate := timeNow.Add(23 * time.Hour)
@@ -2068,8 +2080,14 @@ func (s *ServiceTestSuite) TestCreate() {
 		h := newServiceTestHelper()
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Here you can specify what the server should return when it receives a request
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"message": "success"}`))
+
+			body, _ := io.ReadAll(r.Body)
+			if r.Method == "POST" && string(body) == "{\"user\": addOnBehalfApprovedNotification-user}" {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"message": "success"}`))
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+			}
 		}))
 
 		body := "'{\"user\": ' + $appeal.account_id + '}'"
