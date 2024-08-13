@@ -1,19 +1,20 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
-	"net/http"
-
-	"github.com/go-playground/validator/v10"
-	"github.com/mcuadros/go-defaults"
+	validator "github.com/go-playground/validator/v10"
+	defaults "github.com/mcuadros/go-defaults"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/idtoken"
+	"net/http"
 )
 
 type HTTPAuthConfig struct {
-	Type string `mapstructure:"type" json:"type" yaml:"type" validate:"required,oneof=basic api_key bearer google_idtoken"`
+	Type string `mapstructure:"type" json:"type" yaml:"type" validate:"required,oneof=basic api_key bearer google_idtoken google_oauth2"`
 
 	// basic auth
 	Username string `mapstructure:"username,omitempty" json:"username,omitempty" yaml:"username,omitempty" validate:"required_if=Type basic"`
@@ -35,11 +36,12 @@ type HTTPAuthConfig struct {
 
 // HTTPClientConfig is the configuration required by iam.Client
 type HTTPClientConfig struct {
-	URL     string            `mapstructure:"url" json:"url" yaml:"url" validate:"required,url"`
-	Headers map[string]string `mapstructure:"headers,omitempty" json:"headers,omitempty" yaml:"headers,omitempty"`
-	Auth    *HTTPAuthConfig   `mapstructure:"auth,omitempty" json:"auth,omitempty" yaml:"auth,omitempty" validate:"omitempty,dive"`
-
-	HTTPClient *http.Client `mapstructure:"-" json:"-" yaml:"-"`
+	URL        string            `mapstructure:"url" json:"url" yaml:"url" validate:"required,url"`
+	Headers    map[string]string `mapstructure:"headers,omitempty" json:"headers,omitempty" yaml:"headers,omitempty"`
+	Auth       *HTTPAuthConfig   `mapstructure:"auth,omitempty" json:"auth,omitempty" yaml:"auth,omitempty" validate:"omitempty,dive"`
+	Method     string            `mapstructure:"method,omitempty" json:"method,omitempty" yaml:"method,omitempty"`
+	Body       string            `mapstructure:"body,omitempty" json:"body,omitempty" yaml:"body,omitempty"`
+	HTTPClient *http.Client      `mapstructure:"-" json:"-" yaml:"-"`
 	Validator  *validator.Validate
 }
 
@@ -47,12 +49,18 @@ type HTTPClientConfig struct {
 type HTTPClient struct {
 	httpClient *http.Client
 	config     *HTTPClientConfig
+	url        string
+}
+type HttpClientCreatorStruct struct {
+}
 
-	url string
+type HttpClientCreator interface {
+	GetHttpClientForGoogleOAuth2(ctx context.Context, creds []byte) (*http.Client, error)
+	GetHttpClientForGoogleIdToken(ctx context.Context, creds []byte, audience string) (*http.Client, error)
 }
 
 // NewHTTPClient returns *iam.Client
-func NewHTTPClient(config *HTTPClientConfig) (*HTTPClient, error) {
+func NewHTTPClient(config *HTTPClientConfig, clientCreator HttpClientCreator) (*HTTPClient, error) {
 	defaults.SetDefaults(config)
 	if err := validator.New().Struct(config); err != nil {
 		return nil, err
@@ -62,25 +70,32 @@ func NewHTTPClient(config *HTTPClientConfig) (*HTTPClient, error) {
 		httpClient = http.DefaultClient
 	}
 
-	if config.Auth != nil && config.Auth.Type == "google_idtoken" {
+	if config.Auth != nil && (config.Auth.Type == "google_idtoken" || config.Auth.Type == "google_oauth2") {
 		var creds []byte
 		switch {
 		case config.Auth.CredentialsJSONBase64 != "":
-			v, err := base64.StdEncoding.DecodeString(config.Auth.CredentialsJSONBase64)
+			var err error
+			creds, err = decodeCredentials(config.Auth.CredentialsJSONBase64)
 			if err != nil {
-				return nil, fmt.Errorf("decoding credentials_json_base64: %w", err)
+				return nil, err
 			}
-			creds = v
 		default:
-			return nil, fmt.Errorf("missing credentials for google_idtoken auth")
+			return nil, fmt.Errorf("missing credentials for %q auth type", config.Auth.Type)
 		}
 
 		ctx := context.Background()
-		ts, err := idtoken.NewTokenSource(ctx, config.Auth.Audience, idtoken.WithCredentialsJSON(creds))
-		if err != nil {
-			return nil, err
+		var err error
+		if config.Auth.Type == "google_idtoken" {
+			httpClient, err = clientCreator.GetHttpClientForGoogleIdToken(ctx, creds, config.Auth.Audience)
+			if err != nil {
+				return nil, err
+			}
+		} else if config.Auth.Type == "google_oauth2" {
+			httpClient, err = clientCreator.GetHttpClientForGoogleOAuth2(ctx, creds)
+			if err != nil {
+				return nil, err
+			}
 		}
-		httpClient = oauth2.NewClient(ctx, ts)
 	}
 
 	return &HTTPClient{
@@ -88,6 +103,34 @@ func NewHTTPClient(config *HTTPClientConfig) (*HTTPClient, error) {
 		config:     config,
 		url:        config.URL,
 	}, nil
+}
+
+func (c *HTTPClient) GetClient() string {
+	return c.url
+}
+
+func (c *HttpClientCreatorStruct) GetHttpClientForGoogleOAuth2(ctx context.Context, creds []byte) (*http.Client, error) {
+	credsConfig, err := google.CredentialsFromJSON(ctx, creds, "https://www.googleapis.com/auth/cloud-platform")
+	if err != nil {
+		return nil, err
+	}
+	return oauth2.NewClient(ctx, credsConfig.TokenSource), nil
+}
+
+func (c *HttpClientCreatorStruct) GetHttpClientForGoogleIdToken(ctx context.Context, creds []byte, audience string) (*http.Client, error) {
+	ts, err := idtoken.NewTokenSource(ctx, audience, idtoken.WithCredentialsJSON(creds))
+	if err != nil {
+		return nil, err
+	}
+	return oauth2.NewClient(ctx, ts), nil
+}
+
+func decodeCredentials(encodedCreds string) ([]byte, error) {
+	v, err := base64.StdEncoding.DecodeString(encodedCreds)
+	if err != nil {
+		return nil, fmt.Errorf("decoding credentials_json_base64: %w", err)
+	}
+	return v, nil
 }
 
 func (c *HTTPClient) setAuth(req *http.Request) {
@@ -113,10 +156,22 @@ func (c *HTTPClient) setAuth(req *http.Request) {
 }
 
 func (c *HTTPClient) MakeRequest(ctx context.Context) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodGet, c.config.URL, nil)
+	method := "GET"
+	if c.config.Method != "" {
+		method = c.config.Method
+	}
+	var body []byte
+	if c.config.Method == "POST" {
+		if c.config.Body != "" {
+			body = []byte(c.config.Body)
+		}
+	}
+
+	req, err := http.NewRequest(method, c.config.URL, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
+
 	req = req.WithContext(ctx)
 	req.Header.Set("Accept", "application/json")
 
@@ -124,7 +179,6 @@ func (c *HTTPClient) MakeRequest(ctx context.Context) (*http.Response, error) {
 		req.Header.Set(k, v)
 	}
 	c.setAuth(req)
-
 	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
