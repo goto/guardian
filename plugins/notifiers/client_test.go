@@ -141,7 +141,7 @@ func TestNewSlackLarkConfig(t *testing.T) {
 			want: &lark.Config{
 				Workspace: lark.LarkWorkspace{
 					WorkspaceName: "lark",
-					ClientId:      "foo",
+					ClientID:      "foo",
 					ClientSecret:  "foo",
 					Criteria:      "$email contains '@gojek'",
 				},
@@ -189,7 +189,7 @@ func TestNewSlackLarkConfig(t *testing.T) {
 			want: &lark.Config{
 				Workspace: lark.LarkWorkspace{
 					WorkspaceName: "provider",
-					ClientId:      "foo",
+					ClientID:      "foo",
 					ClientSecret:  "foo",
 					Criteria:      ".send_to_slack == true",
 				},
@@ -205,11 +205,11 @@ func TestNewSlackLarkConfig(t *testing.T) {
 			got, err := getLarkConfig(&tt.args.config, domain.NotificationMessages{})
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("NewSlackConfig() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NewLarkConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewSlackConfig() got = %v, want %v", got, tt.want)
+				t.Errorf("NewLarkConfig() got = %v, want %v", got, tt.want)
 			}
 
 		})
