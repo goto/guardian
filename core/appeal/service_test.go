@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"io"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/goto/guardian/core/appeal"
