@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net/http"
+
 	validator "github.com/go-playground/validator/v10"
 	defaults "github.com/mcuadros/go-defaults"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/idtoken"
-	"net/http"
 )
 
 type HTTPAuthConfig struct {

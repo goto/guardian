@@ -103,7 +103,6 @@ func (m *Grant) FromDomain(g domain.Grant) error {
 			Time:  *g.RestoredAt,
 			Valid: true,
 		}
-
 	}
 
 	m.Status = string(g.Status)

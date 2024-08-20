@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,7 +26,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"io"
 )
 
 var (
@@ -4411,7 +4411,6 @@ func (s *ServiceTestSuite) TestPatch() {
 			})
 		}
 	})
-
 }
 
 func (s *ServiceTestSuite) TestUpdateApproval() {
