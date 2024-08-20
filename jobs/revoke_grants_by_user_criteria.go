@@ -192,8 +192,11 @@ func (h *handler) evaluateNewOwner(newOwnerExpr evaluator.Expression, user map[s
 func (h *handler) reassignGrantsOwnership(ctx context.Context, ownedGrants []*domain.Grant, newOwner string) ([]*domain.Grant, []*domain.Grant) {
 	var successfulGrants, failedGrants []*domain.Grant
 	for _, g := range ownedGrants {
-		g.Owner = newOwner
-		if err := h.grantService.Update(ctx, g); err != nil {
+		payload := &domain.GrantUpdate{
+			ID:    g.ID,
+			Owner: &newOwner,
+		}
+		if _, err := h.grantService.Update(ctx, payload); err != nil {
 			failedGrants = append(failedGrants, g)
 			h.logger.Error(ctx, "updating grant owner", "grant_id", g.ID, "existing_owner", g.Owner, "new_owner", newOwner, "error", err)
 			continue

@@ -109,36 +109,39 @@ func (s *Service) GetByID(ctx context.Context, id string) (*domain.Grant, error)
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *Service) Update(ctx context.Context, payload *domain.Grant) error {
-	grantDetails, err := s.GetByID(ctx, payload.ID)
+func (s *Service) Update(ctx context.Context, payload *domain.GrantUpdate) (*domain.Grant, error) {
+	grant, err := s.GetByID(ctx, payload.ID)
 	if err != nil {
-		return fmt.Errorf("getting grant details: %w", err)
+		return nil, fmt.Errorf("getting grant details: %w", err)
+	}
+	previousOwner := grant.Owner
+
+	updatedGrant, err := payload.ToGrant()
+	if err != nil {
+		return nil, err
 	}
 
-	if payload.Owner == "" {
-		return ErrEmptyOwner
-	}
-	updatedGrant := &domain.Grant{
-		ID: payload.ID,
-
-		// Only allow updating several fields
-		Owner: payload.Owner,
-	}
 	if err := s.repo.Update(ctx, updatedGrant); err != nil {
-		return err
+		return nil, err
 	}
-	previousOwner := grantDetails.Owner
-	grantDetails.Owner = updatedGrant.Owner
-	grantDetails.UpdatedAt = updatedGrant.UpdatedAt
-	*payload = *grantDetails
-	s.logger.Info(ctx, "grant updated", "grant_id", grantDetails.ID, "updatedGrant", updatedGrant)
+	grant.Owner = updatedGrant.Owner
+	grant.UpdatedAt = updatedGrant.UpdatedAt
+	// *payload = *updatedGrant
+
+	latestGrant, err := s.GetByID(ctx, grant.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	s.logger.Info(ctx, "grant updated", "grant_id", grant.ID, "updatedGrant", latestGrant)
 
 	go func() {
 		ctx := context.WithoutCancel(ctx)
 		if err := s.auditLogger.Log(ctx, AuditKeyUpdate, map[string]interface{}{
-			"grant_id":      grantDetails.ID,
-			"payload":       updatedGrant,
-			"updated_grant": payload,
+			"grant_id":      grant.ID,
+			"payload":       payload,
+			"updated_grant": latestGrant,
+			// TODO: diff
 		}); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
@@ -149,7 +152,7 @@ func (s *Service) Update(ctx context.Context, payload *domain.Grant) error {
 			message := domain.NotificationMessage{
 				Type: domain.NotificationTypeGrantOwnerChanged,
 				Variables: map[string]interface{}{
-					"grant_id":       grantDetails.ID,
+					"grant_id":       grant.ID,
 					"previous_owner": previousOwner,
 					"new_owner":      updatedGrant.Owner,
 				},
@@ -157,8 +160,8 @@ func (s *Service) Update(ctx context.Context, payload *domain.Grant) error {
 			notifications := []domain.Notification{{
 				User: updatedGrant.Owner,
 				Labels: map[string]string{
-					"appeal_id": grantDetails.AppealID,
-					"grant_id":  grantDetails.ID,
+					"appeal_id": grant.AppealID,
+					"grant_id":  grant.ID,
 				},
 				Message: message,
 			}}
@@ -166,8 +169,8 @@ func (s *Service) Update(ctx context.Context, payload *domain.Grant) error {
 				notifications = append(notifications, domain.Notification{
 					User: previousOwner,
 					Labels: map[string]string{
-						"appeal_id": grantDetails.AppealID,
-						"grant_id":  grantDetails.ID,
+						"appeal_id": grant.AppealID,
+						"grant_id":  grant.ID,
 					},
 					Message: message,
 				})
@@ -181,7 +184,7 @@ func (s *Service) Update(ctx context.Context, payload *domain.Grant) error {
 		}()
 	}
 
-	return nil
+	return grant, nil
 }
 
 func (s *Service) Prepare(ctx context.Context, appeal domain.Appeal) (*domain.Grant, error) {
