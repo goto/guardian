@@ -120,11 +120,9 @@ func (s *GRPCServer) RevokeGrant(ctx context.Context, req *guardianv1beta1.Revok
 }
 
 func (s *GRPCServer) UpdateGrant(ctx context.Context, req *guardianv1beta1.UpdateGrantRequest) (*guardianv1beta1.UpdateGrantResponse, error) {
-	g := &domain.Grant{
-		ID:    req.GetId(),
-		Owner: req.GetOwner(),
-	}
-	if err := s.grantService.Update(ctx, g); err != nil {
+	payload := s.adapter.FromUpdateGrantRequestProto(req)
+	updatedGrant, err := s.grantService.Update(ctx, payload)
+	if err != nil {
 		switch {
 		case errors.Is(err, grant.ErrGrantNotFound):
 			return nil, status.Error(codes.NotFound, err.Error())
@@ -135,7 +133,7 @@ func (s *GRPCServer) UpdateGrant(ctx context.Context, req *guardianv1beta1.Updat
 		}
 	}
 
-	grantProto, err := s.adapter.ToGrantProto(g)
+	grantProto, err := s.adapter.ToGrantProto(updatedGrant)
 	if err != nil {
 		return nil, s.internalError(ctx, "failed to parse grant: %v", err)
 	}

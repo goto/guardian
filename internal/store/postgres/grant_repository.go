@@ -108,6 +108,7 @@ func (r *GrantRepository) Update(ctx context.Context, a *domain.Grant) error {
 	}
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// TODO: use map to update is_permanent to false
 		if err := tx.Model(m).Updates(*m).Error; err != nil {
 			return err
 		}
