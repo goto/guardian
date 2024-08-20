@@ -1079,6 +1079,13 @@
               "properties": {
                 "owner": {
                   "type": "string"
+                },
+                "expirationDate": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "expirationDateReason": {
+                  "type": "string"
                 }
               }
             }

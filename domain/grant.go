@@ -25,6 +25,7 @@ const (
 var (
 	ErrDuplicateActiveGrant      = errors.New("grant already exists")
 	ErrInvalidGrantRestoreParams = errors.New("invalid grant restore parameters")
+	ErrInvalidGrantUpdateRequest = errors.New("invalid grant update request")
 )
 
 type Grant struct {
@@ -122,6 +123,69 @@ func (g *Grant) GetPermissions() []string {
 		permissions = append(permissions, p)
 	}
 	return permissions
+}
+
+type GrantUpdate struct {
+	ID                   string     `json:"id" yaml:"id"`
+	Owner                *string    `json:"owner,omitempty" yaml:"owner,omitempty"`
+	IsPermanent          *bool      `json:"is_permanent,omitempty" yaml:"is_permanent,omitempty"`
+	ExpirationDate       *time.Time `json:"expiration_date,omitempty" yaml:"expiration_date,omitempty"`
+	ExpirationDateReason *string    `json:"expiration_date_reason,omitempty" yaml:"expiration_date_reason,omitempty"`
+}
+
+func (gu *GrantUpdate) isUpdatingExpirationDate() bool {
+	return gu.isUpdatingToPermanent() || gu.ExpirationDate != nil
+}
+
+func (gu *GrantUpdate) isUpdatingToPermanent() bool {
+	return gu.IsPermanent != nil && *gu.IsPermanent
+}
+
+func (gu *GrantUpdate) validate() error {
+	if gu.ID == "" {
+		return errors.New("grant ID is required")
+	}
+
+	// owner
+	if gu.Owner != nil && *gu.Owner == "" {
+		return errors.New("owner should not be empty")
+	}
+
+	// expiration date
+	if gu.isUpdatingExpirationDate() {
+		if gu.isUpdatingToPermanent() && gu.ExpirationDate != nil {
+			return errors.New("expiration date should be nil for permanent grant")
+		} else if gu.ExpirationDate != nil && gu.ExpirationDate.Before(time.Now()) {
+			return errors.New("expiration date can't be in the past")
+		}
+		if gu.ExpirationDateReason == nil || *gu.ExpirationDateReason == "" {
+			return errors.New("expiration date reason is required")
+		}
+	}
+
+	return nil
+}
+
+func (gu *GrantUpdate) ToGrant() (*Grant, error) {
+	if err := gu.validate(); err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidGrantUpdateRequest, err)
+	}
+
+	g := &Grant{
+		ID: gu.ID,
+	}
+
+	if gu.Owner != nil {
+		g.Owner = *gu.Owner
+	}
+
+	if gu.isUpdatingExpirationDate() {
+		g.IsPermanent = gu.isUpdatingToPermanent()
+		g.ExpirationDate = gu.ExpirationDate
+		g.ExpirationDateReason = *gu.ExpirationDateReason
+	}
+
+	return g, nil
 }
 
 type ListGrantsFilter struct {
