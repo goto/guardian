@@ -901,9 +901,11 @@ func (a *adapter) FromUpdateGrantRequestProto(grantUpdate *guardianv1beta1.Updat
 
 	gu := &domain.GrantUpdate{
 		ID:                   grantUpdate.GetId(),
-		Owner:                &grantUpdate.Owner,
 		IsPermanent:          grantUpdate.IsPermanent,
 		ExpirationDateReason: grantUpdate.ExpirationDateReason,
+	}
+	if grantUpdate.GetOwner() != "" {
+		gu.Owner = &grantUpdate.Owner
 	}
 
 	if grantUpdate.ExpirationDate != nil {
