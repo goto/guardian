@@ -312,12 +312,12 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			return err
 		}
 
-		if err := s.populateAppealMetadata(ctx, appeal, policy); err != nil {
-			return fmt.Errorf("getting appeal metadata: %w", err)
-		}
-
 		if err := s.addCreatorDetails(ctx, appeal, policy); err != nil {
 			return fmt.Errorf("getting creator details: %w", err)
+		}
+		
+		if err := s.populateAppealMetadata(ctx, appeal, policy); err != nil {
+			return fmt.Errorf("getting appeal metadata: %w", err)
 		}
 
 		appeal.Revision = 0
