@@ -147,14 +147,9 @@ func (s *ServiceTestSuite) TestUpdate() {
 		}
 
 		newOwner := "new-owner@example.com"
-		updatePayload := &domain.GrantUpdate{
+		updatePayload := domain.GrantUpdate{
 			ID:    id,
 			Owner: &newOwner,
-		}
-
-		expectedUpdateParam := &domain.Grant{
-			ID:    id,
-			Owner: "new-owner@example.com",
 		}
 
 		expectedUpdatedGrant := &domain.Grant{}
@@ -166,10 +161,8 @@ func (s *ServiceTestSuite) TestUpdate() {
 			GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), id).
 			Return(existingGrant, nil).Once()
 		s.mockRepository.EXPECT().
-			Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedUpdateParam).
-			Return(nil).Run(func(_a0 context.Context, g *domain.Grant) {
-			g.UpdatedAt = time.Now()
-		}).Once()
+			Patch(mock.MatchedBy(func(ctx context.Context) bool { return true }), updatePayload).
+			Return(nil).Once()
 		s.mockRepository.EXPECT().
 			GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), id).
 			Return(expectedUpdatedGrant, nil).Once()
@@ -201,7 +194,7 @@ func (s *ServiceTestSuite) TestUpdate() {
 		s.mockNotifier.EXPECT().
 			Notify(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedNotifications).Return(nil).Once()
 
-		updatedGrant, actualError := s.service.Update(context.Background(), updatePayload)
+		updatedGrant, actualError := s.service.Update(context.Background(), &updatePayload)
 		s.NoError(actualError)
 		s.Empty(cmp.Diff(expectedUpdatedGrant, updatedGrant, cmpopts.EquateApproxTime(time.Second)))
 	})
