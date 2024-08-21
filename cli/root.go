@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"context"
+
 	"github.com/MakeNowJust/heredoc"
 	handlerv1beta1 "github.com/goto/guardian/api/handler/v1beta1"
-	"github.com/goto/guardian/pkg/tracing"
+	"github.com/goto/guardian/pkg/opentelemetry"
 	"github.com/goto/salt/cmdx"
 	"github.com/spf13/cobra"
 )
@@ -31,11 +33,18 @@ func New(cfg *Config) *cobra.Command {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// initialize tracing
 			var err error
-			shutdown, err = tracing.InitTracer(cfg.Telemetry)
+			ctx := context.Background()
+			shutdownOtel, err := opentelemetry.Init(ctx, opentelemetry.Config{
+				ServiceName:      cfg.Telemetry.ServiceName,
+				ServiceVersion:   cfg.Telemetry.ServiceVersion,
+				SamplingFraction: cfg.Telemetry.SamplingFraction,
+				MetricInterval:   cfg.Telemetry.MetricInterval,
+				CollectorAddr:    cfg.Telemetry.OTLP.Endpoint,
+			})
 			if err != nil {
 				return err
 			}
-
+			defer shutdownOtel()
 			return nil
 		},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {

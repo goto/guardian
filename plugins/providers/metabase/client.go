@@ -15,7 +15,7 @@ import (
 	"sync"
 
 	"github.com/goto/guardian/pkg/log"
-	"github.com/goto/guardian/pkg/tracing"
+	"github.com/goto/guardian/pkg/opentelemetry"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -143,7 +143,7 @@ func NewClient(config *ClientConfig, logger log.Logger) (*client, error) {
 
 	httpClient := config.HTTPClient
 	if httpClient == nil {
-		httpClient = tracing.NewHttpClient("MetabaseHttpClient")
+		httpClient = opentelemetry.NewHttpClient("MetabaseHttpClient")
 	}
 
 	c := &client{
