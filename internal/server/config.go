@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 
+	gConfig "github.com/goto/guardian/config"
 	"github.com/goto/guardian/internal/store"
 	"github.com/goto/guardian/jobs"
 	"github.com/goto/guardian/pkg/auth"
-	"github.com/goto/guardian/pkg/tracing"
 	"github.com/goto/guardian/plugins/notifiers"
 	"github.com/goto/salt/config"
 )
@@ -39,11 +39,11 @@ type Config struct {
 	LogLevel               string           `mapstructure:"log_level" default:"info"`
 	DB                     store.Config     `mapstructure:"db"`
 	// Deprecated: use Auth.Default.HeaderKey instead note on the AuthenticatedUserHeaderKey
-	AuthenticatedUserHeaderKey string         `mapstructure:"authenticated_user_header_key"`
-	AuditLogTraceIDHeaderKey   string         `mapstructure:"audit_log_trace_id_header_key" default:"X-Trace-Id"`
-	Jobs                       Jobs           `mapstructure:"jobs"`
-	Telemetry                  tracing.Config `mapstructure:"telemetry"`
-	Auth                       Auth           `mapstructure:"auth"`
+	AuthenticatedUserHeaderKey string                  `mapstructure:"authenticated_user_header_key"`
+	AuditLogTraceIDHeaderKey   string                  `mapstructure:"audit_log_trace_id_header_key" default:"X-Trace-Id"`
+	Jobs                       Jobs                    `mapstructure:"jobs"`
+	Telemetry                  gConfig.TelemetryConfig `mapstructure:"telemetry"`
+	Auth                       Auth                    `mapstructure:"auth"`
 }
 
 type GRPCConfig struct {
