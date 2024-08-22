@@ -195,6 +195,7 @@ func (h *handler) reassignGrantsOwnership(ctx context.Context, ownedGrants []*do
 		payload := &domain.GrantUpdate{
 			ID:    g.ID,
 			Owner: &newOwner,
+			Actor: domain.SystemActorName,
 		}
 		if _, err := h.grantService.Update(ctx, payload); err != nil {
 			failedGrants = append(failedGrants, g)

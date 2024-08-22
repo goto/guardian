@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/goto/guardian/pkg/diff"
 )
 
 type GrantStatus string
@@ -125,12 +127,32 @@ func (g *Grant) GetPermissions() []string {
 	return permissions
 }
 
+func (g *Grant) Compare(old *Grant) ([]*DiffItem, error) {
+	diff, err := diff.Compare(old, g)
+	if err != nil {
+		return nil, err
+	}
+
+	diffItems := make([]*DiffItem, 0, len(diff))
+	for _, d := range diff {
+		diffItems = append(diffItems, &DiffItem{
+			Op:       d.Op,
+			Path:     d.Path,
+			OldValue: d.OldValue,
+			NewValue: d.NewValue,
+		})
+	}
+	return diffItems, nil
+}
+
 type GrantUpdate struct {
 	ID                   string     `json:"id" yaml:"id"`
 	Owner                *string    `json:"owner,omitempty" yaml:"owner,omitempty"`
 	IsPermanent          *bool      `json:"is_permanent,omitempty" yaml:"is_permanent,omitempty"`
 	ExpirationDate       *time.Time `json:"expiration_date,omitempty" yaml:"expiration_date,omitempty"`
 	ExpirationDateReason *string    `json:"expiration_date_reason,omitempty" yaml:"expiration_date_reason,omitempty"`
+
+	Actor string `json:"actor" yaml:"actor"`
 }
 
 func (gu *GrantUpdate) IsUpdatingExpirationDate() bool {
