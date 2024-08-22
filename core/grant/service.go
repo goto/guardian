@@ -141,12 +141,21 @@ func (s *Service) Update(ctx context.Context, payload *domain.GrantUpdate) (*dom
 	s.logger.Info(ctx, "grant updated", "grant_id", grant.ID, "updatedGrant", latestGrant)
 
 	go func() {
+		diff, err := latestGrant.Compare(grant)
+		if err != nil {
+			s.logger.Error(ctx, "failed to compare grant", "error", err)
+			return
+		}
+		for _, d := range diff {
+			d.Actor = payload.Actor
+		}
+
 		ctx := context.WithoutCancel(ctx)
 		if err := s.auditLogger.Log(ctx, AuditKeyUpdate, map[string]interface{}{
 			"grant_id":      payload.ID,
 			"payload":       payload,
 			"updated_grant": latestGrant,
-			// TODO: diff
+			"diff":          diff,
 		}); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
