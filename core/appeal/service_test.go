@@ -1581,16 +1581,12 @@ func (s *ServiceTestSuite) TestCreate() {
 	s.Run("should return appeals on success with metadata sources", func() {
 		h := newServiceTestHelper()
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == "GET" && r.URL.RawQuery == "/?user=addOnBehalfApprovedNotification-user" {
+			if r.Method == "GET" && r.URL.RawQuery == "user=addOnBehalfApprovedNotification-user" {
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte(`{"message": "success"}`))
 			} else {
 				w.WriteHeader(http.StatusBadRequest)
 			}
-
-			// Here you can specify what the server should return when it receives a request
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"message": "success"}`))
 		}))
 		url := fmt.Sprintf("'%s?user=' + $appeal.account_id", server.URL)
 		expDate := timeNow.Add(23 * time.Hour)
@@ -1883,7 +1879,7 @@ func (s *ServiceTestSuite) TestCreate() {
 		h.assertExpectations(s.T())
 	})
 
-	s.Run("should return appeals on success with metadata sources for invalid expression", func() {
+	s.Run("should return error for invalid expression for metadata sources", func() {
 		h := newServiceTestHelper()
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			body, _ := io.ReadAll(r.Body)
@@ -2078,6 +2074,393 @@ func (s *ServiceTestSuite) TestCreate() {
 			GetUser(accountID).Return(nil, errors.New("404 not found")).Once()
 		actualError := h.service.Create(context.Background(), appeals)
 		s.NotNil(actualError)
+		time.Sleep(time.Millisecond)
+		h.assertExpectations(s.T())
+	})
+
+	s.Run("should return error if http call returns not 2xx response when allow failed is false", func() {
+		h := newServiceTestHelper()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+		}))
+		url := fmt.Sprintf("'%s?user=' + $appeal.account_id", server.URL)
+		expDate := timeNow.Add(23 * time.Hour)
+
+		resources := []*domain.Resource{
+			{
+				ID:           "1",
+				Type:         "resource_type_1",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider1",
+				Details: map[string]interface{}{
+					"owner": []string{"resource.owner@email.com"},
+				},
+			},
+			{
+				ID:           "2",
+				Type:         "resource_type_2",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider1",
+				Details: map[string]interface{}{
+					"owner": []string{"resource.owner@email.com"},
+				},
+			},
+		}
+		providers := []*domain.Provider{
+			{
+				ID:   "1",
+				Type: "provider_type",
+				URN:  "provider1",
+				Config: &domain.ProviderConfig{
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess:         true,
+						AllowActiveAccessExtensionIn: "24h",
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "resource_type_1",
+							Policy: &domain.PolicyConfig{ // specify policy with version
+								ID:      "policy_1",
+								Version: 1,
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "role_id",
+									Permissions: []interface{}{"test-permission-1"},
+								},
+							},
+						},
+						{
+							Type: "resource_type_2",
+							Policy: &domain.PolicyConfig{ // specify policy without version (always use latest)
+								ID: "policy_2",
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "role_id",
+									Permissions: []interface{}{"test-permission-1"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		policies := []*domain.Policy{
+			{
+				ID:      "policy_1",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:     "step_1",
+						Strategy: "manual",
+						Approvers: []string{
+							"$appeal.resource.details.owner",
+						},
+					},
+					{
+						Name:     "step_2",
+						Strategy: "manual",
+						Approvers: []string{
+							`$appeal.creator != nil ? $appeal.creator.managers : "approver@example.com"`,
+						},
+					},
+				},
+				IAM: &domain.IAMConfig{
+					Provider: "http",
+					Config: map[string]interface{}{
+						"url": "http://localhost",
+					},
+					Schema: map[string]string{
+						"managers": `managers`,
+						"name":     "name",
+						"role":     `$response.roles[0].name`,
+						"roles":    `map($response.roles, {#.name})`,
+					},
+				},
+				AppealConfig: &domain.PolicyAppealConfig{
+					AllowOnBehalf:              true,
+					AllowCreatorDetailsFailure: true,
+					MetadataSources: map[string]*domain.AppealMetadataSource{
+						"source1": {
+							Name:        "test",
+							Description: "test",
+							Type:        "http",
+							Config: map[string]interface{}{
+								"url":    url,
+								"method": "GET",
+							},
+							Value: "$response.body.message",
+						},
+					},
+				},
+			},
+		}
+		expectedExistingAppeals := []*domain.Appeal{}
+		expectedActiveGrants := []domain.Grant{
+			{
+				ID:         "99",
+				AccountID:  accountID,
+				ResourceID: "1",
+				Resource: &domain.Resource{
+					ID:  "1",
+					URN: "urn",
+				},
+				Role:           "role_id",
+				Status:         domain.GrantStatusActive,
+				ExpirationDate: &expDate,
+			},
+		}
+		expectedResourceFilters := domain.ListResourcesFilter{IDs: []string{resources[0].ID}}
+		expectedExistingAppealsFilters := &domain.ListAppealsFilter{
+			Statuses:   []string{domain.AppealStatusPending},
+			AccountIDs: []string{"addOnBehalfApprovedNotification-user"},
+		}
+
+		appeals := []*domain.Appeal{
+			{
+				CreatedBy:  accountID,
+				AccountID:  "addOnBehalfApprovedNotification-user",
+				ResourceID: "1",
+				Resource: &domain.Resource{
+					ID:  "1",
+					URN: "urn",
+				},
+				Role:        "role_id",
+				Description: "The answer is 42",
+			},
+		}
+
+		defer server.Close()
+
+		h.mockResourceService.EXPECT().
+			Find(mock.Anything, expectedResourceFilters).Return(resources, nil).Once()
+		h.mockProviderService.EXPECT().
+			Find(mock.Anything).Return(providers, nil).Once()
+		h.mockPolicyService.EXPECT().
+			Find(mock.Anything).Return(policies, nil).Once()
+		h.mockRepository.EXPECT().
+			Find(h.ctxMatcher, expectedExistingAppealsFilters).
+			Return(expectedExistingAppeals, nil).Once()
+		for _, a := range appeals {
+			h.mockGrantService.EXPECT().
+				List(h.ctxMatcher, domain.ListGrantsFilter{
+					Statuses:    []string{string(domain.GrantStatusActive)},
+					AccountIDs:  []string{a.AccountID},
+					ResourceIDs: []string{a.ResourceID},
+					Roles:       []string{a.Role},
+					OrderBy:     []string{"updated_at:desc"},
+				}).
+				Return(expectedActiveGrants, nil).Once()
+		}
+		h.mockProviderService.EXPECT().
+			ValidateAppeal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		h.mockProviderService.EXPECT().
+			GetPermissions(mock.Anything, mock.Anything, mock.AnythingOfType("string"), "role_id").
+			Return([]interface{}{"test-permission-1"}, nil)
+		h.mockIAMManager.EXPECT().
+			ParseConfig(mock.Anything).Return(nil, nil)
+		h.mockIAMManager.EXPECT().
+			GetClient(mock.Anything).Return(h.mockIAMClient, nil)
+
+		h.mockIAMClient.EXPECT().
+			GetUser(accountID).Return(nil, errors.New("404 not found")).Once()
+		actualError := h.service.Create(context.Background(), appeals)
+		s.Equal(fmt.Sprintf("getting appeal metadata: status 2xx not received for metadata key source1 from url %s?user=addOnBehalfApprovedNotification-user, method: GET, body: ", server.URL), actualError.Error())
+		time.Sleep(time.Millisecond)
+		h.assertExpectations(s.T())
+	})
+
+	s.Run("should return error if http call returns not 2xx response when allow failed is true", func() {
+		h := newServiceTestHelper()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+		}))
+		url := fmt.Sprintf("'%s?user=' + $appeal.account_id", server.URL)
+		expDate := timeNow.Add(23 * time.Hour)
+
+		resources := []*domain.Resource{
+			{
+				ID:           "1",
+				Type:         "resource_type_1",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider1",
+				Details: map[string]interface{}{
+					"owner": []string{"resource.owner@email.com"},
+				},
+			},
+			{
+				ID:           "2",
+				Type:         "resource_type_2",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider1",
+				Details: map[string]interface{}{
+					"owner": []string{"resource.owner@email.com"},
+				},
+			},
+		}
+		providers := []*domain.Provider{
+			{
+				ID:   "1",
+				Type: "provider_type",
+				URN:  "provider1",
+				Config: &domain.ProviderConfig{
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess:         true,
+						AllowActiveAccessExtensionIn: "24h",
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "resource_type_1",
+							Policy: &domain.PolicyConfig{ // specify policy with version
+								ID:      "policy_1",
+								Version: 1,
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "role_id",
+									Permissions: []interface{}{"test-permission-1"},
+								},
+							},
+						},
+						{
+							Type: "resource_type_2",
+							Policy: &domain.PolicyConfig{ // specify policy without version (always use latest)
+								ID: "policy_2",
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "role_id",
+									Permissions: []interface{}{"test-permission-1"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		policies := []*domain.Policy{
+			{
+				ID:      "policy_1",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:     "step_1",
+						Strategy: "manual",
+						Approvers: []string{
+							"$appeal.resource.details.owner",
+						},
+					},
+					{
+						Name:     "step_2",
+						Strategy: "manual",
+						Approvers: []string{
+							`$appeal.creator != nil ? $appeal.creator.managers : "approver@example.com"`,
+						},
+					},
+				},
+				IAM: &domain.IAMConfig{
+					Provider: "http",
+					Config: map[string]interface{}{
+						"url": "http://localhost",
+					},
+					Schema: map[string]string{
+						"managers": `managers`,
+						"name":     "name",
+						"role":     `$response.roles[0].name`,
+						"roles":    `map($response.roles, {#.name})`,
+					},
+				},
+				AppealConfig: &domain.PolicyAppealConfig{
+					AllowOnBehalf:              true,
+					AllowCreatorDetailsFailure: true,
+					MetadataSources: map[string]*domain.AppealMetadataSource{
+						"source1": {
+							Name:        "test",
+							Description: "test",
+							Type:        "http",
+							Config: map[string]interface{}{
+								"url":          url,
+								"method":       "GET",
+								"allow_failed": true,
+							},
+							Value: "$response.body.message",
+						},
+					},
+				},
+			},
+		}
+		expectedExistingAppeals := []*domain.Appeal{}
+		expectedActiveGrants := []domain.Grant{
+			{
+				ID:         "99",
+				AccountID:  accountID,
+				ResourceID: "1",
+				Resource: &domain.Resource{
+					ID:  "1",
+					URN: "urn",
+				},
+				Role:           "role_id",
+				Status:         domain.GrantStatusActive,
+				ExpirationDate: &expDate,
+			},
+		}
+		expectedResourceFilters := domain.ListResourcesFilter{IDs: []string{resources[0].ID}}
+		expectedExistingAppealsFilters := &domain.ListAppealsFilter{
+			Statuses:   []string{domain.AppealStatusPending},
+			AccountIDs: []string{"addOnBehalfApprovedNotification-user"},
+		}
+
+		appeals := []*domain.Appeal{
+			{
+				CreatedBy:  accountID,
+				AccountID:  "addOnBehalfApprovedNotification-user",
+				ResourceID: "1",
+				Resource: &domain.Resource{
+					ID:  "1",
+					URN: "urn",
+				},
+				Role:        "role_id",
+				Description: "The answer is 42",
+			},
+		}
+
+		defer server.Close()
+
+		h.mockResourceService.EXPECT().
+			Find(mock.Anything, expectedResourceFilters).Return(resources, nil).Once()
+		h.mockProviderService.EXPECT().
+			Find(mock.Anything).Return(providers, nil).Once()
+		h.mockPolicyService.EXPECT().
+			Find(mock.Anything).Return(policies, nil).Once()
+		h.mockRepository.EXPECT().
+			Find(h.ctxMatcher, expectedExistingAppealsFilters).
+			Return(expectedExistingAppeals, nil).Once()
+		for _, a := range appeals {
+			h.mockGrantService.EXPECT().
+				List(h.ctxMatcher, domain.ListGrantsFilter{
+					Statuses:    []string{string(domain.GrantStatusActive)},
+					AccountIDs:  []string{a.AccountID},
+					ResourceIDs: []string{a.ResourceID},
+					Roles:       []string{a.Role},
+					OrderBy:     []string{"updated_at:desc"},
+				}).
+				Return(expectedActiveGrants, nil).Once()
+		}
+		h.mockProviderService.EXPECT().
+			ValidateAppeal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		h.mockProviderService.EXPECT().
+			GetPermissions(mock.Anything, mock.Anything, mock.AnythingOfType("string"), "role_id").
+			Return([]interface{}{"test-permission-1"}, nil)
+		h.mockIAMManager.EXPECT().
+			ParseConfig(mock.Anything).Return(nil, nil)
+		h.mockIAMManager.EXPECT().
+			GetClient(mock.Anything).Return(h.mockIAMClient, nil)
+
+		h.mockIAMClient.EXPECT().
+			GetUser(accountID).Return(nil, errors.New("404 not found")).Once()
+		actualError := h.service.Create(context.Background(), appeals)
+		s.Equal("getting appeal metadata: error unmarshaling response body: unexpected end of JSON input", actualError.Error())
 		time.Sleep(time.Millisecond)
 		h.assertExpectations(s.T())
 	})
