@@ -30,7 +30,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.9.0
-	github.com/uptrace/opentelemetry-go-extra/otelgorm v0.2.4
+	github.com/uptrace/opentelemetry-go-extra/otelgorm v0.1.21
 	github.com/wI2L/jsondiff v0.5.2
 	github.com/xanzy/go-gitlab v0.98.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.28.0
@@ -55,7 +55,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/datatypes v1.0.0
 	gorm.io/driver/postgres v1.4.7
-	gorm.io/gorm v1.25.7
+	gorm.io/gorm v1.25.1
 )
 
 require (
