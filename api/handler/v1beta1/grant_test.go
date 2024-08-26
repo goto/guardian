@@ -318,10 +318,12 @@ func (s *GrpcHandlersSuite) TestUpdateGrant() {
 	s.Run("should return grant details on succes", func() {
 		s.setup()
 
+		actor := "actor@example.com"
 		newOwner := "test-owner"
 		expectedPayload := &domain.GrantUpdate{
 			ID:    "test-id",
 			Owner: &newOwner,
+			Actor: actor,
 		}
 		now := time.Now()
 		expectedLatestGrant := &domain.Grant{
@@ -337,7 +339,8 @@ func (s *GrpcHandlersSuite) TestUpdateGrant() {
 			Id:    "test-id",
 			Owner: "test-owner",
 		}
-		res, err := s.grpcServer.UpdateGrant(context.Background(), req)
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, actor)
+		res, err := s.grpcServer.UpdateGrant(ctx, req)
 
 		s.NoError(err)
 		s.Equal(expectedLatestGrant.ID, res.Grant.Id)
@@ -376,11 +379,13 @@ func (s *GrpcHandlersSuite) TestUpdateGrant() {
 					Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*domain.GrantUpdate")).
 					Return(nil, tc.expectedError).Once()
 
+				actor := "actor@example.com"
 				req := &guardianv1beta1.UpdateGrantRequest{
 					Id:    "test-id",
 					Owner: "test-owner",
 				}
-				res, err := s.grpcServer.UpdateGrant(context.Background(), req)
+				ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, actor)
+				res, err := s.grpcServer.UpdateGrant(ctx, req)
 
 				s.Equal(tc.expectedCode, status.Code(err))
 				s.Nil(res)

@@ -120,7 +120,13 @@ func (s *GRPCServer) RevokeGrant(ctx context.Context, req *guardianv1beta1.Revok
 }
 
 func (s *GRPCServer) UpdateGrant(ctx context.Context, req *guardianv1beta1.UpdateGrantRequest) (*guardianv1beta1.UpdateGrantResponse, error) {
+	actor, err := s.getUser(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, "failed to get metadata: actor")
+	}
+
 	payload := s.adapter.FromUpdateGrantRequestProto(req)
+	payload.Actor = actor
 	updatedGrant, err := s.grantService.Update(ctx, payload)
 	if err != nil {
 		switch {
