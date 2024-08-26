@@ -127,7 +127,7 @@ func (g *Grant) GetPermissions() []string {
 	return permissions
 }
 
-func (g *Grant) Compare(old *Grant) ([]*DiffItem, error) {
+func (g *Grant) Compare(old *Grant, actor string) ([]*DiffItem, error) {
 	diff, err := diff.Compare(old, g)
 	if err != nil {
 		return nil, err
@@ -135,12 +135,19 @@ func (g *Grant) Compare(old *Grant) ([]*DiffItem, error) {
 
 	diffItems := make([]*DiffItem, 0, len(diff))
 	for _, d := range diff {
-		diffItems = append(diffItems, &DiffItem{
+		di := &DiffItem{
 			Op:       d.Op,
 			Path:     d.Path,
 			OldValue: d.OldValue,
 			NewValue: d.NewValue,
-		})
+			Actor:    SystemActorName,
+		}
+		switch di.Path {
+		case "expiration_date", "expiration_date_reason", "is_permanent", "owner":
+			di.Actor = actor
+		}
+
+		diffItems = append(diffItems, di)
 	}
 	return diffItems, nil
 }

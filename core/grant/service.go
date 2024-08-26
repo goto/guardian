@@ -141,13 +141,10 @@ func (s *Service) Update(ctx context.Context, payload *domain.GrantUpdate) (*dom
 	s.logger.Info(ctx, "grant updated", "grant_id", grant.ID, "updatedGrant", latestGrant)
 
 	go func() {
-		diff, err := latestGrant.Compare(grant)
+		diff, err := latestGrant.Compare(grant, payload.Actor)
 		if err != nil {
 			s.logger.Error(ctx, "failed to compare grant", "error", err)
 			return
-		}
-		for _, d := range diff {
-			d.Actor = payload.Actor
 		}
 
 		ctx := context.WithoutCancel(ctx)
