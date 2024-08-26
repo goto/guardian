@@ -2069,7 +2069,13 @@ func (s *ServiceTestSuite) TestCreate() {
 		h.mockProviderService.EXPECT().
 			GetPermissions(mock.Anything, mock.Anything, mock.AnythingOfType("string"), "role_id").
 			Return([]interface{}{"test-permission-1"}, nil)
+		h.mockIAMManager.EXPECT().
+			ParseConfig(mock.Anything).Return(nil, nil)
+		h.mockIAMManager.EXPECT().
+			GetClient(mock.Anything).Return(h.mockIAMClient, nil)
 
+		h.mockIAMClient.EXPECT().
+			GetUser(accountID).Return(nil, errors.New("404 not found")).Once()
 		actualError := h.service.Create(context.Background(), appeals)
 		s.NotNil(actualError)
 		time.Sleep(time.Millisecond)
