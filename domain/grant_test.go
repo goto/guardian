@@ -14,6 +14,7 @@ func TestGrantUpdate_Validate(t *testing.T) {
 		emptyString := ""
 		testCases := []struct {
 			name             string
+			currentGrant     domain.Grant
 			grantUpdate      *domain.GrantUpdate
 			expectedErrorMsg string
 		}{
@@ -35,7 +36,7 @@ func TestGrantUpdate_Validate(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				tc.grantUpdate.ID = "test-id"
-				err := tc.grantUpdate.Validate()
+				err := tc.grantUpdate.Validate(tc.currentGrant)
 				if tc.expectedErrorMsg != "" {
 					assert.ErrorContains(t, err, tc.expectedErrorMsg)
 				} else {
@@ -46,66 +47,40 @@ func TestGrantUpdate_Validate(t *testing.T) {
 	})
 
 	t.Run("update expiration date", func(t *testing.T) {
-		trueBoolean := true
-		falseBoolean := false
 		yesterday := time.Now().Add(-24 * time.Hour)
 		tomorrow := time.Now().Add(24 * time.Hour)
+		afterTomorrow := time.Now().Add(48 * time.Hour)
 		reason := "test reason"
 		emptyString := ""
 		testCases := []struct {
 			name             string
+			currentGrant     domain.Grant
 			grantUpdate      *domain.GrantUpdate
 			expectedErrorMsg string
 		}{
 			// success scenarios
 			{
-				name: "update to permanent",
-				grantUpdate: &domain.GrantUpdate{
-					IsPermanent:          &trueBoolean,
-					ExpirationDateReason: &reason,
+				name: "reduce expiration date",
+				currentGrant: domain.Grant{
+					ExpirationDate: &afterTomorrow,
 				},
-			},
-			{
-				name: "update to non-permanent",
 				grantUpdate: &domain.GrantUpdate{
 					ExpirationDate:       &tomorrow,
 					ExpirationDateReason: &reason,
 				},
 			},
 			{
-				name: "update to non-permanent with explicit is_permanent=false",
+				name: "update permanent grant to non-permanent",
+				currentGrant: domain.Grant{
+					IsPermanent: true,
+				},
 				grantUpdate: &domain.GrantUpdate{
-					IsPermanent:          &falseBoolean,
 					ExpirationDate:       &tomorrow,
 					ExpirationDateReason: &reason,
 				},
 			},
 
 			// failed scenarios
-			{
-				name: "update to permanent should not specify expiration_date",
-				grantUpdate: &domain.GrantUpdate{
-					IsPermanent:          &trueBoolean,
-					ExpirationDate:       &tomorrow, // unexpectedd
-					ExpirationDateReason: &reason,
-				},
-				expectedErrorMsg: "expiration date should be nil for updating grant to permanent",
-			},
-			{
-				name: "update to permanent without reason should break",
-				grantUpdate: &domain.GrantUpdate{
-					IsPermanent: &trueBoolean,
-				},
-				expectedErrorMsg: "expiration date reason is required",
-			},
-			{
-				name: "update to permanent with empty reason should break",
-				grantUpdate: &domain.GrantUpdate{
-					IsPermanent:          &trueBoolean,
-					ExpirationDateReason: &emptyString,
-				},
-				expectedErrorMsg: "expiration date reason is required",
-			},
 			{
 				name: "update to non-permanent; expiration date should not be in the past",
 				grantUpdate: &domain.GrantUpdate{
@@ -130,25 +105,29 @@ func TestGrantUpdate_Validate(t *testing.T) {
 				expectedErrorMsg: "expiration date reason is required",
 			},
 			{
-				name: "update to non-permanent with is_permanent=false without expiration_date should break",
-				grantUpdate: &domain.GrantUpdate{
-					IsPermanent: &falseBoolean,
-				},
-				expectedErrorMsg: "expiration date is required",
-			},
-			{
 				name: "specify reason without is_permanent and expiration_date specified should break",
 				grantUpdate: &domain.GrantUpdate{
 					ExpirationDateReason: &reason,
 				},
 				expectedErrorMsg: "expiration date is required",
 			},
+			{
+				name: "new exp date more than current exp date",
+				currentGrant: domain.Grant{
+					ExpirationDate: &tomorrow,
+				},
+				grantUpdate: &domain.GrantUpdate{
+					ExpirationDate:       &afterTomorrow,
+					ExpirationDateReason: &reason,
+				},
+				expectedErrorMsg: "expiration date should be less than existing",
+			},
 		}
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				tc.grantUpdate.ID = "test-id"
-				err := tc.grantUpdate.Validate()
+				err := tc.grantUpdate.Validate(tc.currentGrant)
 				if tc.expectedErrorMsg != "" {
 					assert.ErrorContains(t, err, tc.expectedErrorMsg)
 				} else {
