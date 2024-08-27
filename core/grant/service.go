@@ -117,17 +117,13 @@ func (s *Service) Update(ctx context.Context, payload *domain.GrantUpdate) (*dom
 	}
 	previousOwner := grant.Owner
 
-	if err := payload.Validate(); err != nil {
+	if err := payload.Validate(*grant); err != nil {
 		return nil, fmt.Errorf("%w: %s", domain.ErrInvalidGrantUpdateRequest, err)
 	}
 
 	if payload.IsUpdatingExpirationDate() {
-		if payload.IsPermanent != nil && *payload.IsPermanent {
-			payload.ExpirationDate = &time.Time{}
-		} else if payload.ExpirationDate != nil {
-			falseBool := false
-			payload.IsPermanent = &falseBool
-		}
+		falseBool := false
+		payload.IsPermanent = &falseBool
 	}
 	if err := s.repo.Patch(ctx, *payload); err != nil {
 		return nil, err

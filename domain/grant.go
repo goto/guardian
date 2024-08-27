@@ -163,10 +163,10 @@ type GrantUpdate struct {
 }
 
 func (gu *GrantUpdate) IsUpdatingExpirationDate() bool {
-	return gu.IsPermanent != nil || gu.ExpirationDate != nil || gu.ExpirationDateReason != nil
+	return gu.ExpirationDate != nil || gu.ExpirationDateReason != nil
 }
 
-func (gu *GrantUpdate) Validate() error {
+func (gu *GrantUpdate) Validate(current Grant) error {
 	if gu.ID == "" {
 		return errors.New("grant ID is required")
 	}
@@ -178,16 +178,12 @@ func (gu *GrantUpdate) Validate() error {
 
 	// expiration date
 	if gu.IsUpdatingExpirationDate() {
-		if gu.IsPermanent != nil && *gu.IsPermanent { // permanent
-			if gu.ExpirationDate != nil {
-				return errors.New("expiration date should be nil for updating grant to permanent")
-			}
-		} else { // non-permanent
-			if gu.ExpirationDate == nil {
-				return errors.New("expiration date is required")
-			} else if gu.ExpirationDate != nil && gu.ExpirationDate.Before(time.Now()) {
-				return errors.New("expiration date can't be in the past")
-			}
+		if gu.ExpirationDate == nil {
+			return errors.New("expiration date is required")
+		} else if gu.ExpirationDate != nil && gu.ExpirationDate.Before(time.Now()) {
+			return errors.New("expiration date can't be in the past")
+		} else if current.ExpirationDate != nil && gu.ExpirationDate.After(*current.ExpirationDate) {
+			return errors.New("expiration date should be less than existing")
 		}
 
 		// expiration date reason

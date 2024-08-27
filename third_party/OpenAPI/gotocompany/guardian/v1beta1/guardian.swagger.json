@@ -1080,9 +1080,6 @@
                 "owner": {
                   "type": "string"
                 },
-                "isPermanent": {
-                  "type": "boolean"
-                },
                 "expirationDate": {
                   "type": "string",
                   "format": "date-time"
