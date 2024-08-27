@@ -132,7 +132,9 @@ func (s *GRPCServer) UpdateGrant(ctx context.Context, req *guardianv1beta1.Updat
 		switch {
 		case errors.Is(err, grant.ErrGrantNotFound):
 			return nil, status.Error(codes.NotFound, err.Error())
-		case errors.Is(err, grant.ErrEmptyOwner):
+		case errors.Is(err, grant.ErrEmptyOwner),
+			errors.Is(err, domain.ErrInvalidGrantUpdateRequest),
+			errors.Is(err, domain.ErrGrantUpdateNoChanges):
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		default:
 			return nil, s.internalError(ctx, "failed to update grant: %v", err)
