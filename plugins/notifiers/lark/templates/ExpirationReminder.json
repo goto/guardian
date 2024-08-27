@@ -1,0 +1,7 @@
+[
+  {
+    "receive_id":"{{.requestor}}",
+    "msg_type":"interactive",
+    "content":"{\n  \"config\": {\n    \"wide_screen_mode\": true\n  },\n  \"elements\": [\n    {\n      \"tag\": \"div\",\n      \"fields\": [\n        {\n          \"is_short\": true,\n          \"text\": {\n            \"tag\": \"lark_md\",\n            \"content\": \"Your access *{{.account_id}}* to *{{.resource_name}}* with role **{{.role}}** will expire at **{{.expiration_date}}**. Extend the access if it's still needed\"\n          }\n        }\n      ]\n    }\n    \n  ]\n}"  
+  }
+]
