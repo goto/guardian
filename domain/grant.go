@@ -170,6 +170,9 @@ func (gu *GrantUpdate) Validate(current Grant) error {
 	if gu.ID == "" {
 		return errors.New("grant ID is required")
 	}
+	if current.Status != GrantStatusActive {
+		return fmt.Errorf("can't update grant in status %q", current.Status)
+	}
 
 	// owner
 	if gu.Owner != nil && *gu.Owner == "" {
