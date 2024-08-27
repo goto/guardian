@@ -20,12 +20,18 @@ func TestGrantUpdate_Validate(t *testing.T) {
 		}{
 			{
 				name: "update owner",
+				currentGrant: domain.Grant{
+					Status: domain.GrantStatusActive,
+				},
 				grantUpdate: &domain.GrantUpdate{
 					Owner: &owner,
 				},
 			},
 			{
 				name: "update owner to empty should break",
+				currentGrant: domain.Grant{
+					Status: domain.GrantStatusActive,
+				},
 				grantUpdate: &domain.GrantUpdate{
 					Owner: &emptyString,
 				},
@@ -62,6 +68,7 @@ func TestGrantUpdate_Validate(t *testing.T) {
 			{
 				name: "reduce expiration date",
 				currentGrant: domain.Grant{
+					Status:         domain.GrantStatusActive,
 					ExpirationDate: &afterTomorrow,
 				},
 				grantUpdate: &domain.GrantUpdate{
@@ -72,6 +79,7 @@ func TestGrantUpdate_Validate(t *testing.T) {
 			{
 				name: "update permanent grant to non-permanent",
 				currentGrant: domain.Grant{
+					Status:      domain.GrantStatusActive,
 					IsPermanent: true,
 				},
 				grantUpdate: &domain.GrantUpdate{
@@ -82,7 +90,21 @@ func TestGrantUpdate_Validate(t *testing.T) {
 
 			// failed scenarios
 			{
+				name: "current grant is already inactive",
+				currentGrant: domain.Grant{
+					Status: domain.GrantStatusInactive,
+				},
+				grantUpdate: &domain.GrantUpdate{
+					ExpirationDate:       &tomorrow,
+					ExpirationDateReason: &reason,
+				},
+				expectedErrorMsg: `can't update grant in status "inactive"`,
+			},
+			{
 				name: "update to non-permanent; expiration date should not be in the past",
+				currentGrant: domain.Grant{
+					Status: domain.GrantStatusActive,
+				},
 				grantUpdate: &domain.GrantUpdate{
 					ExpirationDate:       &yesterday,
 					ExpirationDateReason: &reason,
@@ -91,6 +113,9 @@ func TestGrantUpdate_Validate(t *testing.T) {
 			},
 			{
 				name: "update to non-permanent without reason should break",
+				currentGrant: domain.Grant{
+					Status: domain.GrantStatusActive,
+				},
 				grantUpdate: &domain.GrantUpdate{
 					ExpirationDate: &tomorrow,
 				},
@@ -98,6 +123,9 @@ func TestGrantUpdate_Validate(t *testing.T) {
 			},
 			{
 				name: "update to non-permanent with empty reason should break",
+				currentGrant: domain.Grant{
+					Status: domain.GrantStatusActive,
+				},
 				grantUpdate: &domain.GrantUpdate{
 					ExpirationDate:       &tomorrow,
 					ExpirationDateReason: &emptyString,
@@ -106,6 +134,9 @@ func TestGrantUpdate_Validate(t *testing.T) {
 			},
 			{
 				name: "specify reason without is_permanent and expiration_date specified should break",
+				currentGrant: domain.Grant{
+					Status: domain.GrantStatusActive,
+				},
 				grantUpdate: &domain.GrantUpdate{
 					ExpirationDateReason: &reason,
 				},
@@ -114,6 +145,7 @@ func TestGrantUpdate_Validate(t *testing.T) {
 			{
 				name: "new exp date more than current exp date",
 				currentGrant: domain.Grant{
+					Status:         domain.GrantStatusActive,
 					ExpirationDate: &tomorrow,
 				},
 				grantUpdate: &domain.GrantUpdate{
