@@ -138,6 +138,7 @@ func (s *ServiceTestSuite) TestUpdate() {
 		id := uuid.New().String()
 		existingGrant := &domain.Grant{
 			ID:          id,
+			Status:      domain.GrantStatusActive,
 			AccountID:   "test-account-id",
 			AccountType: "user",
 			Owner:       "owner@example.com",
@@ -205,6 +206,7 @@ func (s *ServiceTestSuite) TestUpdate() {
 		id := uuid.New().String()
 		existingGrant := &domain.Grant{
 			ID:          id,
+			Status:      domain.GrantStatusActive,
 			AccountID:   "test-account-id",
 			AccountType: "user",
 			Owner:       "user@example.com",
