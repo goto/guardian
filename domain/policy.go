@@ -107,6 +107,9 @@ type Step struct {
 	// Accessible parameters:
 	// $appeal = Appeal object
 	ApproveIf string `json:"approve_if,omitempty" yaml:"approve_if,omitempty" validate:"required_if=Strategy auto"`
+
+	// DontAllowSelfApproval is a boolean flag to detemine if the approver can approve their own request.
+	DontAllowSelfApproval bool `json:"dont_allow_self_approval,omitempty" yaml:"dont_allow_self_approval,omitempty"`
 }
 
 func (s Step) ResolveApprovers(a *Appeal) ([]string, error) {
@@ -172,14 +175,15 @@ func (s Step) ToApproval(a *Appeal, p *Policy, index int) (*Approval, error) {
 	}
 
 	approval := &Approval{
-		Index:          index,
-		Name:           s.Name,
-		PolicyID:       p.ID,
-		PolicyVersion:  p.Version,
-		Approvers:      approvers,
-		Status:         ApprovalStatusPending,
-		AppealRevision: a.Revision,
-		IsStale:        false,
+		Index:                 index,
+		Name:                  s.Name,
+		PolicyID:              p.ID,
+		PolicyVersion:         p.Version,
+		Approvers:             approvers,
+		Status:                ApprovalStatusPending,
+		AppealRevision:        a.Revision,
+		IsStale:               false,
+		DontAllowSelfApproval: s.DontAllowSelfApproval,
 	}
 
 	if index > 0 {
@@ -308,6 +312,16 @@ func (p *Policy) RemoveSensitiveValues() {
 			p.AppealConfig.MetadataSources[key].Config = nil
 		}
 	}
+}
+
+func (p *Policy) GetStepByName(name string) *Step {
+	fmt.Printf("Policy: %v\n", p)
+	for _, step := range p.Steps {
+		if step.Name == name {
+			return step
+		}
+	}
+	return nil
 }
 
 type PolicyAppealConfig struct {

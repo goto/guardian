@@ -315,7 +315,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		if err := s.addCreatorDetails(ctx, appeal, policy); err != nil {
 			return fmt.Errorf("getting creator details: %w", err)
 		}
-		
+
 		if err := s.populateAppealMetadata(ctx, appeal, policy); err != nil {
 			return fmt.Errorf("getting appeal metadata: %w", err)
 		}
@@ -869,6 +869,25 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 	}
 	if !currentApproval.IsExistingApprover(approvalAction.Actor) {
 		return nil, ErrActionForbidden
+	}
+
+	if appeal.Policy == nil {
+		appeal.Policy, err = s.policyService.GetOne(ctx, appeal.PolicyID, appeal.PolicyVersion)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	policyStep := appeal.Policy.GetStepByName(currentApproval.Name)
+	if policyStep == nil {
+		return nil, fmt.Errorf("%w: %q for appeal %q", ErrNoPolicyStepFound, approvalAction.ApprovalName, appeal.ID)
+	}
+
+	// check if user is self approving the appeal
+	if policyStep.DontAllowSelfApproval {
+		if approvalAction.Actor == appeal.CreatedBy {
+			return nil, ErrSelfApprovalNotAllowed
+		}
 	}
 
 	// update approval
