@@ -28,6 +28,7 @@ var (
 	ErrDuplicateActiveGrant      = errors.New("grant already exists")
 	ErrInvalidGrantRestoreParams = errors.New("invalid grant restore parameters")
 	ErrInvalidGrantUpdateRequest = errors.New("invalid grant update request")
+	ErrGrantUpdateNoChanges      = errors.New("no changes in grant update request")
 )
 
 type Grant struct {
@@ -174,9 +175,15 @@ func (gu *GrantUpdate) Validate(current Grant) error {
 		return fmt.Errorf("can't update grant in status %q", current.Status)
 	}
 
+	anyFieldUpdated := false
+
 	// owner
-	if gu.Owner != nil && *gu.Owner == "" {
-		return errors.New("owner should not be empty")
+	if gu.Owner != nil {
+		if *gu.Owner == "" {
+			return errors.New("owner should not be empty")
+		} else if *gu.Owner != current.Owner {
+			anyFieldUpdated = true
+		}
 	}
 
 	// expiration date
@@ -193,6 +200,14 @@ func (gu *GrantUpdate) Validate(current Grant) error {
 		if gu.ExpirationDateReason == nil || *gu.ExpirationDateReason == "" {
 			return errors.New("expiration date reason is required")
 		}
+
+		if current.ExpirationDate == nil || (gu.ExpirationDate.Compare(*current.ExpirationDate) != 0) {
+			anyFieldUpdated = true
+		}
+	}
+
+	if !anyFieldUpdated {
+		return ErrGrantUpdateNoChanges
 	}
 
 	return nil
