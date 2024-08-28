@@ -12,7 +12,7 @@ import (
 
 func New(cfg *Config) *cobra.Command {
 	cliConfig = cfg
-	var shutdown func()
+	var shutdownOtel = func() error { return nil }
 	var cmd = &cobra.Command{
 		Use:   "guardian <command> <subcommand> [flags]",
 		Short: "Universal data access control",
@@ -33,7 +33,7 @@ func New(cfg *Config) *cobra.Command {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// initialize tracing
 			ctx := context.Background()
-			var shutdownOtel func() error = func() error { return nil }
+
 			if cliConfig.Telemetry.Enabled {
 				var err error
 				shutdownOtel, err = opentelemetry.Init(ctx, opentelemetry.Config{
@@ -44,16 +44,19 @@ func New(cfg *Config) *cobra.Command {
 					CollectorAddr:    cfg.Telemetry.OTLP.Endpoint,
 				})
 				if err != nil {
-					return nil
+					return err
 				}
 			}
 
-			defer shutdownOtel()
+			defer func() {
+				_ = shutdownOtel() // safely ignore the error if telemetry is disabled
+			}()
+
 			return nil
 		},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
 			// shutdown tracing
-			shutdown()
+			shutdownOtel()
 		},
 	}
 
