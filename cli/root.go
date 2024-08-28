@@ -32,18 +32,22 @@ func New(cfg *Config) *cobra.Command {
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// initialize tracing
-			var err error
 			ctx := context.Background()
-			shutdownOtel, err := opentelemetry.Init(ctx, opentelemetry.Config{
-				ServiceName:      cfg.Telemetry.ServiceName,
-				ServiceVersion:   cfg.Telemetry.ServiceVersion,
-				SamplingFraction: cfg.Telemetry.SamplingFraction,
-				MetricInterval:   cfg.Telemetry.MetricInterval,
-				CollectorAddr:    cfg.Telemetry.OTLP.Endpoint,
-			})
-			if err != nil {
-				return err
+			var shutdownOtel func() error = func() error { return nil }
+			if cliConfig.Telemetry.Enabled {
+				var err error
+				shutdownOtel, err = opentelemetry.Init(ctx, opentelemetry.Config{
+					ServiceName:      cfg.Telemetry.ServiceName,
+					ServiceVersion:   cfg.Telemetry.ServiceVersion,
+					SamplingFraction: cfg.Telemetry.SamplingFraction,
+					MetricInterval:   cfg.Telemetry.MetricInterval,
+					CollectorAddr:    cfg.Telemetry.OTLP.Endpoint,
+				})
+				if err != nil {
+					return nil
+				}
 			}
+
 			defer shutdownOtel()
 			return nil
 		},
