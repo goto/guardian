@@ -5252,8 +5252,8 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					tc.expectedAppealDetails.Policy == nil {
 					mockPolicy := &domain.Policy{
 						Steps: []*domain.Step{
-							{Name: "step-1"},
-							{Name: "step-2"},
+							{Name: "approval_0"},
+							{Name: "approval_1"},
 						},
 					}
 					h.mockPolicyService.EXPECT().
@@ -5294,6 +5294,257 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			})
 		}
 	})
+	s.Run("should check reject for DontAllowSelfApproval flag", func() {
+		creator := "creator@email.com"
+		user := "user@email.com"
+		testCases := []struct {
+			name                   string
+			expectedApprovalAction domain.ApprovalAction
+			expectedAppealDetails  *domain.Appeal
+			expectedResult         *domain.Appeal
+			expectedNotifications  []domain.Notification
+			expectedGrant          *domain.Grant
+		}{
+			{
+				name: "rejected even when no self approval is allowed in policy step",
+				expectedApprovalAction: domain.ApprovalAction{
+					AppealID:     appealID,
+					ApprovalName: "approval_1",
+					Actor:        "user@email.com",
+					Action:       domain.AppealActionNameReject,
+					Reason:       "test-reason",
+				},
+				expectedAppealDetails: &domain.Appeal{
+					ID:         validApprovalActionParam.AppealID,
+					AccountID:  "user@email.com",
+					CreatedBy:  creator,
+					ResourceID: "1",
+					Role:       "test-role",
+					Resource: &domain.Resource{
+						ID:           "1",
+						URN:          "urn",
+						Name:         "test-resource-name",
+						ProviderType: "test-provider",
+					},
+					Status: domain.AppealStatusPending,
+					Approvals: []*domain.Approval{
+						{
+							Name:   "approval_0",
+							Index:  0,
+							Status: domain.ApprovalStatusApproved,
+						},
+						{
+							Name:      "approval_1",
+							Index:     1,
+							Status:    domain.ApprovalStatusPending,
+							Approvers: []string{"user@email.com"},
+						},
+					},
+					Policy: &domain.Policy{
+						Steps: []*domain.Step{
+							{Name: "approval_0"},
+							{Name: "approval_1", DontAllowSelfApproval: true},
+						},
+					},
+				},
+				expectedResult: &domain.Appeal{
+					ID:         validApprovalActionParam.AppealID,
+					AccountID:  "user@email.com",
+					CreatedBy:  creator,
+					ResourceID: "1",
+					Role:       "test-role",
+					Resource: &domain.Resource{
+						ID:           "1",
+						URN:          "urn",
+						Name:         "test-resource-name",
+						ProviderType: "test-provider",
+					},
+					Status: domain.AppealStatusRejected,
+					Approvals: []*domain.Approval{
+						{
+							Name:   "approval_0",
+							Index:  0,
+							Status: domain.ApprovalStatusApproved,
+						},
+						{
+							Name:      "approval_1",
+							Index:     1,
+							Status:    domain.ApprovalStatusRejected,
+							Approvers: []string{"user@email.com"},
+							Actor:     &user,
+							Reason:    "test-reason",
+							UpdatedAt: timeNow,
+						},
+					},
+					Policy: &domain.Policy{
+						Steps: []*domain.Step{
+							{Name: "approval_0"},
+							{Name: "approval_1", DontAllowSelfApproval: true},
+						},
+					},
+				},
+				expectedNotifications: []domain.Notification{
+					{
+						User: creator,
+						Message: domain.NotificationMessage{
+							Type: domain.NotificationTypeAppealRejected,
+							Variables: map[string]interface{}{
+								"resource_name": "test-resource-name (test-provider: urn)",
+								"role":          "test-role",
+							},
+						},
+					},
+				},
+			},
+		}
+		for _, tc := range testCases {
+			s.Run(tc.name, func() {
+				h := newServiceTestHelper()
+
+				h.mockRepository.EXPECT().
+					GetByID(h.ctxMatcher, validApprovalActionParam.AppealID).
+					Return(tc.expectedAppealDetails, nil).Once()
+
+				if tc.expectedApprovalAction.Action == domain.AppealActionNameApprove &&
+					tc.expectedAppealDetails.Policy == nil {
+					mockPolicy := &domain.Policy{
+						Steps: []*domain.Step{
+							{Name: "approval_0"},
+							{Name: "approval_1"},
+						},
+					}
+					h.mockPolicyService.EXPECT().
+						GetOne(mock.Anything, tc.expectedAppealDetails.PolicyID, tc.expectedAppealDetails.PolicyVersion).
+						Return(mockPolicy, nil).Once()
+					tc.expectedResult.Policy = mockPolicy
+				}
+
+				if tc.expectedGrant != nil {
+					h.mockProviderService.EXPECT().
+						IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
+						Return(false).Once()
+					h.mockGrantService.EXPECT().
+						List(mock.Anything, domain.ListGrantsFilter{
+							AccountIDs:  []string{tc.expectedAppealDetails.AccountID},
+							ResourceIDs: []string{tc.expectedAppealDetails.ResourceID},
+							Statuses:    []string{string(domain.GrantStatusActive)},
+							Permissions: tc.expectedAppealDetails.Permissions,
+						}).Return([]domain.Grant{}, nil).Once()
+					h.mockGrantService.EXPECT().
+						Prepare(mock.Anything, mock.Anything).Return(tc.expectedGrant, nil).Once()
+
+					h.mockProviderService.EXPECT().GrantAccess(mock.Anything, *tc.expectedGrant).Return(nil).Once()
+				}
+
+				h.mockRepository.EXPECT().Update(h.ctxMatcher, tc.expectedResult).Return(nil).Once()
+				h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
+				h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, mock.Anything, mock.Anything).
+					Return(nil).Once()
+
+				actualResult, actualError := h.service.UpdateApproval(context.Background(), tc.expectedApprovalAction)
+				s.NoError(actualError)
+				tc.expectedResult.Policy = actualResult.Policy
+				s.Equal(tc.expectedResult, actualResult)
+
+				time.Sleep(time.Millisecond)
+				h.assertExpectations(s.T())
+			})
+		}
+	})
+
+	s.Run("should check approve for DontAllowSelfApproval flag", func() {
+		creator := "user@email.com"
+		testCases := []struct {
+			name                   string
+			expectedApprovalAction domain.ApprovalAction
+			expectedAppealDetails  *domain.Appeal
+			expectedResult         *domain.Appeal
+			expectedNotifications  []domain.Notification
+			expectedGrant          *domain.Grant
+			expectedError          error
+		}{
+			{
+				name:                   "not approved when no self approval is allowed in policy step",
+				expectedApprovalAction: validApprovalActionParam,
+				expectedAppealDetails: &domain.Appeal{
+					ID:         validApprovalActionParam.AppealID,
+					AccountID:  "user@email.com",
+					CreatedBy:  creator,
+					ResourceID: "1",
+					Role:       "test-role",
+					Resource: &domain.Resource{
+						ID:           "1",
+						URN:          "urn",
+						Name:         "test-resource-name",
+						ProviderType: "test-provider",
+					},
+					Status: domain.AppealStatusPending,
+					Approvals: []*domain.Approval{
+						{
+							Name:   "approval_0",
+							Status: domain.ApprovalStatusApproved,
+							Index:  0,
+						},
+						{
+							Name:      "approval_1",
+							Status:    domain.ApprovalStatusPending,
+							Index:     1,
+							Approvers: []string{"user@email.com"},
+						},
+					},
+				},
+				expectedResult: nil,
+				expectedError:  appeal.ErrSelfApprovalNotAllowed,
+			},
+		}
+		for _, tc := range testCases {
+			s.Run(tc.name, func() {
+				h := newServiceTestHelper()
+
+				h.mockRepository.EXPECT().
+					GetByID(h.ctxMatcher, validApprovalActionParam.AppealID).
+					Return(tc.expectedAppealDetails, nil).Once()
+
+				if tc.expectedApprovalAction.Action == domain.AppealActionNameApprove &&
+					tc.expectedAppealDetails.Policy == nil {
+					mockPolicy := &domain.Policy{
+						Steps: []*domain.Step{
+							{Name: "approval_0"},
+							{Name: "approval_1", DontAllowSelfApproval: true},
+						},
+					}
+					h.mockPolicyService.EXPECT().
+						GetOne(mock.Anything, tc.expectedAppealDetails.PolicyID, tc.expectedAppealDetails.PolicyVersion).
+						Return(mockPolicy, nil).Once()
+				}
+
+				h.mockProviderService.EXPECT().
+					IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
+					Return(false).Once()
+				h.mockGrantService.EXPECT().
+					List(mock.Anything, domain.ListGrantsFilter{
+						AccountIDs:  []string{tc.expectedAppealDetails.AccountID},
+						ResourceIDs: []string{tc.expectedAppealDetails.ResourceID},
+						Statuses:    []string{string(domain.GrantStatusActive)},
+						Permissions: tc.expectedAppealDetails.Permissions,
+					}).Return([]domain.Grant{}, nil).Once()
+				h.mockGrantService.EXPECT().
+					Prepare(mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+				h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
+
+				h.mockRepository.EXPECT().Update(h.ctxMatcher, mock.Anything).Return(nil).Once()
+				h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
+				h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, mock.Anything, mock.Anything).
+					Return(nil).Once()
+
+				actualResult, actualError := h.service.UpdateApproval(context.Background(), tc.expectedApprovalAction)
+				s.Nil(actualResult)
+				s.ErrorIs(actualError, tc.expectedError)
+			})
+		}
+	})
+
 }
 
 func (s *ServiceTestSuite) TestGrantAccessToProvider() {
