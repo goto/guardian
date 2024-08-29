@@ -314,7 +314,6 @@ func (p *Policy) RemoveSensitiveValues() {
 }
 
 func (p *Policy) GetStepByName(name string) *Step {
-	fmt.Printf("Policy: %v\n", p)
 	for _, step := range p.Steps {
 		if step.Name == name {
 			return step

@@ -392,6 +392,78 @@ func TestRequirementTrigger(t *testing.T) {
 	})
 }
 
+func TestPolicy_GetStepByNames(t *testing.T) {
+	tests := []struct {
+		name         string
+		policy       domain.Policy
+		stepNameArg  string
+		expectedStep *domain.Step
+	}{
+		{
+			name: "Return valid step",
+			policy: domain.Policy{
+				ID:      "policy-id",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:     "step-1",
+						Strategy: domain.ApprovalStepStrategyManual,
+						Approvers: []string{
+							"hello@world.id",
+						},
+					},
+					{
+						Name:     "step-2",
+						Strategy: domain.ApprovalStepStrategyManual,
+						Approvers: []string{
+							"hello2@world2.id",
+						},
+					},
+				},
+			},
+			stepNameArg: "step-2",
+			expectedStep: &domain.Step{
+				Name:     "step-2",
+				Strategy: domain.ApprovalStepStrategyManual,
+				Approvers: []string{
+					"hello2@world2.id",
+				},
+			},
+		},
+		{
+			name: "Return nil if no valid step found",
+			policy: domain.Policy{
+				ID:      "policy-id",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:     "step-1",
+						Strategy: domain.ApprovalStepStrategyManual,
+						Approvers: []string{
+							"hello@world.id",
+						},
+					},
+					{
+						Name:     "step-2",
+						Strategy: domain.ApprovalStepStrategyManual,
+						Approvers: []string{
+							"hello2@world2.id",
+						},
+					},
+				},
+			},
+			stepNameArg:  "step-3",
+			expectedStep: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			step := tt.policy.GetStepByName(tt.stepNameArg)
+			assert.Equal(t, tt.expectedStep, step)
+		})
+	}
+}
+
 type brokenType struct{}
 
 func (c *brokenType) MarshalJSON() ([]byte, error) {
