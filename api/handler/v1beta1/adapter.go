@@ -233,14 +233,15 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 		var steps []*domain.Step
 		for _, s := range p.GetSteps() {
 			steps = append(steps, &domain.Step{
-				Name:            s.GetName(),
-				Description:     s.GetDescription(),
-				When:            s.GetWhen(),
-				Strategy:        domain.ApprovalStepStrategy(s.GetStrategy()),
-				RejectionReason: s.GetRejectionReason(),
-				ApproveIf:       s.GetApproveIf(),
-				AllowFailed:     s.GetAllowFailed(),
-				Approvers:       s.GetApprovers(),
+				Name:                  s.GetName(),
+				Description:           s.GetDescription(),
+				When:                  s.GetWhen(),
+				Strategy:              domain.ApprovalStepStrategy(s.GetStrategy()),
+				RejectionReason:       s.GetRejectionReason(),
+				ApproveIf:             s.GetApproveIf(),
+				AllowFailed:           s.GetAllowFailed(),
+				Approvers:             s.GetApprovers(),
+				DontAllowSelfApproval: s.GetDontAllowSelfApproval(),
 			})
 		}
 		policy.Steps = steps
@@ -375,14 +376,15 @@ func (a *adapter) ToPolicyProto(p *domain.Policy) (*guardianv1beta1.Policy, erro
 		var steps []*guardianv1beta1.Policy_ApprovalStep
 		for _, s := range p.Steps {
 			steps = append(steps, &guardianv1beta1.Policy_ApprovalStep{
-				Name:            s.Name,
-				Description:     s.Description,
-				When:            s.When,
-				Strategy:        string(s.Strategy),
-				RejectionReason: s.RejectionReason,
-				ApproveIf:       s.ApproveIf,
-				AllowFailed:     s.AllowFailed,
-				Approvers:       s.Approvers,
+				Name:                  s.Name,
+				Description:           s.Description,
+				When:                  s.When,
+				Strategy:              string(s.Strategy),
+				RejectionReason:       s.RejectionReason,
+				ApproveIf:             s.ApproveIf,
+				AllowFailed:           s.AllowFailed,
+				Approvers:             s.Approvers,
+				DontAllowSelfApproval: s.DontAllowSelfApproval,
 			})
 		}
 		policyProto.Steps = steps

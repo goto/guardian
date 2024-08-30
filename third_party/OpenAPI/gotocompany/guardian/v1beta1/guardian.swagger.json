@@ -2342,6 +2342,9 @@
         },
         "rejectionReason": {
           "type": "string"
+        },
+        "dontAllowSelfApproval": {
+          "type": "boolean"
         }
       }
     },
