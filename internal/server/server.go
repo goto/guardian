@@ -53,18 +53,19 @@ func RunServer(config *Config) error {
 	crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 	validator := validator.New()
 
-	var notifierMap map[string]interface{}
-	err := json.Unmarshal([]byte(config.Notifiers), &notifierMap)
-	if err != nil {
-		return fmt.Errorf("failed to parse notifier config: %w", err)
-	}
-	var notifierConfigMap map[string]notifiers.Config
-	err = mapstructure.Decode(notifierMap, &notifierConfigMap)
-	if err != nil {
-		return fmt.Errorf("failed to parse notifier config: %w", err)
-	}
 	notifierConfig := []notifiers.Config{}
 	if config.Notifiers != "" {
+		var notifierMap map[string]interface{}
+		err := json.Unmarshal([]byte(config.Notifiers), &notifierMap)
+		if err != nil {
+			return fmt.Errorf("failed to parse notifier config: %w", err)
+		}
+		var notifierConfigMap map[string]notifiers.Config
+		err = mapstructure.Decode(notifierMap, &notifierConfigMap)
+		if err != nil {
+			return fmt.Errorf("failed to parse notifier config: %w", err)
+		}
+
 		for _, val := range notifierConfigMap {
 			notifierConfig = append(notifierConfig, val)
 		}
