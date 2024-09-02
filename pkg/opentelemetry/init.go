@@ -108,8 +108,8 @@ func initGlobalMetrics(ctx context.Context, res *resource.Resource, cfg Config) 
 
 func initGlobalTracer(ctx context.Context, res *resource.Resource, cfg Config) (func() error, error) {
 	exporter, err := otlptrace.New(ctx, otlptracegrpc.NewClient(
-		otlptracegrpc.WithEndpoint(cfg.CollectorAddr),
 		otlptracegrpc.WithInsecure(),
+		otlptracegrpc.WithEndpoint(cfg.CollectorAddr),
 		otlptracegrpc.WithCompressor(gzip.Name),
 	))
 	if err != nil {
