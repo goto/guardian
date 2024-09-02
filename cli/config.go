@@ -12,8 +12,8 @@ import (
 var cliConfig *Config
 
 type Config struct {
-	Host      string                 `mapstructure:"host"`
-	Telemetry config.TelemetryConfig `mapstructure:"telemetry"`
+	Host      string                     `mapstructure:"host"`
+	Telemetry config.OpenTelemetryConfig `mapstructure:"telemetry"`
 }
 
 func LoadConfig() (*Config, error) {
