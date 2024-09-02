@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/goto/guardian/domain"
+	"github.com/newrelic/go-agent/v3/integrations/nrgrpc"
+	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 
 	"github.com/go-playground/validator/v10"
@@ -32,6 +34,7 @@ import (
 	"google.golang.org/api/idtoken"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -56,15 +59,28 @@ func RunServer(config *Config) error {
 	}
 
 	ctx := context.Background()
+	var nrApp *newrelic.Application
+	if config.NewRelic.Enabled {
+		logger.Info(ctx, "new relic is initiating...")
+		nrApp, err = newrelic.NewApplication(
+			newrelic.ConfigAppName(config.NewRelic.ServiceName),
+			newrelic.ConfigLicense(config.NewRelic.License),
+		)
+		if err != nil {
+			return fmt.Errorf("error initiating newrelic: %w", err)
+		}
+		logger.Info(ctx, "new relic is initiated!")
+	}
 
-	if config.Telemetry.Enabled {
+	// var shutdownOtel = func() error { return nil }
+	if config.OpenTelemetry.Enabled {
 		logger.Info(ctx, "open telemetry is initiating...")
 		shutdownOtel, err := opentelemetry.Init(ctx, opentelemetry.Config{
-			ServiceName:      config.Telemetry.ServiceName,
-			ServiceVersion:   config.Telemetry.ServiceVersion,
-			SamplingFraction: config.Telemetry.SamplingFraction,
-			MetricInterval:   config.Telemetry.MetricInterval,
-			CollectorAddr:    config.Telemetry.OTLP.Endpoint,
+			ServiceName:      config.OpenTelemetry.ServiceName,
+			ServiceVersion:   config.OpenTelemetry.ServiceVersion,
+			SamplingFraction: config.OpenTelemetry.SamplingFraction,
+			MetricInterval:   config.OpenTelemetry.MetricInterval,
+			CollectorAddr:    config.OpenTelemetry.OTLP.Endpoint,
 		})
 		if err != nil {
 			return fmt.Errorf("error initiating open telemetry: %w", err)
@@ -94,15 +110,15 @@ func RunServer(config *Config) error {
 
 	grpcServer := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
-			grpc_logrus.StreamServerInterceptor(logrusEntry),
 			otelgrpc.StreamServerInterceptor(),
+			grpc_logrus.StreamServerInterceptor(logrusEntry),
 		)),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			grpc_logrus.UnaryServerInterceptor(logrusEntry),
+			otelgrpc.UnaryServerInterceptor(),
+			nrgrpc.UnaryServerInterceptor(nrApp),
 			authInterceptor,
 			enrichLogrusFields(),
-			otelgrpc.UnaryServerInterceptor(),
-
 			grpc_recovery.UnaryServerInterceptor(
 				grpc_recovery.WithRecoveryHandler(func(p interface{}) (err error) {
 					logger.Error(context.Background(), string(debug.Stack()))
@@ -157,11 +173,14 @@ func RunServer(config *Config) error {
 	grpcConn, err := grpc.DialContext(
 		timeoutGrpcDialCtx,
 		address,
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(config.GRPC.MaxCallRecvMsgSize),
 			grpc.MaxCallSendMsgSize(config.GRPC.MaxCallSendMsgSize),
 		),
+		grpc.WithDisableRetry(),
 	)
 	if err != nil {
 		return err
@@ -208,7 +227,7 @@ func Migrate(c *Config) error {
 
 func getStore(c *Config) (*postgres.Store, error) {
 	store, err := postgres.NewStore(&c.DB)
-	if c.Telemetry.Enabled {
+	if c.OpenTelemetry.Enabled {
 		if err := store.DB().Use(otelgorm.NewPlugin()); err != nil {
 			return store, err
 		}

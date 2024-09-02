@@ -39,11 +39,13 @@ type Config struct {
 	LogLevel               string           `mapstructure:"log_level" default:"info"`
 	DB                     store.Config     `mapstructure:"db"`
 	// Deprecated: use Auth.Default.HeaderKey instead note on the AuthenticatedUserHeaderKey
-	AuthenticatedUserHeaderKey string                  `mapstructure:"authenticated_user_header_key"`
-	AuditLogTraceIDHeaderKey   string                  `mapstructure:"audit_log_trace_id_header_key" default:"X-Trace-Id"`
-	Jobs                       Jobs                    `mapstructure:"jobs"`
-	Telemetry                  gConfig.TelemetryConfig `mapstructure:"telemetry"`
-	Auth                       Auth                    `mapstructure:"auth"`
+	AuthenticatedUserHeaderKey string                      `mapstructure:"authenticated_user_header_key"`
+	AuditLogTraceIDHeaderKey   string                      `mapstructure:"audit_log_trace_id_header_key" default:"X-Trace-Id"`
+	Jobs                       Jobs                        `mapstructure:"jobs"`
+	OpenTelemetry              gConfig.OpenTelemetryConfig `mapstructure:"opentelemetry"`
+	NewRelic                   gConfig.NewRelicConfig      `mapstructure:"newrelic"`
+
+	Auth Auth `mapstructure:"auth"`
 }
 
 type GRPCConfig struct {
