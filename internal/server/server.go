@@ -12,6 +12,7 @@ import (
 	"github.com/newrelic/go-agent/v3/integrations/nrgrpc"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
+	"go.nhat.io/otelsql"
 
 	"encoding/json"
 
@@ -34,6 +35,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
 	"google.golang.org/api/idtoken"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -254,6 +256,17 @@ func Migrate(c *Config) error {
 func getStore(c *Config) (*postgres.Store, error) {
 	store, err := postgres.NewStore(&c.DB)
 	if c.OpenTelemetry.Enabled {
+		sqlDB, err := store.DB().DB()
+		if err != nil {
+			return nil, err
+		}
+		if err := otelsql.RecordStats(
+			sqlDB,
+			otelsql.WithSystem(semconv.DBSystemPostgreSQL),
+			otelsql.WithInstanceName("default"),
+		); err != nil {
+			return nil, err
+		}
 		if err := store.DB().Use(otelgorm.NewPlugin()); err != nil {
 			return store, err
 		}
