@@ -121,6 +121,36 @@ func (r *GrantRepository) Update(ctx context.Context, a *domain.Grant) error {
 	})
 }
 
+func (r *GrantRepository) Patch(ctx context.Context, g domain.GrantUpdate) error {
+	if g.ID == "" {
+		return grant.ErrEmptyIDParam
+	}
+
+	payload := map[string]any{}
+	if g.Owner != nil {
+		payload["owner"] = *g.Owner
+	}
+	if g.IsPermanent != nil {
+		payload["is_permanent"] = *g.IsPermanent
+	}
+	if g.ExpirationDate != nil {
+		if g.ExpirationDate.IsZero() {
+			payload["expiration_date"] = nil
+		} else {
+			payload["expiration_date"] = *g.ExpirationDate
+		}
+	}
+	if g.ExpirationDateReason != nil {
+		payload["expiration_date_reason"] = *g.ExpirationDateReason
+	}
+
+	return r.db.
+		WithContext(ctx).
+		Model(&model.Grant{}).
+		Where("id = ?", g.ID).
+		Updates(payload).Error
+}
+
 func (r *GrantRepository) BulkInsert(ctx context.Context, grants []*domain.Grant) error {
 	var models []*model.Grant
 	for _, g := range grants {

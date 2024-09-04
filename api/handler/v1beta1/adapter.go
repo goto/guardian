@@ -894,6 +894,27 @@ func (a *adapter) ToGrantProto(grant *domain.Grant) (*guardianv1beta1.Grant, err
 	return grantProto, nil
 }
 
+func (a *adapter) FromUpdateGrantRequestProto(grantUpdate *guardianv1beta1.UpdateGrantRequest) *domain.GrantUpdate {
+	if grantUpdate == nil {
+		return nil
+	}
+
+	gu := &domain.GrantUpdate{
+		ID:                   grantUpdate.GetId(),
+		ExpirationDateReason: grantUpdate.ExpirationDateReason,
+	}
+	if grantUpdate.GetOwner() != "" {
+		gu.Owner = &grantUpdate.Owner
+	}
+
+	if grantUpdate.ExpirationDate != nil {
+		expDate := grantUpdate.GetExpirationDate().AsTime()
+		gu.ExpirationDate = &expDate
+	}
+
+	return gu
+}
+
 func (a *adapter) ToActivityProto(activity *domain.Activity) (*guardianv1beta1.ProviderActivity, error) {
 	if activity == nil {
 		return nil, nil

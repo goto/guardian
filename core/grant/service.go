@@ -26,6 +26,7 @@ type repository interface {
 	List(context.Context, domain.ListGrantsFilter) ([]domain.Grant, error)
 	GetByID(context.Context, string) (*domain.Grant, error)
 	Update(context.Context, *domain.Grant) error
+	Patch(context.Context, domain.GrantUpdate) error
 	BulkUpsert(context.Context, []*domain.Grant) error
 	GetGrantsTotalCount(context.Context, domain.ListGrantsFilter) (int64, error)
 	ListUserRoles(context.Context, string) ([]string, error)
@@ -109,56 +110,65 @@ func (s *Service) GetByID(ctx context.Context, id string) (*domain.Grant, error)
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *Service) Update(ctx context.Context, payload *domain.Grant) error {
-	grantDetails, err := s.GetByID(ctx, payload.ID)
+func (s *Service) Update(ctx context.Context, payload *domain.GrantUpdate) (*domain.Grant, error) {
+	grant, err := s.GetByID(ctx, payload.ID)
 	if err != nil {
-		return fmt.Errorf("getting grant details: %w", err)
+		return nil, fmt.Errorf("getting grant details: %w", err)
+	}
+	previousOwner := grant.Owner
+
+	if err := payload.Validate(*grant); err != nil {
+		return nil, fmt.Errorf("%w: %s", domain.ErrInvalidGrantUpdateRequest, err)
 	}
 
-	if payload.Owner == "" {
-		return ErrEmptyOwner
+	if payload.IsUpdatingExpirationDate() {
+		falseBool := false
+		payload.IsPermanent = &falseBool
 	}
-	updatedGrant := &domain.Grant{
-		ID: payload.ID,
+	if err := s.repo.Patch(ctx, *payload); err != nil {
+		return nil, err
+	}
 
-		// Only allow updating several fields
-		Owner: payload.Owner,
+	latestGrant, err := s.GetByID(ctx, grant.ID)
+	if err != nil {
+		return nil, err
 	}
-	if err := s.repo.Update(ctx, updatedGrant); err != nil {
-		return err
-	}
-	previousOwner := grantDetails.Owner
-	grantDetails.Owner = updatedGrant.Owner
-	grantDetails.UpdatedAt = updatedGrant.UpdatedAt
-	*payload = *grantDetails
-	s.logger.Info(ctx, "grant updated", "grant_id", grantDetails.ID, "updatedGrant", updatedGrant)
+
+	s.logger.Info(ctx, "grant updated", "grant_id", grant.ID, "updatedGrant", latestGrant)
 
 	go func() {
+		diff, err := latestGrant.Compare(grant, payload.Actor)
+		if err != nil {
+			s.logger.Error(ctx, "failed to compare grant", "error", err)
+			return
+		}
+
 		ctx := context.WithoutCancel(ctx)
 		if err := s.auditLogger.Log(ctx, AuditKeyUpdate, map[string]interface{}{
-			"grant_id":      grantDetails.ID,
-			"payload":       updatedGrant,
-			"updated_grant": payload,
+			"grant_id":      payload.ID,
+			"payload":       payload,
+			"updated_grant": latestGrant,
+			"diff":          diff,
 		}); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
 	}()
 
-	if previousOwner != updatedGrant.Owner {
+	if previousOwner != latestGrant.Owner {
 		go func() {
 			message := domain.NotificationMessage{
 				Type: domain.NotificationTypeGrantOwnerChanged,
 				Variables: map[string]interface{}{
-					"grant_id":       grantDetails.ID,
+					"grant_id":       grant.ID,
 					"previous_owner": previousOwner,
-					"new_owner":      updatedGrant.Owner,
+					"new_owner":      latestGrant.Owner,
 				},
 			}
 			notifications := []domain.Notification{{
-				User: updatedGrant.Owner,
+				User: latestGrant.Owner,
 				Labels: map[string]string{
-					"appeal_id": grantDetails.AppealID,
-					"grant_id":  grantDetails.ID,
+					"appeal_id": grant.AppealID,
+					"grant_id":  grant.ID,
 				},
 				Message: message,
 			}}
@@ -166,8 +176,8 @@ func (s *Service) Update(ctx context.Context, payload *domain.Grant) error {
 				notifications = append(notifications, domain.Notification{
 					User: previousOwner,
 					Labels: map[string]string{
-						"appeal_id": grantDetails.AppealID,
-						"grant_id":  grantDetails.ID,
+						"appeal_id": grant.AppealID,
+						"grant_id":  grant.ID,
 					},
 					Message: message,
 				})
@@ -181,7 +191,7 @@ func (s *Service) Update(ctx context.Context, payload *domain.Grant) error {
 		}()
 	}
 
-	return nil
+	return latestGrant, nil
 }
 
 func (s *Service) Prepare(ctx context.Context, appeal domain.Appeal) (*domain.Grant, error) {

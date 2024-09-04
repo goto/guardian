@@ -138,6 +138,7 @@ func (s *ServiceTestSuite) TestUpdate() {
 		id := uuid.New().String()
 		existingGrant := &domain.Grant{
 			ID:          id,
+			Status:      domain.GrantStatusActive,
 			AccountID:   "test-account-id",
 			AccountType: "user",
 			Owner:       "owner@example.com",
@@ -146,31 +147,26 @@ func (s *ServiceTestSuite) TestUpdate() {
 			UpdatedAt:   yesterday,
 		}
 
-		updatePayload := &domain.Grant{
-			ID:          id,
-			Owner:       "new-owner@example.com",
-			IsPermanent: true,  // should be ignored
-			Role:        "xyz", // should be ignored
-		}
-
-		expectedUpdateParam := &domain.Grant{
+		newOwner := "new-owner@example.com"
+		updatePayload := domain.GrantUpdate{
 			ID:    id,
-			Owner: "new-owner@example.com",
+			Owner: &newOwner,
 		}
 
 		expectedUpdatedGrant := &domain.Grant{}
 		*expectedUpdatedGrant = *existingGrant
-		expectedUpdatedGrant.Owner = updatePayload.Owner
+		expectedUpdatedGrant.Owner = newOwner
 		expectedUpdatedGrant.UpdatedAt = time.Now()
 
 		s.mockRepository.EXPECT().
 			GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), id).
 			Return(existingGrant, nil).Once()
 		s.mockRepository.EXPECT().
-			Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedUpdateParam).
-			Return(nil).Run(func(_a0 context.Context, g *domain.Grant) {
-			g.UpdatedAt = time.Now()
-		}).Once()
+			Patch(mock.MatchedBy(func(ctx context.Context) bool { return true }), updatePayload).
+			Return(nil).Once()
+		s.mockRepository.EXPECT().
+			GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), id).
+			Return(expectedUpdatedGrant, nil).Once()
 		s.mockAuditLogger.EXPECT().
 			Log(mock.MatchedBy(func(ctx context.Context) bool { return true }), grant.AuditKeyUpdate, mock.AnythingOfType("map[string]interface {}")).Return(nil).Once()
 		notificationMessage := domain.NotificationMessage{
@@ -182,7 +178,7 @@ func (s *ServiceTestSuite) TestUpdate() {
 			},
 		}
 		expectedNotifications := []domain.Notification{{
-			User: updatePayload.Owner,
+			User: newOwner,
 			Labels: map[string]string{
 				"appeal_id": existingGrant.AppealID,
 				"grant_id":  existingGrant.ID,
@@ -199,9 +195,9 @@ func (s *ServiceTestSuite) TestUpdate() {
 		s.mockNotifier.EXPECT().
 			Notify(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedNotifications).Return(nil).Once()
 
-		actualError := s.service.Update(context.Background(), updatePayload)
+		updatedGrant, actualError := s.service.Update(context.Background(), &updatePayload)
 		s.NoError(actualError)
-		s.Empty(cmp.Diff(expectedUpdatedGrant, updatePayload, cmpopts.EquateApproxTime(time.Second)))
+		s.Empty(cmp.Diff(expectedUpdatedGrant, updatedGrant, cmpopts.EquateApproxTime(time.Second)))
 	})
 
 	s.Run("should return error if owner is updated to empty", func() {
@@ -210,23 +206,27 @@ func (s *ServiceTestSuite) TestUpdate() {
 		id := uuid.New().String()
 		existingGrant := &domain.Grant{
 			ID:          id,
+			Status:      domain.GrantStatusActive,
 			AccountID:   "test-account-id",
 			AccountType: "user",
 			Owner:       "user@example.com",
 			Role:        "test-role",
 		}
 
-		updatePayload := &domain.Grant{
+		emptyStr := ""
+		updatePayload := &domain.GrantUpdate{
 			ID:    id,
-			Owner: "",
+			Owner: &emptyStr,
 		}
 
 		s.mockRepository.EXPECT().
 			GetByID(mock.MatchedBy(func(ctx context.Context) bool { return true }), id).
 			Return(existingGrant, nil).Once()
 
-		actualError := s.service.Update(context.Background(), updatePayload)
-		s.ErrorIs(actualError, grant.ErrEmptyOwner)
+		updatedGrant, actualError := s.service.Update(context.Background(), updatePayload)
+		s.ErrorIs(actualError, domain.ErrInvalidGrantUpdateRequest)
+		s.ErrorContains(actualError, "owner should not be empty")
+		s.Nil(updatedGrant)
 	})
 }
 

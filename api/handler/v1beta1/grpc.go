@@ -39,11 +39,13 @@ type ProtoAdapter interface {
 
 	ToGrantProto(*domain.Grant) (*guardianv1beta1.Grant, error)
 	FromGrantProto(*guardianv1beta1.Grant) *domain.Grant
+	FromUpdateGrantRequestProto(*guardianv1beta1.UpdateGrantRequest) *domain.GrantUpdate
 
 	ToActivityProto(*domain.Activity) (*guardianv1beta1.ProviderActivity, error)
 
 	ToCommentProto(*domain.Comment) *guardianv1beta1.AppealComment
 	ToAppealActivityProto(e *domain.Event) (*guardianv1beta1.AppealActivity, error)
+	// TODO: remove interface
 }
 
 //go:generate mockery --name=resourceService --exported --with-expecter
@@ -118,7 +120,7 @@ type grantService interface {
 	GetGrantsTotalCount(context.Context, domain.ListGrantsFilter) (int64, error)
 	List(context.Context, domain.ListGrantsFilter) ([]domain.Grant, error)
 	GetByID(context.Context, string) (*domain.Grant, error)
-	Update(context.Context, *domain.Grant) error
+	Update(context.Context, *domain.GrantUpdate) (*domain.Grant, error)
 	Restore(ctx context.Context, id, actor, reason string) (*domain.Grant, error)
 	Revoke(ctx context.Context, id, actor, reason string, opts ...grant.Option) (*domain.Grant, error)
 	BulkRevoke(ctx context.Context, filter domain.RevokeGrantsFilter, actor, reason string) ([]*domain.Grant, error)

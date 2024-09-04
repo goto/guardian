@@ -484,17 +484,29 @@ func (_c *GrantService_Revoke_Call) RunAndReturn(run func(context.Context, strin
 }
 
 // Update provides a mock function with given fields: _a0, _a1
-func (_m *GrantService) Update(_a0 context.Context, _a1 *domain.Grant) error {
+func (_m *GrantService) Update(_a0 context.Context, _a1 *domain.GrantUpdate) (*domain.Grant, error) {
 	ret := _m.Called(_a0, _a1)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *domain.Grant) error); ok {
+	var r0 *domain.Grant
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.GrantUpdate) (*domain.Grant, error)); ok {
+		return rf(_a0, _a1)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.GrantUpdate) *domain.Grant); ok {
 		r0 = rf(_a0, _a1)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Grant)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, *domain.GrantUpdate) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GrantService_Update_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Update'
@@ -504,24 +516,24 @@ type GrantService_Update_Call struct {
 
 // Update is a helper method to define mock.On call
 //   - _a0 context.Context
-//   - _a1 *domain.Grant
+//   - _a1 *domain.GrantUpdate
 func (_e *GrantService_Expecter) Update(_a0 interface{}, _a1 interface{}) *GrantService_Update_Call {
 	return &GrantService_Update_Call{Call: _e.mock.On("Update", _a0, _a1)}
 }
 
-func (_c *GrantService_Update_Call) Run(run func(_a0 context.Context, _a1 *domain.Grant)) *GrantService_Update_Call {
+func (_c *GrantService_Update_Call) Run(run func(_a0 context.Context, _a1 *domain.GrantUpdate)) *GrantService_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*domain.Grant))
+		run(args[0].(context.Context), args[1].(*domain.GrantUpdate))
 	})
 	return _c
 }
 
-func (_c *GrantService_Update_Call) Return(_a0 error) *GrantService_Update_Call {
-	_c.Call.Return(_a0)
+func (_c *GrantService_Update_Call) Return(_a0 *domain.Grant, _a1 error) *GrantService_Update_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *GrantService_Update_Call) RunAndReturn(run func(context.Context, *domain.Grant) error) *GrantService_Update_Call {
+func (_c *GrantService_Update_Call) RunAndReturn(run func(context.Context, *domain.GrantUpdate) (*domain.Grant, error)) *GrantService_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }

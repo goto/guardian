@@ -318,27 +318,33 @@ func (s *GrpcHandlersSuite) TestUpdateGrant() {
 	s.Run("should return grant details on succes", func() {
 		s.setup()
 
-		expectedGrant := &domain.Grant{
+		actor := "actor@example.com"
+		newOwner := "test-owner"
+		expectedPayload := &domain.GrantUpdate{
 			ID:    "test-id",
-			Owner: "test-owner",
+			Owner: &newOwner,
+			Actor: actor,
 		}
 		now := time.Now()
+		expectedLatestGrant := &domain.Grant{
+			ID:        "test-id",
+			Owner:     newOwner,
+			UpdatedAt: now,
+		}
 		s.grantService.EXPECT().
-			Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedGrant).
-			Run(func(_a0 context.Context, g *domain.Grant) {
-				g.UpdatedAt = now
-			}).
-			Return(nil).Once()
+			Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedPayload).
+			Return(expectedLatestGrant, nil).Once()
 
 		req := &guardianv1beta1.UpdateGrantRequest{
 			Id:    "test-id",
 			Owner: "test-owner",
 		}
-		res, err := s.grpcServer.UpdateGrant(context.Background(), req)
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, actor)
+		res, err := s.grpcServer.UpdateGrant(ctx, req)
 
 		s.NoError(err)
-		s.Equal(expectedGrant.ID, res.Grant.Id)
-		s.Equal(expectedGrant.Owner, res.Grant.Owner)
+		s.Equal(expectedLatestGrant.ID, res.Grant.Id)
+		s.Equal(expectedLatestGrant.Owner, res.Grant.Owner)
 		s.Equal(timestamppb.New(now), res.Grant.UpdatedAt)
 	})
 
@@ -370,14 +376,16 @@ func (s *GrpcHandlersSuite) TestUpdateGrant() {
 				s.setup()
 
 				s.grantService.EXPECT().
-					Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*domain.Grant")).
-					Return(tc.expectedError).Once()
+					Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*domain.GrantUpdate")).
+					Return(nil, tc.expectedError).Once()
 
+				actor := "actor@example.com"
 				req := &guardianv1beta1.UpdateGrantRequest{
 					Id:    "test-id",
 					Owner: "test-owner",
 				}
-				res, err := s.grpcServer.UpdateGrant(context.Background(), req)
+				ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, actor)
+				res, err := s.grpcServer.UpdateGrant(ctx, req)
 
 				s.Equal(tc.expectedCode, status.Code(err))
 				s.Nil(res)

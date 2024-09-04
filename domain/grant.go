@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/goto/guardian/pkg/diff"
 )
 
 type GrantStatus string
@@ -25,6 +27,7 @@ const (
 var (
 	ErrDuplicateActiveGrant      = errors.New("grant already exists")
 	ErrInvalidGrantRestoreParams = errors.New("invalid grant restore parameters")
+	ErrInvalidGrantUpdateRequest = errors.New("invalid grant update request")
 )
 
 type Grant struct {
@@ -122,6 +125,77 @@ func (g *Grant) GetPermissions() []string {
 		permissions = append(permissions, p)
 	}
 	return permissions
+}
+
+func (g *Grant) Compare(old *Grant, actor string) ([]*DiffItem, error) {
+	diff, err := diff.Compare(old, g)
+	if err != nil {
+		return nil, err
+	}
+
+	diffItems := make([]*DiffItem, 0, len(diff))
+	for _, d := range diff {
+		di := &DiffItem{
+			Op:       d.Op,
+			Path:     d.Path,
+			OldValue: d.OldValue,
+			NewValue: d.NewValue,
+			Actor:    SystemActorName,
+		}
+		switch di.Path {
+		case "expiration_date", "expiration_date_reason", "is_permanent", "owner":
+			di.Actor = actor
+		}
+
+		diffItems = append(diffItems, di)
+	}
+	return diffItems, nil
+}
+
+type GrantUpdate struct {
+	ID                   string     `json:"id" yaml:"id"`
+	Owner                *string    `json:"owner,omitempty" yaml:"owner,omitempty"`
+	IsPermanent          *bool      `json:"is_permanent,omitempty" yaml:"is_permanent,omitempty"`
+	ExpirationDate       *time.Time `json:"expiration_date,omitempty" yaml:"expiration_date,omitempty"`
+	ExpirationDateReason *string    `json:"expiration_date_reason,omitempty" yaml:"expiration_date_reason,omitempty"`
+
+	Actor string `json:"actor" yaml:"actor"`
+}
+
+func (gu *GrantUpdate) IsUpdatingExpirationDate() bool {
+	return gu.ExpirationDate != nil || gu.ExpirationDateReason != nil
+}
+
+func (gu *GrantUpdate) Validate(current Grant) error {
+	if gu.ID == "" {
+		return errors.New("grant ID is required")
+	}
+	if current.Status != GrantStatusActive {
+		return fmt.Errorf("can't update grant in status %q", current.Status)
+	}
+
+	// owner
+	if gu.Owner != nil && *gu.Owner == "" {
+		return errors.New("owner should not be empty")
+	}
+
+	// expiration date
+	if gu.IsUpdatingExpirationDate() {
+		if gu.ExpirationDate == nil {
+			return errors.New("expiration date is required")
+		} else if gu.ExpirationDate != nil && gu.ExpirationDate.Before(time.Now()) {
+			return errors.New("expiration date can't be in the past")
+		} else if current.ExpirationDate != nil && gu.ExpirationDate.After(*current.ExpirationDate) {
+			return errors.New("expiration date should be less than existing")
+		}
+
+		// expiration date reason
+		if gu.ExpirationDateReason == nil || *gu.ExpirationDateReason == "" {
+			return errors.New("expiration date reason is required")
+		}
+	}
+
+	return nil
 }
 
 type ListGrantsFilter struct {
