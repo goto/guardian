@@ -21,13 +21,13 @@ type bigQueryClient struct {
 	iamService *iam.Service
 	apiClient  *bqApi.Service
 	crmService *cloudresourcemanager.Service
+	httpClient HTTPClient
 }
 
 func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQueryClient, error) {
 	ctx := context.Background()
 
 	httpClient := opentelemetry.NewHttpClient("BigQueryClient")
-	opts = append(opts, option.WithHTTPClient(httpClient))
 
 	client, err := bq.NewClient(ctx, projectID, opts...)
 	if err != nil {
@@ -55,6 +55,7 @@ func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQuery
 		iamService: iamService,
 		apiClient:  apiClient,
 		crmService: crmService,
+		httpClient: httpClient,
 	}, nil
 }
 
