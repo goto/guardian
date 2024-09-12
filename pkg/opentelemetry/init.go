@@ -118,7 +118,7 @@ func initGlobalTracer(ctx context.Context, res *resource.Resource, cfg Config) (
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithSampler(sdktrace.AlwaysSample()),
 		sdktrace.WithResource(res),
-		sdktrace.WithSpanProcessor(sdktrace.NewBatchSpanProcessor(exporter)),
+		sdktrace.WithBatcher(exporter),
 	)
 
 	otel.SetTracerProvider(tracerProvider)

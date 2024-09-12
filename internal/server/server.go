@@ -138,15 +138,15 @@ func RunServer(config *Config) error {
 
 	grpcServer := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
-			otelgrpc.StreamServerInterceptor(),
 			grpc_logrus.StreamServerInterceptor(logrusEntry),
+			otelgrpc.StreamServerInterceptor(),
 		)),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			authInterceptor,
 			grpc_logrus.UnaryServerInterceptor(logrusEntry),
+			enrichLogrusFields(),
 			otelgrpc.UnaryServerInterceptor(),
 			nrgrpc.UnaryServerInterceptor(nrApp),
-			authInterceptor,
-			enrichLogrusFields(),
 			grpc_recovery.UnaryServerInterceptor(
 				grpc_recovery.WithRecoveryHandler(func(p interface{}) (err error) {
 					logger.Error(context.Background(), string(debug.Stack()))
