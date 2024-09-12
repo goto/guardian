@@ -1467,8 +1467,6 @@ go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.44.0 h1:KfYpVmr
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.44.0/go.mod h1:SeQhzAEccGVZVEy7aH87Nh0km+utSpo1pTv6eMMop48=
 go.opentelemetry.io/contrib/instrumentation/runtime v0.54.0 h1:KD+8SJvRaW9n0vE0UgkytT207J3CmV1hGf9GYYU73ns=
 go.opentelemetry.io/contrib/instrumentation/runtime v0.54.0/go.mod h1:/CsTuLR28IN3Vn13YEc72HljfHiGOMXiCbl4xiCSDhA=
-go.opentelemetry.io/contrib/samplers/probability/consistent v0.23.0 h1:TzKlJo6SsboG3r6x/mH74JSjeMVOtvOBAwNWVlqfs1U=
-go.opentelemetry.io/contrib/samplers/probability/consistent v0.23.0/go.mod h1:/JfO6JNAODoZMtV77JsOcLkeuesAZGKwbC5ULs/P7uA=
 go.opentelemetry.io/otel v0.20.0/go.mod h1:Y3ugLH2oa81t5QO+Lty+zXf8zC9L26ax4Nzoxm/dooo=
 go.opentelemetry.io/otel v1.3.0/go.mod h1:PWIKzi6JCp7sM0k9yZ43VX+T345uNbAkDKwHVjb2PTs=
 go.opentelemetry.io/otel v1.29.0 h1:PdomN/Al4q/lN6iBJEN3AwPvUiHPMlt93c8bqTG5Llw=

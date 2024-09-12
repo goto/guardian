@@ -8,6 +8,7 @@ import (
 
 	bq "cloud.google.com/go/bigquery"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/opentelemetry"
 	bqApi "google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
@@ -24,6 +25,10 @@ type bigQueryClient struct {
 
 func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQueryClient, error) {
 	ctx := context.Background()
+
+	httpClient := opentelemetry.NewHttpClient("BigQueryClient")
+	opts = append(opts, option.WithHTTPClient(httpClient))
+
 	client, err := bq.NewClient(ctx, projectID, opts...)
 	if err != nil {
 		return nil, err

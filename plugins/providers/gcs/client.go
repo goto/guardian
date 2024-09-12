@@ -8,6 +8,7 @@ import (
 	"cloud.google.com/go/iam"
 	"cloud.google.com/go/storage"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/opentelemetry"
 	"github.com/goto/guardian/utils"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/iterator"
@@ -15,8 +16,9 @@ import (
 )
 
 type gcsClient struct {
-	client    *storage.Client
-	projectID string
+	client     *storage.Client
+	projectID  string
+	httpClient HTTPClient
 }
 
 func newGCSClient(ctx context.Context, projectID string, credentialsJSON []byte) (*gcsClient, error) {
@@ -25,9 +27,12 @@ func newGCSClient(ctx context.Context, projectID string, credentialsJSON []byte)
 		return nil, err
 	}
 
+	httpClient := opentelemetry.NewHttpClient("MetabaseHttpClient")
+
 	return &gcsClient{
-		client:    client,
-		projectID: projectID,
+		client:     client,
+		projectID:  projectID,
+		httpClient: httpClient,
 	}, nil
 }
 

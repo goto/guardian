@@ -7,6 +7,7 @@ import (
 
 	datacatalog "cloud.google.com/go/datacatalog/apiv1"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/opentelemetry"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	pb "google.golang.org/genproto/googleapis/cloud/datacatalog/v1"
@@ -17,6 +18,7 @@ type policyTagClient struct {
 	policyManager    *datacatalog.PolicyTagManagerClient
 	projectId        string
 	taxonomyLocation string
+	httpClient       HTTPClient
 }
 
 func newPolicyTagClient(projectID, location string, credentialsJSON []byte) (*policyTagClient, error) {
@@ -25,10 +27,15 @@ func newPolicyTagClient(projectID, location string, credentialsJSON []byte) (*po
 	if err != nil {
 		return nil, err
 	}
+
+	// Create an OpenTelemetry HTTP client
+	httpClient := opentelemetry.NewHttpClient("DataplexClient")
+
 	return &policyTagClient{
 		policyManager:    policyManager,
 		projectId:        projectID,
 		taxonomyLocation: location,
+		httpClient:       httpClient,
 	}, nil
 }
 

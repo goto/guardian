@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/opentelemetry"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
@@ -20,6 +21,7 @@ type iamClient struct {
 	resourceName                string
 	cloudResourceManagerService *cloudresourcemanager.Service
 	iamService                  *iam.Service
+	httpClient                  HTTPClient
 }
 
 func newIamClient(credentialsJSON []byte, resourceName string) (*iamClient, error) {
@@ -28,6 +30,8 @@ func newIamClient(credentialsJSON []byte, resourceName string) (*iamClient, erro
 	if err != nil {
 		return nil, err
 	}
+
+	httpClient := opentelemetry.NewHttpClient("IAMClient")
 
 	iamService, err := iam.NewService(ctx, option.WithCredentialsJSON(credentialsJSON))
 	if err != nil {
@@ -38,6 +42,7 @@ func newIamClient(credentialsJSON []byte, resourceName string) (*iamClient, erro
 		resourceName:                resourceName,
 		cloudResourceManagerService: cloudResourceManagerService,
 		iamService:                  iamService,
+		httpClient:                  httpClient,
 	}, nil
 }
 
