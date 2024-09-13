@@ -21,15 +21,15 @@ type bigQueryClient struct {
 	iamService *iam.Service
 	apiClient  *bqApi.Service
 	crmService *cloudresourcemanager.Service
-	httpClient HTTPClient
 }
 
 func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQueryClient, error) {
 	ctx := context.Background()
 
-	httpClient := opentelemetry.NewHttpClient("BigQueryClient")
+	bqOpt := option.WithHTTPClient(opentelemetry.NewHttpClient("BigQueryClient"))
+	bqOpts := append(opts, bqOpt)
 
-	client, err := bq.NewClient(ctx, projectID, opts...)
+	client, err := bq.NewClient(ctx, projectID, bqOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -39,12 +39,16 @@ func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQuery
 		return nil, err
 	}
 
-	iamService, err := iam.NewService(ctx, opts...)
+	iamOpt := option.WithHTTPClient(opentelemetry.NewHttpClient("IAMClient"))
+	iamOpts := append(opts, iamOpt)
+	iamService, err := iam.NewService(ctx, iamOpts...)
 	if err != nil {
 		return nil, err
 	}
 
-	crmService, err := cloudresourcemanager.NewService(ctx, opts...)
+	crmOpt := option.WithHTTPClient(opentelemetry.NewHttpClient("CloudResourceManagerClient"))
+	crmOpts := append(opts, crmOpt)
+	crmService, err := cloudresourcemanager.NewService(ctx, crmOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +59,6 @@ func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQuery
 		iamService: iamService,
 		apiClient:  apiClient,
 		crmService: crmService,
-		httpClient: httpClient,
 	}, nil
 }
 

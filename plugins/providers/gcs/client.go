@@ -16,23 +16,20 @@ import (
 )
 
 type gcsClient struct {
-	client     *storage.Client
-	projectID  string
-	httpClient HTTPClient
+	client    *storage.Client
+	projectID string
 }
 
 func newGCSClient(ctx context.Context, projectID string, credentialsJSON []byte) (*gcsClient, error) {
-	client, err := storage.NewClient(ctx, option.WithCredentialsJSON(credentialsJSON))
+	httpClient := opentelemetry.NewHttpClient("MetabaseHttpClient")
+	client, err := storage.NewClient(ctx, option.WithCredentialsJSON(credentialsJSON), option.WithHTTPClient(httpClient))
 	if err != nil {
 		return nil, err
 	}
 
-	httpClient := opentelemetry.NewHttpClient("MetabaseHttpClient")
-
 	return &gcsClient{
-		client:     client,
-		projectID:  projectID,
-		httpClient: httpClient,
+		client:    client,
+		projectID: projectID,
 	}, nil
 }
 

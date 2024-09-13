@@ -18,24 +18,24 @@ type policyTagClient struct {
 	policyManager    *datacatalog.PolicyTagManagerClient
 	projectId        string
 	taxonomyLocation string
-	httpClient       HTTPClient
 }
 
 func newPolicyTagClient(projectID, location string, credentialsJSON []byte) (*policyTagClient, error) {
 	ctx := context.Background()
-	policyManager, err := datacatalog.NewPolicyTagManagerClient(ctx, option.WithCredentialsJSON(credentialsJSON))
+
+	opts := []option.ClientOption{
+		option.WithHTTPClient(opentelemetry.NewHttpClient("PolicyTagManagerClient")),
+		option.WithCredentialsJSON(credentialsJSON),
+	}
+	policyManager, err := datacatalog.NewPolicyTagManagerClient(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
-
-	// Create an OpenTelemetry HTTP client
-	httpClient := opentelemetry.NewHttpClient("DataplexClient")
 
 	return &policyTagClient{
 		policyManager:    policyManager,
 		projectId:        projectID,
 		taxonomyLocation: location,
-		httpClient:       httpClient,
 	}, nil
 }
 
