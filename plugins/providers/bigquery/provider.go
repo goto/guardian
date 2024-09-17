@@ -47,8 +47,8 @@ var (
 type BigQueryClient interface {
 	GetDatasets(context.Context) ([]*Dataset, error)
 	GetTables(ctx context.Context, datasetID string) ([]*Table, error)
-	GrantDatasetAccess(ctx context.Context, d *Dataset, user, role string) error
-	RevokeDatasetAccess(ctx context.Context, d *Dataset, user, role string) error
+	GrantDatasetAccess(ctx context.Context, d *Dataset, accountType, accountID, role string) error
+	RevokeDatasetAccess(ctx context.Context, d *Dataset, accountType, accountID, role string) error
 	GrantTableAccess(ctx context.Context, t *Table, accountType, accountID, role string) error
 	RevokeTableAccess(ctx context.Context, t *Table, accountType, accountID, role string) error
 	ListAccess(ctx context.Context, resources []*domain.Resource) (domain.MapResourceAccess, error)
@@ -222,7 +222,7 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 		}
 
 		for _, p := range permissions {
-			if err := bqClient.GrantDatasetAccess(ctx, d, a.AccountID, string(p)); err != nil {
+			if err := bqClient.GrantDatasetAccess(ctx, d, a.AccountType, a.AccountID, string(p)); err != nil {
 				if errors.Is(err, ErrPermissionAlreadyExists) {
 					return nil
 				}
@@ -274,7 +274,7 @@ func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		}
 
 		for _, p := range permissions {
-			if err := bqClient.RevokeDatasetAccess(ctx, d, a.AccountID, string(p)); err != nil {
+			if err := bqClient.RevokeDatasetAccess(ctx, d, a.AccountType, a.AccountID, string(p)); err != nil {
 				if errors.Is(err, ErrPermissionNotFound) {
 					return nil
 				}
@@ -312,6 +312,7 @@ func (p *Provider) GetAccountTypes() []string {
 	return []string{
 		AccountTypeUser,
 		AccountTypeServiceAccount,
+		AccountTypeGroup,
 	}
 }
 
