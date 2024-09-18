@@ -271,7 +271,6 @@ func (p *provider) getClient(pc domain.ProviderConfig) (*gitlab.Client, error) {
 		return nil, fmt.Errorf("unable to decrypt credentials: %w", err)
 	}
 
-	// add trace for otel instrumentation
 	client, err := gitlab.NewClient(creds.AccessToken, gitlab.WithBaseURL(creds.Host))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create gitlab client: %w", err)

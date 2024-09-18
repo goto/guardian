@@ -24,7 +24,6 @@ type bigQueryClient struct {
 
 func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQueryClient, error) {
 	ctx := context.Background()
-
 	client, err := bq.NewClient(ctx, projectID, opts...)
 	if err != nil {
 		return nil, err

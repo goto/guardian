@@ -21,14 +21,10 @@ type policyTagClient struct {
 
 func newPolicyTagClient(projectID, location string, credentialsJSON []byte) (*policyTagClient, error) {
 	ctx := context.Background()
-	opts := []option.ClientOption{
-		option.WithCredentialsJSON(credentialsJSON),
-	}
-	policyManager, err := datacatalog.NewPolicyTagManagerClient(ctx, opts...)
+	policyManager, err := datacatalog.NewPolicyTagManagerClient(ctx, option.WithCredentialsJSON(credentialsJSON))
 	if err != nil {
 		return nil, err
 	}
-
 	return &policyTagClient{
 		policyManager:    policyManager,
 		projectId:        projectID,

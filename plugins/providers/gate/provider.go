@@ -277,12 +277,7 @@ func (p *provider) getClient(pc *domain.ProviderConfig) (*gate.Client, error) {
 		return nil, fmt.Errorf("failed to decrypt credentials: %w", err)
 	}
 
-	opts := []gate.ClientOption{
-		gate.WithAPIKey(creds.APIKey),
-		gate.WithQueryParamAuthMethod(),
-	}
-
-	client, err := gate.NewClient(creds.Host, opts...)
+	client, err := gate.NewClient(creds.Host, gate.WithAPIKey(creds.APIKey), gate.WithQueryParamAuthMethod())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize client: %w", err)
 	}
