@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/goto/guardian/domain"
-	"github.com/newrelic/go-agent/v3/integrations/nrgrpc"
-	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 	"go.nhat.io/otelsql"
 
@@ -87,18 +85,6 @@ func RunServer(config *Config) error {
 	}
 
 	ctx := context.Background()
-	var nrApp *newrelic.Application
-	if config.NewRelic.Enabled {
-		logger.Info(ctx, "new relic is initiating...")
-		nrApp, err = newrelic.NewApplication(
-			newrelic.ConfigAppName(config.NewRelic.ServiceName),
-			newrelic.ConfigLicense(config.NewRelic.License),
-		)
-		if err != nil {
-			return fmt.Errorf("error initiating newrelic: %w", err)
-		}
-		logger.Info(ctx, "new relic is initiated!")
-	}
 
 	// var shutdownOtel = func() error { return nil }
 	if config.OpenTelemetry.Enabled {
@@ -146,7 +132,6 @@ func RunServer(config *Config) error {
 			grpc_logrus.UnaryServerInterceptor(logrusEntry),
 			enrichLogrusFields(),
 			otelgrpc.UnaryServerInterceptor(),
-			nrgrpc.UnaryServerInterceptor(nrApp),
 			grpc_recovery.UnaryServerInterceptor(
 				grpc_recovery.WithRecoveryHandler(func(p interface{}) (err error) {
 					logger.Error(context.Background(), string(debug.Stack()))

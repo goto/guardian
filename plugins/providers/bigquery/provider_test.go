@@ -1107,7 +1107,7 @@ func (s *BigQueryProviderTestSuite) TestListAccess() {
 			},
 		}, []*domain.Resource{})
 
-		s.EqualError(err, "initializing bigquery client: invalid character 'i' looking for beginning of value")
+		s.EqualError(err, "initializing bigquery client: bigquery: constructing client: invalid character 'i' looking for beginning of value")
 	})
 
 	s.Run("return nil error on success", func() {

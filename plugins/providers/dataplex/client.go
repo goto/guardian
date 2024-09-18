@@ -7,11 +7,12 @@ import (
 
 	datacatalog "cloud.google.com/go/datacatalog/apiv1"
 	"github.com/goto/guardian/domain"
-	"github.com/goto/guardian/pkg/opentelemetry"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	pb "google.golang.org/genproto/googleapis/cloud/datacatalog/v1"
 	iampb "google.golang.org/genproto/googleapis/iam/v1"
+	"google.golang.org/grpc"
 )
 
 type policyTagClient struct {
@@ -22,10 +23,10 @@ type policyTagClient struct {
 
 func newPolicyTagClient(projectID, location string, credentialsJSON []byte) (*policyTagClient, error) {
 	ctx := context.Background()
-
 	opts := []option.ClientOption{
-		option.WithHTTPClient(opentelemetry.NewHttpClient("PolicyTagManagerClient")),
 		option.WithCredentialsJSON(credentialsJSON),
+		option.WithGRPCDialOption(grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor())),
+		option.WithGRPCDialOption(grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor())),
 	}
 	policyManager, err := datacatalog.NewPolicyTagManagerClient(ctx, opts...)
 	if err != nil {

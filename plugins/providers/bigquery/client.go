@@ -26,10 +26,7 @@ type bigQueryClient struct {
 func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQueryClient, error) {
 	ctx := context.Background()
 
-	bqOpt := option.WithHTTPClient(opentelemetry.NewHttpClient("BigQueryClient"))
-	bqOpts := append(opts, bqOpt)
-
-	client, err := bq.NewClient(ctx, projectID, bqOpts...)
+	client, err := bq.NewClient(ctx, projectID, opts...)
 	if err != nil {
 		return nil, err
 	}

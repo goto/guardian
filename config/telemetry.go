@@ -15,9 +15,3 @@ type OpenTelemetryConfig struct {
 	SamplingFraction int           `mapstructure:"sampling_fraction"`
 	MetricInterval   time.Duration `mapstructure:"metric_interval"`
 }
-
-type NewRelicConfig struct {
-	Enabled     bool   `mapstructure:"enabled" default:"false"`
-	ServiceName string `mapstructure:"service_name" default:"guardian"`
-	License     string `mapstructure:"license"`
-}

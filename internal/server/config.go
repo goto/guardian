@@ -45,7 +45,6 @@ type Config struct {
 	AuditLogTraceIDHeaderKey   string                      `mapstructure:"audit_log_trace_id_header_key" default:"X-Trace-Id"`
 	Jobs                       Jobs                        `mapstructure:"jobs"`
 	OpenTelemetry              gConfig.OpenTelemetryConfig `mapstructure:"opentelemetry"`
-	NewRelic                   gConfig.NewRelicConfig      `mapstructure:"newrelic"`
 
 	Auth Auth `mapstructure:"auth"`
 }

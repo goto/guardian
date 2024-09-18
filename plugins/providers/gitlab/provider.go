@@ -273,6 +273,7 @@ func (p *provider) getClient(pc domain.ProviderConfig) (*gitlab.Client, error) {
 	}
 
 	httpClient := opentelemetry.NewHttpClient("GitlabClient")
+	// add trace for otel instrumentation
 	client, err := gitlab.NewClient(creds.AccessToken, gitlab.WithBaseURL(creds.Host), gitlab.WithHTTPClient(httpClient))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create gitlab client: %w", err)

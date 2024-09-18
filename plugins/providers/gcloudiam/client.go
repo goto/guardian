@@ -25,14 +25,17 @@ type iamClient struct {
 
 func newIamClient(credentialsJSON []byte, resourceName string) (*iamClient, error) {
 	ctx := context.Background()
-	cloudResourceManagerService, err := cloudresourcemanager.NewService(ctx, option.WithCredentialsJSON(credentialsJSON))
+
+	crmClient := opentelemetry.NewHttpClient("CloudResourceManagerClient")
+
+	cloudResourceManagerService, err := cloudresourcemanager.NewService(ctx, option.WithCredentialsJSON(credentialsJSON), option.WithHTTPClient(crmClient))
 	if err != nil {
 		return nil, err
 	}
 
-	httpClient := opentelemetry.NewHttpClient("IAMClient")
+	iamHTTPClient := opentelemetry.NewHttpClient("IAMClient")
 
-	iamService, err := iam.NewService(ctx, option.WithCredentialsJSON(credentialsJSON), option.WithHTTPClient(httpClient))
+	iamService, err := iam.NewService(ctx, option.WithCredentialsJSON(credentialsJSON), option.WithHTTPClient(iamHTTPClient))
 	if err != nil {
 		return nil, err
 	}
