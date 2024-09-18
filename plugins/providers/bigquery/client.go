@@ -8,7 +8,6 @@ import (
 
 	bq "cloud.google.com/go/bigquery"
 	"github.com/goto/guardian/domain"
-	"github.com/goto/guardian/pkg/opentelemetry"
 	bqApi "google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
@@ -36,16 +35,12 @@ func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQuery
 		return nil, err
 	}
 
-	iamOpt := option.WithHTTPClient(opentelemetry.NewHttpClient("IAMClient"))
-	iamOpts := append(opts, iamOpt)
-	iamService, err := iam.NewService(ctx, iamOpts...)
+	iamService, err := iam.NewService(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	crmOpt := option.WithHTTPClient(opentelemetry.NewHttpClient("CloudResourceManagerClient"))
-	crmOpts := append(opts, crmOpt)
-	crmService, err := cloudresourcemanager.NewService(ctx, crmOpts...)
+	crmService, err := cloudresourcemanager.NewService(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}

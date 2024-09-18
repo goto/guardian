@@ -12,7 +12,6 @@ import (
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/gate"
-	"github.com/goto/guardian/pkg/opentelemetry"
 	"github.com/goto/guardian/utils"
 	"github.com/mitchellh/mapstructure"
 )
@@ -281,7 +280,6 @@ func (p *provider) getClient(pc *domain.ProviderConfig) (*gate.Client, error) {
 	opts := []gate.ClientOption{
 		gate.WithAPIKey(creds.APIKey),
 		gate.WithQueryParamAuthMethod(),
-		gate.WithHTTPClient(opentelemetry.NewHttpClient("PolicyTagManagerClient")),
 	}
 
 	client, err := gate.NewClient(creds.Host, opts...)

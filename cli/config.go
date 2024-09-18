@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc"
-	"github.com/goto/guardian/config"
+	"github.com/goto/guardian/pkg/opentelemetry"
 	"github.com/goto/salt/cmdx"
 	"github.com/spf13/cobra"
 )
@@ -12,8 +12,8 @@ import (
 var cliConfig *Config
 
 type Config struct {
-	Host      string                     `mapstructure:"host"`
-	Telemetry config.OpenTelemetryConfig `mapstructure:"telemetry"`
+	Host      string               `mapstructure:"host"`
+	Telemetry opentelemetry.Config `mapstructure:"telemetry"`
 }
 
 func LoadConfig() (*Config, error) {

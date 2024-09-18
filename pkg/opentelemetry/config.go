@@ -1,8 +1,8 @@
-package config
+package opentelemetry
 
 import "time"
 
-type OpenTelemetryConfig struct {
+type Config struct {
 	Enabled        bool              `mapstructure:"enabled" default:"false"`
 	ServiceName    string            `mapstructure:"service_name" default:"guardian"`
 	ServiceVersion string            `mapstructure:"service_version"`

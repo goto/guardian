@@ -10,7 +10,6 @@ import (
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
-	"github.com/goto/guardian/pkg/opentelemetry"
 	"github.com/goto/guardian/utils"
 	"github.com/xanzy/go-gitlab"
 	"golang.org/x/sync/errgroup"
@@ -272,9 +271,8 @@ func (p *provider) getClient(pc domain.ProviderConfig) (*gitlab.Client, error) {
 		return nil, fmt.Errorf("unable to decrypt credentials: %w", err)
 	}
 
-	httpClient := opentelemetry.NewHttpClient("GitlabClient")
 	// add trace for otel instrumentation
-	client, err := gitlab.NewClient(creds.AccessToken, gitlab.WithBaseURL(creds.Host), gitlab.WithHTTPClient(httpClient))
+	client, err := gitlab.NewClient(creds.AccessToken, gitlab.WithBaseURL(creds.Host))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create gitlab client: %w", err)
 	}

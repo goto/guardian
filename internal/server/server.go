@@ -87,15 +87,9 @@ func RunServer(config *Config) error {
 	ctx := context.Background()
 
 	// var shutdownOtel = func() error { return nil }
-	if config.OpenTelemetry.Enabled {
+	if config.Telemetry.Enabled {
 		logger.Info(ctx, "open telemetry is initiating...")
-		shutdownOtel, err := opentelemetry.Init(ctx, opentelemetry.Config{
-			ServiceName:      config.OpenTelemetry.ServiceName,
-			ServiceVersion:   config.OpenTelemetry.ServiceVersion,
-			SamplingFraction: config.OpenTelemetry.SamplingFraction,
-			MetricInterval:   config.OpenTelemetry.MetricInterval,
-			CollectorAddr:    config.OpenTelemetry.OTLP.Endpoint,
-		})
+		shutdownOtel, err := opentelemetry.Init(ctx, config.Telemetry)
 		if err != nil {
 			return fmt.Errorf("error initiating open telemetry: %w", err)
 		}
@@ -240,7 +234,7 @@ func Migrate(c *Config) error {
 
 func getStore(c *Config) (*postgres.Store, error) {
 	store, err := postgres.NewStore(&c.DB)
-	if c.OpenTelemetry.Enabled {
+	if c.Telemetry.Enabled {
 		sqlDB, err := store.DB().DB()
 		if err != nil {
 			return nil, err

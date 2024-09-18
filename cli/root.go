@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"log"
 
 	"github.com/MakeNowJust/heredoc"
 	handlerv1beta1 "github.com/goto/guardian/api/handler/v1beta1"
@@ -36,20 +37,16 @@ func New(cfg *Config) *cobra.Command {
 
 			if cliConfig.Telemetry.Enabled {
 				var err error
-				shutdownOtel, err = opentelemetry.Init(ctx, opentelemetry.Config{
-					ServiceName:      cfg.Telemetry.ServiceName,
-					ServiceVersion:   cfg.Telemetry.ServiceVersion,
-					SamplingFraction: cfg.Telemetry.SamplingFraction,
-					MetricInterval:   cfg.Telemetry.MetricInterval,
-					CollectorAddr:    cfg.Telemetry.OTLP.Endpoint,
-				})
+				shutdownOtel, err = opentelemetry.Init(ctx, cfg.Telemetry)
 				if err != nil {
 					return err
 				}
 			}
 
 			defer func() {
-				_ = shutdownOtel() // safely ignore the error if telemetry is disabled
+				if err := shutdownOtel(); err != nil {
+					log.Printf("telemetry is disabled: %v", err)
+				}
 			}()
 
 			return nil

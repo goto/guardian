@@ -23,14 +23,6 @@ import (
 
 const gracePeriod = 5 * time.Second
 
-type Config struct {
-	ServiceName      string
-	ServiceVersion   string
-	SamplingFraction int
-	MetricInterval   time.Duration
-	CollectorAddr    string
-}
-
 func Init(ctx context.Context, cfg Config) (func() error, error) {
 	res, err := resource.New(ctx,
 		resource.WithFromEnv(),
@@ -83,7 +75,7 @@ func Init(ctx context.Context, cfg Config) (func() error, error) {
 
 func initGlobalMetrics(ctx context.Context, res *resource.Resource, cfg Config) (func() error, error) {
 	exporter, err := otlpmetricgrpc.New(ctx,
-		otlpmetricgrpc.WithEndpoint(cfg.CollectorAddr),
+		otlpmetricgrpc.WithEndpoint(cfg.OTLP.Endpoint),
 		otlpmetricgrpc.WithCompressor(gzip.Name),
 		otlpmetricgrpc.WithInsecure(),
 	)
@@ -108,7 +100,7 @@ func initGlobalMetrics(ctx context.Context, res *resource.Resource, cfg Config) 
 func initGlobalTracer(ctx context.Context, res *resource.Resource, cfg Config) (func() error, error) {
 	exporter, err := otlptrace.New(ctx, otlptracegrpc.NewClient(
 		otlptracegrpc.WithInsecure(),
-		otlptracegrpc.WithEndpoint(cfg.CollectorAddr),
+		otlptracegrpc.WithEndpoint(cfg.OTLP.Endpoint),
 		otlptracegrpc.WithCompressor(gzip.Name),
 	))
 	if err != nil {
