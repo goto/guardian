@@ -45,7 +45,7 @@ func New(cfg *Config) *cobra.Command {
 
 			defer func() {
 				if err := shutdownOtel(); err != nil {
-					log.Printf("telemetry is disabled: %v", err)
+					log.Printf("failed to terminate telemetery: %v", err)
 				}
 			}()
 
