@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/goto/guardian/pkg/tracing"
+	"github.com/goto/guardian/pkg/opentelemetry"
 	"github.com/mcuadros/go-defaults"
 )
 
@@ -603,7 +603,7 @@ func NewClient(config *ClientConfig) (*client, error) {
 
 	httpClient := config.HTTPClient
 	if httpClient == nil {
-		httpClient = tracing.NewHttpClient("TableauHttpClient")
+		httpClient = opentelemetry.NewHttpClient("TableauHttpClient")
 	}
 
 	c := &client{

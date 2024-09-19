@@ -1,16 +1,19 @@
 package cli
 
 import (
+	"context"
+	"log"
+
 	"github.com/MakeNowJust/heredoc"
 	handlerv1beta1 "github.com/goto/guardian/api/handler/v1beta1"
-	"github.com/goto/guardian/pkg/tracing"
+	"github.com/goto/guardian/pkg/opentelemetry"
 	"github.com/goto/salt/cmdx"
 	"github.com/spf13/cobra"
 )
 
 func New(cfg *Config) *cobra.Command {
 	cliConfig = cfg
-	var shutdown func()
+	var shutdownOtel = func() error { return nil }
 	var cmd = &cobra.Command{
 		Use:   "guardian <command> <subcommand> [flags]",
 		Short: "Universal data access control",
@@ -30,17 +33,27 @@ func New(cfg *Config) *cobra.Command {
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// initialize tracing
-			var err error
-			shutdown, err = tracing.InitTracer(cfg.Telemetry)
-			if err != nil {
-				return err
+			ctx := context.Background()
+
+			if cliConfig.Telemetry.Enabled {
+				var err error
+				shutdownOtel, err = opentelemetry.Init(ctx, cfg.Telemetry)
+				if err != nil {
+					return err
+				}
 			}
+
+			defer func() {
+				if err := shutdownOtel(); err != nil {
+					log.Printf("failed to terminate telemetery: %v", err)
+				}
+			}()
 
 			return nil
 		},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
 			// shutdown tracing
-			shutdown()
+			shutdownOtel()
 		},
 	}
 
