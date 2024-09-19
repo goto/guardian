@@ -122,8 +122,8 @@ func RunServer(config *Config) error {
 			otelgrpc.StreamServerInterceptor(),
 		)),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-			authInterceptor,
 			grpc_logrus.UnaryServerInterceptor(logrusEntry),
+			authInterceptor,
 			enrichLogrusFields(),
 			otelgrpc.UnaryServerInterceptor(),
 			grpc_recovery.UnaryServerInterceptor(
@@ -187,7 +187,6 @@ func RunServer(config *Config) error {
 			grpc.MaxCallRecvMsgSize(config.GRPC.MaxCallRecvMsgSize),
 			grpc.MaxCallSendMsgSize(config.GRPC.MaxCallSendMsgSize),
 		),
-		grpc.WithDisableRetry(),
 	)
 	if err != nil {
 		return err
