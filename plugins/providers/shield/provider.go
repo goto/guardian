@@ -60,7 +60,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 
 	resources := []*domain.Resource{}
 
-	var teams []*Team
+	var teams []*Group
 	var projects []*Project
 	var organizations []*Organization
 
@@ -91,7 +91,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 	return resources, nil
 }
 
-func (p *provider) addTeams(pc *domain.ProviderConfig, teams []*Team, resources []*domain.Resource) []*domain.Resource {
+func (p *provider) addTeams(pc *domain.ProviderConfig, teams []*Group, resources []*domain.Resource) []*domain.Resource {
 	for _, c := range teams {
 		t := c.ToDomain()
 		t.ProviderType = pc.Type
@@ -166,7 +166,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 
 	switch a.Resource.Type {
 	case ResourceTypeTeam:
-		t := new(Team)
+		t := new(Group)
 		if err := t.FromDomain(a.Resource); err != nil {
 			return err
 		}
@@ -222,7 +222,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 
 	switch a.Resource.Type {
 	case ResourceTypeTeam:
-		t := new(Team)
+		t := new(Group)
 		if err := t.FromDomain(a.Resource); err != nil {
 			return err
 		}

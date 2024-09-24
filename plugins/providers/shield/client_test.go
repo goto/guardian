@@ -156,7 +156,7 @@ func (s *ClientTestSuite) TestGetTeams() {
 		teamResponse := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(teamResponseJSON)))}
 		s.mockHttpClient.On("Do", testRequest).Return(&teamResponse, nil).Once()
 
-		expectedTeams := []shield.Team{
+		expectedTeams := []shield.Group{
 			{
 				ID:    "team_id_1",
 				Name:  "team_1",
@@ -211,7 +211,7 @@ func (s *ClientTestSuite) TestGetTeams() {
 		s.mockHttpClient.On("Do", testAdminsRequest2).Return(&teamAdminResponse2, nil).Once()
 
 		result, err1 := s.client.GetTeams(context.Background())
-		var teams []shield.Team
+		var teams []shield.Group
 		for _, team := range result {
 			teams = append(teams, *team)
 		}
@@ -364,8 +364,8 @@ func (s *ClientTestSuite) TestGrantTeamAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var teamObj *shield.Team
-		teamObj = new(shield.Team)
+		var teamObj *shield.Group
+		teamObj = new(shield.Group)
 		teamObj.ID = "test_team_id"
 
 		role := "users"
@@ -479,8 +479,8 @@ func (s *ClientTestSuite) TestRevokeTeamAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var teamObj *shield.Team
-		teamObj = new(shield.Team)
+		var teamObj *shield.Group
+		teamObj = new(shield.Group)
 		teamObj.ID = "test_team_id"
 
 		role := "users"

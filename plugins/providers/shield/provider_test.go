@@ -293,7 +293,7 @@ func TestGetResources(t *testing.T) {
 				},
 			},
 		}
-		expectedTeams := []*shield.Team{
+		expectedTeams := []*shield.Group{
 			{
 				ID:    "team_id",
 				Name:  "team_1",
@@ -530,7 +530,7 @@ func TestGrantAccess(t *testing.T) {
 			providerURN := "test-provider-urn"
 			logger := log.NewCtxLogger("info", []string{"test"})
 			client := new(mocks.ShieldClient)
-			expectedTeam := &shield.Team{
+			expectedTeam := &shield.Group{
 				Name: "team_1",
 				ID:   "team_id",
 			}
@@ -995,7 +995,7 @@ func TestRevokeAccess(t *testing.T) {
 			providerURN := "test-provider-urn"
 			logger := log.NewCtxLogger("info", []string{"test"})
 			client := new(mocks.ShieldClient)
-			expectedTeam := &shield.Team{
+			expectedTeam := &shield.Group{
 				Name:  "team_1",
 				ID:    "team_id",
 				OrgId: "456",

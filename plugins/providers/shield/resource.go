@@ -24,13 +24,20 @@ type User struct {
 	Email string `json:"email" mapstructure:"email"`
 }
 
-type Team struct {
+type Group struct {
 	ID       string   `json:"id" mapstructure:"id"`
 	Name     string   `json:"name" mapstructure:"name"`
 	Slug     string   `json:"slug" mapstructure:"slug"`
 	OrgId    string   `json:"orgId" mapstructure:"orgId"`
 	Metadata Metadata `json:"metadata" mapstructure:"metadata"`
 	Admins   []string `json:"admins" mapstructure:"admins"`
+}
+
+type GroupRelation struct {
+	SubjectType string `json:"subject_type" mapstructure:"subject_type"`
+	Role        string `json:"role" mapstructure:"role"`
+	User        *User  `json:"user" mapstructure:"user"`
+	Group       *Group `json:"group" mapstructure:"group"`
 }
 
 type Project struct {
@@ -48,7 +55,21 @@ type Organization struct {
 	Admins []string `json:"admins" mapstructure:"admins"`
 }
 
-func (t *Team) FromDomain(r *domain.Resource) error {
+type Relation struct {
+	Id              string `json:"id" mapstructure:"id"`
+	ObjectId        string `json:"object_id" mapstructure:"object_id"`
+	ObjectNamespace string `json:"object_namespace" mapstructure:"object_namespace"`
+	Subject         string `json:"subject" mapstructure:"subject"`
+	RoleName        string `json:"role_name" mapstructure:"role_name"`
+}
+
+type DeleteRelation struct {
+	ObjectId  string `json:"object_id" mapstructure:"object_id"`
+	SubjectId string `json:"subject_id" mapstructure:"subject_id"`
+	Role      string `json:"role" mapstructure:"role"`
+}
+
+func (t *Group) FromDomain(r *domain.Resource) error {
 	if r.Type != ResourceTypeTeam {
 		return ErrInvalidResourceType
 	}
@@ -82,7 +103,7 @@ func (t *Team) FromDomain(r *domain.Resource) error {
 	return nil
 }
 
-func (t *Team) ToDomain() *domain.Resource {
+func (t *Group) ToDomain() *domain.Resource {
 	return &domain.Resource{
 		Type: ResourceTypeTeam,
 		Name: t.Name,
