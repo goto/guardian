@@ -183,15 +183,15 @@ func (s *ClientTestSuite) TestGetTeams() {
 			},
 		}
 
-		testAdminsRequest1, err := s.getTestRequest(http.MethodGet, "/admin/v1beta1/groups/team_id_1/admins", nil, "")
+		testAdminsRequest1, err := s.getTestRequest(http.MethodGet, "/admin/v1beta1/groups/team_id_1/relations?role=manager", nil, "")
 		s.Require().NoError(err)
 
-		testAdminsRequest2, err := s.getTestRequest(http.MethodGet, "/admin/v1beta1/groups/team_id_2/admins", nil, "")
+		testAdminsRequest2, err := s.getTestRequest(http.MethodGet, "/admin/v1beta1/groups/team_id_2/relations?role=manager", nil, "")
 		s.Require().NoError(err)
 
 		teamAdminResponse := `{
-			"users": [
-				{
+			"relations": [{
+				"user": {
 					"id": "admin_id",
 					"name": "Test_Admin",
 					"slug": "Test_Admin",
@@ -201,7 +201,8 @@ func (s *ClientTestSuite) TestGetTeams() {
 					},
 					"createdAt": "2022-03-17T09:43:12.391071Z",
 					"updatedAt": "2022-03-17T09:43:12.391071Z"
-				}]
+				}
+			}]
 		}`
 
 		teamAdminResponse1 := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(teamAdminResponse)))}
