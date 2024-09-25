@@ -365,26 +365,21 @@ func (s *ClientTestSuite) TestGrantTeamAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var teamObj *shield.Group
-		teamObj = new(shield.Group)
+		teamObj := new(shield.Group)
 		teamObj.ID = "test_team_id"
 
-		role := "users"
+		role := "member"
 
 		responseJson := `{
-			"users": [
-				{
-					"id": "test_user_id",
-					"name": "Test_User",
-					"slug": "Test_User",
-					"email": "test.user@email.com",
-					"metadata": {
-						"slack": "@Test_Admin"
-					},
-					"createdAt": "2022-03-17T09:43:12.391071Z",
-					"updatedAt": "2022-03-17T09:43:12.391071Z"
-				}
-			]
+			"relation": {
+				"id": "test_relation_id",
+				"objectId": "test_team_id",
+				"objectNamespace": "shield/group",
+				"subject": "shield/user:test_user_id",
+				"roleName": "shield/group:member",
+				"createdAt": null,
+				"updatedAt": null
+			}
 		}`
 
 		responseUsers := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
@@ -404,26 +399,21 @@ func (s *ClientTestSuite) TestGrantProjectAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var projectObj *shield.Project
-		projectObj = new(shield.Project)
+		projectObj := new(shield.Project)
 		projectObj.ID = "test_project_id"
 
-		role := "admins"
+		role := "owner"
 
 		responseJson := `{
-			"users": [
-				{
-					"id": "test_user_id",
-					"name": "Test_User",
-					"slug": "Test_User",
-					"email": "test.user@email.com",
-					"metadata": {
-						"slack": "@Test_Admin"
-					},
-					"createdAt": "2022-03-17T09:43:12.391071Z",
-					"updatedAt": "2022-03-17T09:43:12.391071Z"
-				}
-			]
+			"relation": {
+				"id": "test_relation_id",
+				"objectId": "test_project_id",
+				"objectNamespace": "shield/project",
+				"subject": "shield/user:test_user_id",
+				"roleName": "shield/project:owner",
+				"createdAt": null,
+				"updatedAt": null
+			}
 		}`
 
 		responseUsers := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
@@ -442,26 +432,22 @@ func (s *ClientTestSuite) TestGrantOrganizationAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var orgObj *shield.Organization
-		orgObj = new(shield.Organization)
+		// var orgObj *shield.Organization
+		orgObj := new(shield.Organization)
 		orgObj.ID = "test_org_id"
 
-		role := "admins"
+		role := "owner"
 
 		responseJson := `{
-			"users": [
-				{
-					"id": "test_user_id",
-					"name": "Test_User",
-					"slug": "Test_User",
-					"email": "test.user@email.com",
-					"metadata": {
-						"slack": "@Test_Admin"
-					},
-					"createdAt": "2022-03-17T09:43:12.391071Z",
-					"updatedAt": "2022-03-17T09:43:12.391071Z"
-				}
-			]
+			"relation": {
+				"id": "test_relation_id",
+				"objectId": "test_org_id",
+				"objectNamespace": "shield/organization",
+				"subject": "shield/user:test_user_id",
+				"roleName": "shield/organization:owner",
+				"createdAt": null,
+				"updatedAt": null
+			}
 		}`
 
 		responseUsers := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
@@ -480,8 +466,7 @@ func (s *ClientTestSuite) TestRevokeTeamAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var teamObj *shield.Group
-		teamObj = new(shield.Group)
+		teamObj := new(shield.Group)
 		teamObj.ID = "test_team_id"
 
 		role := "users"
@@ -507,8 +492,7 @@ func (s *ClientTestSuite) TestRevokeProjectAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var projectObj *shield.Project
-		projectObj = new(shield.Project)
+		projectObj := new(shield.Project)
 		projectObj.ID = "test_project_id"
 
 		role := "admins"
@@ -533,8 +517,7 @@ func (s *ClientTestSuite) TestRevokeOrganizationAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var orgObj *shield.Organization
-		orgObj = new(shield.Organization)
+		orgObj := new(shield.Organization)
 		orgObj.ID = "test_org_id"
 
 		role := "admins"
