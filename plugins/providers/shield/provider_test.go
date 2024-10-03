@@ -1414,3 +1414,57 @@ func TestGetRoles(t *testing.T) {
 		assert.Equal(t, expectedRoles, actualRoles)
 	})
 }
+func TestGetClient(t *testing.T) {
+	t.Run("should return existing client if already present", func(t *testing.T) {
+		providerURN := "test-provider-urn"
+		expectedClient := new(mocks.ShieldClient)
+		logger := log.NewCtxLogger("info", []string{"test"})
+		p := shield.NewProvider("shield", logger)
+		p.Clients = map[string]shield.ShieldClient{
+			providerURN: expectedClient,
+		}
+
+		creds := shield.Credentials{
+			Host:       "localhost",
+			AuthEmail:  "test-email",
+			AuthHeader: "test-header",
+		}
+
+		actualClient, err := p.GetClient(providerURN, creds)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedClient, actualClient)
+	})
+
+	t.Run("should return new client of old shield if not already present", func(t *testing.T) {
+		providerURN := "test-provider-urn"
+		logger := log.NewCtxLogger("info", []string{"test"})
+		p := shield.NewProvider("", logger)
+
+		creds := shield.Credentials{
+			Host:       "http://localhost.com",
+			AuthEmail:  "test-email",
+			AuthHeader: "test-header",
+		}
+
+		_, err := p.GetClient(providerURN, creds)
+		assert.NoError(t, err)
+	})
+
+	t.Run("should return new client of new shield if not already present", func(t *testing.T) {
+		providerURN := "test-provider-urn"
+		logger := log.NewCtxLogger("info", []string{"test"})
+		p := shield.NewProvider("", logger)
+
+		creds := shield.Credentials{
+			Host:       "http://localhost.com",
+			AuthEmail:  "test-email",
+			Version:    "new",
+			AuthHeader: "test-header",
+		}
+
+		_, err := p.GetClient(providerURN, creds)
+
+		assert.NoError(t, err)
+	})
+}

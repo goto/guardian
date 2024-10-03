@@ -48,7 +48,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 		return nil, err
 	}
 
-	client, err := p.getClient(pc.URN, creds)
+	client, err := p.GetClient(pc.URN, creds)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (p *provider) addOrganizations(pc *domain.ProviderConfig, organizations []*
 	return resources
 }
 
-func (p *provider) getClient(providerURN string, credentials Credentials) (ShieldClient, error) {
+func (p *provider) GetClient(providerURN string, credentials Credentials) (ShieldClient, error) {
 	if p.Clients[providerURN] != nil {
 		return p.Clients[providerURN], nil
 	}
@@ -165,7 +165,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 	if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
 		return err
 	}
-	client, err := p.getClient(pc.URN, creds)
+	client, err := p.GetClient(pc.URN, creds)
 	if err != nil {
 		return err
 	}
@@ -221,7 +221,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 	if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
 		return err
 	}
-	client, err := p.getClient(pc.URN, creds)
+	client, err := p.GetClient(pc.URN, creds)
 	if err != nil {
 		return err
 	}
