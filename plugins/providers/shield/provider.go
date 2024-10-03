@@ -130,17 +130,30 @@ func (p *provider) getClient(providerURN string, credentials Credentials) (Shiel
 		return p.Clients[providerURN], nil
 	}
 
-	client, err := NewClient(&ClientConfig{
-		Host:       credentials.Host,
-		AuthHeader: credentials.AuthHeader,
-		AuthEmail:  credentials.AuthEmail,
-	}, p.logger)
-	if err != nil {
-		return nil, err
-	}
+	if credentials.Version == "new" {
+		client, err := NewShieldNewClient(&ClientConfig{
+			Host:       credentials.Host,
+			AuthHeader: credentials.AuthHeader,
+			AuthEmail:  credentials.AuthEmail,
+		}, p.logger)
+		if err != nil {
+			return nil, err
+		}
 
-	p.Clients[providerURN] = client
-	return client, nil
+		p.Clients[providerURN] = client
+		return client, nil
+	} else {
+		client, err := NewClient(&ClientConfig{
+			Host:       credentials.Host,
+			AuthHeader: credentials.AuthHeader,
+			AuthEmail:  credentials.AuthEmail,
+		}, p.logger)
+		if err != nil {
+			return nil, err
+		}
+		p.Clients[providerURN] = client
+		return client, nil
+	}
 }
 
 func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*domain.Role, error) {

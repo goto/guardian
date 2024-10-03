@@ -21,6 +21,7 @@ type Credentials struct {
 	Host       string `json:"host" mapstructure:"host" validate:"required"`
 	AuthHeader string `json:"auth_header" mapstructure:"auth_header" validate:"required"`
 	AuthEmail  string `json:"auth_email" mapstructure:"auth_email" validate:"required"`
+	Version    string `json:"version" mapstructure:"version"`
 }
 
 type Permission string

@@ -1,16 +1,65 @@
 package shield
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/goto/guardian/domain"
 )
+
+type ShieldClient interface {
+	GetTeams(ctx context.Context) ([]*Group, error)
+	GetProjects(ctx context.Context) ([]*Project, error)
+	GetOrganizations(ctx context.Context) ([]*Organization, error)
+	GrantTeamAccess(ctx context.Context, team *Group, userId string, role string) error
+	RevokeTeamAccess(ctx context.Context, team *Group, userId string, role string) error
+	GrantProjectAccess(ctx context.Context, project *Project, userId string, role string) error
+	RevokeProjectAccess(ctx context.Context, project *Project, userId string, role string) error
+	GrantOrganizationAccess(ctx context.Context, organization *Organization, userId string, role string) error
+	RevokeOrganizationAccess(ctx context.Context, organization *Organization, userId string, role string) error
+	GetSelfUser(ctx context.Context, email string) (*User, error)
+}
 
 const (
 	ResourceTypeTeam         = "team"
 	ResourceTypeProject      = "project"
 	ResourceTypeOrganization = "organization"
 )
+
+const (
+	groupsEndpoint       = "/admin/v1beta1/groups"
+	projectsEndpoint     = "/admin/v1beta1/projects"
+	organizationEndpoint = "/admin/v1beta1/organizations"
+	selfUserEndpoint     = "admin/v1beta1/users/self"
+	relationsEndpoint    = "/admin/v1beta1/relations"
+	objectEndpoint       = "/admin/v1beta1/object"
+
+	groupsConst        = "groups"
+	projectsConst      = "projects"
+	organizationsConst = "organizations"
+	usersConst         = "users"
+	userConst          = "user"
+	relationsConst     = "relations"
+	relationConst      = "relation"
+
+	userNamespaceConst         = "shield/user"
+	groupNamespaceConst        = "shield/group"
+	projectNamespaceConst      = "shield/project"
+	organizationNamespaceConst = "shield/organization"
+	managerRoleConst           = "manager"
+)
+
+type HTTPClient interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
+type ClientConfig struct {
+	Host       string `validate:"required,url" mapstructure:"host"`
+	AuthHeader string `validate:"required" mapstructure:"auth_header"`
+	AuthEmail  string `validate:"required" mapstructure:"auth_email"`
+	HTTPClient HTTPClient
+}
 
 type Metadata struct {
 	Email   string `json:"email" mapstructure:"email"`

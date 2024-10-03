@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestNewClient(t *testing.T) {
+func TestNewShieldNewClient(t *testing.T) {
 	t.Run("should return error if config is invalid", func(t *testing.T) {
 		invalidConfig := &shield.ClientConfig{}
 		logger := log.NewCtxLogger("info", []string{"test"})
@@ -59,7 +59,7 @@ func TestNewClient(t *testing.T) {
 	})
 }
 
-type ClientTestSuite struct {
+type ShieldNewClientTestSuite struct {
 	suite.Suite
 
 	mockHttpClient *mocks.HTTPClient
@@ -69,11 +69,11 @@ type ClientTestSuite struct {
 	host           string
 }
 
-func TestClient(t *testing.T) {
+func TestShieldNewClient(t *testing.T) {
 	suite.Run(t, new(ClientTestSuite))
 }
 
-func (s *ClientTestSuite) setup() {
+func (s *ShieldNewClientTestSuite) setup() {
 	logger := log.NewNoop()
 	s.mockHttpClient = new(mocks.HTTPClient)
 
@@ -90,7 +90,7 @@ func (s *ClientTestSuite) setup() {
 	s.client = client
 }
 
-func (s *ClientTestSuite) getTestRequest(method, path string, body interface{}, authEmail string) (*http.Request, error) {
+func (s *ShieldNewClientTestSuite) getTestRequest(method, path string, body interface{}, authEmail string) (*http.Request, error) {
 	var buf io.ReadWriter
 	if body != nil {
 		buf = new(bytes.Buffer)
@@ -116,7 +116,7 @@ func (s *ClientTestSuite) getTestRequest(method, path string, body interface{}, 
 	return req, nil
 }
 
-func (s *ClientTestSuite) TestGetTeams() {
+func (s *ShieldNewClientTestSuite) TestGetTeams() {
 	s.Run("should get teams and nil error on success", func() {
 		s.setup()
 
@@ -183,15 +183,15 @@ func (s *ClientTestSuite) TestGetTeams() {
 			},
 		}
 
-		testAdminsRequest1, err := s.getTestRequest(http.MethodGet, "/admin/v1beta1/groups/team_id_1/admins", nil, "")
+		testAdminsRequest1, err := s.getTestRequest(http.MethodGet, "/admin/v1beta1/groups/team_id_1/relations?role=manager", nil, "")
 		s.Require().NoError(err)
 
-		testAdminsRequest2, err := s.getTestRequest(http.MethodGet, "/admin/v1beta1/groups/team_id_2/admins", nil, "")
+		testAdminsRequest2, err := s.getTestRequest(http.MethodGet, "/admin/v1beta1/groups/team_id_2/relations?role=manager", nil, "")
 		s.Require().NoError(err)
 
 		teamAdminResponse := `{
-			"users": [
-				{
+			"relations": [{
+				"user": {
 					"id": "admin_id",
 					"name": "Test_Admin",
 					"slug": "Test_Admin",
@@ -201,7 +201,8 @@ func (s *ClientTestSuite) TestGetTeams() {
 					},
 					"createdAt": "2022-03-17T09:43:12.391071Z",
 					"updatedAt": "2022-03-17T09:43:12.391071Z"
-				}]
+				}
+			}]
 		}`
 
 		teamAdminResponse1 := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(teamAdminResponse)))}
@@ -220,7 +221,7 @@ func (s *ClientTestSuite) TestGetTeams() {
 	})
 }
 
-func (s *ClientTestSuite) TestGetProjects() {
+func (s *ShieldNewClientTestSuite) TestGetProjects() {
 	s.Run("should get projects and nil error on success", func() {
 		s.setup()
 
@@ -289,7 +290,7 @@ func (s *ClientTestSuite) TestGetProjects() {
 	})
 }
 
-func (s *ClientTestSuite) TestGetOrganizations() {
+func (s *ShieldNewClientTestSuite) TestGetOrganizations() {
 	s.Run("should get organizations and nil error on success", func() {
 		s.setup()
 
@@ -355,7 +356,7 @@ func (s *ClientTestSuite) TestGetOrganizations() {
 	})
 }
 
-func (s *ClientTestSuite) TestGrantTeamAccess() {
+func (s *ShieldNewClientTestSuite) TestGrantTeamAccess() {
 	s.Run("should grant access to team and nil error on success", func() {
 		s.setup()
 
@@ -364,26 +365,21 @@ func (s *ClientTestSuite) TestGrantTeamAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var teamObj *shield.Group
-		teamObj = new(shield.Group)
+		teamObj := new(shield.Group)
 		teamObj.ID = "test_team_id"
 
-		role := "users"
+		role := "member"
 
 		responseJson := `{
-			"users": [
-				{
-					"id": "test_user_id",
-					"name": "Test_User",
-					"slug": "Test_User",
-					"email": "test.user@email.com",
-					"metadata": {
-						"slack": "@Test_Admin"
-					},
-					"createdAt": "2022-03-17T09:43:12.391071Z",
-					"updatedAt": "2022-03-17T09:43:12.391071Z"
-				}
-			]
+			"relation": {
+				"id": "test_relation_id",
+				"objectId": "test_team_id",
+				"objectNamespace": "shield/group",
+				"subject": "shield/user:test_user_id",
+				"roleName": "shield/group:member",
+				"createdAt": null,
+				"updatedAt": null
+			}
 		}`
 
 		responseUsers := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
@@ -394,7 +390,7 @@ func (s *ClientTestSuite) TestGrantTeamAccess() {
 	})
 }
 
-func (s *ClientTestSuite) TestGrantProjectAccess() {
+func (s *ShieldNewClientTestSuite) TestGrantProjectAccess() {
 	s.Run("should grant access to project and nil error on success", func() {
 		s.setup()
 
@@ -403,26 +399,21 @@ func (s *ClientTestSuite) TestGrantProjectAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var projectObj *shield.Project
-		projectObj = new(shield.Project)
+		projectObj := new(shield.Project)
 		projectObj.ID = "test_project_id"
 
-		role := "admins"
+		role := "owner"
 
 		responseJson := `{
-			"users": [
-				{
-					"id": "test_user_id",
-					"name": "Test_User",
-					"slug": "Test_User",
-					"email": "test.user@email.com",
-					"metadata": {
-						"slack": "@Test_Admin"
-					},
-					"createdAt": "2022-03-17T09:43:12.391071Z",
-					"updatedAt": "2022-03-17T09:43:12.391071Z"
-				}
-			]
+			"relation": {
+				"id": "test_relation_id",
+				"objectId": "test_project_id",
+				"objectNamespace": "shield/project",
+				"subject": "shield/user:test_user_id",
+				"roleName": "shield/project:owner",
+				"createdAt": null,
+				"updatedAt": null
+			}
 		}`
 
 		responseUsers := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
@@ -433,7 +424,7 @@ func (s *ClientTestSuite) TestGrantProjectAccess() {
 	})
 }
 
-func (s *ClientTestSuite) TestGrantOrganizationAccess() {
+func (s *ShieldNewClientTestSuite) TestGrantOrganizationAccess() {
 	s.Run("should grant access to organization and nil error on success", func() {
 		s.setup()
 		testUserId := "test_user_id"
@@ -441,26 +432,22 @@ func (s *ClientTestSuite) TestGrantOrganizationAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var orgObj *shield.Organization
-		orgObj = new(shield.Organization)
+		// var orgObj *shield.Organization
+		orgObj := new(shield.Organization)
 		orgObj.ID = "test_org_id"
 
-		role := "admins"
+		role := "owner"
 
 		responseJson := `{
-			"users": [
-				{
-					"id": "test_user_id",
-					"name": "Test_User",
-					"slug": "Test_User",
-					"email": "test.user@email.com",
-					"metadata": {
-						"slack": "@Test_Admin"
-					},
-					"createdAt": "2022-03-17T09:43:12.391071Z",
-					"updatedAt": "2022-03-17T09:43:12.391071Z"
-				}
-			]
+			"relation": {
+				"id": "test_relation_id",
+				"objectId": "test_org_id",
+				"objectNamespace": "shield/organization",
+				"subject": "shield/user:test_user_id",
+				"roleName": "shield/organization:owner",
+				"createdAt": null,
+				"updatedAt": null
+			}
 		}`
 
 		responseUsers := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
@@ -471,7 +458,7 @@ func (s *ClientTestSuite) TestGrantOrganizationAccess() {
 	})
 }
 
-func (s *ClientTestSuite) TestRevokeTeamAccess() {
+func (s *ShieldNewClientTestSuite) TestRevokeTeamAccess() {
 	s.Run("should revoke access to team and nil error on success", func() {
 		s.setup()
 		testUserId := "test_user_id"
@@ -479,8 +466,7 @@ func (s *ClientTestSuite) TestRevokeTeamAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var teamObj *shield.Group
-		teamObj = new(shield.Group)
+		teamObj := new(shield.Group)
 		teamObj.ID = "test_team_id"
 
 		role := "users"
@@ -497,7 +483,7 @@ func (s *ClientTestSuite) TestRevokeTeamAccess() {
 	})
 }
 
-func (s *ClientTestSuite) TestRevokeProjectAccess() {
+func (s *ShieldNewClientTestSuite) TestRevokeProjectAccess() {
 	s.Run("should revoke access to project and nil error on success", func() {
 		s.setup()
 
@@ -506,8 +492,7 @@ func (s *ClientTestSuite) TestRevokeProjectAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var projectObj *shield.Project
-		projectObj = new(shield.Project)
+		projectObj := new(shield.Project)
 		projectObj.ID = "test_project_id"
 
 		role := "admins"
@@ -524,7 +509,7 @@ func (s *ClientTestSuite) TestRevokeProjectAccess() {
 	})
 }
 
-func (s *ClientTestSuite) TestRevokeOrganizationAccess() {
+func (s *ShieldNewClientTestSuite) TestRevokeOrganizationAccess() {
 	s.Run("should revoke access to organization and nil error on success", func() {
 		s.setup()
 		testUserId := "test_user_id"
@@ -532,8 +517,7 @@ func (s *ClientTestSuite) TestRevokeOrganizationAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var orgObj *shield.Organization
-		orgObj = new(shield.Organization)
+		orgObj := new(shield.Organization)
 		orgObj.ID = "test_org_id"
 
 		role := "admins"
@@ -550,7 +534,7 @@ func (s *ClientTestSuite) TestRevokeOrganizationAccess() {
 	})
 }
 
-func (s *ClientTestSuite) TestGetSelfUser() {
+func (s *ShieldNewClientTestSuite) TestGetSelfUser() {
 	s.Run("Should return error user on empty email", func() {
 		s.setup()
 		testUserEmail := ""
