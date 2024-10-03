@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/goto/guardian/domain"
+	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
+	"go.nhat.io/otelsql"
 
 	"encoding/json"
 
@@ -19,7 +21,7 @@ import (
 	"github.com/goto/guardian/pkg/auth"
 	"github.com/goto/guardian/pkg/crypto"
 	"github.com/goto/guardian/pkg/log"
-	"github.com/goto/guardian/pkg/tracing"
+	"github.com/goto/guardian/pkg/opentelemetry"
 	"github.com/goto/guardian/plugins/notifiers"
 	audit_repos "github.com/goto/salt/audit/repositories"
 	"github.com/goto/salt/mux"
@@ -29,11 +31,13 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
-	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
+
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
 	"google.golang.org/api/idtoken"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -80,11 +84,18 @@ func RunServer(config *Config) error {
 		return err
 	}
 
-	shutdown, err := tracing.InitTracer(config.Telemetry)
-	if err != nil {
-		return err
+	ctx := context.Background()
+
+	// var shutdownOtel = func() error { return nil }
+	if config.Telemetry.Enabled {
+		logger.Info(ctx, "open telemetry is initiating...")
+		shutdownOtel, err := opentelemetry.Init(ctx, config.Telemetry)
+		if err != nil {
+			return fmt.Errorf("error initiating open telemetry: %w", err)
+		}
+		logger.Info(ctx, "open telemetry is initiated!")
+		defer shutdownOtel()
 	}
-	defer shutdown()
 
 	services, err := InitServices(ServiceDeps{
 		Config:    config,
@@ -115,7 +126,6 @@ func RunServer(config *Config) error {
 			authInterceptor,
 			enrichLogrusFields(),
 			otelgrpc.UnaryServerInterceptor(),
-
 			grpc_recovery.UnaryServerInterceptor(
 				grpc_recovery.WithRecoveryHandler(func(p interface{}) (err error) {
 					logger.Error(context.Background(), string(debug.Stack()))
@@ -170,7 +180,9 @@ func RunServer(config *Config) error {
 	grpcConn, err := grpc.DialContext(
 		timeoutGrpcDialCtx,
 		address,
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(config.GRPC.MaxCallRecvMsgSize),
 			grpc.MaxCallSendMsgSize(config.GRPC.MaxCallSendMsgSize),
@@ -222,6 +234,17 @@ func Migrate(c *Config) error {
 func getStore(c *Config) (*postgres.Store, error) {
 	store, err := postgres.NewStore(&c.DB)
 	if c.Telemetry.Enabled {
+		sqlDB, err := store.DB().DB()
+		if err != nil {
+			return nil, err
+		}
+		if err := otelsql.RecordStats(
+			sqlDB,
+			otelsql.WithSystem(semconv.DBSystemPostgreSQL),
+			otelsql.WithInstanceName("default"),
+		); err != nil {
+			return nil, err
+		}
 		if err := store.DB().Use(otelgorm.NewPlugin()); err != nil {
 			return store, err
 		}

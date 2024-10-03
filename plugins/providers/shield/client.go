@@ -13,7 +13,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/pkg/log"
-	"github.com/goto/guardian/pkg/tracing"
+	"github.com/goto/guardian/pkg/opentelemetry"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -41,7 +41,7 @@ func NewClient(config *ClientConfig, logger log.Logger) (*client, error) {
 
 	httpClient := config.HTTPClient
 	if httpClient == nil {
-		httpClient = tracing.NewHttpClient("ShieldHttpClient")
+		httpClient = opentelemetry.NewHttpClient("ShieldHttpClient")
 	}
 
 	c := &client{
