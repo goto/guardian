@@ -80,7 +80,7 @@ func (s *ShieldNewClientTestSuite) setup() {
 	s.host = "http://localhost"
 	s.auth = "shield_admin"
 	s.authHeader = "X-Auth-Email"
-	client, err := shield.NewClient(&shield.ClientConfig{
+	client, err := shield.NewShieldNewClient(&shield.ClientConfig{
 		AuthHeader: s.authHeader,
 		AuthEmail:  s.auth,
 		Host:       s.host,
