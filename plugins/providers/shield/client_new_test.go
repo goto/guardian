@@ -23,7 +23,7 @@ func TestNewShieldNewClient(t *testing.T) {
 	t.Run("should return error if config is invalid", func(t *testing.T) {
 		invalidConfig := &shield.ClientConfig{}
 		logger := log.NewCtxLogger("info", []string{"test"})
-		actualClient, actualError := shield.NewClient(invalidConfig, logger)
+		actualClient, actualError := shield.NewShieldNewClient(invalidConfig, logger)
 
 		assert.Nil(t, actualClient)
 		assert.Error(t, actualError)
@@ -36,7 +36,7 @@ func TestNewShieldNewClient(t *testing.T) {
 			Host:       "invalid-url",
 		}
 		logger := log.NewCtxLogger("info", []string{"test"})
-		actualClient, actualError := shield.NewClient(invalidHostConfig, logger)
+		actualClient, actualError := shield.NewShieldNewClient(invalidHostConfig, logger)
 
 		assert.Nil(t, actualClient)
 		assert.Error(t, actualError)
@@ -53,7 +53,7 @@ func TestNewShieldNewClient(t *testing.T) {
 		}
 		logger := log.NewCtxLogger("info", []string{"test"})
 
-		_, actualError := shield.NewClient(config, logger)
+		_, actualError := shield.NewShieldNewClient(config, logger)
 		mockHttpClient.AssertExpectations(t)
 		assert.Nil(t, actualError)
 	})
@@ -70,7 +70,7 @@ type ShieldNewClientTestSuite struct {
 }
 
 func TestShieldNewClient(t *testing.T) {
-	suite.Run(t, new(ClientTestSuite))
+	suite.Run(t, new(ShieldNewClientTestSuite))
 }
 
 func (s *ShieldNewClientTestSuite) setup() {
@@ -116,7 +116,7 @@ func (s *ShieldNewClientTestSuite) getTestRequest(method, path string, body inte
 	return req, nil
 }
 
-func (s *ShieldNewClientTestSuite) TestGetTeams() {
+func (s *ShieldNewClientTestSuite) TestShieldNewGetTeams() {
 	s.Run("should get teams and nil error on success", func() {
 		s.setup()
 
@@ -221,7 +221,7 @@ func (s *ShieldNewClientTestSuite) TestGetTeams() {
 	})
 }
 
-func (s *ShieldNewClientTestSuite) TestGetProjects() {
+func (s *ShieldNewClientTestSuite) TestShieldNewGetProjects() {
 	s.Run("should get projects and nil error on success", func() {
 		s.setup()
 
@@ -290,7 +290,7 @@ func (s *ShieldNewClientTestSuite) TestGetProjects() {
 	})
 }
 
-func (s *ShieldNewClientTestSuite) TestGetOrganizations() {
+func (s *ShieldNewClientTestSuite) TestShieldNewGetOrganizations() {
 	s.Run("should get organizations and nil error on success", func() {
 		s.setup()
 
@@ -356,7 +356,7 @@ func (s *ShieldNewClientTestSuite) TestGetOrganizations() {
 	})
 }
 
-func (s *ShieldNewClientTestSuite) TestGrantTeamAccess() {
+func (s *ShieldNewClientTestSuite) TestShieldNewGrantTeamAccess() {
 	s.Run("should grant access to team and nil error on success", func() {
 		s.setup()
 
@@ -390,7 +390,7 @@ func (s *ShieldNewClientTestSuite) TestGrantTeamAccess() {
 	})
 }
 
-func (s *ShieldNewClientTestSuite) TestGrantProjectAccess() {
+func (s *ShieldNewClientTestSuite) TestShieldNewGrantProjectAccess() {
 	s.Run("should grant access to project and nil error on success", func() {
 		s.setup()
 
@@ -424,7 +424,7 @@ func (s *ShieldNewClientTestSuite) TestGrantProjectAccess() {
 	})
 }
 
-func (s *ShieldNewClientTestSuite) TestGrantOrganizationAccess() {
+func (s *ShieldNewClientTestSuite) TestShieldNewGrantOrganizationAccess() {
 	s.Run("should grant access to organization and nil error on success", func() {
 		s.setup()
 		testUserId := "test_user_id"
@@ -458,7 +458,7 @@ func (s *ShieldNewClientTestSuite) TestGrantOrganizationAccess() {
 	})
 }
 
-func (s *ShieldNewClientTestSuite) TestRevokeTeamAccess() {
+func (s *ShieldNewClientTestSuite) TestShieldNewRevokeTeamAccess() {
 	s.Run("should revoke access to team and nil error on success", func() {
 		s.setup()
 		testUserId := "test_user_id"
@@ -483,7 +483,7 @@ func (s *ShieldNewClientTestSuite) TestRevokeTeamAccess() {
 	})
 }
 
-func (s *ShieldNewClientTestSuite) TestRevokeProjectAccess() {
+func (s *ShieldNewClientTestSuite) TestShieldNewRevokeProjectAccess() {
 	s.Run("should revoke access to project and nil error on success", func() {
 		s.setup()
 
@@ -509,7 +509,7 @@ func (s *ShieldNewClientTestSuite) TestRevokeProjectAccess() {
 	})
 }
 
-func (s *ShieldNewClientTestSuite) TestRevokeOrganizationAccess() {
+func (s *ShieldNewClientTestSuite) TestShieldNewRevokeOrganizationAccess() {
 	s.Run("should revoke access to organization and nil error on success", func() {
 		s.setup()
 		testUserId := "test_user_id"
@@ -534,7 +534,7 @@ func (s *ShieldNewClientTestSuite) TestRevokeOrganizationAccess() {
 	})
 }
 
-func (s *ShieldNewClientTestSuite) TestGetSelfUser() {
+func (s *ShieldNewClientTestSuite) TestShieldNewGetSelfUser() {
 	s.Run("Should return error user on empty email", func() {
 		s.setup()
 		testUserEmail := ""
