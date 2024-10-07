@@ -207,7 +207,7 @@ func TestGetResources(t *testing.T) {
 			},
 		}
 		expectedError := errors.New("client error")
-		client.On("GetTeams", mock.Anything).Return(nil, expectedError).Once()
+		client.On("GetGroups", mock.Anything).Return(nil, expectedError).Once()
 
 		actualResources, actualError := p.GetResources(context.TODO(), pc)
 
@@ -306,7 +306,7 @@ func TestGetResources(t *testing.T) {
 				Admins: []string{"testTeamAdmin@gmail.com"},
 			},
 		}
-		client.On("GetTeams", mock.Anything).Return(expectedTeams, nil).Once()
+		client.On("GetGroups", mock.Anything).Return(expectedTeams, nil).Once()
 
 		expectedProjects := []*shield.Project{
 			{

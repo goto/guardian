@@ -117,7 +117,7 @@ func (s *ClientTestSuite) getTestRequest(method, path string, body interface{}, 
 }
 
 func (s *ClientTestSuite) TestGetGroups() {
-	s.Run("should get teams and nil error on success", func() {
+	s.Run("should get groups and nil error on success", func() {
 		s.setup()
 
 		testRequest, err := s.getTestRequest(http.MethodGet, "/admin/v1beta1/groups", nil, "")
@@ -355,8 +355,8 @@ func (s *ClientTestSuite) TestGetOrganizations() {
 	})
 }
 
-func (s *ClientTestSuite) TestGrantGroupAccess() {
-	s.Run("should grant access to team and nil error on success", func() {
+func (s *ClientTestSuite) TestGrantShieldGroupAccess() {
+	s.Run("should grant access to group and nil error on success", func() {
 		s.setup()
 
 		testUserId := "test_user_id"
@@ -364,8 +364,7 @@ func (s *ClientTestSuite) TestGrantGroupAccess() {
 		body := make(map[string][]string)
 		body["userIds"] = append(body["userIds"], testUserId)
 
-		var teamObj *shield.Group
-		teamObj = new(shield.Group)
+		teamObj := new(shield.Group)
 		teamObj.ID = "test_team_id"
 
 		role := "users"
@@ -471,8 +470,8 @@ func (s *ClientTestSuite) TestGrantOrganizationAccess() {
 	})
 }
 
-func (s *ClientTestSuite) TestRevokeGroupAccess() {
-	s.Run("should revoke access to team and nil error on success", func() {
+func (s *ClientTestSuite) TestRevokeShieldGroupAccess() {
+	s.Run("should revoke access to group and nil error on success", func() {
 		s.setup()
 		testUserId := "test_user_id"
 
