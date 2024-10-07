@@ -480,7 +480,7 @@ func TestGrantAccess(t *testing.T) {
 			}
 
 			client.On("GetSelfUser", mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedUserEmail).Return(expectedUser, nil).Once()
-			client.On("GrantTeamAccess", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedError).Once()
+			client.On("GrantGroupAccess", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedError).Once()
 
 			pc := &domain.ProviderConfig{
 				Credentials: shield.Credentials{
@@ -548,7 +548,7 @@ func TestGrantAccess(t *testing.T) {
 				providerURN: client,
 			}
 			client.On("GetSelfUser", mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedUserEmail).Return(expectedUser, nil).Once()
-			client.On("GrantTeamAccess", expectedTeam, expectedUser.ID, expectedRole).Return(nil).Once()
+			client.On("GrantGroupAccess", expectedTeam, expectedUser.ID, expectedRole).Return(nil).Once()
 
 			pc := &domain.ProviderConfig{
 				Credentials: shield.Credentials{
@@ -945,7 +945,7 @@ func TestRevokeAccess(t *testing.T) {
 			}
 
 			client.On("GetSelfUser", mockCtx, expectedUserEmail).Return(expectedUser, nil).Once()
-			client.On("RevokeTeamAccess", mockCtx, mock.Anything, mock.Anything, mock.Anything).Return(expectedError).Once()
+			client.On("RevokeGroupAccess", mockCtx, mock.Anything, mock.Anything, mock.Anything).Return(expectedError).Once()
 
 			pc := &domain.ProviderConfig{
 				Credentials: shield.Credentials{
@@ -1021,7 +1021,7 @@ func TestRevokeAccess(t *testing.T) {
 			}
 
 			client.On("GetSelfUser", mockCtx, expectedUserEmail).Return(expectedUser, nil).Once()
-			client.On("RevokeTeamAccess", mockCtx, expectedTeam, expectedUser.ID, expectedRole).Return(nil).Once()
+			client.On("RevokeGroupAccess", mockCtx, expectedTeam, expectedUser.ID, expectedRole).Return(nil).Once()
 
 			pc := &domain.ProviderConfig{
 				Credentials: shield.Credentials{
