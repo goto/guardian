@@ -65,7 +65,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 	var organizations []*Organization
 
 	if _, ok := resourceTypes[ResourceTypeTeam]; ok {
-		teams, err = client.GetTeams(ctx)
+		teams, err = client.GetGroups(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -184,7 +184,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 			return err
 		}
 		for _, p := range permissions {
-			if err := client.GrantTeamAccess(ctx, t, user.ID, p); err != nil {
+			if err := client.GrantGroupAccess(ctx, t, user.ID, p); err != nil {
 				return err
 			}
 		}
@@ -240,7 +240,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 			return err
 		}
 		for _, p := range permissions {
-			if err := client.RevokeTeamAccess(ctx, t, user.ID, p); err != nil {
+			if err := client.RevokeGroupAccess(ctx, t, user.ID, p); err != nil {
 				return err
 			}
 		}

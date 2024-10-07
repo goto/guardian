@@ -9,11 +9,11 @@ import (
 )
 
 type ShieldClient interface {
-	GetTeams(ctx context.Context) ([]*Group, error)
+	GetGroups(ctx context.Context) ([]*Group, error)
 	GetProjects(ctx context.Context) ([]*Project, error)
 	GetOrganizations(ctx context.Context) ([]*Organization, error)
-	GrantTeamAccess(ctx context.Context, team *Group, userId string, role string) error
-	RevokeTeamAccess(ctx context.Context, team *Group, userId string, role string) error
+	GrantGroupAccess(ctx context.Context, team *Group, userId string, role string) error
+	RevokeGroupAccess(ctx context.Context, team *Group, userId string, role string) error
 	GrantProjectAccess(ctx context.Context, project *Project, userId string, role string) error
 	RevokeProjectAccess(ctx context.Context, project *Project, userId string, role string) error
 	GrantOrganizationAccess(ctx context.Context, organization *Organization, userId string, role string) error

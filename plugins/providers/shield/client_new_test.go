@@ -116,7 +116,7 @@ func (s *ShieldNewClientTestSuite) getTestRequest(method, path string, body inte
 	return req, nil
 }
 
-func (s *ShieldNewClientTestSuite) TestShieldNewGetTeams() {
+func (s *ShieldNewClientTestSuite) TestShieldNewGetGroups() {
 	s.Run("should get teams and nil error on success", func() {
 		s.setup()
 
@@ -211,7 +211,7 @@ func (s *ShieldNewClientTestSuite) TestShieldNewGetTeams() {
 		teamAdminResponse2 := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(teamAdminResponse)))}
 		s.mockHttpClient.On("Do", testAdminsRequest2).Return(&teamAdminResponse2, nil).Once()
 
-		result, err1 := s.client.GetTeams(context.Background())
+		result, err1 := s.client.GetGroups(context.Background())
 		var teams []shield.Group
 		for _, team := range result {
 			teams = append(teams, *team)
@@ -356,7 +356,7 @@ func (s *ShieldNewClientTestSuite) TestShieldNewGetOrganizations() {
 	})
 }
 
-func (s *ShieldNewClientTestSuite) TestShieldNewGrantTeamAccess() {
+func (s *ShieldNewClientTestSuite) TestShieldNewGrantGroupAccess() {
 	s.Run("should grant access to team and nil error on success", func() {
 		s.setup()
 
@@ -385,7 +385,7 @@ func (s *ShieldNewClientTestSuite) TestShieldNewGrantTeamAccess() {
 		responseUsers := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
 		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&responseUsers, nil).Once()
 
-		actualError := s.client.GrantTeamAccess(context.Background(), teamObj, testUserId, role)
+		actualError := s.client.GrantGroupAccess(context.Background(), teamObj, testUserId, role)
 		s.Nil(actualError)
 	})
 }
@@ -458,7 +458,7 @@ func (s *ShieldNewClientTestSuite) TestShieldNewGrantOrganizationAccess() {
 	})
 }
 
-func (s *ShieldNewClientTestSuite) TestShieldNewRevokeTeamAccess() {
+func (s *ShieldNewClientTestSuite) TestShieldNewRevokeGroupAccess() {
 	s.Run("should revoke access to team and nil error on success", func() {
 		s.setup()
 		testUserId := "test_user_id"
@@ -478,7 +478,7 @@ func (s *ShieldNewClientTestSuite) TestShieldNewRevokeTeamAccess() {
 		responseUsers := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
 		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&responseUsers, nil).Once()
 
-		actualError := s.client.RevokeTeamAccess(context.Background(), teamObj, testUserId, role)
+		actualError := s.client.RevokeGroupAccess(context.Background(), teamObj, testUserId, role)
 		s.Nil(actualError)
 	})
 }

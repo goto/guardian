@@ -180,33 +180,33 @@ func (c *shieldNewclient) DeleteRelation(ctx context.Context, objectId string, s
 	return nil
 }
 
-func (c *shieldNewclient) GetTeams(ctx context.Context) ([]*Group, error) {
+func (c *shieldNewclient) GetGroups(ctx context.Context) ([]*Group, error) {
 	req, err := c.newRequest(http.MethodGet, groupsEndpoint, nil, "")
 	if err != nil {
 		return nil, err
 	}
 
-	var teams []*Group
+	var groups []*Group
 	var response interface{}
 	if _, err := c.do(ctx, req, &response); err != nil {
 		return nil, err
 	}
 
 	if v, ok := response.(map[string]interface{}); ok && v[groupsConst] != nil {
-		err = mapstructure.Decode(v[groupsConst], &teams)
+		err = mapstructure.Decode(v[groupsConst], &groups)
 	}
 
-	for _, team := range teams {
-		admins, err := c.GetGroupRelations(ctx, team.ID, managerRoleConst)
+	for _, group := range groups {
+		admins, err := c.GetGroupRelations(ctx, group.ID, managerRoleConst)
 		if err != nil {
 			return nil, err
 		}
-		team.Admins = admins
+		group.Admins = admins
 	}
 
-	c.logger.Info(ctx, fmt.Sprintf("Fetch teams from new shield request total=%d with request %s", len(teams), req.URL))
+	c.logger.Info(ctx, fmt.Sprintf("Fetch groups from new shield request total=%d with request %s", len(groups), req.URL))
 
-	return teams, err
+	return groups, err
 }
 
 func (c *shieldNewclient) GetProjects(ctx context.Context) ([]*Project, error) {
@@ -268,12 +268,12 @@ func (c *shieldNewclient) GetOrganizations(ctx context.Context) ([]*Organization
 	return organizations, err
 }
 
-func (c *shieldNewclient) GrantTeamAccess(ctx context.Context, resource *Group, userId string, role string) error {
+func (c *shieldNewclient) GrantGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
 	err := c.CreateRelation(ctx, resource.ID, groupNamespaceConst, fmt.Sprintf("%s:%s", userNamespaceConst, userId), role)
 	if err != nil {
 		return err
 	}
-	c.logger.Info(ctx, "Team access created for user in new shield", userId)
+	c.logger.Info(ctx, "group access created for user in new shield", userId)
 	return nil
 }
 
@@ -295,12 +295,12 @@ func (c *shieldNewclient) GrantOrganizationAccess(ctx context.Context, resource 
 	return nil
 }
 
-func (c *shieldNewclient) RevokeTeamAccess(ctx context.Context, resource *Group, userId string, role string) error {
+func (c *shieldNewclient) RevokeGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
 	err := c.DeleteRelation(ctx, resource.ID, userId, role)
 	if err != nil {
 		return err
 	}
-	c.logger.Info(ctx, "Remove access of the user from team in new shield,", "Users", userId, resource.ID)
+	c.logger.Info(ctx, "Remove access of the user from group in new shield,", "Users", userId, resource.ID)
 	return nil
 }
 

@@ -93,7 +93,7 @@ func (_m *ShieldClient) GetSelfUser(ctx context.Context, email string) (*shield.
 }
 
 // GetTeams provides a mock function with given fields: ctx
-func (_m *ShieldClient) GetTeams(ctx context.Context) ([]*shield.Group, error) {
+func (_m *ShieldClient) GetGroups(ctx context.Context) ([]*shield.Group, error) {
 	ret := _m.Called(ctx)
 
 	var r0 []*shield.Group
@@ -147,7 +147,7 @@ func (_m *ShieldClient) GrantProjectAccess(ctx context.Context, project *shield.
 }
 
 // GrantTeamAccess provides a mock function with given fields: ctx, team, userId, role
-func (_m *ShieldClient) GrantTeamAccess(ctx context.Context, team *shield.Group, userId string, role string) error {
+func (_m *ShieldClient) GrantGroupAccess(ctx context.Context, team *shield.Group, userId string, role string) error {
 	ret := _m.Called(ctx, team, userId, role)
 
 	var r0 error
@@ -189,7 +189,7 @@ func (_m *ShieldClient) RevokeProjectAccess(ctx context.Context, project *shield
 }
 
 // RevokeTeamAccess provides a mock function with given fields: ctx, team, userId, role
-func (_m *ShieldClient) RevokeTeamAccess(ctx context.Context, team *shield.Group, userId string, role string) error {
+func (_m *ShieldClient) RevokeGroupAccess(ctx context.Context, team *shield.Group, userId string, role string) error {
 	ret := _m.Called(ctx, team, userId, role)
 
 	var r0 error

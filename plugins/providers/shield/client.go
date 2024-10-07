@@ -108,33 +108,33 @@ func (c *client) GetAdminsOfGivenResourceType(ctx context.Context, id string, re
 	return userEmails, err
 }
 
-func (c *client) GetTeams(ctx context.Context) ([]*Group, error) {
+func (c *client) GetGroups(ctx context.Context) ([]*Group, error) {
 	req, err := c.newRequest(http.MethodGet, groupsEndpoint, nil, "")
 	if err != nil {
 		return nil, err
 	}
 
-	var teams []*Group
+	var groups []*Group
 	var response interface{}
 	if _, err := c.do(ctx, req, &response); err != nil {
 		return nil, err
 	}
 
 	if v, ok := response.(map[string]interface{}); ok && v[groupsConst] != nil {
-		err = mapstructure.Decode(v[groupsConst], &teams)
+		err = mapstructure.Decode(v[groupsConst], &groups)
 	}
 
-	for _, team := range teams {
-		admins, err := c.GetAdminsOfGivenResourceType(ctx, team.ID, groupsEndpoint)
+	for _, group := range groups {
+		admins, err := c.GetAdminsOfGivenResourceType(ctx, group.ID, groupsEndpoint)
 		if err != nil {
 			return nil, err
 		}
-		team.Admins = admins
+		group.Admins = admins
 	}
 
-	c.logger.Info(ctx, "Fetch teams from request", "total", len(teams), req.URL)
+	c.logger.Info(ctx, "Fetch groups from request", "total", len(groups), req.URL)
 
-	return teams, err
+	return groups, err
 }
 
 func (c *client) GetProjects(ctx context.Context) ([]*Project, error) {
@@ -196,7 +196,7 @@ func (c *client) GetOrganizations(ctx context.Context) ([]*Organization, error) 
 	return organizations, err
 }
 
-func (c *client) GrantTeamAccess(ctx context.Context, resource *Group, userId string, role string) error {
+func (c *client) GrantGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
 	body := make(map[string][]string)
 	body["userIds"] = append(body["userIds"], userId)
 
@@ -219,7 +219,7 @@ func (c *client) GrantTeamAccess(ctx context.Context, resource *Group, userId st
 		}
 	}
 
-	c.logger.Info(ctx, "Team access to the user,", "total users", len(users), req.URL)
+	c.logger.Info(ctx, "group access to the user,", "total users", len(users), req.URL)
 
 	return nil
 }
@@ -279,7 +279,7 @@ func (c *client) GrantOrganizationAccess(ctx context.Context, resource *Organiza
 	return nil
 }
 
-func (c *client) RevokeTeamAccess(ctx context.Context, resource *Group, userId string, role string) error {
+func (c *client) RevokeGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
 	endPoint := path.Join(groupsEndpoint, "/", resource.ID, "/", role, "/", userId)
 	req, err := c.newRequest(http.MethodDelete, endPoint, "", "")
 	if err != nil {
@@ -299,7 +299,7 @@ func (c *client) RevokeTeamAccess(ctx context.Context, resource *Group, userId s
 		}
 	}
 
-	c.logger.Info(ctx, "Remove access of the user from team,", "Users", userId, req.URL)
+	c.logger.Info(ctx, "Remove access of the user from group,", "Users", userId, req.URL)
 	return nil
 }
 
