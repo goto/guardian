@@ -1,6 +1,8 @@
 package notifiers
 
 import (
+	"context"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -214,4 +216,106 @@ func TestNewSlackLarkConfig(t *testing.T) {
 
 		})
 	}
+}
+func TestNotify(t *testing.T) {
+	var errs []error
+	type fields struct {
+		clients []Client
+		configs []Config
+	}
+	type args struct {
+		ctx          context.Context
+		notification []domain.Notification
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   []error
+	}{
+		{
+			name: "should return no errors when notifications are empty",
+			fields: fields{
+				clients: []Client{},
+				configs: []Config{},
+			},
+			args: args{
+				ctx:          context.Background(),
+				notification: []domain.Notification{},
+			},
+			want: errs,
+		},
+		{
+			name: "should return error when criteria does not evaluate to boolean",
+			fields: fields{
+				clients: []Client{&mockClient{}},
+				configs: []Config{
+					{
+						Criteria: "1 + 1",
+					},
+				},
+			},
+			args: args{
+				ctx: context.Background(),
+				notification: []domain.Notification{
+					{User: "test@example.com"},
+				},
+			},
+			want: []error{fmt.Errorf("notifier expression did not evaluate to a boolean: 1 + 1")},
+		},
+		{
+			name: "should notify client when criteria evaluates to true",
+			fields: fields{
+				clients: []Client{&mockClient{}},
+				configs: []Config{
+					{
+						Criteria: "1 == 1",
+					},
+				},
+			},
+			args: args{
+				ctx: context.Background(),
+				notification: []domain.Notification{
+					{User: "test@example.com"},
+				},
+			},
+			want: errs,
+		},
+		{
+			name: "should not notify client when criteria evaluates to false",
+			fields: fields{
+				clients: []Client{&mockClient{}},
+				configs: []Config{
+					{
+						Criteria: "1 == 2",
+					},
+				},
+			},
+			args: args{
+				ctx: context.Background(),
+				notification: []domain.Notification{
+					{User: "test@example.com"},
+				},
+			},
+			want: errs,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &NotifyManager{
+				clients: tt.fields.clients,
+				configs: tt.fields.configs,
+			}
+			fmt.Println()
+			if got := m.Notify(tt.args.ctx, tt.args.notification); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Notify() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type mockClient struct{}
+
+func (m *mockClient) Notify(ctx context.Context, notifications []domain.Notification) []error {
+	return nil
 }

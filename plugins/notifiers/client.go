@@ -27,6 +27,9 @@ type NotifyManager struct {
 
 func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notification) []error {
 	var errs []error
+	if len(notification) == 0 {
+		return errs
+	}
 	for i, client := range m.clients {
 		// evaluate criteria
 		config := m.configs[i]
