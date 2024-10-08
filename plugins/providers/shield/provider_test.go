@@ -1457,10 +1457,10 @@ func TestGetClient(t *testing.T) {
 		p := shield.NewProvider("", logger)
 
 		creds := shield.Credentials{
-			Host:       "http://localhost.com",
-			AuthEmail:  "test-email",
-			Version:    "new",
-			AuthHeader: "test-header",
+			Host:          "http://localhost.com",
+			AuthEmail:     "test-email",
+			ClientVersion: "new",
+			AuthHeader:    "test-header",
 		}
 
 		_, err := p.GetClient(providerURN, creds)

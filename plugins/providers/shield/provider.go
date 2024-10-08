@@ -130,7 +130,7 @@ func (p *provider) GetClient(providerURN string, credentials Credentials) (Shiel
 		return p.Clients[providerURN], nil
 	}
 
-	if credentials.Version == "new" {
+	if credentials.ClientVersion == "new" {
 		client, err := NewShieldNewClient(&ClientConfig{
 			Host:       credentials.Host,
 			AuthHeader: credentials.AuthHeader,
