@@ -18,9 +18,10 @@ const (
 )
 
 type Credentials struct {
-	Host       string `json:"host" mapstructure:"host" validate:"required"`
-	AuthHeader string `json:"auth_header" mapstructure:"auth_header" validate:"required"`
-	AuthEmail  string `json:"auth_email" mapstructure:"auth_email" validate:"required"`
+	Host          string `json:"host" mapstructure:"host" validate:"required"`
+	AuthHeader    string `json:"auth_header" mapstructure:"auth_header" validate:"required"`
+	AuthEmail     string `json:"auth_email" mapstructure:"auth_email" validate:"required"`
+	ClientVersion string `json:"client_version" mapstructure:"client_version"`
 }
 
 type Permission string
@@ -118,11 +119,11 @@ func (c *Config) validatePermission(resourceType string, value interface{}) (*Pe
 
 	var nameValidation string
 	if resourceType == ResourceTypeTeam {
-		nameValidation = "oneof=users admins"
+		nameValidation = "oneof=users admins member manager"
 	} else if resourceType == ResourceTypeProject {
-		nameValidation = "oneof=admins"
+		nameValidation = "oneof=admins owner"
 	} else if resourceType == ResourceTypeOrganization {
-		nameValidation = "oneof=admins"
+		nameValidation = "oneof=admins owner"
 	}
 
 	if err := c.validator.Var(pc, nameValidation); err != nil {

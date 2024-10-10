@@ -48,7 +48,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 		return nil, err
 	}
 
-	client, err := p.getClient(pc.URN, creds)
+	client, err := p.GetClient(pc.URN, creds)
 	if err != nil {
 		return nil, err
 	}
@@ -60,12 +60,12 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 
 	resources := []*domain.Resource{}
 
-	var teams []*Team
+	var teams []*Group
 	var projects []*Project
 	var organizations []*Organization
 
 	if _, ok := resourceTypes[ResourceTypeTeam]; ok {
-		teams, err = client.GetTeams(ctx)
+		teams, err = client.GetGroups(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +91,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 	return resources, nil
 }
 
-func (p *provider) addTeams(pc *domain.ProviderConfig, teams []*Team, resources []*domain.Resource) []*domain.Resource {
+func (p *provider) addTeams(pc *domain.ProviderConfig, teams []*Group, resources []*domain.Resource) []*domain.Resource {
 	for _, c := range teams {
 		t := c.ToDomain()
 		t.ProviderType = pc.Type
@@ -125,22 +125,35 @@ func (p *provider) addOrganizations(pc *domain.ProviderConfig, organizations []*
 	return resources
 }
 
-func (p *provider) getClient(providerURN string, credentials Credentials) (ShieldClient, error) {
+func (p *provider) GetClient(providerURN string, credentials Credentials) (ShieldClient, error) {
 	if p.Clients[providerURN] != nil {
 		return p.Clients[providerURN], nil
 	}
 
-	client, err := NewClient(&ClientConfig{
-		Host:       credentials.Host,
-		AuthHeader: credentials.AuthHeader,
-		AuthEmail:  credentials.AuthEmail,
-	}, p.logger)
-	if err != nil {
-		return nil, err
-	}
+	if credentials.ClientVersion == "new" {
+		client, err := NewShieldNewClient(&ClientConfig{
+			Host:       credentials.Host,
+			AuthHeader: credentials.AuthHeader,
+			AuthEmail:  credentials.AuthEmail,
+		}, p.logger)
+		if err != nil {
+			return nil, err
+		}
 
-	p.Clients[providerURN] = client
-	return client, nil
+		p.Clients[providerURN] = client
+		return client, nil
+	} else {
+		client, err := NewClient(&ClientConfig{
+			Host:       credentials.Host,
+			AuthHeader: credentials.AuthHeader,
+			AuthEmail:  credentials.AuthEmail,
+		}, p.logger)
+		if err != nil {
+			return nil, err
+		}
+		p.Clients[providerURN] = client
+		return client, nil
+	}
 }
 
 func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*domain.Role, error) {
@@ -152,7 +165,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 	if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
 		return err
 	}
-	client, err := p.getClient(pc.URN, creds)
+	client, err := p.GetClient(pc.URN, creds)
 	if err != nil {
 		return err
 	}
@@ -166,12 +179,12 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 
 	switch a.Resource.Type {
 	case ResourceTypeTeam:
-		t := new(Team)
+		t := new(Group)
 		if err := t.FromDomain(a.Resource); err != nil {
 			return err
 		}
 		for _, p := range permissions {
-			if err := client.GrantTeamAccess(ctx, t, user.ID, p); err != nil {
+			if err := client.GrantGroupAccess(ctx, t, user.ID, p); err != nil {
 				return err
 			}
 		}
@@ -208,7 +221,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 	if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
 		return err
 	}
-	client, err := p.getClient(pc.URN, creds)
+	client, err := p.GetClient(pc.URN, creds)
 	if err != nil {
 		return err
 	}
@@ -222,12 +235,12 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 
 	switch a.Resource.Type {
 	case ResourceTypeTeam:
-		t := new(Team)
+		t := new(Group)
 		if err := t.FromDomain(a.Resource); err != nil {
 			return err
 		}
 		for _, p := range permissions {
-			if err := client.RevokeTeamAccess(ctx, t, user.ID, p); err != nil {
+			if err := client.RevokeGroupAccess(ctx, t, user.ID, p); err != nil {
 				return err
 			}
 		}

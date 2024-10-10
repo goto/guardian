@@ -17,33 +17,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-const (
-	groupsEndpoint       = "/admin/v1beta1/groups"
-	projectsEndpoint     = "/admin/v1beta1/projects"
-	organizationEndpoint = "/admin/v1beta1/organizations"
-	selfUserEndpoint     = "admin/v1beta1/users/self"
-
-	groupsConst        = "groups"
-	projectsConst      = "projects"
-	organizationsConst = "organizations"
-	usersConst         = "users"
-	userConst          = "user"
-)
-
 type successAccess interface{}
-
-type ShieldClient interface {
-	GetTeams(ctx context.Context) ([]*Team, error)
-	GetProjects(ctx context.Context) ([]*Project, error)
-	GetOrganizations(ctx context.Context) ([]*Organization, error)
-	GrantTeamAccess(ctx context.Context, team *Team, userId string, role string) error
-	RevokeTeamAccess(ctx context.Context, team *Team, userId string, role string) error
-	GrantProjectAccess(ctx context.Context, project *Project, userId string, role string) error
-	RevokeProjectAccess(ctx context.Context, project *Project, userId string, role string) error
-	GrantOrganizationAccess(ctx context.Context, organization *Organization, userId string, role string) error
-	RevokeOrganizationAccess(ctx context.Context, organization *Organization, userId string, role string) error
-	GetSelfUser(ctx context.Context, email string) (*User, error)
-}
 
 type client struct {
 	baseURL *url.URL
@@ -53,17 +27,6 @@ type client struct {
 
 	httpClient HTTPClient
 	logger     log.Logger
-}
-
-type HTTPClient interface {
-	Do(*http.Request) (*http.Response, error)
-}
-
-type ClientConfig struct {
-	Host       string `validate:"required,url" mapstructure:"host"`
-	AuthHeader string `validate:"required" mapstructure:"auth_header"`
-	AuthEmail  string `validate:"required" mapstructure:"auth_email"`
-	HTTPClient HTTPClient
 }
 
 func NewClient(config *ClientConfig, logger log.Logger) (*client, error) {
@@ -145,33 +108,33 @@ func (c *client) GetAdminsOfGivenResourceType(ctx context.Context, id string, re
 	return userEmails, err
 }
 
-func (c *client) GetTeams(ctx context.Context) ([]*Team, error) {
+func (c *client) GetGroups(ctx context.Context) ([]*Group, error) {
 	req, err := c.newRequest(http.MethodGet, groupsEndpoint, nil, "")
 	if err != nil {
 		return nil, err
 	}
 
-	var teams []*Team
+	var groups []*Group
 	var response interface{}
 	if _, err := c.do(ctx, req, &response); err != nil {
 		return nil, err
 	}
 
 	if v, ok := response.(map[string]interface{}); ok && v[groupsConst] != nil {
-		err = mapstructure.Decode(v[groupsConst], &teams)
+		err = mapstructure.Decode(v[groupsConst], &groups)
 	}
 
-	for _, team := range teams {
-		admins, err := c.GetAdminsOfGivenResourceType(ctx, team.ID, groupsEndpoint)
+	for _, group := range groups {
+		admins, err := c.GetAdminsOfGivenResourceType(ctx, group.ID, groupsEndpoint)
 		if err != nil {
 			return nil, err
 		}
-		team.Admins = admins
+		group.Admins = admins
 	}
 
-	c.logger.Info(ctx, "Fetch teams from request", "total", len(teams), req.URL)
+	c.logger.Info(ctx, "Fetch groups from request", "total", len(groups), req.URL)
 
-	return teams, err
+	return groups, err
 }
 
 func (c *client) GetProjects(ctx context.Context) ([]*Project, error) {
@@ -233,7 +196,7 @@ func (c *client) GetOrganizations(ctx context.Context) ([]*Organization, error) 
 	return organizations, err
 }
 
-func (c *client) GrantTeamAccess(ctx context.Context, resource *Team, userId string, role string) error {
+func (c *client) GrantGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
 	body := make(map[string][]string)
 	body["userIds"] = append(body["userIds"], userId)
 
@@ -256,7 +219,7 @@ func (c *client) GrantTeamAccess(ctx context.Context, resource *Team, userId str
 		}
 	}
 
-	c.logger.Info(ctx, "Team access to the user,", "total users", len(users), req.URL)
+	c.logger.Info(ctx, "group access to the user,", "total users", len(users), req.URL)
 
 	return nil
 }
@@ -316,7 +279,7 @@ func (c *client) GrantOrganizationAccess(ctx context.Context, resource *Organiza
 	return nil
 }
 
-func (c *client) RevokeTeamAccess(ctx context.Context, resource *Team, userId string, role string) error {
+func (c *client) RevokeGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
 	endPoint := path.Join(groupsEndpoint, "/", resource.ID, "/", role, "/", userId)
 	req, err := c.newRequest(http.MethodDelete, endPoint, "", "")
 	if err != nil {
@@ -336,7 +299,7 @@ func (c *client) RevokeTeamAccess(ctx context.Context, resource *Team, userId st
 		}
 	}
 
-	c.logger.Info(ctx, "Remove access of the user from team,", "Users", userId, req.URL)
+	c.logger.Info(ctx, "Remove access of the user from group,", "Users", userId, req.URL)
 	return nil
 }
 
