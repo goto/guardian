@@ -71,18 +71,19 @@ func runJobCmd() *cobra.Command {
 			logger := log.NewCtxLogger(config.LogLevel, []string{config.AuditLogTraceIDHeaderKey})
 			crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 			validator := validator.New()
-			var notifierMap map[string]interface{}
-			errr := json.Unmarshal([]byte(config.Notifiers), &notifierMap)
-			if errr != nil {
-				return fmt.Errorf("failed to parse notifier config: %w", errr)
-			}
-			var notifierConfigMap map[string]notifiers.Config
-			err = mapstructure.Decode(notifierMap, &notifierConfigMap)
-			if err != nil {
-				return fmt.Errorf("failed to parse notifier config: %w", err)
-			}
+
 			notifierConfig := []notifiers.Config{}
 			if config.Notifiers != "" {
+				var notifierMap map[string]interface{}
+				errr := json.Unmarshal([]byte(config.Notifiers), &notifierMap)
+				if errr != nil {
+					return fmt.Errorf("failed to parse notifier config: %w", errr)
+				}
+				var notifierConfigMap map[string]notifiers.Config
+				err = mapstructure.Decode(notifierMap, &notifierConfigMap)
+				if err != nil {
+					return fmt.Errorf("failed to parse notifier config: %w", err)
+				}
 				for _, val := range notifierConfigMap {
 					notifierConfig = append(notifierConfig, val)
 				}
