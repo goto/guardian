@@ -34,7 +34,7 @@ func TestMakeRequestForGet(t *testing.T) {
 			Value:    "test_value",
 		},
 		Method: "GET",
-	}, nil)
+	}, nil, "metabase")
 	if err != nil {
 		t.Fatalf("Failed to create HTTPClient: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestMakeRequestForPostWithPayload(t *testing.T) {
 		},
 		Method: "POST",
 		Body:   "test",
-	}, nil)
+	}, nil, "metabase")
 	if err != nil {
 		t.Fatalf("Failed to create HTTPClient: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestMakeRequestForPostWithoutPayload(t *testing.T) {
 			Token:    "test_token",
 		},
 		Method: "POST",
-	}, nil)
+	}, nil, "metabase")
 	if err != nil {
 		t.Fatalf("Failed to create HTTPClient: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestMakeRequestForPostWithPayloadForHeaderAuth(t *testing.T) {
 		},
 		Method: "POST",
 		Body:   "test",
-	}, nil)
+	}, nil, "metabase")
 	if err != nil {
 		t.Fatalf("Failed to create HTTPClient: %v", err)
 	}
@@ -210,7 +210,7 @@ func TestMakeRequestForPostWithPayloadForBasicAuth(t *testing.T) {
 		},
 		Method: "POST",
 		Body:   "test",
-	}, nil)
+	}, nil, "metabase")
 	if err != nil {
 		t.Fatalf("Failed to create HTTPClient: %v", err)
 	}
@@ -260,7 +260,7 @@ func TestNewHTTPClient_GoogleOAuth2(t *testing.T) {
 	expectedClient := &http.Client{}
 
 	mockCreator := new(MockHttpClientCreator)
-	mockCreator.On("GetHttpClientForGoogleOAuth2", mock.Anything, []byte(credsJSON)).Return(expectedClient, nil)
+	mockCreator.On("GetHttpClientForGoogleOAuth2", mock.Anything, []byte(credsJSON)).Return(expectedClient, nil, "metabase")
 
 	config := &HTTPClientConfig{
 		URL: "https://example.com",
@@ -270,7 +270,7 @@ func TestNewHTTPClient_GoogleOAuth2(t *testing.T) {
 		},
 	}
 
-	client, err := NewHTTPClient(config, mockCreator)
+	client, err := NewHTTPClient(config, mockCreator, "metabase")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, client)
@@ -288,7 +288,7 @@ func TestNewHTTPClient_GoogleOAuth2WithEmptyCredentialJson(t *testing.T) {
 		},
 	}
 
-	client, err := NewHTTPClient(config, mockCreator)
+	client, err := NewHTTPClient(config, mockCreator, "metabase")
 
 	assert.Error(t, err, "missing credentials for google_idtoken or  google_oauth2 auth")
 	assert.Nil(t, client)
@@ -301,7 +301,7 @@ func TestNewHTTPClient_GoogleIdToken(t *testing.T) {
 	expectedClient := &http.Client{}
 
 	mockCreator := new(MockHttpClientCreator)
-	mockCreator.On("GetHttpClientForGoogleIdToken", mock.Anything, []byte(credsJSON), "audience").Return(expectedClient, nil)
+	mockCreator.On("GetHttpClientForGoogleIdToken", mock.Anything, []byte(credsJSON), "audience").Return(expectedClient, nil, "metabase")
 
 	config := &HTTPClientConfig{
 		URL: "https://example.com",
@@ -312,7 +312,7 @@ func TestNewHTTPClient_GoogleIdToken(t *testing.T) {
 		},
 	}
 
-	client, err := NewHTTPClient(config, mockCreator)
+	client, err := NewHTTPClient(config, mockCreator, "metabase")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, client)
@@ -336,7 +336,7 @@ func TestNewHTTPClient_GoogleIdTokenErrorScenario(t *testing.T) {
 		},
 	}
 
-	_, err := NewHTTPClient(config, mockCreator)
+	_, err := NewHTTPClient(config, mockCreator, "metabase")
 
 	assert.Equal(t, err.Error(), "error creating http client for google_idtoken")
 	mockCreator.AssertExpectations(t)
@@ -358,7 +358,7 @@ func TestNewHTTPClient_GoogleOAuth2ErrorScenario(t *testing.T) {
 		},
 	}
 
-	_, err := NewHTTPClient(config, mockCreator)
+	_, err := NewHTTPClient(config, mockCreator, "metabase")
 
 	assert.Equal(t, err.Error(), "error creating http client for google_oauth2")
 	mockCreator.AssertExpectations(t)

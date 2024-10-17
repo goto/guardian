@@ -8,6 +8,7 @@ import (
 
 	bq "cloud.google.com/go/bigquery"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/opentelemetry"
 	bqApi "google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
@@ -24,29 +25,33 @@ type bigQueryClient struct {
 
 func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQueryClient, error) {
 	ctx := context.Background()
-	client, err := bq.NewClient(ctx, projectID, opts...)
+	bqHTTPClient := opentelemetry.NewHttpClient(ctx, "BigQueryClient", opts...)
+	bqClient, err := bq.NewClient(ctx, projectID, option.WithHTTPClient(bqHTTPClient))
 	if err != nil {
 		return nil, err
 	}
 
-	apiClient, err := bqApi.NewService(ctx, opts...)
+	apiHTTPClient := opentelemetry.NewHttpClient(ctx, "BQAPIClient", opts...)
+	apiClient, err := bqApi.NewService(ctx, option.WithHTTPClient(apiHTTPClient))
 	if err != nil {
 		return nil, err
 	}
 
-	iamService, err := iam.NewService(ctx, opts...)
+	iamHTTPClient := opentelemetry.NewHttpClient(ctx, "IAMserviceClient", opts...)
+	iamService, err := iam.NewService(ctx, option.WithHTTPClient(iamHTTPClient))
 	if err != nil {
 		return nil, err
 	}
 
-	crmService, err := cloudresourcemanager.NewService(ctx, opts...)
+	crmHTTPClient := opentelemetry.NewHttpClient(ctx, "CRMClient", opts...)
+	crmService, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(crmHTTPClient))
 	if err != nil {
 		return nil, err
 	}
 
 	return &bigQueryClient{
 		projectID:  projectID,
-		client:     client,
+		client:     bqClient,
 		iamService: iamService,
 		apiClient:  apiClient,
 		crmService: crmService,

@@ -143,7 +143,7 @@ func NewClient(config *ClientConfig, logger log.Logger) (*client, error) {
 
 	httpClient := config.HTTPClient
 	if httpClient == nil {
-		httpClient = opentelemetry.NewHttpClient("MetabaseHttpClient")
+		httpClient = opentelemetry.NewHttpClient(context.Background(), "MetabaseHttpClient", nil)
 	}
 
 	c := &client{

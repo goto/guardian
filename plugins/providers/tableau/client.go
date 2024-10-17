@@ -2,6 +2,7 @@ package tableau
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -603,7 +604,7 @@ func NewClient(config *ClientConfig) (*client, error) {
 
 	httpClient := config.HTTPClient
 	if httpClient == nil {
-		httpClient = opentelemetry.NewHttpClient("TableauHttpClient")
+		httpClient = opentelemetry.NewHttpClient(context.Background(), "TableauHttpClient", nil)
 	}
 
 	c := &client{

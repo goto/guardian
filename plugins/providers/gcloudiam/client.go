@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/opentelemetry"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
@@ -24,14 +25,17 @@ type iamClient struct {
 
 func newIamClient(credentialsJSON []byte, resourceName string) (*iamClient, error) {
 	ctx := context.Background()
-	cloudResourceManagerService, err := cloudresourcemanager.NewService(ctx, option.WithCredentialsJSON(credentialsJSON))
+
+	crmHTTPClient := opentelemetry.NewHttpClient(ctx, "CloudResourceManagerClient", option.WithCredentialsJSON(credentialsJSON))
+	cloudResourceManagerService, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(crmHTTPClient))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initialize Cloud Resource Manager service: %w", err)
 	}
 
-	iamService, err := iam.NewService(ctx, option.WithCredentialsJSON(credentialsJSON))
+	iamHTTPClient := opentelemetry.NewHttpClient(ctx, "IAMClient", option.WithCredentialsJSON(credentialsJSON))
+	iamService, err := iam.NewService(ctx, option.WithHTTPClient(iamHTTPClient))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initialize IAM service: %w", err)
 	}
 
 	return &iamClient{
