@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	bq "cloud.google.com/go/bigquery"
 	"github.com/goto/guardian/domain"
-	"github.com/goto/guardian/pkg/opentelemetry"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	bqApi "google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
@@ -23,28 +26,57 @@ type bigQueryClient struct {
 	crmService *cloudresourcemanager.Service
 }
 
-func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQueryClient, error) {
+func NewBigQueryClient(projectID string, credentialsJSON []byte, opts ...option.ClientOption) (*bigQueryClient, error) {
 	ctx := context.Background()
-	bqHTTPClient := opentelemetry.NewHttpClient(ctx, "BigQueryClient", opts...)
-	bqClient, err := bq.NewClient(ctx, projectID, option.WithHTTPClient(bqHTTPClient))
+	var creds *google.Credentials
+	var oauthClient func(name string) *http.Client
+	if credentialsJSON != nil {
+		var err error
+		creds, err = google.CredentialsFromJSON(ctx, credentialsJSON, cloudresourcemanager.CloudPlatformScope)
+		if err != nil {
+			return nil, fmt.Errorf("failed to obtain credentials: %w", err)
+		}
+		oauthClient = func(name string) *http.Client {
+			client := oauth2.NewClient(ctx, creds.TokenSource)
+			client.Transport = otelhttp.NewTransport(client.Transport, otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+				return fmt.Sprintf("%s %s", name, operation)
+			}))
+			return client
+		}
+	}
+
+	if credentialsJSON != nil {
+		bqOAuthClient := oauthClient("BigQuery")
+		opts = append(opts, option.WithHTTPClient(bqOAuthClient))
+	}
+	bqClient, err := bq.NewClient(ctx, projectID, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	apiHTTPClient := opentelemetry.NewHttpClient(ctx, "BQAPIClient", opts...)
-	apiClient, err := bqApi.NewService(ctx, option.WithHTTPClient(apiHTTPClient))
+	if credentialsJSON != nil {
+		bqAPIOAuthClient := oauthClient("BigQuery API")
+		opts = append(opts, option.WithHTTPClient(bqAPIOAuthClient))
+	}
+	apiService, err := bqApi.NewService(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	iamHTTPClient := opentelemetry.NewHttpClient(ctx, "IAMserviceClient", opts...)
-	iamService, err := iam.NewService(ctx, option.WithHTTPClient(iamHTTPClient))
+	if credentialsJSON != nil {
+		iamOAuthClient := oauthClient("IAM")
+		opts = append(opts, option.WithHTTPClient(iamOAuthClient))
+	}
+	iamService, err := iam.NewService(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	crmHTTPClient := opentelemetry.NewHttpClient(ctx, "CRMClient", opts...)
-	crmService, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(crmHTTPClient))
+	if credentialsJSON != nil {
+		crmOAuthClient := oauthClient("Cloud Resource Manager")
+		opts = append(opts, option.WithHTTPClient(crmOAuthClient))
+	}
+	crmService, err := cloudresourcemanager.NewService(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +85,7 @@ func NewBigQueryClient(projectID string, opts ...option.ClientOption) (*bigQuery
 		projectID:  projectID,
 		client:     bqClient,
 		iamService: iamService,
-		apiClient:  apiClient,
+		apiClient:  apiService,
 		crmService: crmService,
 	}, nil
 }

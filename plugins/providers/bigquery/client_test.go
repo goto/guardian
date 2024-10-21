@@ -76,7 +76,7 @@ func (s *ClientTestSuite) TestGetDatasets() {
 	}))
 	defer ts.Close()
 
-	client, err := bigquery.NewBigQueryClient(projectID, option.WithoutAuthentication(), option.WithEndpoint(ts.URL))
+	client, err := bigquery.NewBigQueryClient(projectID, nil, option.WithoutAuthentication(), option.WithEndpoint(ts.URL))
 	s.Require().NoError(err)
 
 	datasets, err := client.GetDatasets(context.Background())
@@ -145,7 +145,7 @@ func (s *ClientTestSuite) TestGetTables() {
 	}))
 	defer ts.Close()
 
-	client, err := bigquery.NewBigQueryClient(projectID, option.WithoutAuthentication(), option.WithEndpoint(ts.URL))
+	client, err := bigquery.NewBigQueryClient(projectID, nil, option.WithoutAuthentication(), option.WithEndpoint(ts.URL))
 	s.Require().NoError(err)
 
 	tables, err := client.GetTables(context.Background(), datasetID)

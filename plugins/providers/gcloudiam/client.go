@@ -3,10 +3,13 @@ package gcloudiam
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/goto/guardian/domain"
-	"github.com/goto/guardian/pkg/opentelemetry"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
@@ -25,17 +28,29 @@ type iamClient struct {
 
 func newIamClient(credentialsJSON []byte, resourceName string) (*iamClient, error) {
 	ctx := context.Background()
-
-	crmHTTPClient := opentelemetry.NewHttpClient(ctx, "CloudResourceManagerClient", option.WithCredentialsJSON(credentialsJSON))
-	cloudResourceManagerService, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(crmHTTPClient))
+	creds, err := google.CredentialsFromJSON(ctx, credentialsJSON)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize Cloud Resource Manager service: %w", err)
+		return nil, fmt.Errorf("failed to obtain credentials: %w", err)
 	}
 
-	iamHTTPClient := opentelemetry.NewHttpClient(ctx, "IAMClient", option.WithCredentialsJSON(credentialsJSON))
-	iamService, err := iam.NewService(ctx, option.WithHTTPClient(iamHTTPClient))
+	oauthClientCRM := oauth2.NewClient(ctx, creds.TokenSource)
+	oauthClientCRM.Transport = otelhttp.NewTransport(oauthClientCRM.Transport, otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+		return fmt.Sprintf("CloudResourceManagementClient %s", operation)
+	}))
+
+	cloudResourceManagerService, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(oauthClientCRM))
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize IAM service: %w", err)
+		return nil, fmt.Errorf("failed to create Cloud Resource Manager service: %w", err)
+	}
+
+	oauthClientIAM := oauth2.NewClient(ctx, creds.TokenSource)
+	oauthClientIAM.Transport = otelhttp.NewTransport(oauthClientIAM.Transport, otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+		return fmt.Sprintf("IAMClient %s", operation)
+	}))
+
+	iamService, err := iam.NewService(ctx, option.WithHTTPClient(oauthClientIAM))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create IAM service: %w", err)
 	}
 
 	return &iamClient{
