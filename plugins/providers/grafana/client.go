@@ -2,7 +2,6 @@ package grafana
 
 import (
 	"bytes"
-	"context"
 	b64 "encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -63,7 +62,7 @@ func NewClient(config *ClientConfig) (*client, error) {
 
 	httpClient := config.HTTPClient
 	if httpClient == nil {
-		httpClient = opentelemetry.NewHttpClient(context.Background(), "GrafanaHttpClient", nil)
+		httpClient = opentelemetry.NewHttpClient("GrafanaHttpClient")
 	}
 
 	baseURL, err := url.Parse(config.Host)

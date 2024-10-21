@@ -18,8 +18,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
-	"google.golang.org/api/option"
-	"google.golang.org/api/transport"
 	"google.golang.org/grpc/encoding/gzip"
 )
 
@@ -130,20 +128,11 @@ func initGlobalTracer(ctx context.Context, res *resource.Resource, cfg Config) (
 	}, nil
 }
 
-func NewHttpClient(ctx context.Context, name string, opts ...option.ClientOption) *http.Client {
+func NewHttpClient(name string) *http.Client {
 	otelOpts := []otelhttp.Option{
 		otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 			return fmt.Sprintf("%s %s", name, operation)
 		}),
-	}
-	if len(opts) > 0 {
-		credsClient, _, err := transport.NewHTTPClient(ctx, opts...)
-		if err != nil {
-			return nil
-		}
-
-		credsClient.Transport = otelhttp.NewTransport(credsClient.Transport, otelOpts...)
-		return credsClient
 	}
 
 	return &http.Client{

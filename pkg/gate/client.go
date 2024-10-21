@@ -27,7 +27,7 @@ func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
 	client := &Client{
 		baseURL: url,
 		options: &options{
-			httpClient: opentelemetry.NewHttpClient(context.Background(), "GateClient"),
+			httpClient: opentelemetry.NewHttpClient("GateClient"),
 		},
 	}
 	for _, o := range opts {

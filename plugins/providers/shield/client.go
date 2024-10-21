@@ -78,7 +78,7 @@ func NewClient(config *ClientConfig, logger log.Logger) (*client, error) {
 
 	httpClient := config.HTTPClient
 	if httpClient == nil {
-		httpClient = opentelemetry.NewHttpClient(context.Background(), "ShieldHttpClient", nil)
+		httpClient = opentelemetry.NewHttpClient("ShieldHttpClient")
 	}
 
 	c := &client{
