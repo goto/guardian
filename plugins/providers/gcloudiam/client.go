@@ -28,7 +28,7 @@ type iamClient struct {
 
 func newIamClient(credentialsJSON []byte, resourceName string) (*iamClient, error) {
 	ctx := context.Background()
-	creds, err := google.CredentialsFromJSON(ctx, credentialsJSON)
+	creds, err := google.CredentialsFromJSON(ctx, credentialsJSON, cloudresourcemanager.CloudPlatformScope, iam.CloudPlatformScope)
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain credentials: %w", err)
 	}

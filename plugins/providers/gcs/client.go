@@ -24,7 +24,7 @@ type gcsClient struct {
 }
 
 func newGCSClient(ctx context.Context, projectID string, credentialsJSON []byte) (*gcsClient, error) {
-	creds, err := google.CredentialsFromJSON(ctx, credentialsJSON)
+	creds, err := google.CredentialsFromJSON(ctx, credentialsJSON, "https://www.googleapis.com/auth/devstorage.full_control")
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain credentials: %w", err)
 	}

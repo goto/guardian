@@ -32,7 +32,7 @@ func NewBigQueryClient(projectID string, credentialsJSON []byte, opts ...option.
 	var oauthClient func(name string) *http.Client
 	if credentialsJSON != nil {
 		var err error
-		creds, err = google.CredentialsFromJSON(ctx, credentialsJSON, cloudresourcemanager.CloudPlatformScope)
+		creds, err = google.CredentialsFromJSON(ctx, credentialsJSON, cloudresourcemanager.CloudPlatformScope, bqApi.BigqueryScope, iam.CloudPlatformScope)
 		if err != nil {
 			return nil, fmt.Errorf("failed to obtain credentials: %w", err)
 		}
