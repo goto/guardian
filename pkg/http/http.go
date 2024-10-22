@@ -71,6 +71,9 @@ func NewHTTPClient(config *HTTPClientConfig, clientCreator HttpClientCreator, se
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
+	if serviceName != "" {
+		opentelemetry.PopulateTransportWithTracer(httpClient, serviceName)
+	}
 
 	if config.Auth != nil && (config.Auth.Type == "google_idtoken" || config.Auth.Type == "google_oauth2") {
 		var creds []byte
@@ -99,7 +102,6 @@ func NewHTTPClient(config *HTTPClientConfig, clientCreator HttpClientCreator, se
 			}
 		}
 	}
-	opentelemetry.PopulateTransportWithTracer(httpClient, serviceName)
 
 	return &HTTPClient{
 		httpClient: httpClient,

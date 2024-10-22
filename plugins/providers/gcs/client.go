@@ -9,8 +9,10 @@ import (
 	"cloud.google.com/go/iam"
 	"cloud.google.com/go/storage"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
 	"github.com/goto/guardian/utils"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/sync/errgroup"
@@ -30,14 +32,15 @@ func newGCSClient(ctx context.Context, projectID string, credentialsJSON []byte)
 	}
 
 	client := oauth2.NewClient(ctx, creds.TokenSource)
-	client.Transport = otelhttp.NewTransport(client.Transport, otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+	client.Transport = otelhttpclient.NewHTTPTransport(otelhttp.NewTransport(client.Transport, otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 		return fmt.Sprintf("GCSClient %s", operation)
-	}))
+	}), otelhttp.WithMeterProvider(otel.GetMeterProvider())))
 
 	clientService, err := storage.NewClient(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GCS client: %w", err)
 	}
+
 	return &gcsClient{
 		client:    clientService,
 		projectID: projectID,

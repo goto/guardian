@@ -6,15 +6,17 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
 	"go.opentelemetry.io/contrib/instrumentation/host"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
+
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/metric"
+	sdkMetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
@@ -83,8 +85,8 @@ func initGlobalMetrics(ctx context.Context, res *resource.Resource, cfg Config) 
 		return nil, fmt.Errorf("create metric exporter: %w", err)
 	}
 
-	reader := metric.NewPeriodicReader(exporter, metric.WithInterval(cfg.MetricInterval))
-	provider := metric.NewMeterProvider(metric.WithReader(reader), metric.WithResource(res))
+	reader := sdkMetric.NewPeriodicReader(exporter, sdkMetric.WithInterval(cfg.MetricInterval))
+	provider := sdkMetric.NewMeterProvider(sdkMetric.WithReader(reader), sdkMetric.WithResource(res))
 	otel.SetMeterProvider(provider)
 
 	return func() error {
@@ -134,9 +136,8 @@ func NewHttpClient(name string) *http.Client {
 			return fmt.Sprintf("%s %s", name, operation)
 		}),
 	}
-
 	return &http.Client{
-		Transport: otelhttp.NewTransport(http.DefaultTransport, otelOpts...),
+		Transport: otelhttpclient.NewHTTPTransport((otelhttp.NewTransport(http.DefaultTransport, otelOpts...))),
 	}
 }
 
@@ -148,8 +149,8 @@ func PopulateTransportWithTracer(httpClient *http.Client, name string) {
 	}
 
 	if httpClient.Transport == nil {
-		httpClient.Transport = otelhttp.NewTransport(http.DefaultTransport, opts...)
+		httpClient.Transport = otelhttpclient.NewHTTPTransport(otelhttp.NewTransport(http.DefaultTransport, opts...))
 	} else {
-		httpClient.Transport = otelhttp.NewTransport(httpClient.Transport, opts...)
+		httpClient.Transport = otelhttpclient.NewHTTPTransport(otelhttp.NewTransport(httpClient.Transport, opts...))
 	}
 }

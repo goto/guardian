@@ -9,6 +9,7 @@ import (
 
 	bq "cloud.google.com/go/bigquery"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -38,9 +39,9 @@ func NewBigQueryClient(projectID string, credentialsJSON []byte, opts ...option.
 		}
 		oauthClient = func(name string) *http.Client {
 			client := oauth2.NewClient(ctx, creds.TokenSource)
-			client.Transport = otelhttp.NewTransport(client.Transport, otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+			client.Transport = otelhttpclient.NewHTTPTransport((otelhttp.NewTransport(client.Transport, otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 				return fmt.Sprintf("%s %s", name, operation)
-			}))
+			}))))
 			return client
 		}
 	}

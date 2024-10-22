@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -135,7 +134,6 @@ func (c *Config) parseAndValidate(ctx context.Context) error {
 	} else {
 		c.ProviderConfig.Credentials = credentials
 	}
-	log.Printf("%s", credentials.ServiceAccountKey)
 	projectID := strings.Replace(credentials.ResourceName, "projects/", "", 1)
 	client, err := NewBigQueryClient(projectID, []byte(credentials.ServiceAccountKey))
 	if err != nil {

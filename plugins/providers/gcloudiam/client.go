@@ -7,7 +7,9 @@ import (
 	"strings"
 
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -34,9 +36,9 @@ func newIamClient(credentialsJSON []byte, resourceName string) (*iamClient, erro
 	}
 
 	oauthClientCRM := oauth2.NewClient(ctx, creds.TokenSource)
-	oauthClientCRM.Transport = otelhttp.NewTransport(oauthClientCRM.Transport, otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+	oauthClientCRM.Transport = otelhttpclient.NewHTTPTransport(otelhttp.NewTransport(oauthClientCRM.Transport, otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 		return fmt.Sprintf("CloudResourceManagementClient %s", operation)
-	}))
+	}), otelhttp.WithMeterProvider(otel.GetMeterProvider())))
 
 	cloudResourceManagerService, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(oauthClientCRM))
 	if err != nil {
@@ -44,9 +46,9 @@ func newIamClient(credentialsJSON []byte, resourceName string) (*iamClient, erro
 	}
 
 	oauthClientIAM := oauth2.NewClient(ctx, creds.TokenSource)
-	oauthClientIAM.Transport = otelhttp.NewTransport(oauthClientIAM.Transport, otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+	oauthClientIAM.Transport = otelhttpclient.NewHTTPTransport(otelhttp.NewTransport(oauthClientIAM.Transport, otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 		return fmt.Sprintf("IAMClient %s", operation)
-	}))
+	}), otelhttp.WithMeterProvider(otel.GetMeterProvider())))
 
 	iamService, err := iam.NewService(ctx, option.WithHTTPClient(oauthClientIAM))
 	if err != nil {

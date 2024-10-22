@@ -23,19 +23,11 @@ type policyTagClient struct {
 
 func newPolicyTagClient(projectID, location string, credentialsJSON []byte) (*policyTagClient, error) {
 	ctx := context.Background()
-	otelOpts := []grpc.DialOption{
-		grpc.WithUnaryInterceptor(
-			otelgrpc.UnaryClientInterceptor(),
-		),
-		grpc.WithStreamInterceptor(
-			otelgrpc.StreamClientInterceptor(),
-		),
-	}
 
-	var clientOptions []option.ClientOption
-	clientOptions = append(clientOptions, option.WithCredentialsJSON(credentialsJSON))
-	for _, opt := range otelOpts {
-		clientOptions = append(clientOptions, option.WithGRPCDialOption(opt))
+	clientOptions := []option.ClientOption{
+		option.WithCredentialsJSON(credentialsJSON),
+		option.WithGRPCDialOption(grpc.WithChainUnaryInterceptor(otelgrpc.UnaryClientInterceptor())),
+		option.WithGRPCDialOption(grpc.WithChainStreamInterceptor(otelgrpc.StreamClientInterceptor())),
 	}
 	policyManager, err := datacatalog.NewPolicyTagManagerClient(ctx, clientOptions...)
 	if err != nil {
