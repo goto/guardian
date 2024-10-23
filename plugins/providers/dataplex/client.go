@@ -21,14 +21,17 @@ type policyTagClient struct {
 	taxonomyLocation string
 }
 
-func newPolicyTagClient(projectID, location string, credentialsJSON []byte) (*policyTagClient, error) {
+func NewPolicyTagClient(projectID, location string, credentialsJSON []byte) (*policyTagClient, error) {
 	ctx := context.Background()
 
 	clientOptions := []option.ClientOption{
-		option.WithCredentialsJSON(credentialsJSON),
 		option.WithGRPCDialOption(grpc.WithChainUnaryInterceptor(otelgrpc.UnaryClientInterceptor())),
 		option.WithGRPCDialOption(grpc.WithChainStreamInterceptor(otelgrpc.StreamClientInterceptor())),
 	}
+	if credentialsJSON != nil {
+		clientOptions = append(clientOptions, option.WithCredentialsJSON(credentialsJSON))
+	}
+
 	policyManager, err := datacatalog.NewPolicyTagManagerClient(ctx, clientOptions...)
 	if err != nil {
 		return nil, err
