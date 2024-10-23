@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -36,7 +37,15 @@ type httpTransport struct {
 	metricClientResponseSize metric.Int64Counter
 }
 
-func NewHTTPTransport(baseTransport http.RoundTripper) http.RoundTripper {
+func NewHTTPTransport(baseTransport http.RoundTripper, name string) http.RoundTripper {
+	if name != "" {
+		opts := []otelhttp.Option{
+			otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+				return fmt.Sprintf("%s %s", name, operation)
+			}),
+		}
+		baseTransport = otelhttp.NewTransport(baseTransport, opts...)
+	}
 	if _, ok := baseTransport.(*httpTransport); ok {
 		return baseTransport
 	}

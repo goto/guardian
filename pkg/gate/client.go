@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/goto/guardian/pkg/opentelemetry"
+	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
 )
 
 type Client struct {
@@ -27,7 +27,7 @@ func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
 	client := &Client{
 		baseURL: url,
 		options: &options{
-			httpClient: opentelemetry.NewHttpClient("GateClient"),
+			httpClient: otelhttpclient.New("GateClient", nil),
 		},
 	}
 	for _, o := range opts {

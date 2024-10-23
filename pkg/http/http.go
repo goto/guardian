@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	validator "github.com/go-playground/validator/v10"
-	"github.com/goto/guardian/pkg/opentelemetry"
+	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
 	defaults "github.com/mcuadros/go-defaults"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -72,7 +72,7 @@ func NewHTTPClient(config *HTTPClientConfig, clientCreator HttpClientCreator, se
 		httpClient = http.DefaultClient
 	}
 	if serviceName != "" {
-		opentelemetry.PopulateTransportWithTracer(httpClient, serviceName)
+		httpClient = otelhttpclient.New(serviceName, nil)
 	}
 
 	if config.Auth != nil && (config.Auth.Type == "google_idtoken" || config.Auth.Type == "google_oauth2") {

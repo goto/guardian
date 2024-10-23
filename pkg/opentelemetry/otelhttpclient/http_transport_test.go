@@ -8,6 +8,6 @@ import (
 )
 
 func TestNewHTTPTransport(t *testing.T) {
-	tr := otelhttpclient.NewHTTPTransport(nil)
+	tr := otelhttpclient.NewHTTPTransport(nil, "")
 	assert.NotNil(t, tr)
 }

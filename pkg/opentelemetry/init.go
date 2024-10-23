@@ -3,12 +3,9 @@ package opentelemetry
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
-	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
 	"go.opentelemetry.io/contrib/instrumentation/host"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 
@@ -128,29 +125,4 @@ func initGlobalTracer(ctx context.Context, res *resource.Resource, cfg Config) (
 		}
 		return nil
 	}, nil
-}
-
-func NewHttpClient(name string) *http.Client {
-	otelOpts := []otelhttp.Option{
-		otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
-			return fmt.Sprintf("%s %s", name, operation)
-		}),
-	}
-	return &http.Client{
-		Transport: otelhttpclient.NewHTTPTransport((otelhttp.NewTransport(http.DefaultTransport, otelOpts...))),
-	}
-}
-
-func PopulateTransportWithTracer(httpClient *http.Client, name string) {
-	opts := []otelhttp.Option{
-		otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
-			return fmt.Sprintf("%s %s", name, operation)
-		}),
-	}
-
-	if httpClient.Transport == nil {
-		httpClient.Transport = otelhttpclient.NewHTTPTransport(otelhttp.NewTransport(http.DefaultTransport, opts...))
-	} else {
-		httpClient.Transport = otelhttpclient.NewHTTPTransport(otelhttp.NewTransport(httpClient.Transport, opts...))
-	}
 }
