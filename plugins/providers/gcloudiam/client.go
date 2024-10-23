@@ -6,6 +6,9 @@ import (
 	"strings"
 
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
@@ -24,14 +27,25 @@ type iamClient struct {
 
 func newIamClient(credentialsJSON []byte, resourceName string) (*iamClient, error) {
 	ctx := context.Background()
-	cloudResourceManagerService, err := cloudresourcemanager.NewService(ctx, option.WithCredentialsJSON(credentialsJSON))
+	creds, err := google.CredentialsFromJSON(ctx, credentialsJSON, cloudresourcemanager.CloudPlatformScope, iam.CloudPlatformScope)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to obtain credentials: %w", err)
 	}
 
-	iamService, err := iam.NewService(ctx, option.WithCredentialsJSON(credentialsJSON))
+	oauthClientCRM := oauth2.NewClient(ctx, creds.TokenSource)
+	oauthClientCRM = otelhttpclient.New("CloudResourceManagerClient", oauthClientCRM)
+
+	cloudResourceManagerService, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(oauthClientCRM))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create Cloud Resource Manager service: %w", err)
+	}
+
+	oauthClientIAM := oauth2.NewClient(ctx, creds.TokenSource)
+	oauthClientIAM = otelhttpclient.New("IAMClient", oauthClientIAM)
+
+	iamService, err := iam.NewService(ctx, option.WithHTTPClient(oauthClientIAM))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create IAM service: %w", err)
 	}
 
 	return &iamClient{

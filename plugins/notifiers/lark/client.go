@@ -156,7 +156,6 @@ func (n *Notifier) findTenantAccessToken(clientId string, clientSecret string, w
 }
 
 func (n *Notifier) sendRequest(req *http.Request) (*tokenResponse, error) {
-
 	resp, err := n.httpClient.Do(req)
 	if err != nil {
 		return nil, err

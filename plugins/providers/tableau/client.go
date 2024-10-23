@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/goto/guardian/pkg/opentelemetry"
+	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
 	"github.com/mcuadros/go-defaults"
 )
 
@@ -603,7 +603,7 @@ func NewClient(config *ClientConfig) (*client, error) {
 
 	httpClient := config.HTTPClient
 	if httpClient == nil {
-		httpClient = opentelemetry.NewHttpClient("TableauHttpClient")
+		httpClient = otelhttpclient.New("TableauHttpClient", nil)
 	}
 
 	c := &client{

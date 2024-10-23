@@ -201,9 +201,7 @@ func TestNewSlackLarkConfig(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-
 		t.Run(tt.name, func(t *testing.T) {
-
 			got, err := getLarkConfig(&tt.args.config, domain.NotificationMessages{})
 
 			if (err != nil) != tt.wantErr {
@@ -213,7 +211,6 @@ func TestNewSlackLarkConfig(t *testing.T) {
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewLarkConfig() got = %v, want %v", got, tt.want)
 			}
-
 		})
 	}
 }

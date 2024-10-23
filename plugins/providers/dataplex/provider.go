@@ -201,7 +201,7 @@ func (p *Provider) getPolicyTagClient(credentials Credentials) (PolicyTagClient,
 	if err != nil {
 		return nil, ErrUnableToDecryptCredentials
 	}
-	client, err := newPolicyTagClient(projectID, taxonomyLocation, []byte(credentials.ServiceAccountKey))
+	client, err := NewPolicyTagClient(projectID, taxonomyLocation, []byte(credentials.ServiceAccountKey))
 	if err != nil {
 		return nil, err
 	}

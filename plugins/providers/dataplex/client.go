@@ -7,10 +7,12 @@ import (
 
 	datacatalog "cloud.google.com/go/datacatalog/apiv1"
 	"github.com/goto/guardian/domain"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	pb "google.golang.org/genproto/googleapis/cloud/datacatalog/v1"
 	iampb "google.golang.org/genproto/googleapis/iam/v1"
+	"google.golang.org/grpc"
 )
 
 type policyTagClient struct {
@@ -19,9 +21,18 @@ type policyTagClient struct {
 	taxonomyLocation string
 }
 
-func newPolicyTagClient(projectID, location string, credentialsJSON []byte) (*policyTagClient, error) {
+func NewPolicyTagClient(projectID, location string, credentialsJSON []byte) (*policyTagClient, error) {
 	ctx := context.Background()
-	policyManager, err := datacatalog.NewPolicyTagManagerClient(ctx, option.WithCredentialsJSON(credentialsJSON))
+
+	clientOptions := []option.ClientOption{
+		option.WithGRPCDialOption(grpc.WithChainUnaryInterceptor(otelgrpc.UnaryClientInterceptor())),
+		option.WithGRPCDialOption(grpc.WithChainStreamInterceptor(otelgrpc.StreamClientInterceptor())),
+	}
+	if credentialsJSON != nil {
+		clientOptions = append(clientOptions, option.WithCredentialsJSON(credentialsJSON))
+	}
+
+	policyManager, err := datacatalog.NewPolicyTagManagerClient(ctx, clientOptions...)
 	if err != nil {
 		return nil, err
 	}

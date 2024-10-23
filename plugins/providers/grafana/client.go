@@ -10,7 +10,7 @@ import (
 	"net/url"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/goto/guardian/pkg/opentelemetry"
+	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
 )
 
 type GrafanaClient interface {
@@ -62,7 +62,7 @@ func NewClient(config *ClientConfig) (*client, error) {
 
 	httpClient := config.HTTPClient
 	if httpClient == nil {
-		httpClient = opentelemetry.NewHttpClient("GrafanaHttpClient")
+		httpClient = otelhttpclient.New("GrafanaHttpClient", nil)
 	}
 
 	baseURL, err := url.Parse(config.Host)

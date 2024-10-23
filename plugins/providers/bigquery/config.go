@@ -11,7 +11,6 @@ import (
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/utils"
 	"github.com/mitchellh/mapstructure"
-	"google.golang.org/api/option"
 )
 
 const (
@@ -135,9 +134,8 @@ func (c *Config) parseAndValidate(ctx context.Context) error {
 	} else {
 		c.ProviderConfig.Credentials = credentials
 	}
-
 	projectID := strings.Replace(credentials.ResourceName, "projects/", "", 1)
-	client, err := NewBigQueryClient(projectID, option.WithCredentialsJSON([]byte(credentials.ServiceAccountKey)))
+	client, err := NewBigQueryClient(projectID, []byte(credentials.ServiceAccountKey))
 	if err != nil {
 		return err
 	}
