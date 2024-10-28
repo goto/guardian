@@ -12,7 +12,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/propagation"
 	sdkMetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -107,7 +106,6 @@ func initGlobalTracer(ctx context.Context, res *resource.Resource, cfg Config) (
 		return nil, fmt.Errorf("create trace exporter: %w", err)
 	}
 
-	stdoutExporter, err := stdouttrace.New(stdouttrace.WithPrettyPrint())
 	if err != nil {
 		return nil, fmt.Errorf("create stdout trace exporter: %w", err)
 	}
@@ -116,7 +114,6 @@ func initGlobalTracer(ctx context.Context, res *resource.Resource, cfg Config) (
 		sdktrace.WithSampler(sdktrace.AlwaysSample()),
 		sdktrace.WithResource(res),
 		sdktrace.WithBatcher(exporter),
-		sdktrace.WithBatcher(stdoutExporter), // Stdout exporter
 	)
 
 	otel.SetTracerProvider(tracerProvider)
