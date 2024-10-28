@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -136,12 +137,15 @@ type bodyWrapper struct {
 
 	read int
 	err  error
+	mu   sync.Mutex
 }
 
 func (w *bodyWrapper) Read(b []byte) (int, error) {
 	n, err := w.ReadCloser.Read(b)
+	w.mu.Lock()
 	w.read += n
 	w.err = err
+	w.mu.Unlock()
 	return n, err
 }
 
