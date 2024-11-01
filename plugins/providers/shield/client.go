@@ -13,7 +13,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/pkg/log"
-	"github.com/goto/guardian/pkg/opentelemetry"
+	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -78,7 +78,7 @@ func NewClient(config *ClientConfig, logger log.Logger) (*client, error) {
 
 	httpClient := config.HTTPClient
 	if httpClient == nil {
-		httpClient = opentelemetry.NewHttpClient("ShieldHttpClient")
+		httpClient = otelhttpclient.New("ShieldHttpClient", nil)
 	}
 
 	c := &client{

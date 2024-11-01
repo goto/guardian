@@ -21,7 +21,6 @@ import (
 	"github.com/patrickmn/go-cache"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/logging/v2"
-	"google.golang.org/api/option"
 )
 
 var (
@@ -539,7 +538,7 @@ func (p *Provider) getBigQueryClient(credentials Credentials) (BigQueryClient, e
 	}
 
 	credentials.Decrypt(p.encryptor)
-	client, err := NewBigQueryClient(projectID, option.WithCredentialsJSON([]byte(credentials.ServiceAccountKey)))
+	client, err := NewBigQueryClient(projectID, []byte(credentials.ServiceAccountKey))
 	if err != nil {
 		return nil, err
 	}

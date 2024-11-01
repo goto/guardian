@@ -3,18 +3,17 @@ package opentelemetry
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/host"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
+
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/metric"
+	sdkMetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
@@ -83,8 +82,8 @@ func initGlobalMetrics(ctx context.Context, res *resource.Resource, cfg Config) 
 		return nil, fmt.Errorf("create metric exporter: %w", err)
 	}
 
-	reader := metric.NewPeriodicReader(exporter, metric.WithInterval(cfg.MetricInterval))
-	provider := metric.NewMeterProvider(metric.WithReader(reader), metric.WithResource(res))
+	reader := sdkMetric.NewPeriodicReader(exporter, sdkMetric.WithInterval(cfg.MetricInterval))
+	provider := sdkMetric.NewMeterProvider(sdkMetric.WithReader(reader), sdkMetric.WithResource(res))
 	otel.SetMeterProvider(provider)
 
 	return func() error {
@@ -107,6 +106,10 @@ func initGlobalTracer(ctx context.Context, res *resource.Resource, cfg Config) (
 		return nil, fmt.Errorf("create trace exporter: %w", err)
 	}
 
+	if err != nil {
+		return nil, fmt.Errorf("create stdout trace exporter: %w", err)
+	}
+
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithSampler(sdktrace.AlwaysSample()),
 		sdktrace.WithResource(res),
@@ -126,15 +129,4 @@ func initGlobalTracer(ctx context.Context, res *resource.Resource, cfg Config) (
 		}
 		return nil
 	}, nil
-}
-
-func NewHttpClient(name string) *http.Client {
-	opts := []otelhttp.Option{
-		otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
-			return fmt.Sprintf("%s %s", name, operation)
-		}),
-	}
-	return &http.Client{
-		Transport: otelhttp.NewTransport(http.DefaultTransport, opts...),
-	}
 }

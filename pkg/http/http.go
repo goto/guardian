@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	validator "github.com/go-playground/validator/v10"
+	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
 	defaults "github.com/mcuadros/go-defaults"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -61,7 +62,7 @@ type HttpClientCreator interface {
 }
 
 // NewHTTPClient returns *iam.Client
-func NewHTTPClient(config *HTTPClientConfig, clientCreator HttpClientCreator) (*HTTPClient, error) {
+func NewHTTPClient(config *HTTPClientConfig, clientCreator HttpClientCreator, serviceName string) (*HTTPClient, error) {
 	defaults.SetDefaults(config)
 	if err := validator.New().Struct(config); err != nil {
 		return nil, err
@@ -69,6 +70,9 @@ func NewHTTPClient(config *HTTPClientConfig, clientCreator HttpClientCreator) (*
 	httpClient := config.HTTPClient
 	if httpClient == nil {
 		httpClient = http.DefaultClient
+	}
+	if serviceName != "" {
+		httpClient = otelhttpclient.New(serviceName, nil)
 	}
 
 	if config.Auth != nil && (config.Auth.Type == "google_idtoken" || config.Auth.Type == "google_oauth2") {

@@ -49,7 +49,6 @@ func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notifi
 				errs = append(errs, notifyErrs...)
 			}
 		}
-
 	}
 	return errs
 }
@@ -186,7 +185,6 @@ func getLarkConfig(config *Config, messages domain.NotificationMessages) (*lark.
 			Messages:  messages,
 		}
 		return larkConfig, nil
-
 	}
 
 	return larkConfig, nil

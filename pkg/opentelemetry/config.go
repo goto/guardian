@@ -13,5 +13,5 @@ type Config struct {
 		Endpoint string            `mapstructure:"endpoint" default:"127.0.0.1:4317"`
 	} `mapstructure:"otlp"`
 	SamplingFraction int           `mapstructure:"sampling_fraction"`
-	MetricInterval   time.Duration `mapstructure:"metric_interval"`
+	MetricInterval   time.Duration `mapstructure:"metric_interval" default:"15s"`
 }

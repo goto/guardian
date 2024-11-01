@@ -8,7 +8,10 @@ import (
 	"cloud.google.com/go/iam"
 	"cloud.google.com/go/storage"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
 	"github.com/goto/guardian/utils"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -20,13 +23,21 @@ type gcsClient struct {
 }
 
 func newGCSClient(ctx context.Context, projectID string, credentialsJSON []byte) (*gcsClient, error) {
-	client, err := storage.NewClient(ctx, option.WithCredentialsJSON(credentialsJSON))
+	creds, err := google.CredentialsFromJSON(ctx, credentialsJSON, "https://www.googleapis.com/auth/devstorage.full_control")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to obtain credentials: %w", err)
+	}
+
+	client := oauth2.NewClient(ctx, creds.TokenSource)
+	client = otelhttpclient.New("GCSClient", client)
+
+	clientService, err := storage.NewClient(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GCS client: %w", err)
 	}
 
 	return &gcsClient{
-		client:    client,
+		client:    clientService,
 		projectID: projectID,
 	}, nil
 }
