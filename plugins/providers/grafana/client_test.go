@@ -90,6 +90,7 @@ func TestClient(t *testing.T) {
 	suite.Run(t, new(ClientTestSuite))
 }
 func (s *ClientTestSuite) setup() {
+
 	s.mockHttpClient = new(mocks.HTTPClient)
 
 	s.host = "http://localhost"

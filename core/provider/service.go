@@ -10,6 +10,8 @@ import (
 	"github.com/goto/guardian/pkg/evaluator"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/providers"
@@ -255,6 +257,7 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 }
 
 // FetchResources fetches all resources for all registered providers
+// when is this used
 func (s *Service) FetchResources(ctx context.Context) error {
 	providers, err := s.repository.Find(ctx)
 	if err != nil {
@@ -270,6 +273,11 @@ func (s *Service) FetchResources(ctx context.Context) error {
 			s.logger.Error(ctx, "failed to get resources", "error", err)
 			continue
 		}
+		if len(resources) == 0 {
+			s.logger.Info(ctx, "no changes in this provider", "provider_urn", p.URN)
+			continue
+		}
+
 		s.logger.Info(ctx, "resources added", "provider_urn", p.URN, "count", len(flattenResources(resources)))
 		if err := s.resourceService.BulkUpsert(ctx, resources); err != nil {
 			failedProviders[p.URN] = err
@@ -277,7 +285,6 @@ func (s *Service) FetchResources(ctx context.Context) error {
 		}
 		s.logger.Info(ctx, "fetching resources completed", "provider_urn", p.URN, "duration", time.Since(startTime))
 	}
-
 	if len(failedProviders) > 0 {
 		var urns []string
 		for providerURN, err := range failedProviders {
@@ -602,27 +609,37 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 			filteredResources = append(filteredResources, r)
 		}
 	}
-
 	flattenedProviderResources := flattenResources(filteredResources)
+
 	existingProviderResources := map[string]bool{}
-	for _, r := range flattenedProviderResources {
-		for _, er := range existingGuardianResources {
-			if er.Type == r.Type && er.URN == r.URN {
-				if existingDetails := er.Details; existingDetails != nil {
-					if r.Details != nil {
+	opts := cmp.Options{
+		cmpopts.IgnoreFields(domain.Resource{}, "ID", "CreatedAt", "UpdatedAt"),
+	}
+	isUpdated := false
+	for _, newResource := range flattenedProviderResources {
+		for _, existingResource := range existingGuardianResources {
+			if existingResource.Type == newResource.Type && existingResource.URN == newResource.URN {
+				if existingDetails := existingResource.Details; existingDetails != nil {
+					if newResource.Details != nil {
 						for key, value := range existingDetails {
-							if _, ok := r.Details[key]; !ok {
-								r.Details[key] = value
+							if _, ok := newResource.Details[key]; !ok {
+								newResource.Details[key] = value
 							}
 						}
 					} else {
-						r.Details = existingDetails
+						newResource.Details = existingDetails
+					}
+					if diff := cmp.Diff(existingResource, newResource, opts); diff != "" {
+						isUpdated = true
 					}
 				}
-				existingProviderResources[er.ID] = true
+				existingProviderResources[existingResource.ID] = true
 				break
 			}
 		}
+	}
+	if !isUpdated {
+		return []*domain.Resource{}, nil
 	}
 
 	// mark IsDeleted of guardian resources that no longer exist in provider

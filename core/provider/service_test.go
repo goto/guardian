@@ -357,18 +357,58 @@ func (s *ServiceTestSuite) TestFetchResources() {
 			Config: &domain.ProviderConfig{},
 		},
 	}
-
-	s.Run("should return error if got any from resource service", func() {
-		s.mockProviderRepository.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(providers, nil).Once()
-		for _, p := range providers {
-			s.mockProvider.On("GetResources", mockCtx, p.Config).Return([]*domain.Resource{}, nil).Once()
+	s.Run("should not upsert any resources when there is no changes", func() {
+		existingResources := []*domain.Resource{
+			{
+				ID:           "12ß",
+				ProviderType: mockProviderType,
+				ProviderURN:  mockProvider,
+				Type:         "test-resource-type",
+				URN:          "test-resource-urn-2",
+			},
+			{
+				ID:           "1",
+				ProviderType: mockProviderType,
+				ProviderURN:  mockProvider,
+				Type:         "test-resource-type",
+				URN:          "test-resource-urn-1",
+				Details: map[string]interface{}{
+					"owner": "test-owner",
+					resource.ReservedDetailsKeyMetadata: map[string]interface{}{
+						"labels": map[string]string{
+							"foo": "bar",
+							"baz": "qux",
+						},
+						"x": "y",
+					},
+				},
+			},
 		}
-		expectedError := errors.New("failed to add resources for providers: [mock_provider]")
-		s.mockResourceService.On("BulkUpsert", mock.Anything, mock.Anything).Return(expectedError).Once()
-		s.mockResourceService.On("Find", mock.Anything, mock.Anything).Return([]*domain.Resource{}, nil).Once()
+		newResources := []*domain.Resource{
+			{
+				ProviderType: mockProviderType,
+				ProviderURN:  mockProvider,
+				Type:         "test-resource-type",
+				URN:          "test-resource-urn-1",
+				Details: map[string]interface{}{
+					resource.ReservedDetailsKeyMetadata: map[string]interface{}{
+						"labels": map[string]string{
+							"foo": "bar",
+							"baz": "qux",
+						},
+						"x": "y",
+					},
+				},
+			},
+		}
+
+		expectedProvider := providers[0]
+		s.mockProviderRepository.EXPECT().Find(mockCtx).Return([]*domain.Provider{expectedProvider}, nil).Once()
+		s.mockProvider.EXPECT().GetResources(mockCtx, expectedProvider.Config).Return(newResources, nil).Once()
+		s.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(existingResources, nil).Once()
 		actualError := s.service.FetchResources(context.Background())
 
-		s.EqualError(actualError, expectedError.Error())
+		s.Nil(actualError)
 	})
 
 	s.Run("should upsert all resources on success", func() {
