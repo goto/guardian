@@ -400,6 +400,13 @@ func (s *ServiceTestSuite) TestFetchResources() {
 					},
 				},
 			},
+			{
+				ID:           "12ß",
+				ProviderType: mockProviderType,
+				ProviderURN:  mockProvider,
+				Type:         "test-resource-type",
+				URN:          "test-resource-urn-2",
+			},
 		}
 
 		expectedProvider := providers[0]

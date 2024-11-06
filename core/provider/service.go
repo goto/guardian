@@ -10,8 +10,6 @@ import (
 	"github.com/goto/guardian/pkg/evaluator"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/providers"
@@ -257,14 +255,13 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 }
 
 // FetchResources fetches all resources for all registered providers
-// when is this used
 func (s *Service) FetchResources(ctx context.Context) error {
 	providers, err := s.repository.Find(ctx)
 	if err != nil {
 		return err
 	}
-
 	failedProviders := map[string]error{}
+	updatedProviders := 0
 	for _, p := range providers {
 		startTime := time.Now()
 		s.logger.Info(ctx, "fetching resources", "provider_urn", p.URN)
@@ -284,7 +281,10 @@ func (s *Service) FetchResources(ctx context.Context) error {
 			s.logger.Error(ctx, "failed to add resources", "provider_urn", p.URN, "error", err)
 		}
 		s.logger.Info(ctx, "fetching resources completed", "provider_urn", p.URN, "duration", time.Since(startTime))
+		updatedProviders++
 	}
+	s.logger.Info(ctx, "existing provider", "count", len(providers))
+	s.logger.Info(ctx, "updated providers", "count", updatedProviders)
 	if len(failedProviders) > 0 {
 		var urns []string
 		for providerURN, err := range failedProviders {
@@ -612,10 +612,8 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 	flattenedProviderResources := flattenResources(filteredResources)
 
 	existingProviderResources := map[string]bool{}
-	opts := cmp.Options{
-		cmpopts.IgnoreFields(domain.Resource{}, "ID", "CreatedAt", "UpdatedAt"),
-	}
-	isUpdated := false
+
+	isResourceUpdated := 0
 	for _, newResource := range flattenedProviderResources {
 		for _, existingResource := range existingGuardianResources {
 			if existingResource.Type == newResource.Type && existingResource.URN == newResource.URN {
@@ -629,8 +627,8 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 					} else {
 						newResource.Details = existingDetails
 					}
-					if diff := cmp.Diff(existingResource, newResource, opts); diff != "" {
-						isUpdated = true
+					if isUpdated := compareResources(*existingResource, *newResource); isUpdated {
+						isResourceUpdated++
 					}
 				}
 				existingProviderResources[existingResource.ID] = true
@@ -638,7 +636,7 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 			}
 		}
 	}
-	if !isUpdated {
+	if isResourceUpdated == 0 && len(existingGuardianResources) == len(flattenedProviderResources) {
 		return []*domain.Resource{}, nil
 	}
 
