@@ -211,7 +211,8 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.DB
 		db = db.Where(db.
 			Where(`"appeals"."account_id" LIKE ?`, fmt.Sprintf("%%%s%%", filters.Q)).
 			Or(`"appeals"."role" LIKE ?`, fmt.Sprintf("%%%s%%", filters.Q)).
-			Or(`"resources"."urn" LIKE ?`, fmt.Sprintf("%%%s%%", filters.Q)),
+			Or(`"resources"."urn" LIKE ?`, fmt.Sprintf("%%%s%%", filters.Q)).
+			Or(`"resources"."name" LIKE ?`, fmt.Sprintf("%%%s%%", filters.Q)),
 		)
 	}
 	if filters.Statuses != nil {
