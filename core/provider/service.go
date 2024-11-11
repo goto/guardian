@@ -613,7 +613,6 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 
 	existingProviderResources := map[string]bool{}
 
-	isResourceUpdated := false
 	UpdatedResourceCount := 0
 	for _, newResource := range flattenedProviderResources {
 		for _, existingResource := range existingGuardianResources {
@@ -631,7 +630,6 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 					if isUpdated, diff := compareResources(*existingResource, *newResource); isUpdated {
 						s.logger.Info(ctx, "diff", "resources", diff)
 						UpdatedResourceCount++
-						isResourceUpdated = true
 						s.logger.Info(ctx, "Resources is updated", "resource", newResource.Name)
 					}
 				}
@@ -640,7 +638,7 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 			}
 		}
 	}
-	if isResourceUpdated && len(existingGuardianResources) == len(flattenedProviderResources) {
+	if UpdatedResourceCount == 0 && len(existingGuardianResources) == len(flattenedProviderResources) {
 		return []*domain.Resource{}, nil
 	}
 	s.logger.Info(ctx, "Existing Resource", "Count", len(existingGuardianResources))
