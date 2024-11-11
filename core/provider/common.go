@@ -54,7 +54,7 @@ func normalizeDetails(details map[string]interface{}) (map[string]interface{}, e
 	return normalized, nil
 }
 
-func compareResources(existingResource, newResource domain.Resource) bool {
+func compareResources(existingResource, newResource domain.Resource) (bool, string) {
 	opts := cmp.Options{
 		cmpopts.IgnoreFields(domain.Resource{}, "ID", "CreatedAt", "UpdatedAt"),
 		cmpopts.SortSlices(func(x, y map[string]any) bool {
@@ -67,9 +67,9 @@ func compareResources(existingResource, newResource domain.Resource) bool {
 	existingResource.Details = normalizedExistingDetails
 	newResource.Details = normalizedNewDetails
 	if diff := cmp.Diff(existingResource, newResource, opts); diff != "" {
-		return true
+		return true, diff
 	}
-	return false
+	return false, ""
 }
 
 type UnimplementedClient struct{}

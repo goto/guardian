@@ -613,7 +613,8 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 
 	existingProviderResources := map[string]bool{}
 
-	isResourceUpdated := 0
+	isResourceUpdated := false
+	UpdatedResourceCount := 0
 	for _, newResource := range flattenedProviderResources {
 		for _, existingResource := range existingGuardianResources {
 			if existingResource.Type == newResource.Type && existingResource.URN == newResource.URN {
@@ -627,8 +628,11 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 					} else {
 						newResource.Details = existingDetails
 					}
-					if isUpdated := compareResources(*existingResource, *newResource); isUpdated {
-						isResourceUpdated++
+					if isUpdated, diff := compareResources(*existingResource, *newResource); isUpdated {
+						s.logger.Info(ctx, "diff", "resources", diff)
+						UpdatedResourceCount++
+						isResourceUpdated = true
+						s.logger.Info(ctx, "Resources is updated", "resource", newResource.Name)
 					}
 				}
 				existingProviderResources[existingResource.ID] = true
@@ -636,9 +640,12 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 			}
 		}
 	}
-	if isResourceUpdated == 0 && len(existingGuardianResources) == len(flattenedProviderResources) {
+	if isResourceUpdated && len(existingGuardianResources) == len(flattenedProviderResources) {
 		return []*domain.Resource{}, nil
 	}
+	s.logger.Info(ctx, "Existing Resource", "Count", len(existingGuardianResources))
+	s.logger.Info(ctx, "New Resource", "Count", len(flattenedProviderResources))
+	s.logger.Info(ctx, "Updated Resource", "Count", UpdatedResourceCount)
 
 	// mark IsDeleted of guardian resources that no longer exist in provider
 	updatedResources := []*domain.Resource{}
