@@ -56,7 +56,7 @@ func normalizeDetails(details map[string]interface{}) (map[string]interface{}, e
 
 func compareResources(existingResource, newResource domain.Resource) (bool, string) {
 	opts := cmp.Options{
-		cmpopts.IgnoreFields(domain.Resource{}, "ID", "CreatedAt", "UpdatedAt"),
+		cmpopts.IgnoreFields(domain.Resource{}, "ID", "CreatedAt", "UpdatedAt", "ParentID", "Children"),
 		cmpopts.SortSlices(func(x, y map[string]any) bool {
 			return x["name"].(string) < y["name"].(string) // Assumes each entry has a unique name field
 		}),
