@@ -152,7 +152,7 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 	go func() {
 		s.logger.Info(ctx, "provider create fetching resources", "provider_urn", p.URN)
 		ctx := audit.WithActor(context.Background(), domain.SystemActorName)
-		resources, err := s.getResources(ctx, p)
+		resources, err := s.getResources(ctx, p, nil, nil)
 		if err != nil {
 			s.logger.Error(ctx, "failed to fetch resources", "error", err)
 		}
@@ -236,7 +236,7 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 	go func() {
 		s.logger.Info(ctx, "provider update fetching resources", "provider_urn", p.URN)
 		ctx := audit.WithActor(context.Background(), domain.SystemActorName)
-		resources, err := s.getResources(ctx, p)
+		resources, err := s.getResources(ctx, p, nil, nil)
 		if err != nil {
 			s.logger.Error(ctx, "failed to fetch resources", "error", err)
 		}
@@ -261,11 +261,12 @@ func (s *Service) FetchResources(ctx context.Context) error {
 		return err
 	}
 	failedProviders := map[string]error{}
-	updatedProviders := 0
+	resourcesCount := 0
+	upsertedResourceCount := 0
 	for _, p := range providers {
 		startTime := time.Now()
 		s.logger.Info(ctx, "fetching resources", "provider_urn", p.URN)
-		resources, err := s.getResources(ctx, p)
+		resources, err := s.getResources(ctx, p, &resourcesCount, &upsertedResourceCount)
 		if err != nil {
 			s.logger.Error(ctx, "failed to get resources", "error", err)
 			continue
@@ -281,10 +282,8 @@ func (s *Service) FetchResources(ctx context.Context) error {
 			s.logger.Error(ctx, "failed to add resources", "provider_urn", p.URN, "error", err)
 		}
 		s.logger.Info(ctx, "fetching resources completed", "provider_urn", p.URN, "duration", time.Since(startTime))
-		updatedProviders++
 	}
-	s.logger.Info(ctx, "existing provider", "count", len(providers))
-	s.logger.Info(ctx, "updated providers", "count", updatedProviders)
+	s.logger.Info(ctx, "resources", "count", resourcesCount, "upserted", upsertedResourceCount)
 	if len(failedProviders) > 0 {
 		var urns []string
 		for providerURN, err := range failedProviders {
@@ -569,7 +568,7 @@ func (s *Service) IsExclusiveRoleAssignment(ctx context.Context, providerType, r
 	return false
 }
 
-func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*domain.Resource, error) {
+func (s *Service) getResources(ctx context.Context, p *domain.Provider, resourcesCount, upsertedResourcesCount *int) ([]*domain.Resource, error) {
 	c := s.getClient(p.Type)
 	if c == nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidProviderType, p.Type)
@@ -594,7 +593,6 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 	if err != nil {
 		return nil, fmt.Errorf("error fetching resources for %v: %w", p.ID, err)
 	}
-
 	filteredResources := make([]*domain.Resource, 0)
 	for _, r := range newProviderResources {
 		if filterExpression, ok := resourceTypeFilterMap[r.Type]; ok {
@@ -612,7 +610,9 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 	flattenedProviderResources := flattenResources(filteredResources)
 
 	existingProviderResources := map[string]bool{}
-
+	if resourcesCount != nil {
+		*resourcesCount += len(flattenedProviderResources)
+	}
 	UpdatedResourceCount := 0
 	for _, newResource := range flattenedProviderResources {
 		for _, existingResource := range existingGuardianResources {
@@ -630,6 +630,9 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 					if isUpdated, diff := compareResources(*existingResource, *newResource); isUpdated {
 						s.logger.Info(ctx, "diff", "resources", diff)
 						UpdatedResourceCount++
+						if upsertedResourcesCount != nil {
+							*upsertedResourcesCount++
+						}
 						s.logger.Info(ctx, "Resources is updated", "resource", newResource.Name)
 					}
 				}
@@ -641,9 +644,6 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 	if UpdatedResourceCount == 0 && len(existingGuardianResources) == len(flattenedProviderResources) {
 		return []*domain.Resource{}, nil
 	}
-	s.logger.Info(ctx, "Existing Resource", "Count", len(existingGuardianResources))
-	s.logger.Info(ctx, "New Resource", "Count", len(flattenedProviderResources))
-	s.logger.Info(ctx, "Updated Resource", "Count", UpdatedResourceCount)
 
 	// mark IsDeleted of guardian resources that no longer exist in provider
 	updatedResources := []*domain.Resource{}
