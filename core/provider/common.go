@@ -57,19 +57,12 @@ func normalizeDetails(details map[string]interface{}) (map[string]interface{}, e
 func compareResources(existingResource, newResource domain.Resource) (bool, string) {
 	opts := cmp.Options{
 		cmpopts.IgnoreFields(domain.Resource{}, "ID", "CreatedAt", "UpdatedAt", "ParentID", "Children"),
-		cmpopts.SortSlices(func(x, y map[string]any) bool {
-			return x["name"].(string) < y["name"].(string) // Assumes each entry has a unique name field
-		}),
 		cmpopts.EquateEmpty(),
 	}
-	normalizedExistingDetails, _ := normalizeDetails(existingResource.Details)
-	normalizedNewDetails, _ := normalizeDetails(newResource.Details)
-	existingResource.Details = normalizedExistingDetails
-	newResource.Details = normalizedNewDetails
-	if diff := cmp.Diff(existingResource, newResource, opts); diff != "" {
-		return true, diff
-	}
-	return false, ""
+	existingResource.Details, _ = normalizeDetails(existingResource.Details)
+	newResource.Details, _ = normalizeDetails(newResource.Details)
+	diff := cmp.Diff(existingResource, newResource, opts)
+	return diff != "", diff
 }
 
 type UnimplementedClient struct{}

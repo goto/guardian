@@ -357,6 +357,22 @@ func (s *ServiceTestSuite) TestFetchResources() {
 			Config: &domain.ProviderConfig{},
 		},
 	}
+
+	s.Run("should return error if got any from resource service", func() {
+		s.mockProviderRepository.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(providers, nil).Once()
+		for _, p := range providers {
+			s.mockProvider.On("GetResources", mockCtx, p.Config).Return([]*domain.Resource{
+				{ID: "test"},
+			}, nil).Once()
+		}
+		expectedError := errors.New("failed to add resources for providers: [mock_provider]")
+		s.mockResourceService.On("BulkUpsert", mock.Anything, mock.Anything).Return(expectedError).Once()
+		s.mockResourceService.On("Find", mock.Anything, mock.Anything).Return([]*domain.Resource{}, nil).Once()
+		actualError := s.service.FetchResources(context.Background())
+
+		s.EqualError(actualError, expectedError.Error())
+	})
+
 	s.Run("should not upsert any resources when there is no changes", func() {
 		existingResources := []*domain.Resource{
 			{
