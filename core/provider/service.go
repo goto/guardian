@@ -261,8 +261,8 @@ func (s *Service) FetchResources(ctx context.Context) error {
 		return err
 	}
 	failedProviders := map[string]error{}
-	resourcesCount := 0
-	upsertedResourceCount := 0
+	totalFetchedResourcesCount := 0
+	updatedResourcesCount := 0
 	for _, p := range providers {
 		startTime := time.Now()
 		s.logger.Info(ctx, "fetching resources", "provider_urn", p.URN)
@@ -271,8 +271,8 @@ func (s *Service) FetchResources(ctx context.Context) error {
 			s.logger.Error(ctx, "failed to get resources", "error", err)
 			continue
 		}
-		resourcesCount += fetchedResourcesCount
-		upsertedResourceCount += len(resources)
+		totalFetchedResourcesCount += fetchedResourcesCount
+		updatedResourcesCount += len(resources)
 		if len(resources) == 0 {
 			s.logger.Info(ctx, "no changes in this provider", "provider_urn", p.URN)
 			continue
@@ -284,7 +284,7 @@ func (s *Service) FetchResources(ctx context.Context) error {
 		}
 		s.logger.Info(ctx, "fetching resources completed", "provider_urn", p.URN, "duration", time.Since(startTime))
 	}
-	s.logger.Info(ctx, "resources", "count", resourcesCount, "upserted", upsertedResourceCount)
+	s.logger.Info(ctx, "resources", "count", totalFetchedResourcesCount, "upserted", updatedResourcesCount)
 	if len(failedProviders) > 0 {
 		var urns []string
 		for providerURN, err := range failedProviders {
@@ -613,8 +613,10 @@ func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]
 	existingProviderResources := map[string]bool{}
 	updatedResources := []*domain.Resource{}
 	for _, newResource := range flattenedProviderResources {
+		found := false
 		for _, existingResource := range existingGuardianResources {
 			if existingResource.Type == newResource.Type && existingResource.URN == newResource.URN {
+				found = true
 				if existingDetails := existingResource.Details; existingDetails != nil {
 					if newResource.Details != nil {
 						for key, value := range existingDetails {
@@ -635,7 +637,10 @@ func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]
 				break
 			}
 		}
-
+		if !found {
+			updatedResources = append(updatedResources, newResource)
+			s.logger.Info(ctx, "new resource added", "resource", newResource.Name)
+		}
 	}
 
 	// mark IsDeleted of guardian resources that no longer exist in provider
