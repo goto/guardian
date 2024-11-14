@@ -9,6 +9,10 @@ require (
 	cloud.google.com/go/storage v1.30.1
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/MakeNowJust/heredoc v1.0.0
+	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.10
+	github.com/alibabacloud-go/ram-20150501/v2 v2.1.0
+	github.com/alibabacloud-go/tea-utils/v2 v2.0.6
+	github.com/aliyun/credentials-go v1.4.2
 	github.com/antonmedv/expr v1.15.3
 	github.com/envoyproxy/protoc-gen-validate v1.0.2
 	github.com/go-playground/validator/v10 v10.4.1
@@ -45,7 +49,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.29.0
 	go.opentelemetry.io/otel/sdk v1.29.0
 	go.opentelemetry.io/otel/sdk/metric v1.27.0
-	golang.org/x/net v0.22.0
+	golang.org/x/net v0.23.0
 	golang.org/x/oauth2 v0.22.0
 	golang.org/x/sync v0.4.0
 	google.golang.org/api v0.128.0
@@ -67,6 +71,13 @@ require (
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/alecthomas/chroma v0.8.2 // indirect
+	github.com/alibabacloud-go/alibabacloud-gateway-spi v0.0.5 // indirect
+	github.com/alibabacloud-go/debug v1.0.1 // indirect
+	github.com/alibabacloud-go/endpoint-util v1.1.0 // indirect
+	github.com/alibabacloud-go/openapi-util v0.1.0 // indirect
+	github.com/alibabacloud-go/tea v1.2.2 // indirect
+	github.com/alibabacloud-go/tea-utils v1.3.1 // indirect
+	github.com/alibabacloud-go/tea-xml v1.1.3 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/apache/arrow/go/v12 v12.0.0 // indirect
 	github.com/apache/thrift v0.16.0 // indirect
@@ -74,6 +85,7 @@ require (
 	github.com/briandowns/spinner v1.18.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/charmbracelet/glamour v0.3.0 // indirect
+	github.com/clbanning/mxj/v2 v2.5.5 // indirect
 	github.com/cli/safeexec v1.0.0 // indirect
 	github.com/containerd/continuity v0.3.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
@@ -117,6 +129,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/jmoiron/sqlx v1.3.5 // indirect
+	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/asmfmt v1.3.2 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
@@ -132,6 +145,8 @@ require (
 	github.com/minio/c2goasm v0.0.0-20190812172519-36a3d3bbc4f3 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/muesli/reflow v0.2.0 // indirect
 	github.com/muesli/termenv v0.9.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
@@ -160,6 +175,7 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
+	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.8.0 // indirect
 	github.com/uptrace/opentelemetry-go-extra/otelsql v0.2.4 // indirect
@@ -186,6 +202,6 @@ require (
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231002182017-d307bd883b97 // indirect
-	gopkg.in/ini.v1 v1.62.0 // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
