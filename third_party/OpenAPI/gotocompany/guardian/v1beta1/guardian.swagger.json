@@ -1172,6 +1172,12 @@
               "properties": {
                 "reason": {
                   "type": "string"
+                },
+                "skipNotification": {
+                  "type": "boolean"
+                },
+                "skipRevokeInProvider": {
+                  "type": "boolean"
                 }
               }
             }

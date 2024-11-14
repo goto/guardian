@@ -472,3 +472,65 @@ func (s *GrpcHandlersSuite) TestImportFromProvider() {
 		s.Equal(expectedResponse, res)
 	})
 }
+
+func (s *GrpcHandlersSuite) TestRevokeGrant() {
+	s.Run("should revoke grant on success", func() {
+		s.setup()
+
+		actor := "actor@example.com"
+		id := "test-id"
+		reason := "test-reason"
+
+		expectedGrant := &domain.Grant{
+			ID:        id,
+			UpdatedAt: time.Now(),
+		}
+
+		req := &guardianv1beta1.RevokeGrantRequest{
+			Id:                   id,
+			Reason:               reason,
+		}
+
+		s.grantService.EXPECT().
+			Revoke(mock.MatchedBy(func(ctx context.Context) bool { return true }), id, actor, reason).
+			Return(expectedGrant, nil).Once()
+
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, actor)
+		res, err := s.grpcServer.RevokeGrant(ctx, req)
+
+		s.NoError(err)
+		s.Equal(expectedGrant.ID, res.Grant.Id)
+		s.Equal(timestamppb.New(expectedGrant.UpdatedAt), res.Grant.UpdatedAt)
+	})
+
+	s.Run("should revoke grant on success with SkipNotification and SkipRevokeInProvider true", func() {
+		s.setup()
+
+		actor := "actor@example.com"
+		id := "test-id"
+		reason := "test-reason"
+
+		expectedGrant := &domain.Grant{
+			ID:        id,
+			UpdatedAt: time.Now(),
+		}
+
+		req := &guardianv1beta1.RevokeGrantRequest{
+			Id:                   id,
+			Reason:               reason,
+			SkipNotification:     true,
+			SkipRevokeInProvider: true,
+		}
+
+		s.grantService.EXPECT().
+			Revoke(mock.MatchedBy(func(ctx context.Context) bool { return true }), id, actor, reason, mock.AnythingOfType("grant.Option"), mock.AnythingOfType("grant.Option")).
+			Return(expectedGrant, nil).Once()
+
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, actor)
+		res, err := s.grpcServer.RevokeGrant(ctx, req)
+
+		s.NoError(err)
+		s.Equal(expectedGrant.ID, res.Grant.Id)
+		s.Equal(timestamppb.New(expectedGrant.UpdatedAt), res.Grant.UpdatedAt)
+	})
+}

@@ -101,7 +101,14 @@ func (s *GRPCServer) RevokeGrant(ctx context.Context, req *guardianv1beta1.Revok
 		return nil, status.Error(codes.Unauthenticated, "failed to get metadata: actor")
 	}
 
-	a, err := s.grantService.Revoke(ctx, req.GetId(), actor, req.GetReason())
+	var revokeOptions []grant.Option
+	if req.GetSkipNotification() {
+		revokeOptions = append(revokeOptions, grant.SkipNotifications())
+	}
+	if req.GetSkipRevokeInProvider() {
+		revokeOptions = append(revokeOptions, grant.SkipRevokeAccessInProvider())
+	}
+	a, err := s.grantService.Revoke(ctx, req.GetId(), actor, req.GetReason(), revokeOptions...)
 	if err != nil {
 		if errors.Is(err, grant.ErrGrantNotFound) {
 			return nil, status.Error(codes.NotFound, "grant not found")
