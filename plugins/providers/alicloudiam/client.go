@@ -218,6 +218,10 @@ func (c *iamClient) ListAccess(ctx context.Context, _ domain.ProviderConfig, res
 		}
 	}
 
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
+
 	return access, nil
 }
 
