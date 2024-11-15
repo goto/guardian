@@ -1902,6 +1902,16 @@
                     "type": "object",
                     "$ref": "#/definitions/ProviderConfigProviderParameter"
                   }
+                },
+                "policies": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "$ref": "#/definitions/v1beta1ProviderPolicy"
+                  }
+                },
+                "defaultPolicy": {
+                  "type": "string"
                 }
               }
             }
@@ -3558,6 +3568,27 @@
             "type": "object",
             "$ref": "#/definitions/ProviderConfigProviderParameter"
           }
+        },
+        "policies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1beta1ProviderPolicy"
+          }
+        },
+        "defaultPolicy": {
+          "type": "string"
+        }
+      }
+    },
+    "v1beta1ProviderPolicy": {
+      "type": "object",
+      "properties": {
+        "when": {
+          "type": "string"
+        },
+        "policy": {
+          "type": "string"
         }
       }
     },

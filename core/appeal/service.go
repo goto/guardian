@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1527,17 +1528,54 @@ func (s *Service) checkExtensionEligibility(a *domain.Appeal, p *domain.Provider
 }
 
 func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[uint]*domain.Policy) (*domain.Policy, error) {
-	var resourceConfig *domain.ResourceConfig
-	for _, rc := range p.Config.Resources {
-		if rc.Type == a.Resource.Type {
-			resourceConfig = rc
-			break
+	var policyConfig domain.PolicyConfig
+	if len(p.Config.Policies) > 0 {
+		appealMap, err := a.ToMap()
+		if err != nil {
+			return nil, fmt.Errorf("parsing appeal struct to map: %w", err)
 		}
+
+		providerConfig := p.Config.DefaultPolicy
+		for _, pc := range p.Config.Policies {
+			if pc.When != "" {
+				v, err := evaluator.Expression(pc.When).EvaluateWithVars(map[string]interface{}{
+					"appeal": appealMap,
+				})
+				if err != nil {
+					return nil, err
+				}
+
+				isFalsy := reflect.ValueOf(v).IsZero()
+				if isFalsy {
+					continue
+				}
+
+				providerConfig = pc.Policy
+			}
+		}
+
+		policyData := strings.Split(providerConfig, "@")
+		policyConfig.ID = policyData[0]
+		if len(policyData) > 1 {
+			version, err := strconv.Atoi(policyData[1])
+			if err != nil {
+				return nil, fmt.Errorf("invalid policy version: %w", err)
+			}
+			policyConfig.Version = version
+		}
+	} else {
+		var resourceConfig *domain.ResourceConfig
+		for _, rc := range p.Config.Resources {
+			if rc.Type == a.Resource.Type {
+				resourceConfig = rc
+				break
+			}
+		}
+		if resourceConfig == nil {
+			return nil, fmt.Errorf("%w: couldn't find %q resource type in the provider config", ErrInvalidResourceType, a.Resource.Type)
+		}
+		policyConfig = *resourceConfig.Policy
 	}
-	if resourceConfig == nil {
-		return nil, fmt.Errorf("%w: couldn't find %q resource type in the provider config", ErrInvalidResourceType, a.Resource.Type)
-	}
-	policyConfig := resourceConfig.Policy
 
 	policy, ok := policiesMap[policyConfig.ID][uint(policyConfig.Version)]
 	if !ok {
