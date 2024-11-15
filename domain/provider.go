@@ -27,6 +27,7 @@ type Role struct {
 	Name        string        `json:"name" yaml:"name" validate:"required"`
 	Description string        `json:"description,omitempty" yaml:"description"`
 	Permissions []interface{} `json:"permissions" yaml:"permissions" validate:"required"`
+	Type        string        `json:"type,omitempty" yaml:"type"`
 }
 
 // GetOrderedPermissions returns the permissions as a string slice

@@ -3,7 +3,7 @@ COMMIT := $(shell git rev-parse --short HEAD)
 TAG := "$(shell git rev-list --tags --max-count=1)"
 VERSION := "$(shell git describe --tags ${TAG})-next"
 BUILD_DIR=dist
-PROTON_COMMIT := "526e657b03d243a4c9f880e6c4ffbe15b116afd5"
+PROTON_COMMIT := "5709addd6a1a35b6c085eca96ae2c1deaf3842cf"
 
 .PHONY: all build clean test tidy vet proto setup format generate
 
@@ -40,7 +40,7 @@ coverage: test
 	@echo "Generating coverage report..."
 	@go tool cover -html=coverage.out
 
-build:
+build: tidy
 	@echo "Building guardian version ${VERSION}..."
 	go build -ldflags "-X ${NAME}/core.Version=${VERSION} -X ${NAME}/core.BuildCommit=${COMMIT}" -o dist/guardian .
 	@echo "Build complete"
