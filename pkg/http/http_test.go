@@ -59,6 +59,7 @@ func TestMakeRequestForGet(t *testing.T) {
 }
 
 func TestMakeRequestForPostWithPayload(t *testing.T) {
+	t.Parallel()
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
