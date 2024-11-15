@@ -39,10 +39,11 @@ func (a *adapter) FromProviderProto(p *guardianv1beta1.Provider) (*domain.Provid
 
 func (a *adapter) FromProviderConfigProto(pc *guardianv1beta1.ProviderConfig) *domain.ProviderConfig {
 	providerConfig := &domain.ProviderConfig{
-		Type:        pc.GetType(),
-		URN:         pc.GetUrn(),
-		Labels:      pc.GetLabels(),
-		Credentials: pc.GetCredentials().AsInterface(),
+		Type:          pc.GetType(),
+		URN:           pc.GetUrn(),
+		Labels:        pc.GetLabels(),
+		Credentials:   pc.GetCredentials().AsInterface(),
+		DefaultPolicy: pc.GetDefaultPolicy(),
 	}
 
 	if pc.GetAppeal() != nil {
@@ -99,6 +100,17 @@ func (a *adapter) FromProviderConfigProto(pc *guardianv1beta1.ProviderConfig) *d
 
 	if pc.GetAllowedAccountTypes() != nil {
 		providerConfig.AllowedAccountTypes = pc.GetAllowedAccountTypes()
+	}
+
+	if pc.GetPolicies() != nil {
+		policies := []*domain.ProviderPolicy{}
+		for _, p := range pc.GetPolicies() {
+			policies = append(policies, &domain.ProviderPolicy{
+				When:   p.GetWhen(),
+				Policy: p.GetPolicy(),
+			})
+		}
+		providerConfig.Policies = policies
 	}
 
 	return providerConfig
