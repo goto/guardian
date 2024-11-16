@@ -9,7 +9,6 @@ import (
 	"github.com/aliyun/credentials-go/credentials"
 	"github.com/goto/guardian/domain"
 	"golang.org/x/sync/errgroup"
-	"regexp"
 	"strings"
 	"sync"
 )
@@ -133,7 +132,6 @@ func (c *iamClient) ListAccess(ctx context.Context, _ domain.ProviderConfig, res
 		users        []*ram.ListUsersResponseBodyUsersUser
 	)
 
-	mu := &sync.Mutex{}
 	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
@@ -158,6 +156,7 @@ func (c *iamClient) ListAccess(ctx context.Context, _ domain.ProviderConfig, res
 		return nil, err
 	}
 
+	mu := &sync.Mutex{}
 	access := make(domain.MapResourceAccess)
 	for _, resource := range resources {
 		rCp := resource
@@ -205,7 +204,7 @@ func (c *iamClient) ListAccess(ctx context.Context, _ domain.ProviderConfig, res
 				for i, policy := range policies {
 					aes[i] = domain.AccessEntry{
 						AccountType: AccountTypeRamRole,
-						AccountID:   fmt.Sprintf("%v@%v%v", roCp.RoleName, rCp.ProviderURN, aliAccountUserIdDomainSuffix),
+						AccountID:   *roCp.RoleName,
 						Permission:  *policy.PolicyName,
 					}
 				}
@@ -223,6 +222,33 @@ func (c *iamClient) ListAccess(ctx context.Context, _ domain.ProviderConfig, res
 	}
 
 	return access, nil
+}
+
+func (c *iamClient) GetAllPoliciesByType(_ context.Context, policyType string, maxItems int32) ([]*ram.ListPoliciesResponseBodyPoliciesPolicy, error) {
+	result := make([]*ram.ListPoliciesResponseBodyPoliciesPolicy, 0)
+	var marker *string = nil
+	for {
+		req := &ram.ListPoliciesRequest{
+			Marker:     marker,
+			MaxItems:   &maxItems,
+			PolicyType: &policyType,
+		}
+
+		// TODO: find a way to add parent context to the request
+		resp, err := c.iamService.ListPoliciesWithOptions(req, &utils.RuntimeOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, resp.Body.Policies.Policy...)
+		if resp.Body.Marker == nil {
+			break
+		}
+
+		marker = resp.Body.Marker
+	}
+
+	return result, nil
 }
 
 func (c *iamClient) getPoliciesByUser(_ context.Context, userName string) ([]*ram.ListPoliciesForUserResponseBodyPoliciesPolicy, error) {
@@ -303,20 +329,4 @@ func (c *iamClient) getAllUsers(_ context.Context, maxItems int32) ([]*ram.ListU
 	}
 
 	return result, nil
-}
-
-// splitAliAccountUserId splits an Alibaba Cloud account user ID into username and account ID.
-// Example input: "foo.bar@12345679.onaliyun.com"
-// Returns: username ("foo.bar"), accountId ("12345679"), or an error if the format is invalid.
-func splitAliAccountUserId(d string) (string, string, error) {
-	matched, _ := regexp.MatchString(aliAccountUserIdPattern, d)
-	if !matched {
-		return "", "", ErrInvalidAliAccountUserID
-	}
-
-	accountUserIDSplit := strings.Split(d, "@")
-	username := accountUserIDSplit[0]
-	accountId := strings.TrimSuffix(accountUserIDSplit[1], aliAccountUserIdDomainSuffix)
-
-	return username, accountId, nil
 }

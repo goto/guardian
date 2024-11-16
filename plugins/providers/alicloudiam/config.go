@@ -1,12 +1,13 @@
 package alicloudiam
 
 import (
-	"errors"
+	"context"
 	"fmt"
+	ram "github.com/alibabacloud-go/ram-20150501/v2/client"
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/domain"
 	"github.com/mitchellh/mapstructure"
-	"strings"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -65,11 +66,75 @@ func NewConfig(pc *domain.ProviderConfig, crypto domain.Crypto) *Config {
 }
 
 func (c *Config) ParseAndValidate() error {
-	return c.parseAndValidate()
+	if c.valid {
+		return nil
+	}
+
+	// Validate credentials
+	var credentials Credentials
+	if err := mapstructure.Decode(c.ProviderConfig.Credentials, &credentials); err != nil {
+		return err
+	}
+	if err := c.validator.Struct(credentials); err != nil {
+		return err
+	}
+	c.ProviderConfig.Credentials = &credentials
+
+	// Validate if resource(s) is present
+	if c.ProviderConfig.Resources == nil || len(c.ProviderConfig.Resources) == 0 {
+		return ErrEmptyResourceConfig
+	}
+
+	uniqueResourceTypes := make(map[string]bool)
+	for i, rc := range c.ProviderConfig.Resources {
+		// Validate resource type
+		// TODO: When adding new resource type, use iteration instead to iterate over all valid resource type
+		if rc.Type != ResourceTypeAccount {
+			return ErrInvalidResourceType
+		}
+
+		// Validate unique resource type
+		if _, exist := uniqueResourceTypes[rc.Type]; exist {
+			return fmt.Errorf("type '%v' at resource is duplicate", rc.Type)
+		}
+		uniqueResourceTypes[rc.Type] = true
+
+		// Validate resource role
+		if len(rc.Roles) == 0 {
+			return fmt.Errorf("role at resource '%v' is empty", rc.Type)
+		}
+
+		uniqueRoleId := make(map[string]bool)
+		for j, role := range rc.Roles {
+			// Validate unique resource role
+			if _, exist := uniqueRoleId[role.ID]; exist {
+				return fmt.Errorf("role id '%v' at resource '%v' is duplicate", role.ID, rc.Type)
+			}
+			uniqueRoleId[role.ID] = true
+
+			// Validate permission
+			if len(role.Permissions) == 0 {
+				return fmt.Errorf("role permission at resource '%v' and role id '%v' is empty", rc.Type, role.ID)
+			}
+			for _, perm := range role.GetOrderedPermissions() {
+				if perm == "" {
+					return fmt.Errorf("role permission at resource '%v' and role id '%v' has contain empty value", rc.Type, role.ID)
+				}
+			}
+
+			// Set default role type to system when role type is empty
+			if role.Type == "" {
+				c.ProviderConfig.Resources[i].Roles[j].Type = PolicyTypeSystem
+			}
+		}
+	}
+	c.valid = true
+
+	return nil
 }
 
 func (c *Config) EncryptCredentials() error {
-	if err := c.parseAndValidate(); err != nil {
+	if err := c.ParseAndValidate(); err != nil {
 		return err
 	}
 
@@ -86,70 +151,65 @@ func (c *Config) EncryptCredentials() error {
 	return nil
 }
 
-func (c *Config) parseAndValidate() error {
-	if c.valid {
-		return nil
-	}
+func (c *Config) validatePermissions(resource *domain.ResourceConfig, client AliCloudIamClient) error {
+	var (
+		maxFetchItem                   int32 = 1000
+		systemPolicies, customPolicies []*ram.ListPoliciesResponseBodyPoliciesPolicy
+	)
 
-	credentials, err := c.validateCredentials(c.ProviderConfig.Credentials)
-	if err != nil {
+	eg, ctx := errgroup.WithContext(context.TODO())
+	eg.Go(func() error {
+		var err error
+		systemPolicies, err = client.GetAllPoliciesByType(ctx, PolicyTypeSystem, maxFetchItem)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		var err error
+		customPolicies, err = client.GetAllPoliciesByType(ctx, PolicyTypeCustom, maxFetchItem)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err := eg.Wait(); err != nil {
 		return err
 	}
-	c.ProviderConfig.Credentials = credentials
 
-	if c.ProviderConfig.Resources == nil || len(c.ProviderConfig.Resources) == 0 {
-		return errors.New("empty resource config")
-	}
-
-	var validationErrors []error
-	uniqueResourceTypes := make(map[string]bool)
-	for _, rc := range c.ProviderConfig.Resources {
-		if _, ok := uniqueResourceTypes[rc.Type]; ok {
-			validationErrors = append(validationErrors, fmt.Errorf("duplicate resource type: %q", rc.Type))
-		}
-		uniqueResourceTypes[rc.Type] = true
-
-		if len(rc.Roles) == 0 {
-			validationErrors = append(validationErrors, ErrRolesShouldNotBeEmpty)
-		}
-
-		// check for duplicates in roles
-		rolesMap := make(map[string]bool, 0)
-		for _, role := range rc.Roles {
-			if val, ok := rolesMap[role.ID]; ok && val {
-				validationErrors = append(validationErrors, fmt.Errorf("duplicate role: %q", role.ID))
-				continue
+	for _, role := range resource.Roles {
+		for _, perm := range role.GetOrderedPermissions() {
+			switch role.Type {
+			case "":
+				fallthrough
+			case PolicyTypeSystem:
+				valid := false
+				for _, policy := range systemPolicies {
+					if *policy.PolicyName == perm {
+						valid = true
+						break
+					}
+				}
+				if !valid {
+					return fmt.Errorf("role permission '%v' with type '%v' at resource '%v' and role id '%v' is invalid", perm, PolicyTypeSystem, resource.Type, role.ID)
+				}
+			case PolicyTypeCustom:
+				valid := false
+				for _, policy := range customPolicies {
+					if *policy.PolicyName == perm {
+						valid = true
+						break
+					}
+				}
+				if !valid {
+					return fmt.Errorf("role permission '%v' with type '%v' at resource '%v' and role id '%v' is invalid", perm, PolicyTypeCustom, resource.Type, role.ID)
+				}
+			default:
+				return ErrInvalidPolicyType
 			}
-			rolesMap[role.ID] = true
 		}
 	}
 
-	if len(validationErrors) > 0 {
-		errorStrings := make([]string, 0, len(validationErrors))
-		for i, err := range validationErrors {
-			errorStrings[i] = err.Error()
-		}
-		return errors.New(strings.Join(errorStrings, "\n"))
-	}
-
-	c.valid = true
-	return nil
-}
-
-func (c *Config) validateCredentials(value interface{}) (*Credentials, error) {
-	var credentials Credentials
-	if err := mapstructure.Decode(value, &credentials); err != nil {
-		return nil, err
-	}
-
-	if err := c.validator.Struct(credentials); err != nil {
-		return nil, err
-	}
-
-	return &credentials, nil
-}
-
-func (c *Config) validatePermissions(resource *domain.ResourceConfig, client AliCloudIamClient) error {
-	// TODO: add permission validation
 	return nil
 }

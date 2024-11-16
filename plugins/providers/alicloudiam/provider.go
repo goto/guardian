@@ -2,21 +2,25 @@ package alicloudiam
 
 import (
 	"fmt"
+	ram "github.com/alibabacloud-go/ram-20150501/v2/client"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/utils"
 	"github.com/mitchellh/mapstructure"
 	"golang.org/x/net/context"
+	"regexp"
+	"strings"
 )
 
-//go:generate mockery --name=GcloudIamClient --exported --with-expecter
+//go:generate mockery --name=AliCloudIamClient --exported --with-expecter
 type AliCloudIamClient interface {
 	GrantAccess(ctx context.Context, policyName, policyType, username string) error
 	RevokeAccess(ctx context.Context, policyName, policyType, username string) error
 	GrantAccessToRole(ctx context.Context, policyName, policyType, roleName string) error
 	RevokeAccessFromRole(ctx context.Context, policyName, policyType, roleName string) error
 	ListAccess(ctx context.Context, pc domain.ProviderConfig, resources []*domain.Resource) (domain.MapResourceAccess, error)
+	GetAllPoliciesByType(_ context.Context, policyType string, maxItems int32) ([]*ram.ListPoliciesResponseBodyPoliciesPolicy, error)
 }
 
 //go:generate mockery --name=encryptor --exported --with-expecter
@@ -237,20 +241,20 @@ func getPolicyTypeFromGrant(pc *domain.ProviderConfig, g domain.Grant) (string, 
 		for _, role := range resource.Roles {
 			if role.ID == g.Role {
 				switch role.Type {
-				case "": // Use PolicyTypeSystem when role type is empty
+				case "":
 					fallthrough
 				case PolicyTypeSystem:
 					return PolicyTypeSystem, nil
 				case PolicyTypeCustom:
 					return PolicyTypeCustom, nil
 				default:
-					return "", ErrInvalidRoleType
+					return "", ErrInvalidPolicyType
 				}
 			}
 		}
 	}
 
-	return "", ErrInvalidRoleType
+	return "", ErrEmptyResourceRole
 }
 
 func getAccountTypes() []string {
@@ -258,4 +262,27 @@ func getAccountTypes() []string {
 		AccountTypeRamUser,
 		AccountTypeRamRole,
 	}
+}
+
+func getPolicyTypes() []string {
+	return []string{
+		PolicyTypeSystem,
+		PolicyTypeCustom,
+	}
+}
+
+// splitAliAccountUserId splits an Alibaba Cloud account user ID into username and account ID.
+// Example input: "foo.bar@12345679.onaliyun.com"
+// Returns: username ("foo.bar"), accountId ("12345679"), or an error if the format is invalid.
+func splitAliAccountUserId(d string) (string, string, error) {
+	matched, _ := regexp.MatchString(aliAccountUserIdPattern, d)
+	if !matched {
+		return "", "", ErrInvalidAliAccountUserID
+	}
+
+	accountUserIDSplit := strings.Split(d, "@")
+	username := accountUserIDSplit[0]
+	accountId := strings.TrimSuffix(accountUserIDSplit[1], aliAccountUserIdDomainSuffix)
+
+	return username, accountId, nil
 }
