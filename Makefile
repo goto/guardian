@@ -40,7 +40,7 @@ coverage: test
 	@echo "Generating coverage report..."
 	@go tool cover -html=coverage.out
 
-build: tidy
+build:
 	@echo "Building guardian version ${VERSION}..."
 	go build -ldflags "-X ${NAME}/core.Version=${VERSION} -X ${NAME}/core.BuildCommit=${COMMIT}" -o dist/guardian .
 	@echo "Build complete"

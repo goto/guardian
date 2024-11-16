@@ -1,6 +1,7 @@
 package alicloudiam
 
 import (
+	"errors"
 	"fmt"
 	ram "github.com/alibabacloud-go/ram-20150501/v2/client"
 	"github.com/goto/guardian/core/provider"
@@ -30,7 +31,6 @@ type encryptor interface {
 
 type Provider struct {
 	provider.PermissionManager
-	provider.UnimplementedClient
 
 	typeName string
 	Clients  map[string]AliCloudIamClient
@@ -38,7 +38,7 @@ type Provider struct {
 	logger   log.Logger
 }
 
-func NewProvider(typeName string, crypto encryptor, logger log.Logger) *Provider {
+func NewProvider(typeName string, crypto encryptor, logger log.Logger) provider.Client {
 	return &Provider{
 		typeName: typeName,
 		Clients:  map[string]AliCloudIamClient{},
@@ -123,7 +123,7 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 				return err
 			}
 			for _, perm := range g.Permissions {
-				if err = client.GrantAccess(ctx, perm, policyType, username); err != nil {
+				if err = client.GrantAccess(ctx, perm, policyType, username); err != nil && !errors.Is(err, ErrPermissionAlreadyExists) {
 					return err
 				}
 			}
@@ -131,7 +131,7 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 
 		case AccountTypeRamRole:
 			for _, perm := range g.Permissions {
-				if err = client.GrantAccessToRole(ctx, perm, policyType, g.AccountID); err != nil {
+				if err = client.GrantAccessToRole(ctx, perm, policyType, g.AccountID); err != nil && !errors.Is(err, ErrPermissionAlreadyExists) {
 					return err
 				}
 			}
@@ -171,7 +171,7 @@ func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 				return err
 			}
 			for _, perm := range g.Permissions {
-				if err = client.RevokeAccess(ctx, perm, policyType, username); err != nil {
+				if err = client.RevokeAccess(ctx, perm, policyType, username); err != nil && !errors.Is(err, ErrPermissionNotExist) {
 					return err
 				}
 			}
@@ -179,7 +179,7 @@ func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 
 		case AccountTypeRamRole:
 			for _, perm := range g.Permissions {
-				if err = client.RevokeAccessFromRole(ctx, perm, policyType, g.AccountID); err != nil {
+				if err = client.RevokeAccessFromRole(ctx, perm, policyType, g.AccountID); err != nil && !errors.Is(err, ErrPermissionNotExist) {
 					return err
 				}
 			}
