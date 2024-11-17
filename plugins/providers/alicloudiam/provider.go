@@ -1,17 +1,18 @@
 package alicloudiam
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
+
 	ram "github.com/alibabacloud-go/ram-20150501/v2/client"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/utils"
 	"github.com/mitchellh/mapstructure"
-	"golang.org/x/net/context"
-	"regexp"
-	"strings"
 )
 
 //go:generate mockery --name=AliCloudIamClient --exported --with-expecter
@@ -38,7 +39,7 @@ type Provider struct {
 	logger   log.Logger
 }
 
-func NewProvider(typeName string, crypto encryptor, logger log.Logger) provider.Client {
+func NewProvider(typeName string, crypto encryptor, logger log.Logger) *Provider {
 	return &Provider{
 		typeName: typeName,
 		Clients:  map[string]AliCloudIamClient{},
@@ -99,11 +100,6 @@ func (p *Provider) GetResources(_ context.Context, pc *domain.ProviderConfig) ([
 }
 
 func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
-	var creds Credentials
-	if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
-		return err
-	}
-
 	client, err := p.getIamClient(pc)
 	if err != nil {
 		return err
@@ -147,11 +143,6 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 }
 
 func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
-	var creds Credentials
-	if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
-		return err
-	}
-
 	client, err := p.getIamClient(pc)
 	if err != nil {
 		return err
@@ -217,7 +208,8 @@ func (p *Provider) ListAccess(ctx context.Context, pc domain.ProviderConfig, res
 
 func (p *Provider) getIamClient(pc *domain.ProviderConfig) (AliCloudIamClient, error) {
 	var credentials Credentials
-	if err := mapstructure.Decode(pc.Credentials, &credentials); err != nil {
+	err := mapstructure.Decode(pc.Credentials, &credentials)
+	if err != nil {
 		return nil, err
 	}
 	providerURN := pc.URN
@@ -226,7 +218,7 @@ func (p *Provider) getIamClient(pc *domain.ProviderConfig) (AliCloudIamClient, e
 		return p.Clients[providerURN], nil
 	}
 
-	credentials.Decrypt(p.crypto)
+	_ = credentials.Decrypt(p.crypto)
 	client, err := newIamClient(credentials.AccessKeyID, credentials.AccessKeySecret, credentials.ResourceName)
 	if err != nil {
 		return nil, err
@@ -237,24 +229,19 @@ func (p *Provider) getIamClient(pc *domain.ProviderConfig) (AliCloudIamClient, e
 }
 
 func getPolicyTypeFromGrant(pc *domain.ProviderConfig, g domain.Grant) (string, error) {
+	if g.Role == "" {
+		return "", ErrEmptyGrantRole
+	}
+
 	for _, resource := range pc.Resources {
 		for _, role := range resource.Roles {
 			if role.ID == g.Role {
-				switch role.Type {
-				case "":
-					fallthrough
-				case PolicyTypeSystem:
-					return PolicyTypeSystem, nil
-				case PolicyTypeCustom:
-					return PolicyTypeCustom, nil
-				default:
-					return "", ErrInvalidPolicyType
-				}
+				return role.Type, nil
 			}
 		}
 	}
 
-	return "", ErrEmptyResourceRole
+	return "", ErrGrantRoleNotFoundAtResource
 }
 
 func getAccountTypes() []string {
@@ -268,6 +255,12 @@ func getPolicyTypes() []string {
 	return []string{
 		PolicyTypeSystem,
 		PolicyTypeCustom,
+	}
+}
+
+func getResourceTypes() []string {
+	return []string{
+		ResourceTypeAccount,
 	}
 }
 

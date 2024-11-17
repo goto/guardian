@@ -3,14 +3,16 @@ package alicloudiam
 import (
 	"context"
 	"fmt"
+	"github.com/bearaujus/bptr"
+	"strings"
+	"sync"
+
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	ram "github.com/alibabacloud-go/ram-20150501/v2/client"
 	utils "github.com/alibabacloud-go/tea-utils/v2/service"
 	"github.com/aliyun/credentials-go/credentials"
 	"github.com/goto/guardian/domain"
 	"golang.org/x/sync/errgroup"
-	"strings"
-	"sync"
 )
 
 const (
@@ -27,18 +29,16 @@ type iamClient struct {
 }
 
 func newIamClient(accessKeyID, accessKeySecret, resourceName string) (*iamClient, error) {
-	credsConfig := new(credentials.Config).
-		SetType("access_key").
-		SetAccessKeyId(accessKeyID).
-		SetAccessKeySecret(accessKeySecret)
-	creds, err := credentials.NewCredential(credsConfig)
+	creds, err := credentials.NewCredential(&credentials.Config{
+		Type:            bptr.FromString("access_key"),
+		AccessKeyId:     bptr.FromString(accessKeyID),
+		AccessKeySecret: bptr.FromString(accessKeySecret),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a new credentials: %w", err)
 	}
 
-	ramClientConfig := &openapi.Config{}
-	ramClientConfig.Credential = creds
-	iamService, err := ram.NewClient(ramClientConfig)
+	iamService, err := ram.NewClient(&openapi.Config{Credential: creds})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RAM client: %w", err)
 	}
@@ -163,7 +163,7 @@ func (c *iamClient) ListAccess(ctx context.Context, _ domain.ProviderConfig, res
 		for _, user := range users {
 			uCp := user
 			eg.Go(func() error {
-				policies, err := c.getPoliciesByUser(ctx, *uCp.UserName)
+				policies, err := c.getPoliciesByUser(ctx, bptr.ToStringSafe(uCp.UserName))
 				if err != nil {
 					return err
 				}
@@ -176,8 +176,8 @@ func (c *iamClient) ListAccess(ctx context.Context, _ domain.ProviderConfig, res
 				for i, policy := range policies {
 					aes[i] = domain.AccessEntry{
 						AccountType: AccountTypeRamUser,
-						AccountID:   fmt.Sprintf("%v@%v%v", uCp.UserName, rCp.ProviderURN, aliAccountUserIdDomainSuffix),
-						Permission:  *policy.PolicyName,
+						AccountID:   fmt.Sprintf("%v@%v%v", bptr.ToStringSafe(uCp.UserName), rCp.ProviderURN, aliAccountUserIdDomainSuffix),
+						Permission:  bptr.ToStringSafe(policy.PolicyName),
 					}
 				}
 
@@ -191,7 +191,7 @@ func (c *iamClient) ListAccess(ctx context.Context, _ domain.ProviderConfig, res
 		for _, role := range roles {
 			roCp := role
 			eg.Go(func() error {
-				policies, err := c.getPoliciesByRole(ctx, *roCp.RoleName)
+				policies, err := c.getPoliciesByRole(ctx, bptr.ToStringSafe(roCp.RoleName))
 				if err != nil {
 					return err
 				}
@@ -204,8 +204,8 @@ func (c *iamClient) ListAccess(ctx context.Context, _ domain.ProviderConfig, res
 				for i, policy := range policies {
 					aes[i] = domain.AccessEntry{
 						AccountType: AccountTypeRamRole,
-						AccountID:   *roCp.RoleName,
-						Permission:  *policy.PolicyName,
+						AccountID:   bptr.ToStringSafe(roCp.RoleName),
+						Permission:  bptr.ToStringSafe(policy.PolicyName),
 					}
 				}
 
@@ -226,7 +226,7 @@ func (c *iamClient) ListAccess(ctx context.Context, _ domain.ProviderConfig, res
 
 func (c *iamClient) GetAllPoliciesByType(_ context.Context, policyType string, maxItems int32) ([]*ram.ListPoliciesResponseBodyPoliciesPolicy, error) {
 	result := make([]*ram.ListPoliciesResponseBodyPoliciesPolicy, 0)
-	var marker *string = nil
+	var marker *string
 	for {
 		req := &ram.ListPoliciesRequest{
 			Marker:     marker,
@@ -281,7 +281,7 @@ func (c *iamClient) getPoliciesByRole(_ context.Context, roleName string) ([]*ra
 
 func (c *iamClient) getAllRoles(_ context.Context, maxItems int32) ([]*ram.ListRolesResponseBodyRolesRole, error) {
 	result := make([]*ram.ListRolesResponseBodyRolesRole, 0)
-	var marker *string = nil
+	var marker *string
 	for {
 		req := &ram.ListRolesRequest{
 			Marker:   marker,
@@ -307,7 +307,7 @@ func (c *iamClient) getAllRoles(_ context.Context, maxItems int32) ([]*ram.ListR
 
 func (c *iamClient) getAllUsers(_ context.Context, maxItems int32) ([]*ram.ListUsersResponseBodyUsersUser, error) {
 	result := make([]*ram.ListUsersResponseBodyUsersUser, 0)
-	var marker *string = nil
+	var marker *string
 	for {
 		req := &ram.ListUsersRequest{
 			Marker:   marker,

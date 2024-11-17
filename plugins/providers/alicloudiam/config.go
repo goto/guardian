@@ -2,7 +2,9 @@ package alicloudiam
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+
 	ram "github.com/alibabacloud-go/ram-20150501/v2/client"
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/domain"
@@ -16,8 +18,8 @@ const (
 )
 
 type Credentials struct {
-	AccessKeyID     string `mapstructure:"access_key_id" json:"access_key_id" validate:"required,len=24"`
-	AccessKeySecret string `mapstructure:"access_key_secret" json:"access_key_secret" validate:"required,len=30"`
+	AccessKeyID     string `mapstructure:"access_key_id" json:"access_key_id" validate:"required,base64"`
+	AccessKeySecret string `mapstructure:"access_key_secret" json:"access_key_secret" validate:"required,base64"`
 	ResourceName    string `mapstructure:"resource_name" json:"resource_name" validate:"required"`
 }
 
@@ -26,11 +28,17 @@ func (c *Credentials) Encrypt(encryptor domain.Encryptor) error {
 		return ErrUnableToEncryptNilCredentials
 	}
 
+	encryptedAccessKeyID, err := encryptor.Encrypt(c.AccessKeyID)
+	if err != nil {
+		return err
+	}
+
 	encryptedAccessKeySecret, err := encryptor.Encrypt(c.AccessKeySecret)
 	if err != nil {
 		return err
 	}
 
+	c.AccessKeyID = encryptedAccessKeyID
 	c.AccessKeySecret = encryptedAccessKeySecret
 	return nil
 }
@@ -40,11 +48,17 @@ func (c *Credentials) Decrypt(decryptor domain.Decryptor) error {
 		return ErrUnableToDecryptNilCredentials
 	}
 
+	decryptedAccessKeyID, err := decryptor.Decrypt(c.AccessKeyID)
+	if err != nil {
+		return err
+	}
+
 	decryptedAccessKeySecret, err := decryptor.Decrypt(c.AccessKeySecret)
 	if err != nil {
 		return err
 	}
 
+	c.AccessKeyID = decryptedAccessKeyID
 	c.AccessKeySecret = decryptedAccessKeySecret
 	return nil
 }
@@ -78,6 +92,19 @@ func (c *Config) ParseAndValidate() error {
 	if err := c.validator.Struct(credentials); err != nil {
 		return err
 	}
+
+	// Decode credentials
+	decodedAccessKeyID, err := base64.StdEncoding.DecodeString(credentials.AccessKeyID)
+	if err != nil {
+		return err
+	}
+
+	decodedAccessKeySecret, err := base64.StdEncoding.DecodeString(credentials.AccessKeySecret)
+	if err != nil {
+		return err
+	}
+	credentials.AccessKeyID = string(decodedAccessKeyID)
+	credentials.AccessKeySecret = string(decodedAccessKeySecret)
 	c.ProviderConfig.Credentials = &credentials
 
 	// Validate if resource(s) is present
@@ -88,8 +115,14 @@ func (c *Config) ParseAndValidate() error {
 	uniqueResourceTypes := make(map[string]bool)
 	for i, rc := range c.ProviderConfig.Resources {
 		// Validate resource type
-		// TODO: When adding new resource type, use iteration instead to iterate over all valid resource type
-		if rc.Type != ResourceTypeAccount {
+		var valid bool
+		for _, resourceType := range getResourceTypes() {
+			if resourceType == rc.Type {
+				valid = true
+				break
+			}
+		}
+		if !valid {
 			return ErrInvalidResourceType
 		}
 
@@ -181,8 +214,6 @@ func (c *Config) validatePermissions(resource *domain.ResourceConfig, client Ali
 	for _, role := range resource.Roles {
 		for _, perm := range role.GetOrderedPermissions() {
 			switch role.Type {
-			case "":
-				fallthrough
 			case PolicyTypeSystem:
 				valid := false
 				for _, policy := range systemPolicies {

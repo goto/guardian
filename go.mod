@@ -14,6 +14,7 @@ require (
 	github.com/alibabacloud-go/tea-utils/v2 v2.0.6
 	github.com/aliyun/credentials-go v1.4.2
 	github.com/antonmedv/expr v1.15.3
+	github.com/bearaujus/bptr v0.0.2
 	github.com/envoyproxy/protoc-gen-validate v1.0.2
 	github.com/go-playground/validator/v10 v10.4.1
 	github.com/golang-migrate/migrate/v4 v4.15.2
