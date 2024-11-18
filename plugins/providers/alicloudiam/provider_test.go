@@ -1647,7 +1647,47 @@ func TestProvider_ListAccess(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name: "success revoke access from role",
+			name: "error get list access",
+			args: args{
+				crypto: crypto,
+				ctx:    context.TODO(),
+				pc: domain.ProviderConfig{
+					URN: "test-urn",
+					Credentials: &alicloudiam.Credentials{
+						AccessKeyID:     "test-encrypted-access-key-id",
+						AccessKeySecret: "test-encrypted-access-key-secret",
+						ResourceName:    "test-resource-name",
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: alicloudiam.ResourceTypeAccount,
+							Roles: []*domain.Role{
+								{
+									ID:          "test-system-policy",
+									Name:        "test-system-policy",
+									Type:        alicloudiam.PolicyTypeSystem,
+									Permissions: []interface{}{"test-system-policy-permission"},
+								},
+								{
+									ID:          "test-custom-policy",
+									Name:        "test-custom-policy",
+									Type:        alicloudiam.PolicyTypeCustom,
+									Permissions: []interface{}{"test-custom-policy-permission"},
+								},
+							},
+						},
+					},
+				},
+			},
+			mock: func(p *alicloudiam.Provider) {
+				crypto.On("Decrypt", "test-encrypted-access-key-id").Return(testAccessKeyID, nil).Once()
+				crypto.On("Decrypt", "test-encrypted-access-key-secret").Return(testAccessKeySecret, nil).Once()
+			},
+			assertFunc: nil,
+			wantErr:    true,
+		},
+		{
+			name: "success get list access",
 			args: args{
 				crypto: crypto,
 				ctx:    context.TODO(),
@@ -1698,10 +1738,6 @@ func TestProvider_ListAccess(t *testing.T) {
 			p := alicloudiam.NewProvider(tt.args.typeName, tt.args.crypto, tt.args.logger)
 			if tt.mock != nil {
 				tt.mock(p)
-			}
-			err := p.CreateConfig(&tt.args.pc)
-			if err != nil {
-				assert.FailNow(t, "fail to initialize provider config", err.Error())
 			}
 			a, err := p.ListAccess(tt.args.ctx, tt.args.pc, tt.args.r)
 			if tt.assertFunc != nil {

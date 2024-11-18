@@ -27,7 +27,7 @@ func TestCredentials_Encrypt(t *testing.T) {
 		field      *alicloudiam.Credentials
 		args       args
 		mock       func(field *alicloudiam.Credentials)
-		assertFunc func(t *testing.T, field *alicloudiam.Credentials)
+		assertFunc func(field *alicloudiam.Credentials)
 		wantErr    bool
 	}{
 		{
@@ -79,7 +79,7 @@ func TestCredentials_Encrypt(t *testing.T) {
 				encryptor.On("Encrypt", c.AccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
 				encryptor.On("Encrypt", c.AccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
 			},
-			assertFunc: func(t *testing.T, field *alicloudiam.Credentials) {
+			assertFunc: func(field *alicloudiam.Credentials) {
 				assert.Equal(t, "test-encrypted-access-key-id", field.AccessKeyID)
 				assert.Equal(t, "test-encrypted-access-key-secret", field.AccessKeySecret)
 			},
@@ -93,7 +93,7 @@ func TestCredentials_Encrypt(t *testing.T) {
 			}
 			err := tt.field.Encrypt(tt.args.encryptor)
 			if tt.assertFunc != nil {
-				tt.assertFunc(t, tt.field)
+				tt.assertFunc(tt.field)
 			}
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -114,7 +114,7 @@ func TestCredentials_Decrypt(t *testing.T) {
 		field      *alicloudiam.Credentials
 		args       args
 		mock       func(field *alicloudiam.Credentials)
-		assertFunc func(t *testing.T, field *alicloudiam.Credentials)
+		assertFunc func(field *alicloudiam.Credentials)
 		wantErr    bool
 	}{
 		{
@@ -166,7 +166,7 @@ func TestCredentials_Decrypt(t *testing.T) {
 				decryptor.On("Decrypt", c.AccessKeyID).Return(testAccessKeyID, nil).Once()
 				decryptor.On("Decrypt", c.AccessKeySecret).Return(testAccessKeySecret, nil).Once()
 			},
-			assertFunc: func(t *testing.T, field *alicloudiam.Credentials) {
+			assertFunc: func(field *alicloudiam.Credentials) {
 				assert.Equal(t, testAccessKeyID, field.AccessKeyID)
 				assert.Equal(t, testAccessKeySecret, field.AccessKeySecret)
 			},
@@ -180,7 +180,7 @@ func TestCredentials_Decrypt(t *testing.T) {
 			}
 			err := tt.field.Decrypt(tt.args.decryptor)
 			if tt.assertFunc != nil {
-				tt.assertFunc(t, tt.field)
+				tt.assertFunc(tt.field)
 			}
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -221,7 +221,7 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 		name       string
 		field      field
 		mock       func(c *alicloudiam.Config)
-		assertFunc func(t *testing.T, c *alicloudiam.Config)
+		assertFunc func(c *alicloudiam.Config)
 		wantErr    bool
 	}{
 		{
@@ -460,7 +460,7 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 				},
 			},
 			mock: nil,
-			assertFunc: func(t *testing.T, c *alicloudiam.Config) {
+			assertFunc: func(c *alicloudiam.Config) {
 				// try to re-call it
 				assert.NoError(t, c.ParseAndValidate())
 				// check auto set policy type
@@ -477,7 +477,7 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 			}
 			err := c.ParseAndValidate()
 			if tt.assertFunc != nil {
-				tt.assertFunc(t, c)
+				tt.assertFunc(c)
 			}
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -498,7 +498,7 @@ func TestConfig_EncryptCredentials(t *testing.T) {
 		name       string
 		field      field
 		mock       func(c *alicloudiam.Config)
-		assertFunc func(t *testing.T, c *alicloudiam.Config)
+		assertFunc func(c *alicloudiam.Config)
 		wantErr    bool
 	}{
 		{
@@ -572,11 +572,8 @@ func TestConfig_EncryptCredentials(t *testing.T) {
 				crypto.On("Encrypt", testAccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
 				crypto.On("Encrypt", testAccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
 			},
-			assertFunc: func(t *testing.T, c *alicloudiam.Config) {
-				credentials, ok := c.ProviderConfig.Credentials.(*alicloudiam.Credentials)
-				if !ok {
-					assert.FailNow(t, "invalid provider credentials type")
-				}
+			assertFunc: func(c *alicloudiam.Config) {
+				credentials := c.ProviderConfig.Credentials.(*alicloudiam.Credentials)
 				assert.Equal(t, "test-encrypted-access-key-id", credentials.AccessKeyID)
 				assert.Equal(t, "test-encrypted-access-key-secret", credentials.AccessKeySecret)
 			},
@@ -591,7 +588,7 @@ func TestConfig_EncryptCredentials(t *testing.T) {
 			}
 			err := c.EncryptCredentials()
 			if tt.assertFunc != nil {
-				tt.assertFunc(t, c)
+				tt.assertFunc(c)
 			}
 			if tt.wantErr {
 				assert.Error(t, err)
