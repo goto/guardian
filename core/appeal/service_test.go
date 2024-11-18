@@ -1645,7 +1645,6 @@ func (s *ServiceTestSuite) TestCreate() {
 							Policy: "policy_dataset",
 						},
 					},
-					DefaultPolicy: "policy_table",
 				},
 			},
 		}
