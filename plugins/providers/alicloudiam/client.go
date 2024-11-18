@@ -28,7 +28,7 @@ type iamClient struct {
 	iamService   *ram.Client
 }
 
-func newIamClient(accessKeyID, accessKeySecret, resourceName string) (*iamClient, error) {
+func NewIamClient(accessKeyID, accessKeySecret, resourceName string) (AliCloudIamClient, error) {
 	creds, err := credentials.NewCredential(&credentials.Config{
 		Type:            bptr.FromString("access_key"),
 		AccessKeyId:     bptr.FromString(accessKeyID),

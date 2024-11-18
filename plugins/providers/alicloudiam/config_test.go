@@ -11,10 +11,12 @@ import (
 )
 
 const (
-	testAccessKeyID            = "test-access-key-id"
-	testAccessKeySecret        = "test-access-key-secret"
-	testEncodedAccessKeyID     = "dGVzdC1hY2Nlc3Mta2V5LWlk"
-	testEncodedAccessKeySecret = "dGVzdC1hY2Nlc3Mta2V5LXNlY3JldA=="
+	testAccessKeyID              = "test-access-key-id"
+	testAccessKeySecret          = "test-access-key-secret"
+	testEncryptedAccessKeyID     = "test-encrypted-access-key-id"
+	testEncryptedAccessKeySecret = "test-encrypted-access-key-secret"
+	testEncodedAccessKeyID       = "dGVzdC1hY2Nlc3Mta2V5LWlk"
+	testEncodedAccessKeySecret   = "dGVzdC1hY2Nlc3Mta2V5LXNlY3JldA=="
 )
 
 func TestCredentials_Encrypt(t *testing.T) {
@@ -61,7 +63,7 @@ func TestCredentials_Encrypt(t *testing.T) {
 			},
 			args: args{encryptor: encryptor},
 			mock: func(c *alicloudiam.Credentials) {
-				encryptor.On("Encrypt", c.AccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
+				encryptor.On("Encrypt", c.AccessKeyID).Return(testEncryptedAccessKeyID, nil).Once()
 				encryptor.On("Encrypt", c.AccessKeySecret).Return("", errors.New("test")).Once()
 			},
 			assertFunc: nil,
@@ -76,12 +78,12 @@ func TestCredentials_Encrypt(t *testing.T) {
 			},
 			args: args{encryptor: encryptor},
 			mock: func(c *alicloudiam.Credentials) {
-				encryptor.On("Encrypt", c.AccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
-				encryptor.On("Encrypt", c.AccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
+				encryptor.On("Encrypt", c.AccessKeyID).Return(testEncryptedAccessKeyID, nil).Once()
+				encryptor.On("Encrypt", c.AccessKeySecret).Return(testEncryptedAccessKeySecret, nil).Once()
 			},
 			assertFunc: func(field *alicloudiam.Credentials) {
-				assert.Equal(t, "test-encrypted-access-key-id", field.AccessKeyID)
-				assert.Equal(t, "test-encrypted-access-key-secret", field.AccessKeySecret)
+				assert.Equal(t, testEncryptedAccessKeyID, field.AccessKeyID)
+				assert.Equal(t, testEncryptedAccessKeySecret, field.AccessKeySecret)
 			},
 			wantErr: false,
 		},
@@ -128,8 +130,8 @@ func TestCredentials_Decrypt(t *testing.T) {
 		{
 			name: "error when decrypting access key id",
 			field: &alicloudiam.Credentials{
-				AccessKeyID:     "test-encrypted-access-key-id",
-				AccessKeySecret: "test-encrypted-access-key-secret",
+				AccessKeyID:     testEncryptedAccessKeyID,
+				AccessKeySecret: testEncryptedAccessKeySecret,
 				ResourceName:    "test-resource-name",
 			},
 			args: args{decryptor: decryptor},
@@ -142,8 +144,8 @@ func TestCredentials_Decrypt(t *testing.T) {
 		{
 			name: "error when decrypting access key secret",
 			field: &alicloudiam.Credentials{
-				AccessKeyID:     "test-encrypted-access-key-id",
-				AccessKeySecret: "test-encrypted-access-key-secret",
+				AccessKeyID:     testEncryptedAccessKeyID,
+				AccessKeySecret: testEncryptedAccessKeySecret,
 				ResourceName:    "test-resource-name",
 			},
 			args: args{decryptor: decryptor},
@@ -157,8 +159,8 @@ func TestCredentials_Decrypt(t *testing.T) {
 		{
 			name: "success decrypting credentials",
 			field: &alicloudiam.Credentials{
-				AccessKeyID:     "test-encrypted-access-key-id",
-				AccessKeySecret: "test-encrypted-access-key-secret",
+				AccessKeyID:     testEncryptedAccessKeyID,
+				AccessKeySecret: testEncryptedAccessKeySecret,
 				ResourceName:    "test-resource-name",
 			},
 			args: args{decryptor: decryptor},
@@ -569,13 +571,13 @@ func TestConfig_EncryptCredentials(t *testing.T) {
 				crypto: crypto,
 			},
 			mock: func(c *alicloudiam.Config) {
-				crypto.On("Encrypt", testAccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
-				crypto.On("Encrypt", testAccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
+				crypto.On("Encrypt", testAccessKeyID).Return(testEncryptedAccessKeyID, nil).Once()
+				crypto.On("Encrypt", testAccessKeySecret).Return(testEncryptedAccessKeySecret, nil).Once()
 			},
 			assertFunc: func(c *alicloudiam.Config) {
 				credentials := c.ProviderConfig.Credentials.(*alicloudiam.Credentials)
-				assert.Equal(t, "test-encrypted-access-key-id", credentials.AccessKeyID)
-				assert.Equal(t, "test-encrypted-access-key-secret", credentials.AccessKeySecret)
+				assert.Equal(t, testEncryptedAccessKeyID, credentials.AccessKeyID)
+				assert.Equal(t, testEncryptedAccessKeySecret, credentials.AccessKeySecret)
 			},
 			wantErr: false,
 		},
