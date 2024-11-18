@@ -352,6 +352,16 @@ func (s *GrpcHandlersSuite) TestCreateProvider() {
 						Description: "Please enter your username",
 					},
 				},
+				Policies: []*domain.ProviderPolicy{
+					{
+						When:   "$appeal.resource.type == 'project' && $appeal.resource.urn == 'data-gojek-id-mart'",
+						Policy: "policy1",
+					},
+					{
+						When:   "$appeal.resource.type == 'dataset' && $appeal.resource.urn == 'data-gojek-id-mart'",
+						Policy: "policy2@3",
+					},
+				},
 			},
 		}
 		expectedResponse := &guardianv1beta1.CreateProviderResponse{
@@ -388,6 +398,16 @@ func (s *GrpcHandlersSuite) TestCreateProvider() {
 							Label:       "Username",
 							Required:    true,
 							Description: "Please enter your username",
+						},
+					},
+					Policies: []*guardianv1beta1.ProviderPolicy{
+						{
+							When:   "$appeal.resource.type == 'project' && $appeal.resource.urn == 'data-gojek-id-mart'",
+							Policy: "policy1",
+						},
+						{
+							When:   "$appeal.resource.type == 'dataset' && $appeal.resource.urn == 'data-gojek-id-mart'",
+							Policy: "policy2@3",
 						},
 					},
 				},
@@ -432,6 +452,16 @@ func (s *GrpcHandlersSuite) TestCreateProvider() {
 						Label:       "Username",
 						Required:    true,
 						Description: "Please enter your username",
+					},
+				},
+				Policies: []*guardianv1beta1.ProviderPolicy{
+					{
+						When:   "$appeal.resource.type == 'project' && $appeal.resource.urn == 'data-gojek-id-mart'",
+						Policy: "policy1",
+					},
+					{
+						When:   "$appeal.resource.type == 'dataset' && $appeal.resource.urn == 'data-gojek-id-mart'",
+						Policy: "policy2@3",
 					},
 				},
 			},
@@ -508,6 +538,16 @@ func (s *GrpcHandlersSuite) TestUpdatedProvider() {
 						},
 					},
 				},
+				Policies: []*domain.ProviderPolicy{
+					{
+						When:   "$appeal.resource.type == 'project' && $appeal.resource.urn == 'data-gojek-id-mart'",
+						Policy: "policy1",
+					},
+					{
+						When:   "$appeal.resource.type == 'dataset' && $appeal.resource.urn == 'data-gojek-id-mart'",
+						Policy: "policy2@3",
+					},
+				},
 			},
 		}
 		expectedResponse := &guardianv1beta1.UpdateProviderResponse{
@@ -532,6 +572,16 @@ func (s *GrpcHandlersSuite) TestUpdatedProvider() {
 									Name: "test-name",
 								},
 							},
+						},
+					},
+					Policies: []*guardianv1beta1.ProviderPolicy{
+						{
+							When:   "$appeal.resource.type == 'project' && $appeal.resource.urn == 'data-gojek-id-mart'",
+							Policy: "policy1",
+						},
+						{
+							When:   "$appeal.resource.type == 'dataset' && $appeal.resource.urn == 'data-gojek-id-mart'",
+							Policy: "policy2@3",
 						},
 					},
 				},
@@ -564,6 +614,16 @@ func (s *GrpcHandlersSuite) TestUpdatedProvider() {
 								Name: "test-name",
 							},
 						},
+					},
+				},
+				Policies: []*guardianv1beta1.ProviderPolicy{
+					{
+						When:   "$appeal.resource.type == 'project' && $appeal.resource.urn == 'data-gojek-id-mart'",
+						Policy: "policy1",
+					},
+					{
+						When:   "$appeal.resource.type == 'dataset' && $appeal.resource.urn == 'data-gojek-id-mart'",
+						Policy: "policy2@3",
 					},
 				},
 			},
