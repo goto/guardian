@@ -22,6 +22,7 @@ import (
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/identities"
 	"github.com/goto/guardian/plugins/notifiers"
+	"github.com/goto/guardian/plugins/providers/alicloudiam"
 	"github.com/goto/guardian/plugins/providers/bigquery"
 	"github.com/goto/guardian/plugins/providers/dataplex"
 	"github.com/goto/guardian/plugins/providers/gate"
@@ -112,6 +113,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 	reportRepository := report.NewRepository(store.DB())
 
 	providerClients := []provider.Client{
+		alicloudiam.NewProvider(domain.ProviderTypeAliCloudIAM, deps.Crypto, deps.Logger),
 		bigquery.NewProvider(domain.ProviderTypeBigQuery, deps.Crypto, deps.Logger),
 		metabase.NewProvider(domain.ProviderTypeMetabase, deps.Crypto, deps.Logger),
 		grafana.NewProvider(domain.ProviderTypeGrafana, deps.Crypto),

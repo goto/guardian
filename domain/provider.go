@@ -7,17 +7,18 @@ import (
 )
 
 const (
-	ProviderTypeBigQuery  = "bigquery"
-	ProviderTypeMetabase  = "metabase"
-	ProviderTypeGrafana   = "grafana"
-	ProviderTypeTableau   = "tableau"
-	ProviderTypeGCloudIAM = "gcloud_iam"
-	ProviderTypeNoOp      = "noop"
-	ProviderTypeGCS       = "gcs"
-	ProviderTypePolicyTag = "dataplex"
-	ProviderTypeShield    = "shield"
-	ProviderTypeGitlab    = "gitlab"
-	ProviderTypeGate      = "gate"
+	ProviderTypeAliCloudIAM = "alicloud_iam"
+	ProviderTypeBigQuery    = "bigquery"
+	ProviderTypeMetabase    = "metabase"
+	ProviderTypeGrafana     = "grafana"
+	ProviderTypeTableau     = "tableau"
+	ProviderTypeGCloudIAM   = "gcloud_iam"
+	ProviderTypeNoOp        = "noop"
+	ProviderTypeGCS         = "gcs"
+	ProviderTypePolicyTag   = "dataplex"
+	ProviderTypeShield      = "shield"
+	ProviderTypeGitlab      = "gitlab"
+	ProviderTypeGate        = "gate"
 )
 
 // Role is the configuration to define a role and mapping the permissions in the provider
@@ -26,6 +27,7 @@ type Role struct {
 	Name        string        `json:"name" yaml:"name" validate:"required"`
 	Description string        `json:"description,omitempty" yaml:"description"`
 	Permissions []interface{} `json:"permissions" yaml:"permissions" validate:"required"`
+	Type        string        `json:"type,omitempty" yaml:"type"` // not required to support backward compatible to other provider
 }
 
 // GetOrderedPermissions returns the permissions as a string slice
@@ -57,8 +59,9 @@ type AppealConfig struct {
 	AllowPermanentAccess         bool   `json:"allow_permanent_access" yaml:"allow_permanent_access"`
 	AllowActiveAccessExtensionIn string `json:"allow_active_access_extension_in" yaml:"allow_active_access_extension_in" validate:"required"`
 }
+
 type ProviderConfig struct {
-	Type                string               `json:"type" yaml:"type" validate:"required,oneof=google_bigquery metabase grafana tableau gcloud_iam noop gcs"`
+	Type                string               `json:"type" yaml:"type" validate:"required,oneof=alicloud_iam google_bigquery metabase grafana tableau gcloud_iam noop gcs"`
 	URN                 string               `json:"urn" yaml:"urn" validate:"required"`
 	AllowedAccountTypes []string             `json:"allowed_account_types" yaml:"allowed_account_types" validate:"omitempty,min=1"`
 	Labels              map[string]string    `json:"labels,omitempty" yaml:"labels,omitempty"`

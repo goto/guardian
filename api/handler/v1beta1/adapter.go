@@ -61,6 +61,7 @@ func (a *adapter) FromProviderConfigProto(pc *guardianv1beta1.ProviderConfig) *d
 					ID:          roleProto.GetId(),
 					Name:        roleProto.GetName(),
 					Description: roleProto.GetDescription(),
+					Type:        roleProto.GetType(),
 				}
 
 				if roleProto.Permissions != nil {
@@ -204,6 +205,7 @@ func (a *adapter) ToRole(role *domain.Role) (*guardianv1beta1.Role, error) {
 		Id:          role.ID,
 		Name:        role.Name,
 		Description: role.Description,
+		Type:        role.Type,
 	}
 
 	if role.Permissions != nil {
