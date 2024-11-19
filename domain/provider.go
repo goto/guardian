@@ -68,7 +68,6 @@ type ProviderConfig struct {
 	Parameters          []*ProviderParameter `json:"parameters,omitempty" yaml:"parameters,omitempty"`
 	Activity            *ActivityConfig      `json:"activity,omitempty" yaml:"activity,omitempty"`
 	Policies            []*ProviderPolicy    `json:"policies,omitempty" yaml:"policies,omitempty"`
-	DefaultPolicy       string               `json:"default_policy,omitempty" yaml:"default_policy,omitempty"`
 }
 
 type ProviderParameter struct {
