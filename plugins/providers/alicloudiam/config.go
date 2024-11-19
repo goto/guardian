@@ -20,6 +20,7 @@ const (
 type Credentials struct {
 	AccessKeyID     string `mapstructure:"access_key_id" json:"access_key_id" validate:"required,base64"`
 	AccessKeySecret string `mapstructure:"access_key_secret" json:"access_key_secret" validate:"required,base64"`
+	RoleToAssume    string `mapstructure:"role_to_assume" json:"role_to_assume,omitempty"`
 	ResourceName    string `mapstructure:"resource_name" json:"resource_name" validate:"required"`
 }
 

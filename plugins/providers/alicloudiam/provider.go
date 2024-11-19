@@ -219,7 +219,7 @@ func (p *Provider) getIamClient(pc *domain.ProviderConfig) (AliCloudIamClient, e
 	}
 
 	_ = credentials.Decrypt(p.crypto)
-	client, err := NewIamClient(credentials.AccessKeyID, credentials.AccessKeySecret, credentials.ResourceName)
+	client, err := NewIamClient(credentials.AccessKeyID, credentials.AccessKeySecret, credentials.ResourceName, credentials.RoleToAssume)
 	if err != nil {
 		return nil, err
 	}

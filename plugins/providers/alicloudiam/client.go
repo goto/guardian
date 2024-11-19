@@ -28,14 +28,36 @@ type iamClient struct {
 	iamService   *ram.Client
 }
 
-func NewIamClient(accessKeyID, accessKeySecret, resourceName string) (AliCloudIamClient, error) {
-	creds, err := credentials.NewCredential(&credentials.Config{
-		Type:            bptr.FromString("access_key"),
-		AccessKeyId:     bptr.FromString(accessKeyID),
-		AccessKeySecret: bptr.FromString(accessKeySecret),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create a new credentials: %w", err)
+func NewIamClient(accessKeyID, accessKeySecret, resourceName, roleToAssume string) (AliCloudIamClient, error) {
+	var creds credentials.Credential
+	var err error
+	fmt.Println(roleToAssume)
+	if roleToAssume != "" {
+		credentialsConfig := new(credentials.Config).
+			// Specify the type of the credential.
+			SetType("ram_role_arn").
+			// Specify the AccessKey ID.
+			SetAccessKeyId(accessKeyID).
+			// Specify the AccessKey secret.
+			SetAccessKeySecret(accessKeySecret).
+			SetRoleArn(roleToAssume).
+			SetRoleSessionName("session2").
+			SetRoleSessionExpiration(3600)
+
+		creds, err = credentials.NewCredential(credentialsConfig)
+		if err != nil {
+			fmt.Println("error creating credential client:", err.Error())
+			return nil, err
+		}
+	} else {
+		creds, err = credentials.NewCredential(&credentials.Config{
+			Type:            bptr.FromString("access_key"),
+			AccessKeyId:     bptr.FromString(accessKeyID),
+			AccessKeySecret: bptr.FromString(accessKeySecret),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create a new credentials: %w", err)
+		}
 	}
 
 	iamService, err := ram.NewClient(&openapi.Config{Credential: creds})
