@@ -610,42 +610,31 @@ func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]
 	}
 	flattenedProviderResources := flattenResources(filteredResources)
 
-	existingProviderResources := map[string]bool{}
+	// convert existing resources into map[string(GlobalURN)]*domain.Resource
+	// recursively compare newResources with existingResources
+	// -> if a particular resource is not updated (diff = 0), then, remove this current resource from the parent's.Children
+	// -> 2nd action, mark the resource in existingResourcesMap as deleted or not
+	// -> at the end of recursive evaluation, we will get list of resources that are updated and the hierarcy is still maintained
+	//
+	// get all resources from existingResourcesMap that are
+	mapExistingResources := make(map[string]*domain.Resource)
+	for _, existing := range existingGuardianResources {
+		mapExistingResources[existing.GlobalURN] = existing
+	}
 	updatedResources := []*domain.Resource{}
+	existingProviderResources := map[string]bool{}
+
 	for _, newResource := range flattenedProviderResources {
-		found := false
-		for _, existingResource := range existingGuardianResources {
-			if existingResource.Type == newResource.Type && existingResource.URN == newResource.URN {
-				found = true
-				if existingDetails := existingResource.Details; existingDetails != nil {
-					if newResource.Details != nil {
-						for key, value := range existingDetails {
-							if _, ok := newResource.Details[key]; !ok {
-								newResource.Details[key] = value
-							}
-						}
-					} else {
-						newResource.Details = existingDetails
-					}
-					if isUpdated, diff := compareResources(*existingResource, *newResource); isUpdated {
-						s.logger.Debug(ctx, "diff", "resources", diff)
-						updatedResources = append(updatedResources, newResource)
-						s.logger.Info(ctx, "resources is updated", "resource", newResource.URN)
-					}
-				}
-				existingProviderResources[existingResource.ID] = true
-				break
-			}
-		}
-		if !found {
-			updatedResources = append(updatedResources, newResource)
-			s.logger.Info(ctx, "new resource added", "resource", newResource.Name)
+		existingProviderResources[newResource.GlobalURN] = true
+		updatedResource := s.diffResources(ctx, mapExistingResources, newResource, false)
+		if updatedResource != nil {
+			updatedResources = append(updatedResources, updatedResource)
 		}
 	}
 
 	// mark IsDeleted of guardian resources that no longer exist in provider
 	for _, r := range existingGuardianResources {
-		if _, ok := existingProviderResources[r.ID]; !ok {
+		if _, ok := existingProviderResources[r.GlobalURN]; !ok {
 			r.IsDeleted = true
 			updatedResources = append(updatedResources, r)
 			s.logger.Info(ctx, "resource deleted", "resource", r.Name)
@@ -653,6 +642,50 @@ func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]
 	}
 
 	return updatedResources, len(newProviderResources), nil
+}
+
+func (s *Service) diffResources(ctx context.Context, existingResource map[string]*domain.Resource, newResource *domain.Resource, isChild bool) *domain.Resource {
+	existing := existingResource[newResource.GlobalURN]
+	if existing == nil {
+		return newResource
+	}
+	if existing != nil {
+		if existingDetails := existing.Details; existingDetails != nil {
+			if newResource.Details != nil {
+				for key, value := range existingDetails {
+					if _, ok := newResource.Details[key]; !ok {
+						newResource.Details[key] = value
+					}
+				}
+			} else {
+				newResource.Details = existingDetails
+			}
+			if newResource.Children != nil {
+				updatedChildrens := []*domain.Resource{}
+				for _, child := range newResource.Children {
+					updatedChildren := s.diffResources(ctx, existingResource, child, true)
+					if updatedChildren != nil {
+						updatedChildrens = append(updatedChildrens, updatedChildren)
+					}
+				}
+				if len(updatedChildrens) > 0 {
+					newResource.Children = updatedChildrens
+					return newResource
+				}
+			}
+			if isChild {
+				if existing.ParentID == nil {
+					return newResource
+				}
+			}
+			if isUpdated, diff := compareResources(*existing, *newResource); isUpdated {
+				s.logger.Debug(ctx, "diff", "resources", diff)
+				s.logger.Info(ctx, "resources is updated", "resource", newResource.URN)
+				return newResource
+			}
+		}
+	}
+	return nil
 }
 
 func (s *Service) validateAppealParam(a *domain.Appeal) error {
