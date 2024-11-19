@@ -12,6 +12,7 @@ func TestNewIamClient(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
+		roleToAssume    string
 		resourceName    string
 	}
 	tests := []struct {
@@ -20,7 +21,7 @@ func TestNewIamClient(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "",
+			name: "success creating a new ram user",
 			args: args{
 				accessKeyID:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
@@ -28,10 +29,20 @@ func TestNewIamClient(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "success creating a new ram role",
+			args: args{
+				accessKeyID:     testAccessKeyID,
+				accessKeySecret: testAccessKeySecret,
+				roleToAssume:    "test-role-to-assume",
+				resourceName:    "test-resource-name",
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName)
+			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName, tt.args.roleToAssume)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -46,6 +57,7 @@ func Test_iamClient_GrantAccess(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
+		roleToAssume    string
 		resourceName    string
 		ctx             context.Context
 		policyName      string
@@ -73,7 +85,7 @@ func Test_iamClient_GrantAccess(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName)
+			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName, tt.args.roleToAssume)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -92,6 +104,7 @@ func Test_iamClient_RevokeAccess(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
+		roleToAssume    string
 		resourceName    string
 		ctx             context.Context
 		policyName      string
@@ -119,7 +132,7 @@ func Test_iamClient_RevokeAccess(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName)
+			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName, tt.args.roleToAssume)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -138,6 +151,7 @@ func Test_iamClient_GrantAccessToRole(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
+		roleToAssume    string
 		resourceName    string
 		ctx             context.Context
 		policyName      string
@@ -165,7 +179,7 @@ func Test_iamClient_GrantAccessToRole(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName)
+			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName, tt.args.roleToAssume)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -184,6 +198,7 @@ func Test_iamClient_RevokeAccessFromRole(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
+		roleToAssume    string
 		resourceName    string
 		ctx             context.Context
 		policyName      string
@@ -211,7 +226,7 @@ func Test_iamClient_RevokeAccessFromRole(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName)
+			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName, tt.args.roleToAssume)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -230,6 +245,7 @@ func Test_iamClient_ListAccess(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
+		roleToAssume    string
 		resourceName    string
 		ctx             context.Context
 		pc              domain.ProviderConfig
@@ -280,7 +296,7 @@ func Test_iamClient_ListAccess(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName)
+			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName, tt.args.roleToAssume)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -300,6 +316,7 @@ func Test_iamClient_GetAllPoliciesByType(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
+		roleToAssume    string
 		resourceName    string
 		ctx             context.Context
 		policyType      string
@@ -325,7 +342,7 @@ func Test_iamClient_GetAllPoliciesByType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName)
+			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName, tt.args.roleToAssume)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}

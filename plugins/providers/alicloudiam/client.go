@@ -29,38 +29,31 @@ type iamClient struct {
 }
 
 func NewIamClient(accessKeyID, accessKeySecret, resourceName, roleToAssume string) (AliCloudIamClient, error) {
-	var creds credentials.Credential
-	var err error
-	fmt.Println(roleToAssume)
-	if roleToAssume != "" {
-		credentialsConfig := new(credentials.Config).
-			// Specify the type of the credential.
-			SetType("ram_role_arn").
-			// Specify the AccessKey ID.
-			SetAccessKeyId(accessKeyID).
-			// Specify the AccessKey secret.
-			SetAccessKeySecret(accessKeySecret).
-			SetRoleArn(roleToAssume).
-			SetRoleSessionName("session2").
-			SetRoleSessionExpiration(3600)
+	// Use ram user credentials by default
+	credentialConfig := &credentials.Config{
+		Type:            bptr.FromString("access_key"),
+		AccessKeyId:     bptr.FromString(accessKeyID),
+		AccessKeySecret: bptr.FromString(accessKeySecret),
+	}
 
-		creds, err = credentials.NewCredential(credentialsConfig)
-		if err != nil {
-			fmt.Println("error creating credential client:", err.Error())
-			return nil, err
-		}
-	} else {
-		creds, err = credentials.NewCredential(&credentials.Config{
-			Type:            bptr.FromString("access_key"),
-			AccessKeyId:     bptr.FromString(accessKeyID),
-			AccessKeySecret: bptr.FromString(accessKeySecret),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create a new credentials: %w", err)
+	// Use ram role credentials if roleToAssume is present
+	if roleToAssume != "" {
+		credentialConfig = &credentials.Config{
+			Type:                  bptr.FromString("ram_role_arn"),
+			AccessKeyId:           bptr.FromString(accessKeyID),
+			AccessKeySecret:       bptr.FromString(accessKeySecret),
+			RoleArn:               bptr.FromString(roleToAssume),
+			RoleSessionName:       bptr.FromString("session2"),
+			RoleSessionExpiration: bptr.FromInt(3600),
 		}
 	}
 
-	iamService, err := ram.NewClient(&openapi.Config{Credential: creds})
+	credential, err := credentials.NewCredential(credentialConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a new credentials: %w", err)
+	}
+
+	iamService, err := ram.NewClient(&openapi.Config{Credential: credential})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RAM client: %w", err)
 	}
