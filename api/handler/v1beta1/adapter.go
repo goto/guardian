@@ -39,11 +39,10 @@ func (a *adapter) FromProviderProto(p *guardianv1beta1.Provider) (*domain.Provid
 
 func (a *adapter) FromProviderConfigProto(pc *guardianv1beta1.ProviderConfig) *domain.ProviderConfig {
 	providerConfig := &domain.ProviderConfig{
-		Type:          pc.GetType(),
-		URN:           pc.GetUrn(),
-		Labels:        pc.GetLabels(),
-		Credentials:   pc.GetCredentials().AsInterface(),
-		DefaultPolicy: pc.GetDefaultPolicy(),
+		Type:        pc.GetType(),
+		URN:         pc.GetUrn(),
+		Labels:      pc.GetLabels(),
+		Credentials: pc.GetCredentials().AsInterface(),
 	}
 
 	if pc.GetAppeal() != nil {

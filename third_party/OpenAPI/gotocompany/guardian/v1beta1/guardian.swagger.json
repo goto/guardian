@@ -1909,9 +1909,6 @@
                     "type": "object",
                     "$ref": "#/definitions/v1beta1ProviderPolicy"
                   }
-                },
-                "defaultPolicy": {
-                  "type": "string"
                 }
               }
             }
@@ -3575,9 +3572,6 @@
             "type": "object",
             "$ref": "#/definitions/v1beta1ProviderPolicy"
           }
-        },
-        "defaultPolicy": {
-          "type": "string"
         }
       }
     },
@@ -3687,6 +3681,9 @@
         "permissions": {
           "type": "array",
           "items": {}
+        },
+        "type": {
+          "type": "string"
         }
       }
     },
