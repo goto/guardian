@@ -113,6 +113,6 @@ type ActivityConfig struct {
 }
 
 type ProviderPolicy struct {
-	When   string
-	Policy string
+	When   string `json:"when" yaml:"when"`
+	Policy string `json:"policy" yaml:"policy"`
 }
