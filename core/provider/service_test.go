@@ -438,6 +438,122 @@ func (s *ServiceTestSuite) TestFetchResources() {
 		s.Nil(actualError)
 	})
 
+	s.Run("should upsert children on success", func() {
+		existingResources := []*domain.Resource{
+			{
+				ID:           "12ß",
+				ProviderType: mockProviderType,
+				ProviderURN:  mockProvider,
+				Type:         "test-resource-type",
+				URN:          "test-resource-urn-2",
+				GlobalURN:    "test-1",
+			},
+			{
+				ID:           "1",
+				ProviderType: mockProviderType,
+				ProviderURN:  mockProvider,
+				Type:         "test-resource-type",
+				URN:          "test-resource-urn-1",
+				Details: map[string]interface{}{
+					"owner": "test-owner",
+					resource.ReservedDetailsKeyMetadata: map[string]interface{}{
+						"labels": map[string]string{
+							"foo": "bar",
+							"baz": "qux",
+						},
+						"x": "y",
+					},
+				},
+				GlobalURN: "test-2",
+				Children: []*domain.Resource{
+					{
+						ID:           "12ß",
+						ProviderType: mockProviderType,
+						ProviderURN:  mockProvider,
+						Type:         "test-resource-type",
+						URN:          "test-resource-urn-2",
+						GlobalURN:    "test-1",
+					},
+				},
+			},
+		}
+		newResources := []*domain.Resource{
+			{
+				ProviderType: mockProviderType,
+				ProviderURN:  mockProvider,
+				Type:         "test-resource-type",
+				URN:          "test-resource-urn-1",
+				Details: map[string]interface{}{
+					resource.ReservedDetailsKeyMetadata: map[string]interface{}{
+						"labels": map[string]string{
+							"foo": "bar",
+							"baz": "qux",
+						},
+						"x": "y",
+					},
+				},
+				GlobalURN: "test-2",
+				Children: []*domain.Resource{
+					{
+						ProviderType: mockProviderType,
+						ProviderURN:  mockProvider,
+						Type:         "test-resource-type",
+						URN:          "test-resource-urn-2",
+						GlobalURN:    "test-1",
+					},
+					{
+						ProviderType: mockProviderType,
+						ProviderURN:  mockProvider,
+						Type:         "test-resource-type",
+						URN:          "test-resource-urn-3",
+						GlobalURN:    "test-3",
+					},
+				},
+			},
+		}
+		expectedResources := []*domain.Resource{
+			{
+				ProviderType: mockProviderType,
+				ProviderURN:  mockProvider,
+				Type:         "test-resource-type",
+				URN:          "test-resource-urn-1",
+				Details: map[string]interface{}{
+					"owner": "test-owner",
+					resource.ReservedDetailsKeyMetadata: map[string]interface{}{
+						"labels": map[string]string{
+							"foo": "bar",
+							"baz": "qux",
+						},
+						"x": "y",
+					},
+				},
+				GlobalURN: "test-2",
+				Children: []*domain.Resource{
+					{
+						ID:           "2",
+						ProviderType: mockProviderType,
+						ProviderURN:  mockProvider,
+						Type:         "test-resource-type",
+						URN:          "test-resource-urn-3",
+						GlobalURN:    "test-3",
+					},
+				},
+			},
+		}
+
+		expectedProvider := providers[0]
+		s.mockProviderRepository.EXPECT().Find(mockCtx).Return([]*domain.Provider{expectedProvider}, nil).Once()
+		s.mockProvider.EXPECT().GetResources(mockCtx, expectedProvider.Config).Return(newResources, nil).Once()
+		s.mockResourceService.EXPECT().BulkUpsert(mock.Anything, mock.AnythingOfType("[]*domain.Resource")).
+			Run(func(_a0 context.Context, resources []*domain.Resource) {
+				s.Empty(cmp.Diff(expectedResources, resources, cmpopts.IgnoreFields(domain.Resource{}, "ID", "CreatedAt", "UpdatedAt")))
+			}).Return(nil).Once()
+		s.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(existingResources, nil).Once()
+		actualError := s.service.FetchResources(context.Background())
+
+		s.Nil(actualError)
+	})
+
 	s.Run("should upsert all resources on success", func() {
 		existingResources := []*domain.Resource{
 			{

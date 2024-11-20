@@ -608,29 +608,19 @@ func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]
 			filteredResources = append(filteredResources, r)
 		}
 	}
-	flattenedProviderResources := flattenResources(filteredResources)
-
-	// convert existing resources into map[string(GlobalURN)]*domain.Resource
-	// recursively compare newResources with existingResources
-	// -> if a particular resource is not updated (diff = 0), then, remove this current resource from the parent's.Children
-	// -> 2nd action, mark the resource in existingResourcesMap as deleted or not
-	// -> at the end of recursive evaluation, we will get list of resources that are updated and the hierarcy is still maintained
-	//
-	// get all resources from existingResourcesMap that are
 	mapExistingResources := make(map[string]*domain.Resource)
 	for _, existing := range existingGuardianResources {
 		mapExistingResources[existing.GlobalURN] = existing
 	}
-	updatedResources := []*domain.Resource{}
 	existingProviderResources := map[string]bool{}
 
-	for _, newResource := range flattenedProviderResources {
-		existingProviderResources[newResource.GlobalURN] = true
-		updatedResource := s.diffResources(ctx, mapExistingResources, newResource, false)
-		if updatedResource != nil {
-			updatedResources = append(updatedResources, updatedResource)
-		}
+	dummyParent := &domain.Resource{
+		GlobalURN: "root",
+		Children:  filteredResources,
 	}
+
+	res := s.diffResources(ctx, mapExistingResources, dummyParent, &existingProviderResources)
+	updatedResources := res.Children
 
 	// mark IsDeleted of guardian resources that no longer exist in provider
 	for _, r := range existingGuardianResources {
@@ -644,47 +634,63 @@ func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]
 	return updatedResources, len(newProviderResources), nil
 }
 
-func (s *Service) diffResources(ctx context.Context, existingResource map[string]*domain.Resource, newResource *domain.Resource, isChild bool) *domain.Resource {
+func (s *Service) diffResources(ctx context.Context, existingResource map[string]*domain.Resource, newResource *domain.Resource, existingProviderResources *map[string]bool) *domain.Resource {
 	existing := existingResource[newResource.GlobalURN]
-	if existing == nil {
-		return newResource
-	}
-	if existing != nil {
-		if existingDetails := existing.Details; existingDetails != nil {
-			if newResource.Details != nil {
-				for key, value := range existingDetails {
-					if _, ok := newResource.Details[key]; !ok {
-						newResource.Details[key] = value
-					}
-				}
-			} else {
-				newResource.Details = existingDetails
-			}
-			if newResource.Children != nil {
-				updatedChildrens := []*domain.Resource{}
-				for _, child := range newResource.Children {
-					updatedChildren := s.diffResources(ctx, existingResource, child, true)
-					if updatedChildren != nil {
-						updatedChildrens = append(updatedChildrens, updatedChildren)
-					}
-				}
-				if len(updatedChildrens) > 0 {
-					newResource.Children = updatedChildrens
-					return newResource
+	(*existingProviderResources)[newResource.GlobalURN] = true
+	if newResource.GlobalURN == "root" {
+		if newResource.Children != nil {
+			updatedChildrens := []*domain.Resource{}
+			for _, child := range newResource.Children {
+				updatedChildren := s.diffResources(ctx, existingResource, child, existingProviderResources)
+				if updatedChildren != nil {
+					updatedChildrens = append(updatedChildrens, updatedChildren)
 				}
 			}
-			if isChild {
-				if existing.ParentID == nil {
-					return newResource
-				}
-			}
-			if isUpdated, diff := compareResources(*existing, *newResource); isUpdated {
-				s.logger.Debug(ctx, "diff", "resources", diff)
-				s.logger.Info(ctx, "resources is updated", "resource", newResource.URN)
+			if len(updatedChildrens) > 0 {
+				newResource.Children = updatedChildrens
 				return newResource
 			}
 		}
+		return &domain.Resource{
+			GlobalURN: "root",
+			Children:  []*domain.Resource{},
+		}
 	}
+
+	if existing == nil {
+		return newResource
+	}
+	if existingDetails := existing.Details; existingDetails != nil {
+		if newResource.Details != nil {
+			for key, value := range existingDetails {
+				if _, ok := newResource.Details[key]; !ok {
+					newResource.Details[key] = value
+				}
+			}
+		} else {
+			newResource.Details = existingDetails
+		}
+	}
+
+	if newResource.Children != nil {
+		updatedChildrens := []*domain.Resource{}
+		for _, child := range newResource.Children {
+			updatedChildren := s.diffResources(ctx, existingResource, child, existingProviderResources)
+			if updatedChildren != nil {
+				updatedChildrens = append(updatedChildrens, updatedChildren)
+			}
+		}
+		if len(updatedChildrens) > 0 {
+			newResource.Children = updatedChildrens
+			return newResource
+		}
+	}
+	if isUpdated, diff := compareResources(*existing, *newResource); isUpdated {
+		s.logger.Debug(ctx, "diff", "resources", diff)
+		s.logger.Info(ctx, "resources is updated", "resource", newResource.URN)
+		return newResource
+	}
+
 	return nil
 }
 
