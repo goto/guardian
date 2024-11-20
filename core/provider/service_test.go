@@ -381,6 +381,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 				ProviderURN:  mockProvider,
 				Type:         "test-resource-type",
 				URN:          "test-resource-urn-2",
+				GlobalURN:    "test-1",
 			},
 			{
 				ID:           "1",
@@ -398,6 +399,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 						"x": "y",
 					},
 				},
+				GlobalURN: "test-2",
 			},
 		}
 		newResources := []*domain.Resource{
@@ -415,6 +417,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 						"x": "y",
 					},
 				},
+				GlobalURN: "test-2",
 			},
 			{
 				ID:           "12ß",
@@ -422,6 +425,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 				ProviderURN:  mockProvider,
 				Type:         "test-resource-type",
 				URN:          "test-resource-urn-2",
+				GlobalURN:    "test-1",
 			},
 		}
 
@@ -452,6 +456,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 						"x": "y",
 					},
 				},
+				GlobalURN: "test-1",
 			},
 		}
 		newResources := []*domain.Resource{
@@ -467,12 +472,14 @@ func (s *ServiceTestSuite) TestFetchResources() {
 						},
 					},
 				},
+				GlobalURN: "test-1",
 			},
 			{
 				ProviderType: mockProviderType,
 				ProviderURN:  mockProvider,
 				Type:         "test-resource-type",
 				URN:          "test-resource-urn-2",
+				GlobalURN:    "test-2",
 			},
 		}
 		expectedResources := []*domain.Resource{
@@ -489,12 +496,14 @@ func (s *ServiceTestSuite) TestFetchResources() {
 						},
 					},
 				},
+				GlobalURN: "test-1",
 			},
 			{
 				ProviderType: mockProviderType,
 				ProviderURN:  mockProvider,
 				Type:         "test-resource-type",
 				URN:          "test-resource-urn-2",
+				GlobalURN:    "test-2",
 			},
 		}
 
