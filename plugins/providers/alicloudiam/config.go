@@ -5,11 +5,9 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	ram "github.com/alibabacloud-go/ram-20150501/v2/client"
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/domain"
 	"github.com/mitchellh/mapstructure"
-	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -185,30 +183,16 @@ func (c *Config) EncryptCredentials() error {
 	return nil
 }
 
-func (c *Config) validatePermissions(resource *domain.ResourceConfig, client AliCloudIamClient) error {
-	var (
-		maxFetchItem                   int32 = 1000
-		systemPolicies, customPolicies []*ram.ListPoliciesResponseBodyPoliciesPolicy
-	)
+func (c *Config) validatePermissions(ctx context.Context, resource *domain.ResourceConfig, client AliCloudIamClient) error {
+	const maxFetchItem int32 = 1000
 
-	eg, ctx := errgroup.WithContext(context.TODO())
-	eg.Go(func() error {
-		var err error
-		systemPolicies, err = client.GetAllPoliciesByType(ctx, PolicyTypeSystem, maxFetchItem)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	eg.Go(func() error {
-		var err error
-		customPolicies, err = client.GetAllPoliciesByType(ctx, PolicyTypeCustom, maxFetchItem)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err := eg.Wait(); err != nil {
+	systemPolicies, err := client.GetAllPoliciesByType(ctx, PolicyTypeSystem, maxFetchItem)
+	if err != nil {
+		return err
+	}
+
+	customPolicies, err := client.GetAllPoliciesByType(ctx, PolicyTypeCustom, maxFetchItem)
+	if err != nil {
 		return err
 	}
 

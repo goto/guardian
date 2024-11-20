@@ -3,6 +3,8 @@ package alicloudiam_test
 import (
 	"context"
 	"errors"
+	"testing"
+
 	ram "github.com/alibabacloud-go/ram-20150501/v2/client"
 	"github.com/bearaujus/bptr"
 	"github.com/goto/guardian/domain"
@@ -12,7 +14,6 @@ import (
 	alicloudiamMocks "github.com/goto/guardian/plugins/providers/alicloudiam/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
 )
 
 func TestNewProvider(t *testing.T) {

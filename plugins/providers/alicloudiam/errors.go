@@ -6,6 +6,7 @@ import (
 )
 
 var (
+	ErrUnimplementedMethod           = errors.New("unimplemented method")
 	ErrUnableToEncryptNilCredentials = errors.New("unable to encrypt nil credentials")
 	ErrUnableToDecryptNilCredentials = errors.New("unable to decrypt nil credentials")
 	ErrInvalidCredentials            = errors.New("invalid credentials type")

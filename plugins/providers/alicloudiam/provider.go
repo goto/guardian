@@ -53,8 +53,9 @@ func (p *Provider) GetType() string {
 }
 
 func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
-	c := NewConfig(pc, p.crypto)
+	ctx := context.Background()
 
+	c := NewConfig(pc, p.crypto)
 	if err := c.ParseAndValidate(); err != nil {
 		return err
 	}
@@ -65,7 +66,7 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 	}
 
 	for _, r := range c.ProviderConfig.Resources {
-		if err = c.validatePermissions(r, client); err != nil {
+		if err = c.validatePermissions(ctx, r, client); err != nil {
 			return err
 		}
 	}

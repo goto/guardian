@@ -2,10 +2,11 @@ package alicloudiam_test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/plugins/providers/alicloudiam"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestNewIamClient(t *testing.T) {
@@ -257,7 +258,7 @@ func Test_iamClient_ListAccess(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "error when listing access",
+			name: "error not implemented when listing access",
 			args: args{
 				accessKeyID:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
