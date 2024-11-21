@@ -262,6 +262,8 @@ github.com/aymerick/douceur v0.2.0 h1:Mv+mAeH1Q+n9Fr+oyamOlAkUNPWPlA8PPGR0QAaYuP
 github.com/aymerick/douceur v0.2.0/go.mod h1:wlT5vV2O3h55X9m7iVYN0TBM0NH/MmbLnd30/FjWUq4=
 github.com/bearaujus/bptr v0.0.2 h1:0MG01eWYEPU9GE8Qpsqno3QQwE4zbgXi1QM4v9eM490=
 github.com/bearaujus/bptr v0.0.2/go.mod h1:epipv8zSeEKawxVhpFFjuZw9DDruaNwUdSkGTgdm4b4=
+github.com/bearaujus/bptr v0.0.3 h1:0JJtQUfqmXy62SjlMT3mQ6bcwoo6CcvK+s+vUae031E=
+github.com/bearaujus/bptr v0.0.3/go.mod h1:epipv8zSeEKawxVhpFFjuZw9DDruaNwUdSkGTgdm4b4=
 github.com/benbjohnson/clock v1.0.3/go.mod h1:bGMdMPoPVvcYyt1gHDf4J2KE153Yf9BuiUKYMaxlTDM=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=

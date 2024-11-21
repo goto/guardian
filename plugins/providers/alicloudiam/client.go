@@ -22,55 +22,42 @@ const (
 )
 
 type iamClient struct {
-	resourceName string
-	iamService   *ram.Client
+	resourceName    string
+	accessKeyId     string
+	accessKeySecret string
+	roleToAssume    string
 }
 
 func NewIamClient(accessKeyID, accessKeySecret, resourceName, roleToAssume string) (AliCloudIamClient, error) {
-	// Use ram user credentials by default
-	credentialConfig := &credentials.Config{
-		Type:            bptr.FromString("access_key"),
-		AccessKeyId:     bptr.FromString(accessKeyID),
-		AccessKeySecret: bptr.FromString(accessKeySecret),
+	c := &iamClient{
+		resourceName:    resourceName,
+		accessKeyId:     accessKeyID,
+		accessKeySecret: accessKeySecret,
+		roleToAssume:    roleToAssume,
 	}
 
-	// Use ram role credentials if roleToAssume is present
-	if roleToAssume != "" {
-		credentialConfig = &credentials.Config{
-			Type:                  bptr.FromString("ram_role_arn"),
-			AccessKeyId:           bptr.FromString(accessKeyID),
-			AccessKeySecret:       bptr.FromString(accessKeySecret),
-			RoleArn:               bptr.FromString(roleToAssume),
-			RoleSessionName:       bptr.FromString("session2"),
-			RoleSessionExpiration: bptr.FromInt(3600),
-		}
-	}
-
-	credential, err := credentials.NewCredential(credentialConfig)
+	// Test create new request client
+	_, err := c.newRequestClient()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create a new credentials: %w", err)
+		return nil, err
 	}
 
-	iamService, err := ram.NewClient(&openapi.Config{Credential: credential})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create RAM client: %w", err)
-	}
-
-	return &iamClient{
-		resourceName: resourceName,
-		iamService:   iamService,
-	}, nil
+	return c, nil
 }
 
 func (c *iamClient) GrantAccess(_ context.Context, policyName, policyType, accountID string) error {
-	req := &ram.AttachPolicyToUserRequest{
-		PolicyName: &policyName,
-		PolicyType: &policyType,
-		UserName:   &accountID,
+	reqClient, err := c.newRequestClient()
+	if err != nil {
+		return err
 	}
 
 	// TODO: find a way to add parent context to the request
-	if _, err := c.iamService.AttachPolicyToUserWithOptions(req, &utils.RuntimeOptions{}); err != nil {
+	_, err = reqClient.AttachPolicyToUserWithOptions(&ram.AttachPolicyToUserRequest{
+		PolicyName: bptr.FromString(policyName),
+		PolicyType: bptr.FromString(policyType),
+		UserName:   bptr.FromString(accountID),
+	}, &utils.RuntimeOptions{})
+	if err != nil {
 		// TODO: find the error list on SDK instead of using strings contains
 		if strings.Contains(err.Error(), "EntityAlreadyExists.User.Policy") {
 			return ErrPermissionAlreadyExists
@@ -82,14 +69,18 @@ func (c *iamClient) GrantAccess(_ context.Context, policyName, policyType, accou
 }
 
 func (c *iamClient) RevokeAccess(_ context.Context, policyName, policyType, accountID string) error {
-	req := &ram.DetachPolicyFromUserRequest{
-		PolicyName: &policyName,
-		PolicyType: &policyType,
-		UserName:   &accountID,
+	reqClient, err := c.newRequestClient()
+	if err != nil {
+		return err
 	}
 
 	// TODO: find a way to add parent context to the request
-	if _, err := c.iamService.DetachPolicyFromUserWithOptions(req, &utils.RuntimeOptions{}); err != nil {
+	_, err = reqClient.DetachPolicyFromUserWithOptions(&ram.DetachPolicyFromUserRequest{
+		PolicyName: bptr.FromString(policyName),
+		PolicyType: bptr.FromString(policyType),
+		UserName:   bptr.FromString(accountID),
+	}, &utils.RuntimeOptions{})
+	if err != nil {
 		// TODO: find the error list on SDK instead of using strings contains
 		if strings.Contains(err.Error(), "EntityNotExist.User.Policy") {
 			return ErrPermissionNotExist
@@ -101,14 +92,18 @@ func (c *iamClient) RevokeAccess(_ context.Context, policyName, policyType, acco
 }
 
 func (c *iamClient) GrantAccessToRole(_ context.Context, policyName, policyType, roleName string) error {
-	req := &ram.AttachPolicyToRoleRequest{
-		PolicyName: &policyName,
-		PolicyType: &policyType,
-		RoleName:   &roleName,
+	reqClient, err := c.newRequestClient()
+	if err != nil {
+		return err
 	}
 
 	// TODO: find a way to add parent context to the request
-	if _, err := c.iamService.AttachPolicyToRoleWithOptions(req, &utils.RuntimeOptions{}); err != nil {
+	_, err = reqClient.AttachPolicyToRoleWithOptions(&ram.AttachPolicyToRoleRequest{
+		PolicyName: bptr.FromString(policyName),
+		PolicyType: bptr.FromString(policyType),
+		RoleName:   bptr.FromString(roleName),
+	}, &utils.RuntimeOptions{})
+	if err != nil {
 		// TODO: find the error list on SDK instead of using strings contains
 		if strings.Contains(err.Error(), "EntityAlreadyExists.Role.Policy") {
 			return ErrPermissionAlreadyExists
@@ -120,14 +115,18 @@ func (c *iamClient) GrantAccessToRole(_ context.Context, policyName, policyType,
 }
 
 func (c *iamClient) RevokeAccessFromRole(_ context.Context, policyName, policyType, roleName string) error {
-	req := &ram.DetachPolicyFromRoleRequest{
-		PolicyName: &policyName,
-		PolicyType: &policyType,
-		RoleName:   &roleName,
+	reqClient, err := c.newRequestClient()
+	if err != nil {
+		return err
 	}
 
 	// TODO: find a way to add parent context to the request
-	if _, err := c.iamService.DetachPolicyFromRoleWithOptions(req, &utils.RuntimeOptions{}); err != nil {
+	_, err = reqClient.DetachPolicyFromRoleWithOptions(&ram.DetachPolicyFromRoleRequest{
+		PolicyName: bptr.FromString(policyName),
+		PolicyType: bptr.FromString(policyType),
+		RoleName:   bptr.FromString(roleName),
+	}, &utils.RuntimeOptions{})
+	if err != nil {
 		// TODO: find the error list on SDK instead of using strings contains
 		if strings.Contains(err.Error(), "EntityNotExist.Role.Policy") {
 			return ErrPermissionNotExist
@@ -144,17 +143,20 @@ func (c *iamClient) ListAccess(_ context.Context, _ domain.ProviderConfig, _ []*
 }
 
 func (c *iamClient) GetAllPoliciesByType(_ context.Context, policyType string, maxItems int32) ([]*ram.ListPoliciesResponseBodyPoliciesPolicy, error) {
+	reqClient, err := c.newRequestClient()
+	if err != nil {
+		return nil, err
+	}
+
 	result := make([]*ram.ListPoliciesResponseBodyPoliciesPolicy, 0)
 	var marker *string
 	for {
-		req := &ram.ListPoliciesRequest{
-			Marker:     marker,
-			MaxItems:   &maxItems,
-			PolicyType: &policyType,
-		}
-
 		// TODO: find a way to add parent context to the request
-		resp, err := c.iamService.ListPoliciesWithOptions(req, &utils.RuntimeOptions{})
+		resp, err := reqClient.ListPoliciesWithOptions(&ram.ListPoliciesRequest{
+			Marker:     marker,
+			MaxItems:   bptr.FromInt32(maxItems),
+			PolicyType: bptr.FromString(policyType),
+		}, &utils.RuntimeOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -163,9 +165,35 @@ func (c *iamClient) GetAllPoliciesByType(_ context.Context, policyType string, m
 		if resp.Body.Marker == nil {
 			break
 		}
-
 		marker = resp.Body.Marker
 	}
 
 	return result, nil
+}
+
+func (c *iamClient) newRequestClient() (*ram.Client, error) {
+	// Use ram user credentials by default
+	credentialConfig := &credentials.Config{
+		Type:            bptr.FromString("access_key"),
+		AccessKeyId:     bptr.FromString(c.accessKeyId),
+		AccessKeySecret: bptr.FromString(c.accessKeySecret),
+	}
+	if c.roleToAssume != "" { // Use ram role credentials if roleToAssume is present
+		credentialConfig.Type = bptr.FromString("ram_role_arn")
+		credentialConfig.RoleArn = bptr.FromString(c.roleToAssume)
+		credentialConfig.RoleSessionName = bptr.FromString("session2")
+		credentialConfig.RoleSessionExpiration = bptr.FromInt(3600)
+	}
+
+	credential, err := credentials.NewCredential(credentialConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a new credentials: %w", err)
+	}
+
+	reqClient, err := ram.NewClient(&openapi.Config{Credential: credential})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create RAM client: %w", err)
+	}
+
+	return reqClient, nil
 }
