@@ -818,6 +818,57 @@ func TestProvider_GrantAccess(t *testing.T) {
 			wantErr:    true,
 		},
 		{
+			name: "success grant access to user but the permission is already exist",
+			args: args{
+				crypto: crypto,
+				ctx:    context.TODO(),
+				pc: &domain.ProviderConfig{
+					URN: "test-urn",
+					Credentials: &alicloudiam.Credentials{
+						AccessKeyID:     testEncodedAccessKeyID,
+						AccessKeySecret: testEncodedAccessKeySecret,
+						ResourceName:    "test-resource-name",
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: alicloudiam.ResourceTypeAccount,
+							Roles: []*domain.Role{
+								{
+									ID:          "test-system-policy",
+									Name:        "test-system-policy",
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
+								},
+								{
+									ID:          "test-custom-policy",
+									Name:        "test-custom-policy",
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
+								},
+							},
+						},
+					},
+				},
+				g: domain.Grant{
+					Role:        "test-system-policy",
+					Resource:    &domain.Resource{Type: alicloudiam.ResourceTypeAccount},
+					AccountType: alicloudiam.AccountTypeRamUser,
+					AccountID:   "test-user@12345679.onaliyun.com",
+					Permissions: []string{"test-system-policy-permission"},
+				},
+			},
+			mock: func(p *alicloudiam.Provider) {
+				p.Clients["test-urn"] = client
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeSystem, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-system-policy-permission")}}, nil).Once()
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeCustom, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-custom-policy-permission")}}, nil).Once()
+				crypto.On("Encrypt", testAccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
+				crypto.On("Encrypt", testAccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
+				client.EXPECT().GrantAccess(mock.Anything, "test-system-policy-permission", alicloudiam.PolicyTypeSystem, "test-user").Return(alicloudiam.ErrPermissionAlreadyExists).Once()
+			},
+			assertFunc: nil,
+			wantErr:    false,
+		},
+		{
 			name: "success grant access to user",
 			args: args{
 				crypto: crypto,
@@ -864,6 +915,57 @@ func TestProvider_GrantAccess(t *testing.T) {
 				crypto.On("Encrypt", testAccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
 				crypto.On("Encrypt", testAccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
 				client.EXPECT().GrantAccess(mock.Anything, "test-system-policy-permission", alicloudiam.PolicyTypeSystem, "test-user").Return(nil).Once()
+			},
+			assertFunc: nil,
+			wantErr:    false,
+		},
+		{
+			name: "success grant access to role but the permission is already granted",
+			args: args{
+				crypto: crypto,
+				ctx:    context.TODO(),
+				pc: &domain.ProviderConfig{
+					URN: "test-urn",
+					Credentials: &alicloudiam.Credentials{
+						AccessKeyID:     testEncodedAccessKeyID,
+						AccessKeySecret: testEncodedAccessKeySecret,
+						ResourceName:    "test-resource-name",
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: alicloudiam.ResourceTypeAccount,
+							Roles: []*domain.Role{
+								{
+									ID:          "test-system-policy",
+									Name:        "test-system-policy",
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
+								},
+								{
+									ID:          "test-custom-policy",
+									Name:        "test-custom-policy",
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
+								},
+							},
+						},
+					},
+				},
+				g: domain.Grant{
+					Role:        "test-system-policy",
+					Resource:    &domain.Resource{Type: alicloudiam.ResourceTypeAccount},
+					AccountType: alicloudiam.AccountTypeRamRole,
+					AccountID:   "test-role",
+					Permissions: []string{"test-system-policy-permission"},
+				},
+			},
+			mock: func(p *alicloudiam.Provider) {
+				p.Clients["test-urn"] = client
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeSystem, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-system-policy-permission")}}, nil).Once()
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeCustom, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-custom-policy-permission")}}, nil).Once()
+				crypto.On("Encrypt", testAccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
+				crypto.On("Encrypt", testAccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
+				client.EXPECT().GrantAccessToRole(mock.Anything, "test-system-policy-permission", alicloudiam.PolicyTypeSystem, "test-role").Return(alicloudiam.ErrPermissionAlreadyExists).Once()
 			},
 			assertFunc: nil,
 			wantErr:    false,
@@ -1297,6 +1399,57 @@ func TestProvider_RevokeAccess(t *testing.T) {
 			wantErr:    true,
 		},
 		{
+			name: "success revoke access from user but the permission is already revoked",
+			args: args{
+				crypto: crypto,
+				ctx:    context.TODO(),
+				pc: &domain.ProviderConfig{
+					URN: "test-urn",
+					Credentials: &alicloudiam.Credentials{
+						AccessKeyID:     testEncodedAccessKeyID,
+						AccessKeySecret: testEncodedAccessKeySecret,
+						ResourceName:    "test-resource-name",
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: alicloudiam.ResourceTypeAccount,
+							Roles: []*domain.Role{
+								{
+									ID:          "test-system-policy",
+									Name:        "test-system-policy",
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
+								},
+								{
+									ID:          "test-custom-policy",
+									Name:        "test-custom-policy",
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
+								},
+							},
+						},
+					},
+				},
+				g: domain.Grant{
+					Role:        "test-system-policy",
+					Resource:    &domain.Resource{Type: alicloudiam.ResourceTypeAccount},
+					AccountType: alicloudiam.AccountTypeRamUser,
+					AccountID:   "test-user@12345679.onaliyun.com",
+					Permissions: []string{"test-system-policy-permission"},
+				},
+			},
+			mock: func(p *alicloudiam.Provider) {
+				p.Clients["test-urn"] = client
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeSystem, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-system-policy-permission")}}, nil).Once()
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeCustom, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-custom-policy-permission")}}, nil).Once()
+				crypto.On("Encrypt", testAccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
+				crypto.On("Encrypt", testAccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
+				client.EXPECT().RevokeAccess(mock.Anything, "test-system-policy-permission", alicloudiam.PolicyTypeSystem, "test-user").Return(nil).Once()
+			},
+			assertFunc: nil,
+			wantErr:    false,
+		},
+		{
 			name: "success revoke access from user",
 			args: args{
 				crypto: crypto,
@@ -1343,6 +1496,57 @@ func TestProvider_RevokeAccess(t *testing.T) {
 				crypto.On("Encrypt", testAccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
 				crypto.On("Encrypt", testAccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
 				client.EXPECT().RevokeAccess(mock.Anything, "test-system-policy-permission", alicloudiam.PolicyTypeSystem, "test-user").Return(nil).Once()
+			},
+			assertFunc: nil,
+			wantErr:    false,
+		},
+		{
+			name: "success revoke access from role but the permission is already revoked",
+			args: args{
+				crypto: crypto,
+				ctx:    context.TODO(),
+				pc: &domain.ProviderConfig{
+					URN: "test-urn",
+					Credentials: &alicloudiam.Credentials{
+						AccessKeyID:     testEncodedAccessKeyID,
+						AccessKeySecret: testEncodedAccessKeySecret,
+						ResourceName:    "test-resource-name",
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: alicloudiam.ResourceTypeAccount,
+							Roles: []*domain.Role{
+								{
+									ID:          "test-system-policy",
+									Name:        "test-system-policy",
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
+								},
+								{
+									ID:          "test-custom-policy",
+									Name:        "test-custom-policy",
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
+								},
+							},
+						},
+					},
+				},
+				g: domain.Grant{
+					Role:        "test-system-policy",
+					Resource:    &domain.Resource{Type: alicloudiam.ResourceTypeAccount},
+					AccountType: alicloudiam.AccountTypeRamRole,
+					AccountID:   "test-role",
+					Permissions: []string{"test-system-policy-permission"},
+				},
+			},
+			mock: func(p *alicloudiam.Provider) {
+				p.Clients["test-urn"] = client
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeSystem, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-system-policy-permission")}}, nil).Once()
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeCustom, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-custom-policy-permission")}}, nil).Once()
+				crypto.On("Encrypt", testAccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
+				crypto.On("Encrypt", testAccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
+				client.EXPECT().RevokeAccessFromRole(mock.Anything, "test-system-policy-permission", alicloudiam.PolicyTypeSystem, "test-role").Return(alicloudiam.ErrPermissionNotExist).Once()
 			},
 			assertFunc: nil,
 			wantErr:    false,
