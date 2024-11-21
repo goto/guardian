@@ -53,9 +53,9 @@ func (c *iamClient) GrantAccess(_ context.Context, policyName, policyType, accou
 
 	// TODO: find a way to add parent context to the request
 	_, err = reqClient.AttachPolicyToUserWithOptions(&ram.AttachPolicyToUserRequest{
-		PolicyName: bptr.FromString(policyName),
-		PolicyType: bptr.FromString(policyType),
-		UserName:   bptr.FromString(accountID),
+		PolicyName: &policyName,
+		PolicyType: &policyType,
+		UserName:   &accountID,
 	}, &utils.RuntimeOptions{})
 	if err != nil {
 		// TODO: find the error list on SDK instead of using strings contains
@@ -76,9 +76,9 @@ func (c *iamClient) RevokeAccess(_ context.Context, policyName, policyType, acco
 
 	// TODO: find a way to add parent context to the request
 	_, err = reqClient.DetachPolicyFromUserWithOptions(&ram.DetachPolicyFromUserRequest{
-		PolicyName: bptr.FromString(policyName),
-		PolicyType: bptr.FromString(policyType),
-		UserName:   bptr.FromString(accountID),
+		PolicyName: &policyName,
+		PolicyType: &policyType,
+		UserName:   &accountID,
 	}, &utils.RuntimeOptions{})
 	if err != nil {
 		// TODO: find the error list on SDK instead of using strings contains
@@ -99,9 +99,9 @@ func (c *iamClient) GrantAccessToRole(_ context.Context, policyName, policyType,
 
 	// TODO: find a way to add parent context to the request
 	_, err = reqClient.AttachPolicyToRoleWithOptions(&ram.AttachPolicyToRoleRequest{
-		PolicyName: bptr.FromString(policyName),
-		PolicyType: bptr.FromString(policyType),
-		RoleName:   bptr.FromString(roleName),
+		PolicyName: &policyName,
+		PolicyType: &policyType,
+		RoleName:   &roleName,
 	}, &utils.RuntimeOptions{})
 	if err != nil {
 		// TODO: find the error list on SDK instead of using strings contains
@@ -122,9 +122,9 @@ func (c *iamClient) RevokeAccessFromRole(_ context.Context, policyName, policyTy
 
 	// TODO: find a way to add parent context to the request
 	_, err = reqClient.DetachPolicyFromRoleWithOptions(&ram.DetachPolicyFromRoleRequest{
-		PolicyName: bptr.FromString(policyName),
-		PolicyType: bptr.FromString(policyType),
-		RoleName:   bptr.FromString(roleName),
+		PolicyName: &policyName,
+		PolicyType: &policyType,
+		RoleName:   &roleName,
 	}, &utils.RuntimeOptions{})
 	if err != nil {
 		// TODO: find the error list on SDK instead of using strings contains
@@ -154,8 +154,8 @@ func (c *iamClient) GetAllPoliciesByType(_ context.Context, policyType string, m
 		// TODO: find a way to add parent context to the request
 		resp, err := reqClient.ListPoliciesWithOptions(&ram.ListPoliciesRequest{
 			Marker:     marker,
-			MaxItems:   bptr.FromInt32(maxItems),
-			PolicyType: bptr.FromString(policyType),
+			MaxItems:   &maxItems,
+			PolicyType: &policyType,
 		}, &utils.RuntimeOptions{})
 		if err != nil {
 			return nil, err
@@ -175,12 +175,12 @@ func (c *iamClient) newRequestClient() (*ram.Client, error) {
 	// Use ram user credentials by default
 	credentialConfig := &credentials.Config{
 		Type:            bptr.FromString("access_key"),
-		AccessKeyId:     bptr.FromString(c.accessKeyId),
-		AccessKeySecret: bptr.FromString(c.accessKeySecret),
+		AccessKeyId:     &c.accessKeyId,
+		AccessKeySecret: &c.accessKeySecret,
 	}
 	if c.roleToAssume != "" { // Use ram role credentials if roleToAssume is present
 		credentialConfig.Type = bptr.FromString("ram_role_arn")
-		credentialConfig.RoleArn = bptr.FromString(c.roleToAssume)
+		credentialConfig.RoleArn = &c.roleToAssume
 		credentialConfig.RoleSessionName = bptr.FromString("session2")
 		credentialConfig.RoleSessionExpiration = bptr.FromInt(3600)
 	}

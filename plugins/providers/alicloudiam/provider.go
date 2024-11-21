@@ -121,7 +121,7 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 			}
 			for _, permission := range permissions {
 				err = client.GrantAccess(ctx, permission.Name, permission.Type, username)
-				if err != nil && !errors.Is(err, ErrPermissionNotExist) {
+				if err != nil && !errors.Is(err, ErrPermissionAlreadyExists) {
 					return err
 				}
 			}
@@ -130,7 +130,7 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		case AccountTypeRamRole:
 			for _, permission := range permissions {
 				err = client.GrantAccessToRole(ctx, permission.Name, permission.Type, g.AccountID)
-				if err != nil && !errors.Is(err, ErrPermissionNotExist) {
+				if err != nil && !errors.Is(err, ErrPermissionAlreadyExists) {
 					return err
 				}
 			}
