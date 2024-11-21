@@ -95,14 +95,12 @@ func TestProvider_CreateConfig(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
@@ -131,14 +129,12 @@ func TestProvider_CreateConfig(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
@@ -190,7 +186,7 @@ func TestProvider_CreateConfig(t *testing.T) {
 			wantErr:    true,
 		},
 		{
-			name: "error policy permission is not exist for policy type system",
+			name: "error policy permission type is invalid",
 			args: args{
 				crypto: crypto,
 				pc: &domain.ProviderConfig{
@@ -208,7 +204,83 @@ func TestProvider_CreateConfig(t *testing.T) {
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
 									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"invalid-system-policy-permission"},
+									Permissions: []interface{}{123},
+								},
+							},
+						},
+					},
+				},
+			},
+			mock: func(p *alicloudiam.Provider) {
+				p.Clients["test-urn"] = client
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeSystem, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-system-policy-permission")}}, nil).Once()
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeCustom, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-custom-policy-permission")}}, nil).Once()
+			},
+			assertFunc: nil,
+			wantErr:    true,
+		},
+		{
+			name: "error policy permission fail on validation",
+			args: args{
+				crypto: crypto,
+				pc: &domain.ProviderConfig{
+					URN: "test-urn",
+					Credentials: &alicloudiam.Credentials{
+						AccessKeyID:     testEncodedAccessKeyID,
+						AccessKeySecret: testEncodedAccessKeySecret,
+						ResourceName:    "test-resource-name",
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: alicloudiam.ResourceTypeAccount,
+							Roles: []*domain.Role{
+								{
+									ID:   "test-system-policy",
+									Name: "test-system-policy",
+									Type: alicloudiam.PolicyTypeSystem,
+									Permissions: []interface{}{
+										map[string]interface{}{"name": "test-custom-policy-permission", "type": "test-invalid-type"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			mock: func(p *alicloudiam.Provider) {
+				p.Clients["test-urn"] = client
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeSystem, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-system-policy-permission")}}, nil).Once()
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeCustom, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-custom-policy-permission")}}, nil).Once()
+			},
+			assertFunc: nil,
+			wantErr:    true,
+		},
+		{
+			name: "error policy permission is not exist",
+			args: args{
+				crypto: crypto,
+				pc: &domain.ProviderConfig{
+					URN: "test-urn",
+					Credentials: &alicloudiam.Credentials{
+						AccessKeyID:     testEncodedAccessKeyID,
+						AccessKeySecret: testEncodedAccessKeySecret,
+						ResourceName:    "test-resource-name",
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: alicloudiam.ResourceTypeAccount,
+							Roles: []*domain.Role{
+								{
+									ID:   "test-system-policy",
+									Name: "test-system-policy",
+									Type: alicloudiam.PolicyTypeSystem,
+									Permissions: []interface{}{
+										map[string]interface{}{"name": "invalid-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom},
+									},
 								},
 							},
 						},
@@ -228,45 +300,7 @@ func TestProvider_CreateConfig(t *testing.T) {
 			wantErr:    true,
 		},
 		{
-			name: "error policy permission is not exist for policy type custom",
-			args: args{
-				crypto: crypto,
-				pc: &domain.ProviderConfig{
-					URN: "test-urn",
-					Credentials: &alicloudiam.Credentials{
-						AccessKeyID:     testEncodedAccessKeyID,
-						AccessKeySecret: testEncodedAccessKeySecret,
-						ResourceName:    "test-resource-name",
-					},
-					Resources: []*domain.ResourceConfig{
-						{
-							Type: alicloudiam.ResourceTypeAccount,
-							Roles: []*domain.Role{
-								{
-									ID:          "test-custom-policy",
-									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"invalid-custom-policy-permission"},
-								},
-							},
-						},
-					},
-				},
-			},
-			mock: func(p *alicloudiam.Provider) {
-				p.Clients["test-urn"] = client
-				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeSystem, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
-					{PolicyName: bptr.FromString("test-system-policy-permission")}}, nil).Once()
-				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeCustom, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
-					{PolicyName: bptr.FromString("test-custom-policy-permission")}}, nil).Once()
-				crypto.On("Encrypt", testAccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
-				crypto.On("Encrypt", testAccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
-			},
-			assertFunc: nil,
-			wantErr:    true,
-		},
-		{
-			name: "success",
+			name: "success create config",
 			args: args{
 				crypto: crypto,
 				pc: &domain.ProviderConfig{
@@ -283,14 +317,12 @@ func TestProvider_CreateConfig(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
@@ -451,7 +483,7 @@ func TestProvider_GrantAccess(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name: "error empty grant role name",
+			name: "error nil grant resource",
 			args: args{
 				crypto: crypto,
 				ctx:    context.TODO(),
@@ -469,66 +501,16 @@ func TestProvider_GrantAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
 					},
-				},
-			},
-			mock: func(p *alicloudiam.Provider) {
-				p.Clients["test-urn"] = client
-				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeSystem, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
-					{PolicyName: bptr.FromString("test-system-policy-permission")}}, nil).Once()
-				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeCustom, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
-					{PolicyName: bptr.FromString("test-custom-policy-permission")}}, nil).Once()
-				crypto.On("Encrypt", testAccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
-				crypto.On("Encrypt", testAccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
-			},
-			assertFunc: nil,
-			wantErr:    true,
-		},
-		{
-			name: "error grant role is not found at resource",
-			args: args{
-				crypto: crypto,
-				ctx:    context.TODO(),
-				pc: &domain.ProviderConfig{
-					URN: "test-urn",
-					Credentials: &alicloudiam.Credentials{
-						AccessKeyID:     testEncodedAccessKeyID,
-						AccessKeySecret: testEncodedAccessKeySecret,
-						ResourceName:    "test-resource-name",
-					},
-					Resources: []*domain.ResourceConfig{
-						{
-							Type: alicloudiam.ResourceTypeAccount,
-							Roles: []*domain.Role{
-								{
-									ID:          "test-system-policy",
-									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
-								},
-								{
-									ID:          "test-custom-policy",
-									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
-								},
-							},
-						},
-					},
-				},
-				g: domain.Grant{
-					Role: "invalid-grant-role-id",
 				},
 			},
 			mock: func(p *alicloudiam.Provider) {
@@ -562,22 +544,66 @@ func TestProvider_GrantAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
 					},
 				},
 				g: domain.Grant{
-					Role:     "test-system-policy",
-					Resource: &domain.Resource{Type: "test-invalid-grant-resource-type"},
+					Resource: &domain.Resource{Type: "test-invalid-resource-type"},
+				},
+			},
+			mock: func(p *alicloudiam.Provider) {
+				p.Clients["test-urn"] = client
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeSystem, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-system-policy-permission")}}, nil).Once()
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeCustom, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-custom-policy-permission")}}, nil).Once()
+				crypto.On("Encrypt", testAccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
+				crypto.On("Encrypt", testAccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
+			},
+			assertFunc: nil,
+			wantErr:    true,
+		},
+		{
+			name: "error grant role is not found at resource",
+			args: args{
+				crypto: crypto,
+				ctx:    context.TODO(),
+				pc: &domain.ProviderConfig{
+					URN: "test-urn",
+					Credentials: &alicloudiam.Credentials{
+						AccessKeyID:     testEncodedAccessKeyID,
+						AccessKeySecret: testEncodedAccessKeySecret,
+						ResourceName:    "test-resource-name",
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: alicloudiam.ResourceTypeAccount,
+							Roles: []*domain.Role{
+								{
+									ID:          "test-system-policy",
+									Name:        "test-system-policy",
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
+								},
+								{
+									ID:          "test-custom-policy",
+									Name:        "test-custom-policy",
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
+								},
+							},
+						},
+					},
+				},
+				g: domain.Grant{
+					Resource: &domain.Resource{Type: alicloudiam.ResourceTypeAccount},
+					Role:     "invalid-grant-role-id",
 				},
 			},
 			mock: func(p *alicloudiam.Provider) {
@@ -611,22 +637,20 @@ func TestProvider_GrantAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
 					},
 				},
 				g: domain.Grant{
-					Role:        "test-system-policy",
 					Resource:    &domain.Resource{Type: alicloudiam.ResourceTypeAccount},
+					Role:        "test-system-policy",
 					AccountType: "test-invalid-account-type",
 				},
 			},
@@ -661,22 +685,20 @@ func TestProvider_GrantAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
 					},
 				},
 				g: domain.Grant{
-					Role:        "test-system-policy",
 					Resource:    &domain.Resource{Type: alicloudiam.ResourceTypeAccount},
+					Role:        "test-system-policy",
 					AccountType: alicloudiam.AccountTypeRamUser,
 					AccountID:   "test-invalid-account-id",
 				},
@@ -712,22 +734,20 @@ func TestProvider_GrantAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
 					},
 				},
 				g: domain.Grant{
-					Role:        "test-system-policy",
 					Resource:    &domain.Resource{Type: alicloudiam.ResourceTypeAccount},
+					Role:        "test-system-policy",
 					AccountType: alicloudiam.AccountTypeRamUser,
 					AccountID:   "test-user@12345679.onaliyun.com",
 					Permissions: []string{"test-system-policy-permission"},
@@ -765,22 +785,20 @@ func TestProvider_GrantAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
 					},
 				},
 				g: domain.Grant{
-					Role:        "test-system-policy",
 					Resource:    &domain.Resource{Type: alicloudiam.ResourceTypeAccount},
+					Role:        "test-system-policy",
 					AccountType: alicloudiam.AccountTypeRamRole,
 					AccountID:   "test-role",
 					Permissions: []string{"test-system-policy-permission"},
@@ -818,14 +836,12 @@ func TestProvider_GrantAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
@@ -871,14 +887,12 @@ func TestProvider_GrantAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
@@ -948,7 +962,7 @@ func TestProvider_RevokeAccess(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name: "error empty grant role name",
+			name: "error nil grant resource",
 			args: args{
 				crypto: crypto,
 				ctx:    context.TODO(),
@@ -966,66 +980,16 @@ func TestProvider_RevokeAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
 					},
-				},
-			},
-			mock: func(p *alicloudiam.Provider) {
-				p.Clients["test-urn"] = client
-				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeSystem, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
-					{PolicyName: bptr.FromString("test-system-policy-permission")}}, nil).Once()
-				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeCustom, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
-					{PolicyName: bptr.FromString("test-custom-policy-permission")}}, nil).Once()
-				crypto.On("Encrypt", testAccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
-				crypto.On("Encrypt", testAccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
-			},
-			assertFunc: nil,
-			wantErr:    true,
-		},
-		{
-			name: "error grant role is not found at resource",
-			args: args{
-				crypto: crypto,
-				ctx:    context.TODO(),
-				pc: &domain.ProviderConfig{
-					URN: "test-urn",
-					Credentials: &alicloudiam.Credentials{
-						AccessKeyID:     testEncodedAccessKeyID,
-						AccessKeySecret: testEncodedAccessKeySecret,
-						ResourceName:    "test-resource-name",
-					},
-					Resources: []*domain.ResourceConfig{
-						{
-							Type: alicloudiam.ResourceTypeAccount,
-							Roles: []*domain.Role{
-								{
-									ID:          "test-system-policy",
-									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
-								},
-								{
-									ID:          "test-custom-policy",
-									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
-								},
-							},
-						},
-					},
-				},
-				g: domain.Grant{
-					Role: "invalid-grant-role-id",
 				},
 			},
 			mock: func(p *alicloudiam.Provider) {
@@ -1059,22 +1023,66 @@ func TestProvider_RevokeAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
 					},
 				},
 				g: domain.Grant{
-					Role:     "test-system-policy",
-					Resource: &domain.Resource{Type: "test-invalid-grant-resource-type"},
+					Resource: &domain.Resource{Type: "test-invalid-resource-type"},
+				},
+			},
+			mock: func(p *alicloudiam.Provider) {
+				p.Clients["test-urn"] = client
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeSystem, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-system-policy-permission")}}, nil).Once()
+				client.EXPECT().GetAllPoliciesByType(mock.Anything, alicloudiam.PolicyTypeCustom, mock.Anything).Return([]*ram.ListPoliciesResponseBodyPoliciesPolicy{
+					{PolicyName: bptr.FromString("test-custom-policy-permission")}}, nil).Once()
+				crypto.On("Encrypt", testAccessKeyID).Return("test-encrypted-access-key-id", nil).Once()
+				crypto.On("Encrypt", testAccessKeySecret).Return("test-encrypted-access-key-secret", nil).Once()
+			},
+			assertFunc: nil,
+			wantErr:    true,
+		},
+		{
+			name: "error grant role is not found at resource",
+			args: args{
+				crypto: crypto,
+				ctx:    context.TODO(),
+				pc: &domain.ProviderConfig{
+					URN: "test-urn",
+					Credentials: &alicloudiam.Credentials{
+						AccessKeyID:     testEncodedAccessKeyID,
+						AccessKeySecret: testEncodedAccessKeySecret,
+						ResourceName:    "test-resource-name",
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: alicloudiam.ResourceTypeAccount,
+							Roles: []*domain.Role{
+								{
+									ID:          "test-system-policy",
+									Name:        "test-system-policy",
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
+								},
+								{
+									ID:          "test-custom-policy",
+									Name:        "test-custom-policy",
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
+								},
+							},
+						},
+					},
+				},
+				g: domain.Grant{
+					Resource: &domain.Resource{Type: alicloudiam.ResourceTypeAccount},
+					Role:     "invalid-grant-role-id",
 				},
 			},
 			mock: func(p *alicloudiam.Provider) {
@@ -1108,22 +1116,20 @@ func TestProvider_RevokeAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
 					},
 				},
 				g: domain.Grant{
-					Role:        "test-system-policy",
 					Resource:    &domain.Resource{Type: alicloudiam.ResourceTypeAccount},
+					Role:        "test-system-policy",
 					AccountType: "test-invalid-account-type",
 				},
 			},
@@ -1158,22 +1164,20 @@ func TestProvider_RevokeAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
 					},
 				},
 				g: domain.Grant{
-					Role:        "test-system-policy",
 					Resource:    &domain.Resource{Type: alicloudiam.ResourceTypeAccount},
+					Role:        "test-system-policy",
 					AccountType: alicloudiam.AccountTypeRamUser,
 					AccountID:   "test-invalid-account-id",
 				},
@@ -1209,22 +1213,20 @@ func TestProvider_RevokeAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
 					},
 				},
 				g: domain.Grant{
-					Role:        "test-system-policy",
 					Resource:    &domain.Resource{Type: alicloudiam.ResourceTypeAccount},
+					Role:        "test-system-policy",
 					AccountType: alicloudiam.AccountTypeRamUser,
 					AccountID:   "test-user@12345679.onaliyun.com",
 					Permissions: []string{"test-system-policy-permission"},
@@ -1262,22 +1264,20 @@ func TestProvider_RevokeAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
 					},
 				},
 				g: domain.Grant{
-					Role:        "test-system-policy",
 					Resource:    &domain.Resource{Type: alicloudiam.ResourceTypeAccount},
+					Role:        "test-system-policy",
 					AccountType: alicloudiam.AccountTypeRamRole,
 					AccountID:   "test-role",
 					Permissions: []string{"test-system-policy-permission"},
@@ -1315,14 +1315,12 @@ func TestProvider_RevokeAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
@@ -1368,14 +1366,12 @@ func TestProvider_RevokeAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
@@ -1460,14 +1456,12 @@ func TestProvider_GetRoles(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
@@ -1481,14 +1475,12 @@ func TestProvider_GetRoles(t *testing.T) {
 					{
 						ID:          "test-system-policy",
 						Name:        "test-system-policy",
-						Type:        alicloudiam.PolicyTypeSystem,
-						Permissions: []interface{}{"test-system-policy-permission"},
+						Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 					},
 					{
 						ID:          "test-custom-policy",
 						Name:        "test-custom-policy",
-						Type:        alicloudiam.PolicyTypeCustom,
-						Permissions: []interface{}{"test-custom-policy-permission"},
+						Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 					},
 				}, r)
 			},
@@ -1549,14 +1541,12 @@ func TestProvider_GetPermissions(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},
@@ -1567,7 +1557,7 @@ func TestProvider_GetPermissions(t *testing.T) {
 			},
 			mock: nil,
 			assertFunc: func(r []interface{}, p *alicloudiam.Provider) {
-				assert.ElementsMatch(t, []interface{}{"test-system-policy-permission"}, r)
+				assert.ElementsMatch(t, []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}}, r)
 			},
 			wantErr: false,
 		},
@@ -1666,14 +1656,12 @@ func TestProvider_ListAccess(t *testing.T) {
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
-									Permissions: []interface{}{"test-system-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-system-policy-permission", "type": alicloudiam.PolicyTypeSystem}},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
-									Permissions: []interface{}{"test-custom-policy-permission"},
+									Permissions: []interface{}{map[string]interface{}{"name": "test-custom-policy-permission", "type": alicloudiam.PolicyTypeCustom}},
 								},
 							},
 						},

@@ -106,7 +106,7 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		return err
 	}
 
-	policyType, err := getPolicyTypeFromGrant(pc, g)
+	permissions, err := getListPermissionsFromGrant(pc, g)
 	if err != nil {
 		return err
 	}
@@ -119,16 +119,18 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 			if err != nil {
 				return err
 			}
-			for _, perm := range g.Permissions {
-				if err = client.GrantAccess(ctx, perm, policyType, username); err != nil && !errors.Is(err, ErrPermissionAlreadyExists) {
+			for _, permission := range permissions {
+				err = client.GrantAccess(ctx, permission.Name, permission.Type, username)
+				if err != nil && !errors.Is(err, ErrPermissionNotExist) {
 					return err
 				}
 			}
 			return nil
 
 		case AccountTypeRamRole:
-			for _, perm := range g.Permissions {
-				if err = client.GrantAccessToRole(ctx, perm, policyType, g.AccountID); err != nil && !errors.Is(err, ErrPermissionAlreadyExists) {
+			for _, permission := range permissions {
+				err = client.GrantAccessToRole(ctx, permission.Name, permission.Type, g.AccountID)
+				if err != nil && !errors.Is(err, ErrPermissionNotExist) {
 					return err
 				}
 			}
@@ -149,7 +151,7 @@ func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		return err
 	}
 
-	policyType, err := getPolicyTypeFromGrant(pc, g)
+	permissions, err := getListPermissionsFromGrant(pc, g)
 	if err != nil {
 		return err
 	}
@@ -162,16 +164,18 @@ func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 			if err != nil {
 				return err
 			}
-			for _, perm := range g.Permissions {
-				if err = client.RevokeAccess(ctx, perm, policyType, username); err != nil && !errors.Is(err, ErrPermissionNotExist) {
+			for _, permission := range permissions {
+				err = client.RevokeAccess(ctx, permission.Name, permission.Type, username)
+				if err != nil && !errors.Is(err, ErrPermissionNotExist) {
 					return err
 				}
 			}
 			return nil
 
 		case AccountTypeRamRole:
-			for _, perm := range g.Permissions {
-				if err = client.RevokeAccessFromRole(ctx, perm, policyType, g.AccountID); err != nil && !errors.Is(err, ErrPermissionNotExist) {
+			for _, permission := range permissions {
+				err = client.RevokeAccessFromRole(ctx, permission.Name, permission.Type, g.AccountID)
+				if err != nil && !errors.Is(err, ErrPermissionNotExist) {
 					return err
 				}
 			}
@@ -229,20 +233,41 @@ func (p *Provider) getIamClient(pc *domain.ProviderConfig) (AliCloudIamClient, e
 	return client, nil
 }
 
-func getPolicyTypeFromGrant(pc *domain.ProviderConfig, g domain.Grant) (string, error) {
-	if g.Role == "" {
-		return "", ErrEmptyGrantRole
+func getListPermissionsFromGrant(pc *domain.ProviderConfig, g domain.Grant) ([]*Permission, error) {
+	if g.Resource == nil {
+		return nil, errors.New("grant resource is nil")
 	}
 
-	for _, resource := range pc.Resources {
-		for _, role := range resource.Roles {
-			if role.ID == g.Role {
-				return role.Type, nil
-			}
+	var selectedResource *domain.ResourceConfig
+	for _, r := range pc.Resources {
+		if r.Type == g.Resource.Type {
+			selectedResource = r
+			break
+		}
+	}
+	if selectedResource == nil {
+		return nil, fmt.Errorf("resource with type '%v' at resource id '%v' does not exist", g.Resource.Type, g.ResourceID)
+	}
+
+	var selectedRole *domain.Role
+	for _, r := range selectedResource.Roles {
+		if r.ID == g.Role {
+			selectedRole = r
+			break
+		}
+	}
+	if selectedRole == nil {
+		return nil, fmt.Errorf("role '%v' at resource with id '%v' does not exist", g.Role, g.ResourceID)
+	}
+
+	permissions := make([]*Permission, len(selectedRole.Permissions))
+	for i, rawPerm := range selectedRole.Permissions {
+		if err := mapstructure.Decode(rawPerm, &permissions[i]); err != nil {
+			return nil, err
 		}
 	}
 
-	return "", ErrGrantRoleNotFoundAtResource
+	return permissions, nil
 }
 
 func getAccountTypes() []string {

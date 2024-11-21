@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/bearaujus/bptr"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/domain"
@@ -62,6 +63,11 @@ func (c *Credentials) Decrypt(decryptor domain.Decryptor) error {
 	return nil
 }
 
+type Permission struct {
+	Name string `mapstructure:"name" json:"name" validate:"required"`
+	Type string `mapstructure:"type" json:"type" validate:"required,oneof=System Custom"`
+}
+
 type Config struct {
 	ProviderConfig *domain.ProviderConfig
 	valid          bool
@@ -112,7 +118,7 @@ func (c *Config) ParseAndValidate() error {
 	}
 
 	uniqueResourceTypes := make(map[string]bool)
-	for i, rc := range c.ProviderConfig.Resources {
+	for _, rc := range c.ProviderConfig.Resources {
 		// Validate resource type
 		var valid bool
 		for _, resourceType := range getResourceTypes() {
@@ -131,32 +137,22 @@ func (c *Config) ParseAndValidate() error {
 		}
 		uniqueResourceTypes[rc.Type] = true
 
-		// Validate resource role
+		// Validate empty resource role
 		if len(rc.Roles) == 0 {
 			return fmt.Errorf("role at resource '%v' is empty", rc.Type)
 		}
 
 		uniqueRoleId := make(map[string]bool)
-		for j, role := range rc.Roles {
+		for _, role := range rc.Roles {
 			// Validate unique resource role
 			if _, exist := uniqueRoleId[role.ID]; exist {
 				return fmt.Errorf("role id '%v' at resource '%v' is duplicate", role.ID, rc.Type)
 			}
 			uniqueRoleId[role.ID] = true
 
-			// Validate permission
+			// Validate empty permission
 			if len(role.Permissions) == 0 {
 				return fmt.Errorf("role permission at resource '%v' and role id '%v' is empty", rc.Type, role.ID)
-			}
-			for _, perm := range role.GetOrderedPermissions() {
-				if perm == "" {
-					return fmt.Errorf("role permission at resource '%v' and role id '%v' has contain empty value", rc.Type, role.ID)
-				}
-			}
-
-			// Set default role type to system when role type is empty
-			if role.Type == "" {
-				c.ProviderConfig.Resources[i].Roles[j].Type = PolicyTypeSystem
 			}
 		}
 	}
@@ -197,32 +193,33 @@ func (c *Config) validatePermissions(ctx context.Context, resource *domain.Resou
 	}
 
 	for _, role := range resource.Roles {
-		for _, perm := range role.GetOrderedPermissions() {
-			switch role.Type {
-			case PolicyTypeSystem:
-				valid := false
-				for _, policy := range systemPolicies {
-					if *policy.PolicyName == perm {
-						valid = true
-						break
-					}
+		for _, rawPermission := range role.Permissions {
+			var permission Permission
+			err = mapstructure.Decode(rawPermission, &permission)
+			if err != nil {
+				return fmt.Errorf("role permission '%v' at resource '%v' and role id '%v' is invalid format", rawPermission, resource.Type, role.ID)
+			}
+
+			err = c.validator.Struct(permission)
+			if err != nil {
+				return fmt.Errorf("role permission '%v' at resource '%v' and role id '%v' has fail on validation. err: %v", rawPermission, resource.Type, role.ID, err.Error())
+			}
+
+			selectedPolicies := systemPolicies
+			if permission.Type == PolicyTypeCustom {
+				selectedPolicies = customPolicies
+			}
+
+			var valid bool
+			for _, policy := range selectedPolicies {
+				if bptr.ToStringSafe(policy.PolicyName) == permission.Name {
+					valid = true
+					break
 				}
-				if !valid {
-					return fmt.Errorf("role permission '%v' with type '%v' at resource '%v' and role id '%v' is invalid", perm, PolicyTypeSystem, resource.Type, role.ID)
-				}
-			case PolicyTypeCustom:
-				valid := false
-				for _, policy := range customPolicies {
-					if *policy.PolicyName == perm {
-						valid = true
-						break
-					}
-				}
-				if !valid {
-					return fmt.Errorf("role permission '%v' with type '%v' at resource '%v' and role id '%v' is invalid", perm, PolicyTypeCustom, resource.Type, role.ID)
-				}
-			default:
-				return ErrInvalidPolicyType
+			}
+
+			if !valid {
+				return fmt.Errorf("role permission '%v' with type '%v' at resource '%v' and role id '%v' is invalid", permission.Name, permission.Type, resource.Type, role.ID)
 			}
 		}
 	}

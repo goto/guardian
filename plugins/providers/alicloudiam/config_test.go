@@ -325,36 +325,6 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 			wantErr:    true,
 		},
 		{
-			name: "error contain empty resource role permission value",
-			field: field{
-				pc: &domain.ProviderConfig{
-					Credentials: &alicloudiam.Credentials{
-						AccessKeyID:     testEncodedAccessKeyID,
-						AccessKeySecret: testEncodedAccessKeySecret,
-						ResourceName:    "test-resource-name",
-					},
-					Resources: []*domain.ResourceConfig{
-						{
-							Type: alicloudiam.ResourceTypeAccount,
-							Roles: []*domain.Role{
-								{
-									ID:   "OSSReadAndOSSImportRead",
-									Name: "OSSReadAndOSSImportRead",
-									Permissions: []interface{}{
-										"",
-										"AliyunOSSImportReadOnlyAccess",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			mock:       nil,
-			assertFunc: nil,
-			wantErr:    true,
-		},
-		{
 			name: "error contain duplicate resource type",
 			field: field{
 				pc: &domain.ProviderConfig{
@@ -465,8 +435,6 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 			assertFunc: func(c *alicloudiam.Config) {
 				// try to re-call it
 				assert.NoError(t, c.ParseAndValidate())
-				// check auto set policy type
-				assert.Equal(t, c.ProviderConfig.Resources[0].Roles[0].Type, alicloudiam.PolicyTypeSystem)
 			},
 			wantErr: false,
 		},
