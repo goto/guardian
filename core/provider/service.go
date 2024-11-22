@@ -635,7 +635,17 @@ func (s *Service) compareResources(ctx context.Context, existingResources map[st
 			continue
 		}
 		delete(existingResources, new.GlobalURN)
-
+		if existingDetails := existing.Details; existingDetails != nil {
+			if new.Details != nil {
+				for key, value := range existingDetails {
+					if _, ok := new.Details[key]; !ok {
+						new.Details[key] = value
+					}
+				}
+			} else {
+				new.Details = existingDetails
+			}
+		}
 		if len(new.Children) == 0 {
 			isUpdated, diff := compareResource(*existing, *new)
 			if !isUpdated {
