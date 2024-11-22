@@ -28,6 +28,12 @@ type iamClient struct {
 	roleToAssume    string
 }
 
+// NewIamClient initializes a new instance of AliCloudIamClient.
+//
+// This function creates and configures an `iamClient` with the provided credentials
+// and resource information. If a role ARN (`roleToAssume`) is specified, it will
+// be included in the configuration for assuming a RAM role. The function also
+// validates the configuration by attempting to create a new RAM client instance.
 func NewIamClient(accessKeyID, accessKeySecret, resourceName, roleToAssume string) (AliCloudIamClient, error) {
 	c := &iamClient{
 		resourceName:    resourceName,
@@ -36,7 +42,7 @@ func NewIamClient(accessKeyID, accessKeySecret, resourceName, roleToAssume strin
 		roleToAssume:    roleToAssume,
 	}
 
-	// Test create new request client
+	// Validate the configuration by attempting to create a new request client
 	_, err := c.newRequestClient()
 	if err != nil {
 		return nil, err
@@ -171,14 +177,25 @@ func (c *iamClient) GetAllPoliciesByType(_ context.Context, policyType string, m
 	return result, nil
 }
 
+// newRequestClient creates a new RAM client instance for each request.
+//
+// AliCloud SDK clients are not concurrency-safe due to their use of a builder pattern
+// for sending and receiving requests. To avoid race conditions, we must create a
+// new client instance for every request.
+//
+// The client uses RAM (Resource Access Management) credentials to authenticate with AliCloud.
+// By default, it uses access key credentials. If a role ARN (`roleToAssume`) is specified,
+// it assumes that role to generate temporary session credentials.
 func (c *iamClient) newRequestClient() (*ram.Client, error) {
-	// Use ram user credentials by default
+	// Default to access key credentials (RAM User)
 	credentialConfig := &credentials.Config{
 		Type:            bptr.FromString("access_key"),
 		AccessKeyId:     &c.accessKeyId,
 		AccessKeySecret: &c.accessKeySecret,
 	}
-	if c.roleToAssume != "" { // Use ram role credentials if roleToAssume is present
+
+	// If a role to assume is specified, configure credentials to assume the role (RAM Role)
+	if c.roleToAssume != "" {
 		credentialConfig.Type = bptr.FromString("ram_role_arn")
 		credentialConfig.RoleArn = &c.roleToAssume
 		credentialConfig.RoleSessionName = bptr.FromString("session2")
