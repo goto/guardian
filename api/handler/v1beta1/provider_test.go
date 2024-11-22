@@ -336,6 +336,7 @@ func (s *GrpcHandlersSuite) TestCreateProvider() {
 							{
 								ID:   "test-role-id",
 								Name: "test-name",
+								Type: "test-type",
 							},
 						},
 					},
@@ -374,6 +375,7 @@ func (s *GrpcHandlersSuite) TestCreateProvider() {
 								{
 									Id:   "test-role-id",
 									Name: "test-name",
+									Type: "test-type",
 								},
 							},
 						},
@@ -418,6 +420,7 @@ func (s *GrpcHandlersSuite) TestCreateProvider() {
 							{
 								Id:   "test-role-id",
 								Name: "test-name",
+								Type: "test-type",
 							},
 						},
 					},
