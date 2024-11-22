@@ -207,7 +207,7 @@ func TestGetResources(t *testing.T) {
 			},
 		}
 		expectedError := errors.New("client error")
-		client.On("GetTeams", mock.Anything).Return(nil, expectedError).Once()
+		client.On("GetGroups", mock.Anything).Return(nil, expectedError).Once()
 
 		actualResources, actualError := p.GetResources(context.TODO(), pc)
 
@@ -293,7 +293,7 @@ func TestGetResources(t *testing.T) {
 				},
 			},
 		}
-		expectedTeams := []*shield.Team{
+		expectedTeams := []*shield.Group{
 			{
 				ID:    "team_id",
 				Name:  "team_1",
@@ -306,7 +306,7 @@ func TestGetResources(t *testing.T) {
 				Admins: []string{"testTeamAdmin@gmail.com"},
 			},
 		}
-		client.On("GetTeams", mock.Anything).Return(expectedTeams, nil).Once()
+		client.On("GetGroups", mock.Anything).Return(expectedTeams, nil).Once()
 
 		expectedProjects := []*shield.Project{
 			{
@@ -480,7 +480,7 @@ func TestGrantAccess(t *testing.T) {
 			}
 
 			client.On("GetSelfUser", mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedUserEmail).Return(expectedUser, nil).Once()
-			client.On("GrantTeamAccess", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedError).Once()
+			client.On("GrantGroupAccess", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedError).Once()
 
 			pc := &domain.ProviderConfig{
 				Credentials: shield.Credentials{
@@ -530,7 +530,7 @@ func TestGrantAccess(t *testing.T) {
 			providerURN := "test-provider-urn"
 			logger := log.NewCtxLogger("info", []string{"test"})
 			client := new(mocks.ShieldClient)
-			expectedTeam := &shield.Team{
+			expectedTeam := &shield.Group{
 				Name: "team_1",
 				ID:   "team_id",
 			}
@@ -548,7 +548,7 @@ func TestGrantAccess(t *testing.T) {
 				providerURN: client,
 			}
 			client.On("GetSelfUser", mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedUserEmail).Return(expectedUser, nil).Once()
-			client.On("GrantTeamAccess", expectedTeam, expectedUser.ID, expectedRole).Return(nil).Once()
+			client.On("GrantGroupAccess", expectedTeam, expectedUser.ID, expectedRole).Return(nil).Once()
 
 			pc := &domain.ProviderConfig{
 				Credentials: shield.Credentials{
@@ -945,7 +945,7 @@ func TestRevokeAccess(t *testing.T) {
 			}
 
 			client.On("GetSelfUser", mockCtx, expectedUserEmail).Return(expectedUser, nil).Once()
-			client.On("RevokeTeamAccess", mockCtx, mock.Anything, mock.Anything, mock.Anything).Return(expectedError).Once()
+			client.On("RevokeGroupAccess", mockCtx, mock.Anything, mock.Anything, mock.Anything).Return(expectedError).Once()
 
 			pc := &domain.ProviderConfig{
 				Credentials: shield.Credentials{
@@ -995,7 +995,7 @@ func TestRevokeAccess(t *testing.T) {
 			providerURN := "test-provider-urn"
 			logger := log.NewCtxLogger("info", []string{"test"})
 			client := new(mocks.ShieldClient)
-			expectedTeam := &shield.Team{
+			expectedTeam := &shield.Group{
 				Name:  "team_1",
 				ID:    "team_id",
 				OrgId: "456",
@@ -1021,7 +1021,7 @@ func TestRevokeAccess(t *testing.T) {
 			}
 
 			client.On("GetSelfUser", mockCtx, expectedUserEmail).Return(expectedUser, nil).Once()
-			client.On("RevokeTeamAccess", mockCtx, expectedTeam, expectedUser.ID, expectedRole).Return(nil).Once()
+			client.On("RevokeGroupAccess", mockCtx, expectedTeam, expectedUser.ID, expectedRole).Return(nil).Once()
 
 			pc := &domain.ProviderConfig{
 				Credentials: shield.Credentials{
@@ -1412,5 +1412,59 @@ func TestGetRoles(t *testing.T) {
 
 		assert.NoError(t, actualError)
 		assert.Equal(t, expectedRoles, actualRoles)
+	})
+}
+func TestGetClient(t *testing.T) {
+	t.Run("should return existing client if already present", func(t *testing.T) {
+		providerURN := "test-provider-urn"
+		expectedClient := new(mocks.ShieldClient)
+		logger := log.NewCtxLogger("info", []string{"test"})
+		p := shield.NewProvider("shield", logger)
+		p.Clients = map[string]shield.ShieldClient{
+			providerURN: expectedClient,
+		}
+
+		creds := shield.Credentials{
+			Host:       "localhost",
+			AuthEmail:  "test-email",
+			AuthHeader: "test-header",
+		}
+
+		actualClient, err := p.GetClient(providerURN, creds)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedClient, actualClient)
+	})
+
+	t.Run("should return new client of old shield if not already present", func(t *testing.T) {
+		providerURN := "test-provider-urn"
+		logger := log.NewCtxLogger("info", []string{"test"})
+		p := shield.NewProvider("", logger)
+
+		creds := shield.Credentials{
+			Host:       "http://localhost.com",
+			AuthEmail:  "test-email",
+			AuthHeader: "test-header",
+		}
+
+		_, err := p.GetClient(providerURN, creds)
+		assert.NoError(t, err)
+	})
+
+	t.Run("should return new client of new shield if not already present", func(t *testing.T) {
+		providerURN := "test-provider-urn"
+		logger := log.NewCtxLogger("info", []string{"test"})
+		p := shield.NewProvider("", logger)
+
+		creds := shield.Credentials{
+			Host:          "http://localhost.com",
+			AuthEmail:     "test-email",
+			ClientVersion: "new",
+			AuthHeader:    "test-header",
+		}
+
+		_, err := p.GetClient(providerURN, creds)
+
+		assert.NoError(t, err)
 	})
 }
