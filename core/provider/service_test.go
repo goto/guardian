@@ -116,7 +116,7 @@ func (s *ServiceTestSuite) TestCreate() {
 		expectedError := errors.New("error from repository")
 		s.mockProvider.On("GetAccountTypes").Return([]string{"user"}).Once()
 		s.mockProvider.On("CreateConfig", mock.Anything).Return(nil).Once()
-		s.mockProviderRepository.EXPECT().Create(mockCtx, mock.Anything).Return(expectedError).Once()
+		s.mockProviderRepository.On("Create", mockCtx, mock.Anything).Return(expectedError).Once()
 
 		actualError := s.service.Create(context.Background(), p)
 
@@ -281,7 +281,7 @@ func (s *ServiceTestSuite) TestUpdate() {
 		for _, tc := range testCases {
 			s.mockProvider.On("GetAccountTypes").Return([]string{"user"}).Once()
 			s.mockProvider.On("CreateConfig", mock.Anything).Return(nil).Once()
-			s.mockProviderRepository.EXPECT().Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), tc.expectedNewProvider).Return(nil)
+			s.mockProviderRepository.On("Update", mock.MatchedBy(func(ctx context.Context) bool { return true }), tc.expectedNewProvider).Return(nil)
 			s.mockAuditLogger.On("Log", mock.Anything, provider.AuditKeyUpdate, mock.Anything).Return(nil).Once()
 
 			expectedResources := []*domain.Resource{}
@@ -430,7 +430,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 		}
 
 		expectedProvider := providers[0]
-		s.mockProviderRepository.EXPECT().Find(mockCtx).Return([]*domain.Provider{expectedProvider}, nil).Once()
+		s.mockProviderRepository.On("Find", mockCtx).Return([]*domain.Provider{expectedProvider}, nil).Once()
 		s.mockProvider.EXPECT().GetResources(mockCtx, expectedProvider.Config).Return(newResources, nil).Once()
 		s.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(existingResources, nil).Once()
 		actualError := s.service.FetchResources(context.Background())
@@ -544,8 +544,9 @@ func (s *ServiceTestSuite) TestFetchResources() {
 		expectedProvider := providers[0]
 		s.mockProviderRepository.EXPECT().Find(mockCtx).Return([]*domain.Provider{expectedProvider}, nil).Once()
 		s.mockProvider.EXPECT().GetResources(mockCtx, expectedProvider.Config).Return(newResources, nil).Once()
-		s.mockResourceService.EXPECT().BulkUpsert(mock.Anything, mock.AnythingOfType("[]*domain.Resource")).
-			Run(func(_a0 context.Context, resources []*domain.Resource) {
+		s.mockResourceService.On("BulkUpsert", mock.Anything, mock.AnythingOfType("[]*domain.Resource")).
+			Run(func(args mock.Arguments) {
+				resources := args.Get(1).([]*domain.Resource)
 				s.Empty(cmp.Diff(expectedResources, resources, cmpopts.IgnoreFields(domain.Resource{}, "ID", "CreatedAt", "UpdatedAt")))
 			}).Return(nil).Once()
 		s.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(existingResources, nil).Once()
@@ -647,7 +648,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 				}},
 			},
 		}
-		s.mockProviderRepository.EXPECT().Find(mockCtx).Return(providersWithResourceFilter, nil).Once()
+		s.mockProviderRepository.On("Find", mockCtx).Return(providersWithResourceFilter, nil).Once()
 		expectedResources := []*domain.Resource{}
 		for _, p := range providersWithResourceFilter {
 			resources := []*domain.Resource{
@@ -666,7 +667,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 			s.mockProvider.On("GetResources", mockCtx, p.Config).Return(resources, nil).Once()
 			expectedResources = append(expectedResources, resources[1])
 		}
-		s.mockResourceService.On("BulkUpsert", mock.Anything, expectedResources).Return(nil)
+		s.mockResourceService.On("BulkUpsert", mock.Anything, expectedResources).Return(nil).Once()
 		s.mockResourceService.On("Find", mock.Anything, mock.Anything).Return([]*domain.Resource{}, nil).Once()
 		actualError := s.service.FetchResources(context.Background())
 
