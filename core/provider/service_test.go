@@ -361,7 +361,9 @@ func (s *ServiceTestSuite) TestFetchResources() {
 	s.Run("should return error if got any from resource service", func() {
 		s.mockProviderRepository.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(providers, nil).Once()
 		for _, p := range providers {
-			s.mockProvider.On("GetResources", mockCtx, p.Config).Return([]*domain.Resource{}, nil).Once()
+			s.mockProvider.On("GetResources", mockCtx, p.Config).Return([]*domain.Resource{
+				{ID: "test"},
+			}, nil).Once()
 		}
 		expectedError := errors.New("failed to add resources for providers: [mock_provider]")
 		s.mockResourceService.On("BulkUpsert", mock.Anything, mock.Anything).Return(expectedError).Once()
@@ -369,6 +371,67 @@ func (s *ServiceTestSuite) TestFetchResources() {
 		actualError := s.service.FetchResources(context.Background())
 
 		s.EqualError(actualError, expectedError.Error())
+	})
+
+	s.Run("should not upsert any resources when there is no changes", func() {
+		existingResources := []*domain.Resource{
+			{
+				ID:           "12ß",
+				ProviderType: mockProviderType,
+				ProviderURN:  mockProvider,
+				Type:         "test-resource-type",
+				URN:          "test-resource-urn-2",
+			},
+			{
+				ID:           "1",
+				ProviderType: mockProviderType,
+				ProviderURN:  mockProvider,
+				Type:         "test-resource-type",
+				URN:          "test-resource-urn-1",
+				Details: map[string]interface{}{
+					"owner": "test-owner",
+					resource.ReservedDetailsKeyMetadata: map[string]interface{}{
+						"labels": map[string]string{
+							"foo": "bar",
+							"baz": "qux",
+						},
+						"x": "y",
+					},
+				},
+			},
+		}
+		newResources := []*domain.Resource{
+			{
+				ProviderType: mockProviderType,
+				ProviderURN:  mockProvider,
+				Type:         "test-resource-type",
+				URN:          "test-resource-urn-1",
+				Details: map[string]interface{}{
+					resource.ReservedDetailsKeyMetadata: map[string]interface{}{
+						"labels": map[string]string{
+							"foo": "bar",
+							"baz": "qux",
+						},
+						"x": "y",
+					},
+				},
+			},
+			{
+				ID:           "12ß",
+				ProviderType: mockProviderType,
+				ProviderURN:  mockProvider,
+				Type:         "test-resource-type",
+				URN:          "test-resource-urn-2",
+			},
+		}
+
+		expectedProvider := providers[0]
+		s.mockProviderRepository.EXPECT().Find(mockCtx).Return([]*domain.Provider{expectedProvider}, nil).Once()
+		s.mockProvider.EXPECT().GetResources(mockCtx, expectedProvider.Config).Return(newResources, nil).Once()
+		s.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(existingResources, nil).Once()
+		actualError := s.service.FetchResources(context.Background())
+
+		s.Nil(actualError)
 	})
 
 	s.Run("should upsert all resources on success", func() {

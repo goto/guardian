@@ -61,7 +61,7 @@ type AppealConfig struct {
 }
 
 type ProviderConfig struct {
-	Type                string               `json:"type" yaml:"type" validate:"required,oneof=alicloud_iam google_bigquery metabase grafana tableau gcloud_iam noop gcs"`
+	Type                string               `json:"type" yaml:"type" validate:"required,oneof=alicloud_iam google_bigquery metabase grafana tableau gcloud_iam noop gcs shield"`
 	URN                 string               `json:"urn" yaml:"urn" validate:"required"`
 	AllowedAccountTypes []string             `json:"allowed_account_types" yaml:"allowed_account_types" validate:"omitempty,min=1"`
 	Labels              map[string]string    `json:"labels,omitempty" yaml:"labels,omitempty"`

@@ -2,8 +2,11 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/goto/guardian/domain"
 )
 
@@ -35,6 +38,31 @@ func (m PermissionManager) GetPermissions(pc *domain.ProviderConfig, resourceTyp
 		return nil, ErrInvalidRole
 	}
 	return nil, ErrInvalidResourceType
+}
+
+func normalizeDetails(details map[string]interface{}) (map[string]interface{}, error) {
+	jsonData, err := json.Marshal(details)
+	if err != nil {
+		return nil, err
+	}
+
+	var normalized map[string]interface{}
+	if err := json.Unmarshal(jsonData, &normalized); err != nil {
+		return nil, err
+	}
+
+	return normalized, nil
+}
+
+func compareResources(existingResource, newResource domain.Resource) (bool, string) {
+	opts := cmp.Options{
+		cmpopts.IgnoreFields(domain.Resource{}, "ID", "CreatedAt", "UpdatedAt", "ParentID", "Children"),
+		cmpopts.EquateEmpty(),
+	}
+	existingResource.Details, _ = normalizeDetails(existingResource.Details)
+	newResource.Details, _ = normalizeDetails(newResource.Details)
+	diff := cmp.Diff(existingResource, newResource, opts)
+	return diff != "", diff
 }
 
 type UnimplementedClient struct{}

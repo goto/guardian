@@ -152,7 +152,7 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 	go func() {
 		s.logger.Info(ctx, "provider create fetching resources", "provider_urn", p.URN)
 		ctx := audit.WithActor(context.Background(), domain.SystemActorName)
-		resources, err := s.getResources(ctx, p)
+		resources, _, err := s.fetchNewResources(ctx, p)
 		if err != nil {
 			s.logger.Error(ctx, "failed to fetch resources", "error", err)
 		}
@@ -236,7 +236,7 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 	go func() {
 		s.logger.Info(ctx, "provider update fetching resources", "provider_urn", p.URN)
 		ctx := audit.WithActor(context.Background(), domain.SystemActorName)
-		resources, err := s.getResources(ctx, p)
+		resources, _, err := s.fetchNewResources(ctx, p)
 		if err != nil {
 			s.logger.Error(ctx, "failed to fetch resources", "error", err)
 		}
@@ -260,14 +260,21 @@ func (s *Service) FetchResources(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
 	failedProviders := map[string]error{}
+	totalFetchedResourcesCount := 0
+	updatedResourcesCount := 0
 	for _, p := range providers {
 		startTime := time.Now()
 		s.logger.Info(ctx, "fetching resources", "provider_urn", p.URN)
-		resources, err := s.getResources(ctx, p)
+		resources, fetchedResourcesCount, err := s.fetchNewResources(ctx, p)
 		if err != nil {
 			s.logger.Error(ctx, "failed to get resources", "error", err)
+			continue
+		}
+		totalFetchedResourcesCount += fetchedResourcesCount
+		updatedResourcesCount += len(resources)
+		if len(resources) == 0 {
+			s.logger.Info(ctx, "no changes in this provider", "provider_urn", p.URN)
 			continue
 		}
 		s.logger.Info(ctx, "resources added", "provider_urn", p.URN, "count", len(flattenResources(resources)))
@@ -277,7 +284,7 @@ func (s *Service) FetchResources(ctx context.Context) error {
 		}
 		s.logger.Info(ctx, "fetching resources completed", "provider_urn", p.URN, "duration", time.Since(startTime))
 	}
-
+	s.logger.Info(ctx, "resources", "count", totalFetchedResourcesCount, "upserted", updatedResourcesCount)
 	if len(failedProviders) > 0 {
 		var urns []string
 		for providerURN, err := range failedProviders {
@@ -562,10 +569,10 @@ func (s *Service) IsExclusiveRoleAssignment(ctx context.Context, providerType, r
 	return false
 }
 
-func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*domain.Resource, error) {
+func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]*domain.Resource, int, error) {
 	c := s.getClient(p.Type)
 	if c == nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalidProviderType, p.Type)
+		return nil, 0, fmt.Errorf("%w: %v", ErrInvalidProviderType, p.Type)
 	}
 
 	existingGuardianResources, err := s.resourceService.Find(ctx, domain.ListResourcesFilter{
@@ -573,7 +580,7 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 		ProviderURN:  p.URN,
 	})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	resourceTypeFilterMap := make(map[string]string)
@@ -585,15 +592,14 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 
 	newProviderResources, err := c.GetResources(ctx, p.Config)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching resources for %v: %w", p.ID, err)
+		return nil, 0, fmt.Errorf("error fetching resources for %v: %w", p.ID, err)
 	}
-
 	filteredResources := make([]*domain.Resource, 0)
 	for _, r := range newProviderResources {
 		if filterExpression, ok := resourceTypeFilterMap[r.Type]; ok {
 			v, err := evaluator.Expression(filterExpression).EvaluateWithStruct(r)
 			if err != nil {
-				return nil, err
+				return nil, 0, err
 			}
 			if !reflect.ValueOf(v).IsZero() {
 				filteredResources = append(filteredResources, r)
@@ -602,40 +608,51 @@ func (s *Service) getResources(ctx context.Context, p *domain.Provider) ([]*doma
 			filteredResources = append(filteredResources, r)
 		}
 	}
-
 	flattenedProviderResources := flattenResources(filteredResources)
+
 	existingProviderResources := map[string]bool{}
-	for _, r := range flattenedProviderResources {
-		for _, er := range existingGuardianResources {
-			if er.Type == r.Type && er.URN == r.URN {
-				if existingDetails := er.Details; existingDetails != nil {
-					if r.Details != nil {
+	updatedResources := []*domain.Resource{}
+	for _, newResource := range flattenedProviderResources {
+		found := false
+		for _, existingResource := range existingGuardianResources {
+			if existingResource.Type == newResource.Type && existingResource.URN == newResource.URN {
+				found = true
+				if existingDetails := existingResource.Details; existingDetails != nil {
+					if newResource.Details != nil {
 						for key, value := range existingDetails {
-							if _, ok := r.Details[key]; !ok {
-								r.Details[key] = value
+							if _, ok := newResource.Details[key]; !ok {
+								newResource.Details[key] = value
 							}
 						}
 					} else {
-						r.Details = existingDetails
+						newResource.Details = existingDetails
+					}
+					if isUpdated, diff := compareResources(*existingResource, *newResource); isUpdated {
+						s.logger.Debug(ctx, "diff", "resources", diff)
+						updatedResources = append(updatedResources, newResource)
+						s.logger.Info(ctx, "resources is updated", "resource", newResource.URN)
 					}
 				}
-				existingProviderResources[er.ID] = true
+				existingProviderResources[existingResource.ID] = true
 				break
 			}
+		}
+		if !found {
+			updatedResources = append(updatedResources, newResource)
+			s.logger.Info(ctx, "new resource added", "resource", newResource.Name)
 		}
 	}
 
 	// mark IsDeleted of guardian resources that no longer exist in provider
-	updatedResources := []*domain.Resource{}
 	for _, r := range existingGuardianResources {
 		if _, ok := existingProviderResources[r.ID]; !ok {
 			r.IsDeleted = true
 			updatedResources = append(updatedResources, r)
+			s.logger.Info(ctx, "resource deleted", "resource", r.Name)
 		}
 	}
 
-	newProviderResources = append(filteredResources, updatedResources...)
-	return newProviderResources, nil
+	return updatedResources, len(newProviderResources), nil
 }
 
 func (s *Service) validateAppealParam(a *domain.Appeal) error {
