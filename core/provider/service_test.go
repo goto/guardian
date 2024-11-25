@@ -129,12 +129,13 @@ func (s *ServiceTestSuite) TestCreate() {
 		s.mockProviderRepository.EXPECT().Create(mockCtx, p).Return(nil).Once()
 		s.mockAuditLogger.On("Log", mock.Anything, provider.AuditKeyCreate, mock.Anything).Return(nil).Once()
 
+		expectedResources := []*domain.Resource{}
 		s.mockResourceService.On("Find", mock.Anything, domain.ListResourcesFilter{
 			ProviderType: p.Type,
 			ProviderURN:  p.URN,
 		}).Return([]*domain.Resource{}, nil).Once()
-		s.mockProvider.On("GetResources", mockCtx, p.Config).Return([]*domain.Resource{}, nil).Once()
-		s.mockResourceService.On("BulkUpsert", mock.Anything, []*domain.Resource{}).Return(nil).Once()
+		s.mockProvider.On("GetResources", mockCtx, p.Config).Return(expectedResources, nil).Once()
+		s.mockResourceService.On("BulkUpsert", mock.Anything, []*domain.Resource(nil)).Return(nil).Once()
 
 		actualError := s.service.Create(context.Background(), p)
 
