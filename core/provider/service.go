@@ -613,6 +613,9 @@ func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]
 	}
 
 	newAndUpdatedResources := s.compareResources(ctx, mapExistingResources, filteredResources)
+	if len(newAndUpdatedResources) == 0 {
+		return []*domain.Resource{}, 0, nil
+	}
 	for _, deletedResource := range mapExistingResources {
 		deletedResource.IsDeleted = true
 		newAndUpdatedResources = append(newAndUpdatedResources, deletedResource)
@@ -624,7 +627,7 @@ func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]
 
 func (s *Service) compareResources(ctx context.Context, existingResources map[string]*domain.Resource, newResources []*domain.Resource) []*domain.Resource {
 	// (*existingProviderResources)[newResource.GlobalURN] = true
-	res := []*domain.Resource{}
+	var res []*domain.Resource
 	for _, new := range newResources {
 		new.Children = s.compareResources(ctx, existingResources, new.Children)
 
