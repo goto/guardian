@@ -624,7 +624,7 @@ func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]
 
 func (s *Service) compareResources(ctx context.Context, existingResources map[string]*domain.Resource, newResources []*domain.Resource) []*domain.Resource {
 	// (*existingProviderResources)[newResource.GlobalURN] = true
-	var res []*domain.Resource
+	res := []*domain.Resource{}
 	for _, new := range newResources {
 		new.Children = s.compareResources(ctx, existingResources, new.Children)
 

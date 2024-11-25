@@ -135,7 +135,7 @@ func (s *ServiceTestSuite) TestCreate() {
 			ProviderURN:  p.URN,
 		}).Return([]*domain.Resource{}, nil).Once()
 		s.mockProvider.On("GetResources", mockCtx, p.Config).Return(expectedResources, nil).Once()
-		s.mockResourceService.On("BulkUpsert", mock.Anything, []*domain.Resource(nil)).Return(nil).Once()
+		s.mockResourceService.On("BulkUpsert", mock.Anything, expectedResources).Return(nil).Once()
 
 		actualError := s.service.Create(context.Background(), p)
 
