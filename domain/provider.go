@@ -7,17 +7,18 @@ import (
 )
 
 const (
-	ProviderTypeBigQuery  = "bigquery"
-	ProviderTypeMetabase  = "metabase"
-	ProviderTypeGrafana   = "grafana"
-	ProviderTypeTableau   = "tableau"
-	ProviderTypeGCloudIAM = "gcloud_iam"
-	ProviderTypeNoOp      = "noop"
-	ProviderTypeGCS       = "gcs"
-	ProviderTypePolicyTag = "dataplex"
-	ProviderTypeShield    = "shield"
-	ProviderTypeGitlab    = "gitlab"
-	ProviderTypeGate      = "gate"
+	ProviderTypeBigQuery   = "bigquery"
+	ProviderTypeMetabase   = "metabase"
+	ProviderTypeGrafana    = "grafana"
+	ProviderTypeTableau    = "tableau"
+	ProviderTypeGCloudIAM  = "gcloud_iam"
+	ProviderTypeNoOp       = "noop"
+	ProviderTypeGCS        = "gcs"
+	ProviderTypePolicyTag  = "dataplex"
+	ProviderTypeShield     = "shield"
+	ProviderTypeGitlab     = "gitlab"
+	ProviderTypeGate       = "gate"
+	ProviderTypeMaxCompute = "maxcompute"
 )
 
 // Role is the configuration to define a role and mapping the permissions in the provider
