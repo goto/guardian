@@ -313,7 +313,7 @@ func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client,
 	if err != nil {
 		return nil, err
 	}
-	clientConfig, err := p.getClientConfig(creds)
+	clientConfig, err := p.getClientConfig(pc.URN, creds)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +337,7 @@ func (p *provider) getOdpsClient(pc *domain.ProviderConfig) (*odps.Odps, error) 
 	if err != nil {
 		return nil, err
 	}
-	clientConfig, err := p.getClientConfig(creds)
+	clientConfig, err := p.getClientConfig(pc.URN, creds)
 	if err != nil {
 		return nil, err
 	}
