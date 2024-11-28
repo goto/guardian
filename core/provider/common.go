@@ -54,7 +54,7 @@ func normalizeDetails(details map[string]interface{}) (map[string]interface{}, e
 	return normalized, nil
 }
 
-func compareResources(existingResource, newResource domain.Resource) (bool, string) {
+func compareResource(existingResource, newResource domain.Resource) (bool, string) {
 	opts := cmp.Options{
 		cmpopts.IgnoreFields(domain.Resource{}, "ID", "CreatedAt", "UpdatedAt", "ParentID", "Children"),
 		cmpopts.EquateEmpty(),
