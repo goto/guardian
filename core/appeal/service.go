@@ -1489,9 +1489,14 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 		}
 	}
 
+	g := a.Grant
+	appealCopy := *a
+	appealCopy.Grant = nil
+	g.Appeal = &appealCopy
 	if err := s.providerService.GrantAccess(ctx, *a.Grant); err != nil {
 		return fmt.Errorf("granting access: %w", err)
 	}
+	g.Appeal = nil
 
 	return nil
 }

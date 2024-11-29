@@ -2,6 +2,7 @@ package maxcompute
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/utils"
@@ -14,6 +15,8 @@ const (
 
 	resourceTypeProject = "project"
 	resourceTypeTable   = "table"
+
+	parameterRAMRoleKey = "ram_role"
 )
 
 var (
@@ -68,6 +71,13 @@ func (c *config) validate() error {
 					return fmt.Errorf("unexpected permission type: %T, expected: string", permission)
 				}
 			}
+		}
+	}
+
+	// validate parameters
+	for _, param := range c.Parameters {
+		if !slices.Contains([]string{parameterRAMRoleKey}, param.Key) {
+			return fmt.Errorf("parameter key %q is not supported", param.Key)
 		}
 	}
 
