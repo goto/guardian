@@ -225,7 +225,29 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		project := g.Resource.URN
 		securityManager := client.Project(project).SecurityManager()
 
-		mcRoles := strings.Join(g.Permissions, ", ")
+		revokeFromProjectMember := false
+		var permissions []string
+		for _, p := range g.Permissions {
+			if p == "member" {
+				revokeFromProjectMember = true
+				continue
+			}
+			permissions = append(permissions, p)
+		}
+
+		if revokeFromProjectMember {
+			query := fmt.Sprintf("REMOVE USER %s", g.AccountID)
+			job, err := securityManager.Run(query, true, "")
+			if err != nil {
+				return fmt.Errorf("failed to add %q as member in %q: %v", g.AccountID, project, err)
+			}
+
+			if _, err := job.WaitForSuccess(); err != nil {
+				return fmt.Errorf("failed to add %q as member in %q: %v", g.AccountID, project, err)
+			}
+		}
+
+		mcRoles := strings.Join(permissions, ", ")
 		query := fmt.Sprintf("REVOKE %s FROM %s", mcRoles, g.AccountID)
 		job, err := securityManager.Run(query, true, "")
 		if err != nil {
