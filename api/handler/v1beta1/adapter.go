@@ -101,6 +101,17 @@ func (a *adapter) FromProviderConfigProto(pc *guardianv1beta1.ProviderConfig) *d
 		providerConfig.AllowedAccountTypes = pc.GetAllowedAccountTypes()
 	}
 
+	if pc.GetPolicies() != nil {
+		policies := []*domain.ProviderPolicy{}
+		for _, p := range pc.GetPolicies() {
+			policies = append(policies, &domain.ProviderPolicy{
+				When:   p.GetWhen(),
+				Policy: p.GetPolicy(),
+			})
+		}
+		providerConfig.Policies = policies
+	}
+
 	return providerConfig
 }
 
@@ -187,6 +198,17 @@ func (a *adapter) ToProviderConfigProto(pc *domain.ProviderConfig) (*guardianv1b
 
 	if pc.AllowedAccountTypes != nil {
 		providerConfigProto.AllowedAccountTypes = pc.AllowedAccountTypes
+	}
+
+	if pc.Policies != nil {
+		policies := []*guardianv1beta1.ProviderPolicy{}
+		for _, p := range pc.Policies {
+			policies = append(policies, &guardianv1beta1.ProviderPolicy{
+				Policy: p.Policy,
+				When:   p.When,
+			})
+		}
+		providerConfigProto.Policies = policies
 	}
 
 	return providerConfigProto, nil

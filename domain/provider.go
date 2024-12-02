@@ -67,6 +67,7 @@ type ProviderConfig struct {
 	Resources           []*ResourceConfig    `json:"resources" yaml:"resources" validate:"required"`
 	Parameters          []*ProviderParameter `json:"parameters,omitempty" yaml:"parameters,omitempty"`
 	Activity            *ActivityConfig      `json:"activity,omitempty" yaml:"activity,omitempty"`
+	Policies            []*ProviderPolicy    `json:"policies,omitempty" yaml:"policies,omitempty"`
 }
 
 type ProviderParameter struct {
@@ -109,4 +110,9 @@ type ProviderType struct {
 type ActivityConfig struct {
 	Source  string
 	Options map[string]interface{}
+}
+
+type ProviderPolicy struct {
+	When   string `json:"when" yaml:"when"`
+	Policy string `json:"policy" yaml:"policy"`
 }
