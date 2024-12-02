@@ -1562,6 +1562,7 @@ func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[
 			}
 
 			dynamicPolicyConfigData = pc.Policy
+			break
 		}
 	}
 
@@ -1570,7 +1571,12 @@ func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[
 		policyData := strings.Split(dynamicPolicyConfigData, "@")
 		dynamicPolicyConfig.ID = policyData[0]
 		if len(policyData) > 1 {
-			version, err := strconv.Atoi(policyData[1])
+			var version int
+			if policyData[1] == "latest" {
+				version = 0
+			} else {
+				version, err = strconv.Atoi(policyData[1])
+			}
 			if err != nil {
 				return nil, fmt.Errorf("invalid policy version: %w", err)
 			}
