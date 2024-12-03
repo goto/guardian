@@ -84,6 +84,13 @@ func (pc ProviderConfig) GetResourceTypes() (resourceTypes []string) {
 	return
 }
 
+func (pc ProviderConfig) GetParameterKeys() (keys []string) {
+	for _, param := range pc.Parameters {
+		keys = append(keys, param.Key)
+	}
+	return
+}
+
 func (pc ProviderConfig) GetFilterForResourceType(resourceType string) string {
 	for _, resource := range pc.Resources {
 		if resource.Type == resourceType {

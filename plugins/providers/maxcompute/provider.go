@@ -1,7 +1,9 @@
 package maxcompute
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 	"slices"
 	"strings"
 	"sync"
@@ -12,6 +14,8 @@ import (
 	sts "github.com/alibabacloud-go/sts-20150401/client"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+	"github.com/aliyun/aliyun-odps-go-sdk/odps/restclient"
+	"github.com/aliyun/aliyun-odps-go-sdk/odps/security"
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
@@ -148,7 +152,14 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 }
 
 func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
-	ramRole, _ := getParametersFromGrant[string](g, parameterRAMRoleKey)
+	var ramRole string
+	if slices.Contains(pc.GetParameterKeys(), parameterRAMRoleKey) {
+		r, _, err := getParametersFromGrant[string](g, parameterRAMRoleKey)
+		if err != nil {
+			return fmt.Errorf("failed to get %q parameter value from grant: %w", parameterRAMRoleKey, err)
+		}
+		ramRole = r
+	}
 	client, err := p.getOdpsClient(pc, ramRole)
 	if err != nil {
 		return err
@@ -162,7 +173,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		addAsProjectMember := false
 		var permissions []string
 		for _, p := range g.Permissions {
-			if p == "member" {
+			if p == projectPermissionMember {
 				addAsProjectMember = true
 				continue
 			}
@@ -171,26 +182,28 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 
 		if addAsProjectMember {
 			query := fmt.Sprintf("ADD USER %s", g.AccountID)
-			job, err := securityManager.Run(query, true, "")
+			job, err := execQuery(securityManager, query)
 			if err != nil {
 				return fmt.Errorf("failed to add %q as member in %q: %v", g.AccountID, project, err)
 			}
-
-			if _, err := job.WaitForSuccess(); err != nil {
-				return fmt.Errorf("failed to add %q as member in %q: %v", g.AccountID, project, err)
+			if job != nil {
+				if _, err := job.WaitForSuccess(); err != nil {
+					return fmt.Errorf("failed to add %q as member in %q: %v", g.AccountID, project, err)
+				}
 			}
 		}
 
 		if len(permissions) > 0 {
 			mcRoles := strings.Join(permissions, ", ")
 			query := fmt.Sprintf("GRANT %s TO %s", mcRoles, g.AccountID)
-			job, err := securityManager.Run(query, true, "")
+			job, err := execQuery(securityManager, query)
 			if err != nil {
 				return fmt.Errorf("failed to grant %q to %q for %q: %v", mcRoles, project, g.AccountID, err)
 			}
-
-			if _, err := job.WaitForSuccess(); err != nil {
-				return fmt.Errorf("failed to grant %q to %q for %q: %v", mcRoles, project, g.AccountID, err)
+			if job != nil {
+				if _, err := job.WaitForSuccess(); err != nil {
+					return fmt.Errorf("failed to grant %q to %q for %q: %v", mcRoles, project, g.AccountID, err)
+				}
 			}
 		}
 	case resourceTypeTable:
@@ -198,7 +211,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		securityManager := client.Project(project).SecurityManager()
 
 		actions := strings.Join(g.Permissions, ", ")
-		query := fmt.Sprintf("GRANT %s ON TABLE %s TO USER %s", actions, g.Resource.URN, g.AccountID)
+		query := fmt.Sprintf("GRANT %s ON TABLE %s TO USER %s", actions, g.Resource.Name, g.AccountID)
 		job, err := securityManager.Run(query, true, "")
 		if err != nil {
 			return fmt.Errorf("failed to grant %q to %q for %q: %v", actions, g.Resource.URN, g.AccountID, err)
@@ -215,7 +228,14 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 }
 
 func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
-	ramRole, _ := getParametersFromGrant[string](g, parameterRAMRoleKey)
+	var ramRole string
+	if slices.Contains(pc.GetParameterKeys(), parameterRAMRoleKey) {
+		r, _, err := getParametersFromGrant[string](g, parameterRAMRoleKey)
+		if err != nil {
+			return fmt.Errorf("failed to get %q parameter value from grant: %w", parameterRAMRoleKey, err)
+		}
+		ramRole = r
+	}
 	client, err := p.getOdpsClient(pc, ramRole)
 	if err != nil {
 		return err
@@ -229,7 +249,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		revokeFromProjectMember := false
 		var permissions []string
 		for _, p := range g.Permissions {
-			if p == "member" {
+			if p == projectPermissionMember {
 				revokeFromProjectMember = true
 				continue
 			}
@@ -248,23 +268,24 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 			}
 		}
 
-		mcRoles := strings.Join(permissions, ", ")
-		query := fmt.Sprintf("REVOKE %s FROM %s", mcRoles, g.AccountID)
-		job, err := securityManager.Run(query, true, "")
-		if err != nil {
-			return fmt.Errorf("failed to revoke %q from %q for %q: %v", mcRoles, project, g.AccountID, err)
-		}
+		if len(permissions) > 0 {
+			mcRoles := strings.Join(permissions, ", ")
+			query := fmt.Sprintf("REVOKE %s FROM %s", mcRoles, g.AccountID)
+			job, err := securityManager.Run(query, true, "")
+			if err != nil {
+				return fmt.Errorf("failed to revoke %q from %q for %q: %v", mcRoles, project, g.AccountID, err)
+			}
 
-		if _, err := job.WaitForSuccess(); err != nil {
-			return fmt.Errorf("failed to revoke %q from %q for %q: %v", mcRoles, project, g.AccountID, err)
+			if _, err := job.WaitForSuccess(); err != nil {
+				return fmt.Errorf("failed to revoke %q from %q for %q: %v", mcRoles, project, g.AccountID, err)
+			}
 		}
-
 	case resourceTypeTable:
 		project := strings.Split(g.Resource.URN, ".")[0]
 		securityManager := client.Project(project).SecurityManager()
 
 		actions := strings.Join(g.Permissions, ", ")
-		query := fmt.Sprintf("REVOKE %s ON TABLE %s FROM USER %s", actions, g.Resource.URN, g.AccountID)
+		query := fmt.Sprintf("REVOKE %s ON TABLE %s FROM USER %s", actions, g.Resource.Name, g.AccountID)
 		job, err := securityManager.Run(query, true, "")
 		if err != nil {
 			return fmt.Errorf("failed to revoke %q from %q for %q: %v", actions, g.Resource.URN, g.AccountID, err)
@@ -278,6 +299,45 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 	}
 
 	return nil
+}
+
+func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, g domain.Grant) ([]*domain.Grant, error) {
+	if g.Resource.ProviderType != "maxcompute" {
+		return nil, fmt.Errorf("unsupported provider type: %q", g.Resource.ProviderType)
+	}
+
+	var projectName string
+	switch g.Resource.Type {
+	case resourceTypeProject:
+		if !slices.Contains(g.Permissions, projectPermissionMember) {
+			projectName = g.Resource.URN
+		}
+	case resourceTypeTable:
+		projectName = strings.Split(g.Resource.URN, ".")[0]
+	default:
+		return nil, fmt.Errorf("invalid resource type: %q", g.Resource.Type)
+	}
+
+	if projectName == "" {
+		return nil, nil
+	}
+
+	projectMember := &domain.Grant{
+		AccountID:   g.AccountID,
+		AccountType: g.AccountType,
+		Role:        projectPermissionMember,
+		Permissions: []string{projectPermissionMember},
+		IsPermanent: true,
+		AppealID:    g.AppealID,
+		Resource: &domain.Resource{
+			ProviderType: g.Resource.ProviderType,
+			ProviderURN:  g.Resource.ProviderURN,
+			Type:         resourceTypeProject,
+			URN:          projectName,
+		},
+	}
+
+	return []*domain.Grant{projectMember}, nil
 }
 
 func (p *provider) getCreds(pc *domain.ProviderConfig) (*credentials, error) {
@@ -392,8 +452,31 @@ func (p *provider) getOdpsClient(pc *domain.ProviderConfig, overrideRAMRole stri
 	return client, nil
 }
 
-func getParametersFromGrant[T any](g domain.Grant, key string) (T, bool) {
+func getParametersFromGrant[T any](g domain.Grant, key string) (T, bool, error) {
+	var value T
+	if g.Appeal == nil {
+		return value, false, fmt.Errorf("appeal is missing in grant")
+	}
 	appealParams, _ := g.Appeal.Details[domain.ReservedDetailsKeyProviderParameters].(map[string]any)
+	if appealParams == nil {
+		return value, false, nil
+	}
+
 	value, ok := appealParams[key].(T)
-	return value, ok
+	return value, ok, nil
+}
+
+func execQuery(sm security.Manager, query string) (*security.AuthQueryInstance, error) {
+	instance, err := sm.Run(query, true, "")
+	if err != nil {
+		var restErr restclient.HttpError
+		if errors.As(err, &restErr) {
+			if restErr.StatusCode == http.StatusConflict && restErr.ErrorMessage.ErrorCode == "ObjectAlreadyExists" {
+				return nil, nil
+			}
+		}
+		return nil, err
+	}
+
+	return instance, nil
 }

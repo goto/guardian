@@ -17,6 +17,8 @@ const (
 	resourceTypeTable   = "table"
 
 	parameterRAMRoleKey = "ram_role"
+
+	projectPermissionMember = "member"
 )
 
 var (
