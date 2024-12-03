@@ -76,6 +76,61 @@ func (_c *ProviderService_Find_Call) RunAndReturn(run func(context.Context) ([]*
 	return _c
 }
 
+// GetDependencyGrants provides a mock function with given fields: _a0, _a1
+func (_m *ProviderService) GetDependencyGrants(_a0 context.Context, _a1 domain.Grant) ([]*domain.Grant, error) {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 []*domain.Grant
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, domain.Grant) ([]*domain.Grant, error)); ok {
+		return rf(_a0, _a1)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, domain.Grant) []*domain.Grant); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*domain.Grant)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, domain.Grant) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProviderService_GetDependencyGrants_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDependencyGrants'
+type ProviderService_GetDependencyGrants_Call struct {
+	*mock.Call
+}
+
+// GetDependencyGrants is a helper method to define mock.On call
+//   - _a0 context.Context
+//   - _a1 domain.Grant
+func (_e *ProviderService_Expecter) GetDependencyGrants(_a0 interface{}, _a1 interface{}) *ProviderService_GetDependencyGrants_Call {
+	return &ProviderService_GetDependencyGrants_Call{Call: _e.mock.On("GetDependencyGrants", _a0, _a1)}
+}
+
+func (_c *ProviderService_GetDependencyGrants_Call) Run(run func(_a0 context.Context, _a1 domain.Grant)) *ProviderService_GetDependencyGrants_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(domain.Grant))
+	})
+	return _c
+}
+
+func (_c *ProviderService_GetDependencyGrants_Call) Return(_a0 []*domain.Grant, _a1 error) *ProviderService_GetDependencyGrants_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *ProviderService_GetDependencyGrants_Call) RunAndReturn(run func(context.Context, domain.Grant) ([]*domain.Grant, error)) *ProviderService_GetDependencyGrants_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetPermissions provides a mock function with given fields: _a0, _a1, _a2, _a3
 func (_m *ProviderService) GetPermissions(_a0 context.Context, _a1 *domain.ProviderConfig, _a2 string, _a3 string) ([]interface{}, error) {
 	ret := _m.Called(_a0, _a1, _a2, _a3)
