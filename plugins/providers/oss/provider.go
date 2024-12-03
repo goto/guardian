@@ -203,31 +203,29 @@ func updatePolicyToRevokePermissions(policy string, g domain.Grant) (string, err
 		return "", fmt.Errorf("failed to unmarshal existing policy: %w", err)
 	}
 
-	prinicipalAccountID := g.Appeal.AccountID
+	prinicipalAccountID := g.AccountID
 	resourceAccountID, err := getAccountIDFromResource(g.Resource)
 	if err != nil {
 		return "", err
 	}
 
 	var statementToUpdate PolicyStatement
-	var statements []PolicyStatement
+	var updatedStatements []PolicyStatement
 
 	for _, statement := range updatedPolicy.Statement {
 		foundStatementToUpdate := false
-		for _, resource := range statement.Resource {
-			if strings.Contains(resource, resourceAccountID) && slices.Contains(statement.Principal, prinicipalAccountID) {
-				statementToUpdate = statement
-				foundStatementToUpdate = true
-			}
+		if slices.Contains(statement.Principal, prinicipalAccountID) && slices.Contains(statement.Resource, fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN)) {
+			statementToUpdate = statement
+			foundStatementToUpdate = true
 		}
 
 		if !foundStatementToUpdate {
-			statements = append(statements, statement)
+			updatedStatements = append(updatedStatements, statement)
 		}
 	}
 
 	// no statement found to update or delete
-	if len(statements) == len(updatedPolicy.Statement) {
+	if len(updatedStatements) == len(updatedPolicy.Statement) {
 		return policy, nil
 	}
 
@@ -240,10 +238,10 @@ func updatePolicyToRevokePermissions(policy string, g domain.Grant) (string, err
 
 	if len(updatedActions) > 0 {
 		statementToUpdate.Action = updatedActions
-		statements = append(statements, statementToUpdate)
+		updatedStatements = append(updatedStatements, statementToUpdate)
 	}
 
-	updatedPolicy.Statement = statements
+	updatedPolicy.Statement = updatedStatements
 
 	updatedPolicyBytes, err := json.Marshal(updatedPolicy)
 	if err != nil {
@@ -259,35 +257,36 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 		return "", fmt.Errorf("failed to unmarshal existing policy: %w", err)
 	}
 
-	prinicpalAccountID := g.Appeal.AccountID
+	prinicpalAccountID := g.AccountID
 	resourceAccountID, err := getAccountIDFromResource(g.Resource)
 	if err != nil {
 		return "", err
 	}
 
 	policyGotUpdated := false
+	updatedStatements := make([]PolicyStatement, 0)
 	for _, statement := range updatedPolicy.Statement {
-		for _, resource := range statement.Resource {
-			if strings.Contains(resource, resourceAccountID) {
-				actions := statement.Action
-				for _, permission := range g.Permissions {
-					if !slices.Contains(actions, permission) {
-						actions = append(actions, permission)
-					}
+		if slices.Contains(statement.Principal, prinicpalAccountID) && slices.Contains(statement.Resource, fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN)) {
+			actions := statement.Action
+			for _, permission := range g.Permissions {
+				if !slices.Contains(actions, permission) {
+					actions = append(actions, permission)
 				}
-
-				statement.Action = actions
-				policyGotUpdated = true
 			}
+			policyGotUpdated = true
+			statement.Action = actions
 		}
+		updatedStatements = append(updatedStatements, statement)
 	}
+
+	updatedPolicy.Statement = updatedStatements
 
 	if !policyGotUpdated {
 		statement := PolicyStatement{
 			Action:    g.Permissions,
 			Effect:    "Allow",
 			Principal: []string{prinicpalAccountID},
-			Resource:  []string{fmt.Sprintf("acs:oss:*:%s/*", resourceAccountID)},
+			Resource:  []string{fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN)},
 		}
 
 		updatedPolicy.Statement = append(updatedPolicy.Statement, statement)
@@ -347,13 +346,8 @@ func (p *provider) getCreds(pc *domain.ProviderConfig) (*Credentials, error) {
 	return creds, nil
 }
 
-func (p *provider) getOSSClient(pc *domain.ProviderConfig, overrideRAMRole string) (*oss.Client, error) {
-	usingRAMRole := overrideRAMRole != ""
-	if usingRAMRole {
-		if client, ok := p.ossClients[overrideRAMRole]; ok {
-			return client, nil
-		}
-	} else if client, ok := p.ossClients[pc.URN]; ok {
+func (p *provider) getOSSClient(pc *domain.ProviderConfig, ramRole string) (*oss.Client, error) {
+	if client, ok := p.ossClients[ramRole]; ok {
 		return client, nil
 	}
 
@@ -362,29 +356,24 @@ func (p *provider) getOSSClient(pc *domain.ProviderConfig, overrideRAMRole strin
 		return nil, err
 	}
 
-	ramRole := overrideRAMRole
+	if ramRole == "" {
+		ramRole = creds.RAMRole
+	}
+
 	clientConfig, err := getClientConfig(pc.URN, creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID, ramRole)
 	if err != nil {
 		return nil, err
 	}
 
-	var clientOpts oss.ClientOption
-	if usingRAMRole {
-		clientOpts = oss.SecurityToken(*clientConfig.SecurityToken)
-	}
-
+	clientOpts := oss.SecurityToken(*clientConfig.SecurityToken)
 	endpoint := fmt.Sprintf("https://oss-%s.aliyuncs.com", creds.RegionID)
-	client, err := oss.New(endpoint, creds.AccessKeyID, creds.AccessKeySecret, clientOpts)
+	client, err := oss.New(endpoint, *clientConfig.AccessKeyId, *clientConfig.AccessKeySecret, clientOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize oss client: %w", err)
 	}
 
 	p.mu.Lock()
-	if usingRAMRole {
-		p.ossClients[overrideRAMRole] = client
-	} else {
-		p.ossClients[pc.URN] = client
-	}
+	p.ossClients[ramRole] = client
 	p.mu.Unlock()
 	return client, nil
 }
@@ -394,13 +383,13 @@ func getRAMRole(g domain.Grant) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("acs:ram::%s:role/guardian-bot", resourceAccountID), nil
+	return fmt.Sprintf("acs:ram::%s:role/guardian.bot", resourceAccountID), nil
 }
 
 func getAccountIDFromResource(resource *domain.Resource) (string, error) {
 	urnParts := strings.Split(resource.GlobalURN, ":")
-	if len(urnParts) < 2 {
+	if len(urnParts) < 3 {
 		return "", fmt.Errorf("invalid GlobalURN format")
 	}
-	return urnParts[1], nil
+	return urnParts[2], nil
 }
