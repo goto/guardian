@@ -196,17 +196,17 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		return err
 	}
 
-	err = client.SetBucketPolicy(g.Resource.URN, updatedPolicy)
-	if err != nil {
-		return fmt.Errorf("failed to set bucket policy: %w", err)
-	}
-
 	if updatedPolicy == "" {
-		err := client.DeleteBucketPolicy(g.Resource.URN)
+		err = client.DeleteBucketPolicy(g.Resource.URN)
 		if err != nil {
 			return fmt.Errorf("failed to delete bucket policy: %w", err)
 		}
 		return nil
+	}
+
+	err = client.SetBucketPolicy(g.Resource.URN, updatedPolicy)
+	if err != nil {
+		return fmt.Errorf("failed to set bucket policy: %w", err)
 	}
 
 	return nil
