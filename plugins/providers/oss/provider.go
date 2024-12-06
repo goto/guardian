@@ -149,12 +149,12 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		}
 	}
 
-	updatedPolicy, err := updatePolicyToGrantPermissions(existingPolicy, g)
+	bucketPolicy, err := updatePolicyToGrantPermissions(existingPolicy, g)
 	if err != nil {
 		return err
 	}
 
-	err = client.SetBucketPolicy(g.Resource.URN, updatedPolicy)
+	err = client.SetBucketPolicy(g.Resource.URN, bucketPolicy)
 	if err != nil {
 		return fmt.Errorf("failed to set bucket policy: %w", err)
 	}
@@ -191,12 +191,12 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		}
 	}
 
-	updatedPolicy, err := revokePermissionsFromPolicy(existingPolicy, g)
+	bucketPolicy, err := revokePermissionsFromPolicy(existingPolicy, g)
 	if err != nil {
 		return err
 	}
 
-	if updatedPolicy == "" {
+	if bucketPolicy == "" {
 		err = client.DeleteBucketPolicy(g.Resource.URN)
 		if err != nil {
 			return fmt.Errorf("failed to delete bucket policy: %w", err)
@@ -204,7 +204,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		return nil
 	}
 
-	err = client.SetBucketPolicy(g.Resource.URN, updatedPolicy)
+	err = client.SetBucketPolicy(g.Resource.URN, bucketPolicy)
 	if err != nil {
 		return fmt.Errorf("failed to set bucket policy: %w", err)
 	}
@@ -212,32 +212,29 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 	return nil
 }
 
-func policyStatementExist(statement PolicyStatement, principalAccountID, resourceAccountID string, g domain.Grant) bool {
-	principalMatch := slices.Contains(statement.Principal, principalAccountID)
+func policyStatementExist(statement PolicyStatement, resourceAccountID string, g domain.Grant) bool {
 	resourceMatch := slices.Contains(statement.Resource, fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN))
+	if !resourceMatch {
+		return false
+	}
 
-	if principalMatch && resourceMatch {
-		if len(statement.Action) != len(g.Permissions) {
+	if len(statement.Action) != len(g.Permissions) {
+		return false
+	}
+
+	for _, action := range statement.Action {
+		if !slices.Contains(g.Permissions, action) {
 			return false
 		}
-		for _, action := range statement.Action {
-			if !slices.Contains(g.Permissions, action) {
-				return false
-			}
-		}
-		return true
 	}
-	return false
+	return true
+
 }
 
-func revokePermissionsFromPolicy(policy string, g domain.Grant) (string, error) {
-	if policy == "" {
-		return "", nil
-	}
-
-	var updatedPolicy Policy
-	if err := json.Unmarshal([]byte(policy), &updatedPolicy); err != nil {
-		return "", fmt.Errorf("failed to unmarshal existing policy: %w", err)
+func revokePermissionsFromPolicy(policyString string, g domain.Grant) (string, error) {
+	bucketPolicy, err := unmarshalPolicy(policyString)
+	if err != nil {
+		return "", err
 	}
 
 	principalAccountID := g.AccountID
@@ -246,26 +243,41 @@ func revokePermissionsFromPolicy(policy string, g domain.Grant) (string, error) 
 		return "", err
 	}
 
-	var updatedStatements []PolicyStatement
-	for _, statement := range updatedPolicy.Statement {
-		shouldDelete := policyStatementExist(statement, principalAccountID, resourceAccountID, g)
+	newStatements, statementToUpdate := findStatementsToUpdate(bucketPolicy, resourceAccountID, g)
 
-		if !shouldDelete {
-			updatedStatements = append(updatedStatements, statement)
+	// no statement found to update principal
+	if len(newStatements) == len(bucketPolicy.Statement) {
+		return policyString, nil
+	}
+
+	if len(statementToUpdate.Action) != 0 {
+		var updatedPrincipals []string
+		for _, principal := range statementToUpdate.Principal {
+			if principal == principalAccountID {
+				continue
+			}
+
+			updatedPrincipals = append(updatedPrincipals, principal)
 		}
+
+		// if principal not found during revoke -- access was not present
+		if len(updatedPrincipals) == len(statementToUpdate.Principal) {
+			return "", fmt.Errorf("access not found")
+		}
+
+		statementToUpdate.Principal = updatedPrincipals
 	}
 
-	// no statement found to delete
-	if len(updatedStatements) == len(updatedPolicy.Statement) {
-		return policy, nil
+	if len(statementToUpdate.Principal) != 0 {
+		newStatements = append(newStatements, statementToUpdate)
 	}
 
-	updatedPolicy.Statement = updatedStatements
-	if len(updatedPolicy.Statement) == 0 {
+	bucketPolicy.Statement = newStatements
+	if len(bucketPolicy.Statement) == 0 {
 		return "", nil
 	}
 
-	marshaledPolicy, err := marshalPolicy(updatedPolicy)
+	marshaledPolicy, err := marshalPolicy(bucketPolicy)
 	if err != nil {
 		return "", err
 	}
@@ -274,13 +286,9 @@ func revokePermissionsFromPolicy(policy string, g domain.Grant) (string, error) 
 }
 
 func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, error) {
-	var updatedPolicy Policy
-	if policy == "" {
-		updatedPolicy.Version = "1"
-	} else {
-		if err := json.Unmarshal([]byte(policy), &updatedPolicy); err != nil {
-			return "", fmt.Errorf("failed to unmarshal existing policy: %w", err)
-		}
+	bucketPolicy, err := unmarshalPolicy(policy)
+	if err != nil {
+		return "", err
 	}
 
 	principalAccountID := g.AccountID
@@ -290,26 +298,45 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 	}
 
 	// check if statement already exists
-	for _, stmt := range updatedPolicy.Statement {
-		if policyStatementExist(stmt, principalAccountID, resourceAccountID, g) {
-			return "", fmt.Errorf("access already exists")
+	statements, statementToUpdate := findStatementsToUpdate(bucketPolicy, resourceAccountID, g)
+
+	if slices.Contains(statementToUpdate.Principal, principalAccountID) {
+		return "", fmt.Errorf("access already exists")
+	}
+
+	if len(statements) == len(bucketPolicy.Statement) {
+		statementToUpdate = PolicyStatement{
+			Action:    g.Permissions,
+			Effect:    "Allow",
+			Principal: []string{principalAccountID},
+			Resource:  []string{fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN)},
 		}
+	} else {
+		statementToUpdate.Principal = append(statementToUpdate.Principal, principalAccountID)
 	}
 
-	statement := PolicyStatement{
-		Action:    g.Permissions,
-		Effect:    "Allow",
-		Principal: []string{principalAccountID},
-		Resource:  []string{fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN)},
-	}
+	statements = append(statements, statementToUpdate)
+	bucketPolicy.Statement = statements
 
-	updatedPolicy.Statement = append(updatedPolicy.Statement, statement)
-	marshaledPolicy, err := marshalPolicy(updatedPolicy)
+	marshaledPolicy, err := marshalPolicy(bucketPolicy)
 	if err != nil {
 		return "", err
 	}
 
 	return marshaledPolicy, nil
+}
+
+func findStatementsToUpdate(bucketPolicy Policy, resourceAccountID string, g domain.Grant) ([]PolicyStatement, PolicyStatement) {
+	var newStatements []PolicyStatement
+	var statementToUpdate PolicyStatement
+	for _, statement := range bucketPolicy.Statement {
+		if policyStatementExist(statement, resourceAccountID, g) {
+			statementToUpdate = statement
+		} else {
+			newStatements = append(newStatements, statement)
+		}
+	}
+	return newStatements, statementToUpdate
 }
 
 func getClientConfig(providerURN, accountID, accountSecret, regionID, assumeAsRAMRole string) (*openapiv2.Config, error) {
@@ -406,14 +433,22 @@ func getAccountIDFromResource(resource *domain.Resource) (string, error) {
 	return urnParts[2], nil
 }
 
+func unmarshalPolicy(policy string) (Policy, error) {
+	var bucketPolicy Policy
+	if err := json.Unmarshal([]byte(policy), &bucketPolicy); err != nil {
+		return Policy{}, fmt.Errorf("failed to unmarshal existing policy: %w", err)
+	}
+	return bucketPolicy, nil
+}
+
 func marshalPolicy(policy Policy) (string, error) {
 	if len(policy.Statement) == 0 {
 		policy.Statement = make([]PolicyStatement, 0)
 	}
 
-	updatedPolicyBytes, err := json.Marshal(policy)
+	bucketPolicyBytes, err := json.Marshal(policy)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal updated policy: %w", err)
 	}
-	return string(updatedPolicyBytes), nil
+	return string(bucketPolicyBytes), nil
 }
