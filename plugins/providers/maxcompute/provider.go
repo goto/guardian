@@ -412,13 +412,13 @@ func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client,
 
 func (p *provider) getOdpsClient(pc *domain.ProviderConfig, overrideRAMRole string) (*odps.Odps, error) {
 	usingRAMRole := overrideRAMRole != ""
-	if usingRAMRole {
-		if client, ok := p.odpsClients[overrideRAMRole]; ok {
-			return client, nil
-		}
-	} else if client, ok := p.odpsClients[pc.URN]; ok {
-		return client, nil
-	}
+	// if usingRAMRole {
+	// 	if client, ok := p.odpsClients[overrideRAMRole]; ok {
+	// 		return client, nil
+	// 	}
+	// } else if client, ok := p.odpsClients[pc.URN]; ok {
+	// 	return client, nil
+	// }
 
 	creds, err := p.getCreds(pc)
 	if err != nil {
