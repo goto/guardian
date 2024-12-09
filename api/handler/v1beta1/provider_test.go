@@ -48,6 +48,12 @@ func (s *GrpcHandlersSuite) TestListProvider() {
 							},
 						},
 					},
+					Policies: []*domain.ProviderPolicy{
+						{
+							When:   "test-when",
+							Policy: "test-policy",
+						},
+					},
 				},
 				CreatedAt: timeNow,
 				UpdatedAt: timeNow,
@@ -80,6 +86,12 @@ func (s *GrpcHandlersSuite) TestListProvider() {
 										Name: "test-name",
 									},
 								},
+							},
+						},
+						Policies: []*guardianv1beta1.ProviderPolicy{
+							{
+								When:   "test-when",
+								Policy: "test-policy",
 							},
 						},
 					},
@@ -172,6 +184,12 @@ func (s *GrpcHandlersSuite) TestGetProvider() {
 						},
 					},
 				},
+				Policies: []*domain.ProviderPolicy{
+					{
+						When:   "test-when",
+						Policy: "test-policy",
+					},
+				},
 			},
 			CreatedAt: timeNow,
 			UpdatedAt: timeNow,
@@ -198,6 +216,12 @@ func (s *GrpcHandlersSuite) TestGetProvider() {
 									Name: "test-name",
 								},
 							},
+						},
+					},
+					Policies: []*guardianv1beta1.ProviderPolicy{
+						{
+							When:   "test-when",
+							Policy: "test-policy",
 						},
 					},
 				},
@@ -352,6 +376,12 @@ func (s *GrpcHandlersSuite) TestCreateProvider() {
 						Description: "Please enter your username",
 					},
 				},
+				Policies: []*domain.ProviderPolicy{
+					{
+						When:   "test-when",
+						Policy: "test-policy",
+					},
+				},
 			},
 		}
 		expectedResponse := &guardianv1beta1.CreateProviderResponse{
@@ -388,6 +418,12 @@ func (s *GrpcHandlersSuite) TestCreateProvider() {
 							Label:       "Username",
 							Required:    true,
 							Description: "Please enter your username",
+						},
+					},
+					Policies: []*guardianv1beta1.ProviderPolicy{
+						{
+							When:   "test-when",
+							Policy: "test-policy",
 						},
 					},
 				},
@@ -432,6 +468,12 @@ func (s *GrpcHandlersSuite) TestCreateProvider() {
 						Label:       "Username",
 						Required:    true,
 						Description: "Please enter your username",
+					},
+				},
+				Policies: []*guardianv1beta1.ProviderPolicy{
+					{
+						When:   "test-when",
+						Policy: "test-policy",
 					},
 				},
 			},
@@ -508,6 +550,12 @@ func (s *GrpcHandlersSuite) TestUpdatedProvider() {
 						},
 					},
 				},
+				Policies: []*domain.ProviderPolicy{
+					{
+						When:   "test-when",
+						Policy: "test-policy",
+					},
+				},
 			},
 		}
 		expectedResponse := &guardianv1beta1.UpdateProviderResponse{
@@ -532,6 +580,12 @@ func (s *GrpcHandlersSuite) TestUpdatedProvider() {
 									Name: "test-name",
 								},
 							},
+						},
+					},
+					Policies: []*guardianv1beta1.ProviderPolicy{
+						{
+							When:   "test-when",
+							Policy: "test-policy",
 						},
 					},
 				},
@@ -564,6 +618,12 @@ func (s *GrpcHandlersSuite) TestUpdatedProvider() {
 								Name: "test-name",
 							},
 						},
+					},
+				},
+				Policies: []*guardianv1beta1.ProviderPolicy{
+					{
+						When:   "test-when",
+						Policy: "test-policy",
 					},
 				},
 			},
