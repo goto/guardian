@@ -1642,7 +1642,11 @@ func (s *ServiceTestSuite) TestCreate() {
 					Policies: []*domain.ProviderPolicy{
 						{
 							When:   "$appeal.resource.type == 'dataset'",
-							Policy: "policy_dataset",
+							Policy: "policy_dataset@latest",
+						},
+						{
+							When:   "$appeal.resource.type == 'dataset2'",
+							Policy: "policy_dataset@2",
 						},
 					},
 				},
@@ -1687,7 +1691,7 @@ func (s *ServiceTestSuite) TestCreate() {
 			},
 			{
 				ID:      "policy_table",
-				Version: 1,
+				Version: 2,
 				Steps: []*domain.Step{
 					{
 						Name:     "step_1",
