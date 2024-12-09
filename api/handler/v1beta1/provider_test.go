@@ -48,6 +48,12 @@ func (s *GrpcHandlersSuite) TestListProvider() {
 							},
 						},
 					},
+					Policies: []*domain.ProviderPolicy{
+						{
+							When:   "test-when",
+							Policy: "test-policy",
+						},
+					},
 				},
 				CreatedAt: timeNow,
 				UpdatedAt: timeNow,
@@ -80,6 +86,12 @@ func (s *GrpcHandlersSuite) TestListProvider() {
 										Name: "test-name",
 									},
 								},
+							},
+						},
+						Policies: []*guardianv1beta1.ProviderPolicy{
+							{
+								When:   "test-when",
+								Policy: "test-policy",
 							},
 						},
 					},
@@ -172,6 +184,12 @@ func (s *GrpcHandlersSuite) TestGetProvider() {
 						},
 					},
 				},
+				Policies: []*domain.ProviderPolicy{
+					{
+						When:   "test-when",
+						Policy: "test-policy",
+					},
+				},
 			},
 			CreatedAt: timeNow,
 			UpdatedAt: timeNow,
@@ -198,6 +216,12 @@ func (s *GrpcHandlersSuite) TestGetProvider() {
 									Name: "test-name",
 								},
 							},
+						},
+					},
+					Policies: []*guardianv1beta1.ProviderPolicy{
+						{
+							When:   "test-when",
+							Policy: "test-policy",
 						},
 					},
 				},
@@ -354,12 +378,8 @@ func (s *GrpcHandlersSuite) TestCreateProvider() {
 				},
 				Policies: []*domain.ProviderPolicy{
 					{
-						When:   "$appeal.resource.type == 'project' && $appeal.resource.urn == 'data-gojek-id-mart'",
-						Policy: "policy1",
-					},
-					{
-						When:   "$appeal.resource.type == 'dataset' && $appeal.resource.urn == 'data-gojek-id-mart'",
-						Policy: "policy2@3",
+						When:   "test-when",
+						Policy: "test-policy",
 					},
 				},
 			},
@@ -402,12 +422,8 @@ func (s *GrpcHandlersSuite) TestCreateProvider() {
 					},
 					Policies: []*guardianv1beta1.ProviderPolicy{
 						{
-							When:   "$appeal.resource.type == 'project' && $appeal.resource.urn == 'data-gojek-id-mart'",
-							Policy: "policy1",
-						},
-						{
-							When:   "$appeal.resource.type == 'dataset' && $appeal.resource.urn == 'data-gojek-id-mart'",
-							Policy: "policy2@3",
+							When:   "test-when",
+							Policy: "test-policy",
 						},
 					},
 				},
@@ -456,12 +472,8 @@ func (s *GrpcHandlersSuite) TestCreateProvider() {
 				},
 				Policies: []*guardianv1beta1.ProviderPolicy{
 					{
-						When:   "$appeal.resource.type == 'project' && $appeal.resource.urn == 'data-gojek-id-mart'",
-						Policy: "policy1",
-					},
-					{
-						When:   "$appeal.resource.type == 'dataset' && $appeal.resource.urn == 'data-gojek-id-mart'",
-						Policy: "policy2@3",
+						When:   "test-when",
+						Policy: "test-policy",
 					},
 				},
 			},
@@ -540,12 +552,8 @@ func (s *GrpcHandlersSuite) TestUpdatedProvider() {
 				},
 				Policies: []*domain.ProviderPolicy{
 					{
-						When:   "$appeal.resource.type == 'project' && $appeal.resource.urn == 'data-gojek-id-mart'",
-						Policy: "policy1",
-					},
-					{
-						When:   "$appeal.resource.type == 'dataset' && $appeal.resource.urn == 'data-gojek-id-mart'",
-						Policy: "policy2@3",
+						When:   "test-when",
+						Policy: "test-policy",
 					},
 				},
 			},
@@ -576,12 +584,8 @@ func (s *GrpcHandlersSuite) TestUpdatedProvider() {
 					},
 					Policies: []*guardianv1beta1.ProviderPolicy{
 						{
-							When:   "$appeal.resource.type == 'project' && $appeal.resource.urn == 'data-gojek-id-mart'",
-							Policy: "policy1",
-						},
-						{
-							When:   "$appeal.resource.type == 'dataset' && $appeal.resource.urn == 'data-gojek-id-mart'",
-							Policy: "policy2@3",
+							When:   "test-when",
+							Policy: "test-policy",
 						},
 					},
 				},
@@ -618,12 +622,8 @@ func (s *GrpcHandlersSuite) TestUpdatedProvider() {
 				},
 				Policies: []*guardianv1beta1.ProviderPolicy{
 					{
-						When:   "$appeal.resource.type == 'project' && $appeal.resource.urn == 'data-gojek-id-mart'",
-						Policy: "policy1",
-					},
-					{
-						When:   "$appeal.resource.type == 'dataset' && $appeal.resource.urn == 'data-gojek-id-mart'",
-						Policy: "policy2@3",
+						When:   "test-when",
+						Policy: "test-policy",
 					},
 				},
 			},
