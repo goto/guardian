@@ -231,6 +231,20 @@ func policyStatementExist(statement PolicyStatement, resourceAccountID string, g
 
 }
 
+func removePrincipalFromPolicy(statement PolicyStatement, principalAccountID string) PolicyStatement {
+	var updatedPrincipals []string
+	for _, principal := range statement.Principal {
+		if principal == principalAccountID {
+			continue
+		}
+
+		updatedPrincipals = append(updatedPrincipals, principal)
+	}
+
+	statement.Principal = updatedPrincipals
+	return statement
+}
+
 func revokePermissionsFromPolicy(policyString string, g domain.Grant) (string, error) {
 	bucketPolicy, err := unmarshalPolicy(policyString)
 	if err != nil {
@@ -243,36 +257,31 @@ func revokePermissionsFromPolicy(policyString string, g domain.Grant) (string, e
 		return "", err
 	}
 
-	newStatements, statementToUpdate := findStatementsToUpdate(bucketPolicy, resourceAccountID, g)
-
-	// no statement found to update principal
-	if len(newStatements) == len(bucketPolicy.Statement) {
+	statements, matchingStatements := findStatementsWithMatchingActions(bucketPolicy, resourceAccountID, g)
+	if len(matchingStatements) == 0 {
 		return policyString, nil
 	}
 
-	if len(statementToUpdate.Action) != 0 {
-		var updatedPrincipals []string
-		for _, principal := range statementToUpdate.Principal {
-			if principal == principalAccountID {
-				continue
-			}
-
-			updatedPrincipals = append(updatedPrincipals, principal)
+	statementFoundToRevokePermission := false
+	for _, statement := range matchingStatements {
+		if !slices.Contains(statement.Principal, principalAccountID) {
+			statements = append(statements, statement)
+			continue
 		}
 
-		// if principal not found during revoke -- access was not present
-		if len(updatedPrincipals) == len(statementToUpdate.Principal) {
-			return "", fmt.Errorf("access not found")
+		// revoke access of the principal
+		updatedStatement := removePrincipalFromPolicy(statement, principalAccountID)
+		if len(updatedStatement.Principal) > 0 {
+			statements = append(statements, updatedStatement)
 		}
-
-		statementToUpdate.Principal = updatedPrincipals
+		statementFoundToRevokePermission = true
 	}
 
-	if len(statementToUpdate.Principal) != 0 {
-		newStatements = append(newStatements, statementToUpdate)
+	if !statementFoundToRevokePermission {
+		return "", fmt.Errorf("access not found for role: %s", g.Role)
 	}
 
-	bucketPolicy.Statement = newStatements
+	bucketPolicy.Statement = statements
 	if len(bucketPolicy.Statement) == 0 {
 		return "", nil
 	}
@@ -297,27 +306,34 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 		return "", err
 	}
 
-	// check if statement already exists
-	statements, statementToUpdate := findStatementsToUpdate(bucketPolicy, resourceAccountID, g)
-
-	if slices.Contains(statementToUpdate.Principal, principalAccountID) {
-		return "", fmt.Errorf("access already exists")
+	statements, matchingStatements := findStatementsWithMatchingActions(bucketPolicy, resourceAccountID, g)
+	statementToUpdate := PolicyStatement{
+		Action:    g.Permissions,
+		Effect:    "Allow",
+		Principal: []string{principalAccountID},
+		Resource:  []string{fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN)},
 	}
 
-	if len(statements) == len(bucketPolicy.Statement) {
-		statementToUpdate = PolicyStatement{
-			Action:    g.Permissions,
-			Effect:    "Allow",
-			Principal: []string{principalAccountID},
-			Resource:  []string{fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN)},
+	foundStatementToUpdate := false
+	for _, statement := range matchingStatements {
+		if slices.Contains(statement.Principal, principalAccountID) {
+			return "", fmt.Errorf("access already granted for role: %s", g.Role)
 		}
-	} else {
-		statementToUpdate.Principal = append(statementToUpdate.Principal, principalAccountID)
+
+		if !foundStatementToUpdate {
+			foundStatementToUpdate = true
+			statement.Principal = append(statement.Principal, principalAccountID)
+		}
+
+		statements = append(statements, statement)
 	}
 
-	statements = append(statements, statementToUpdate)
-	bucketPolicy.Statement = statements
+	// if no matching statement found, add the new statement
+	if !foundStatementToUpdate {
+		statements = append(statements, statementToUpdate)
+	}
 
+	bucketPolicy.Statement = statements
 	marshaledPolicy, err := marshalPolicy(bucketPolicy)
 	if err != nil {
 		return "", err
@@ -326,17 +342,17 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 	return marshaledPolicy, nil
 }
 
-func findStatementsToUpdate(bucketPolicy Policy, resourceAccountID string, g domain.Grant) ([]PolicyStatement, PolicyStatement) {
-	var newStatements []PolicyStatement
-	var statementToUpdate PolicyStatement
+func findStatementsWithMatchingActions(bucketPolicy Policy, resourceAccountID string, g domain.Grant) ([]PolicyStatement, []PolicyStatement) {
+	var statements []PolicyStatement
+	var matchingStatements []PolicyStatement
 	for _, statement := range bucketPolicy.Statement {
 		if policyStatementExist(statement, resourceAccountID, g) {
-			statementToUpdate = statement
+			matchingStatements = append(matchingStatements, statement)
 		} else {
-			newStatements = append(newStatements, statement)
+			statements = append(statements, statement)
 		}
 	}
-	return newStatements, statementToUpdate
+	return statements, matchingStatements
 }
 
 func getClientConfig(providerURN, accountID, accountSecret, regionID, assumeAsRAMRole string) (*openapiv2.Config, error) {
