@@ -377,7 +377,7 @@ func getClientConfig(providerURN, accountID, accountSecret, regionID, assumeAsRA
 			return nil, fmt.Errorf("failed to initialize STS client: %w", err)
 		}
 
-		durationSeconds := assumeRoleDuration * int64(time.Minute.Seconds())
+		durationSeconds := assumeRoleDuration * int64(time.Hour.Seconds())
 		res, err := stsClient.AssumeRole(&sts.AssumeRoleRequest{
 			DurationSeconds: &durationSeconds,
 			RoleArn:         &assumeAsRAMRole,
