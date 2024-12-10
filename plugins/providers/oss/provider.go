@@ -9,19 +9,14 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
-	openapi "github.com/alibabacloud-go/darabonba-openapi/client"
-	openapiv2 "github.com/alibabacloud-go/darabonba-openapi/v2/client"
-	sts "github.com/alibabacloud-go/sts-20150401/client"
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
+	sts "github.com/goto/guardian/pkg/stsClient"
 	"github.com/goto/guardian/utils"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
-
-var assumeRoleDuration int64 = 1
 
 //go:generate mockery --name=encryptor --exported --with-expecter
 type encryptor interface {
@@ -46,18 +41,18 @@ type provider struct {
 	typeName  string
 	encryptor encryptor
 
-	ossClients               map[string]*oss.Client
-	lastOSSClientCreatedTime map[string]time.Time
+	ossClients map[string]*oss.Client
+	sts        *sts.Sts
 
 	mu sync.Mutex
 }
 
 func NewProvider(typeName string, encryptor encryptor) *provider {
 	return &provider{
-		typeName:                 typeName,
-		encryptor:                encryptor,
-		ossClients:               make(map[string]*oss.Client),
-		lastOSSClientCreatedTime: make(map[string]time.Time),
+		typeName:   typeName,
+		encryptor:  encryptor,
+		ossClients: make(map[string]*oss.Client),
+		sts:        sts.NewSTS(),
 	}
 }
 
@@ -360,43 +355,6 @@ func findStatementsWithMatchingActions(bucketPolicy Policy, resourceAccountID st
 	return statements, matchingStatements
 }
 
-func getClientConfig(providerURN, accountID, accountSecret, regionID, assumeAsRAMRole string) (*openapiv2.Config, error) {
-	configV2 := &openapiv2.Config{
-		AccessKeyId:     &accountID,
-		AccessKeySecret: &accountSecret,
-	}
-
-	if assumeAsRAMRole != "" {
-		stsEndpoint := fmt.Sprintf("sts.%s.aliyuncs.com", regionID)
-		configV1 := &openapi.Config{
-			AccessKeyId:     configV2.AccessKeyId,
-			AccessKeySecret: configV2.AccessKeySecret,
-			Endpoint:        &stsEndpoint,
-		}
-		stsClient, err := sts.NewClient(configV1)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize STS client: %w", err)
-		}
-
-		duration := assumeRoleDuration * int64(time.Hour.Seconds())
-		res, err := stsClient.AssumeRole(&sts.AssumeRoleRequest{
-			DurationSeconds: &duration,
-			RoleArn:         &assumeAsRAMRole,
-			RoleSessionName: &providerURN,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to assume role %q: %w", assumeAsRAMRole, err)
-		}
-
-		// TODO: handle refreshing token when the used one is expired
-		configV2.AccessKeyId = res.Body.Credentials.AccessKeyId
-		configV2.AccessKeySecret = res.Body.Credentials.AccessKeySecret
-		configV2.SecurityToken = res.Body.Credentials.SecurityToken
-	}
-
-	return configV2, nil
-}
-
 func (p *provider) getCreds(pc *domain.ProviderConfig) (*Credentials, error) {
 	cfg := &config{pc, p.encryptor}
 	creds, err := cfg.getCredentials()
@@ -410,13 +368,10 @@ func (p *provider) getCreds(pc *domain.ProviderConfig) (*Credentials, error) {
 }
 
 func (p *provider) getOSSClient(pc *domain.ProviderConfig, ramRole string) (*oss.Client, error) {
-	p.mu.Lock()
-	existingClient, ok := p.ossClients[ramRole]
-	clientCreatedTime := p.lastOSSClientCreatedTime[ramRole]
-	p.mu.Unlock()
-
-	if ok && time.Since(clientCreatedTime) < time.Duration(assumeRoleDuration)*time.Hour {
-		return existingClient, nil
+	if existingClient, ok := p.ossClients[ramRole]; ok {
+		if p.sts.IsSTSTokenValid(ramRole) {
+			return existingClient, nil
+		}
 	}
 
 	creds, err := p.getCreds(pc)
@@ -428,7 +383,12 @@ func (p *provider) getOSSClient(pc *domain.ProviderConfig, ramRole string) (*oss
 		ramRole = creds.RAMRole
 	}
 
-	clientConfig, err := getClientConfig(pc.URN, creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID, ramRole)
+	stsClient, err := p.sts.GetSTSClient(ramRole, creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID)
+	if err != nil {
+		return nil, err
+	}
+
+	clientConfig, err := sts.AssumeRole(stsClient, creds.AccessKeyID, ramRole, pc.URN)
 	if err != nil {
 		return nil, err
 	}
@@ -442,7 +402,6 @@ func (p *provider) getOSSClient(pc *domain.ProviderConfig, ramRole string) (*oss
 
 	p.mu.Lock()
 	p.ossClients[ramRole] = client
-	p.lastOSSClientCreatedTime[ramRole] = time.Now()
 	p.mu.Unlock()
 	return client, nil
 }
