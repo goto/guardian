@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/client"
 	openapiv2 "github.com/alibabacloud-go/darabonba-openapi/v2/client"
@@ -23,6 +24,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+var assumeRoleDuration int64 = 1
+
 //go:generate mockery --name=encryptor --exported --with-expecter
 type encryptor interface {
 	domain.Crypto
@@ -31,12 +34,14 @@ type encryptor interface {
 type provider struct {
 	pv.UnimplementedClient
 	pv.PermissionManager
-	typeName    string
-	encryptor   encryptor
-	restClients map[string]*maxcompute.Client
-	odpsClients map[string]*odps.Odps
-	logger      log.Logger
-	mu          sync.Mutex
+	typeName                  string
+	encryptor                 encryptor
+	restClients               map[string]*maxcompute.Client
+	odpsClients               map[string]*odps.Odps
+	lastOdpsClientCreatedTime map[string]time.Time
+	lastRestClientCreatedTime map[string]time.Time
+	logger                    log.Logger
+	mu                        sync.Mutex
 }
 
 func New(
@@ -45,10 +50,12 @@ func New(
 	logger log.Logger,
 ) *provider {
 	return &provider{
-		typeName:    typeName,
-		encryptor:   encryptor,
-		restClients: make(map[string]*maxcompute.Client),
-		odpsClients: make(map[string]*odps.Odps),
+		typeName:                  typeName,
+		encryptor:                 encryptor,
+		restClients:               make(map[string]*maxcompute.Client),
+		odpsClients:               make(map[string]*odps.Odps),
+		lastOdpsClientCreatedTime: make(map[string]time.Time),
+		lastRestClientCreatedTime: make(map[string]time.Time),
 
 		logger: logger,
 	}
@@ -369,7 +376,10 @@ func getClientConfig(providerURN, accountID, accountSecret, regionID, assumeAsRA
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize STS client: %w", err)
 		}
+
+		durationSeconds := assumeRoleDuration * int64(time.Minute.Seconds())
 		res, err := stsClient.AssumeRole(&sts.AssumeRoleRequest{
+			DurationSeconds: &durationSeconds,
 			RoleArn:         &assumeAsRAMRole,
 			RoleSessionName: &providerURN,
 		})
@@ -387,8 +397,16 @@ func getClientConfig(providerURN, accountID, accountSecret, regionID, assumeAsRA
 }
 
 func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if client, ok := p.restClients[pc.URN]; ok {
-		return client, nil
+		clientCreatedTime := p.lastRestClientCreatedTime[pc.URN]
+		clientAge := time.Since(clientCreatedTime)
+
+		if clientAge < time.Duration(assumeRoleDuration)*time.Hour {
+			return client, nil
+		}
 	}
 
 	creds, err := p.getCreds(pc)
@@ -404,20 +422,30 @@ func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client,
 		return nil, err
 	}
 
-	p.mu.Lock()
 	p.restClients[pc.URN] = restClient
-	p.mu.Unlock()
 	return restClient, nil
 }
 
 func (p *provider) getOdpsClient(pc *domain.ProviderConfig, overrideRAMRole string) (*odps.Odps, error) {
 	usingRAMRole := overrideRAMRole != ""
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	var existingClient *odps.Odps
+	var ok bool
+	var clientCreatedTime time.Time
 	if usingRAMRole {
-		if client, ok := p.odpsClients[overrideRAMRole]; ok {
-			return client, nil
-		}
-	} else if client, ok := p.odpsClients[pc.URN]; ok {
-		return client, nil
+		existingClient, ok = p.odpsClients[overrideRAMRole]
+		clientCreatedTime = p.lastOdpsClientCreatedTime[overrideRAMRole]
+	} else {
+		existingClient, ok = p.odpsClients[pc.URN]
+		clientCreatedTime = p.lastOdpsClientCreatedTime[pc.URN]
+	}
+
+	clientAge := time.Since(clientCreatedTime)
+	if ok && clientAge < time.Duration(assumeRoleDuration)*time.Hour {
+		return existingClient, nil
 	}
 
 	creds, err := p.getCreds(pc)
@@ -443,13 +471,14 @@ func (p *provider) getOdpsClient(pc *domain.ProviderConfig, overrideRAMRole stri
 	endpoint := fmt.Sprintf("http://service.%s.maxcompute.aliyun.com/api", creds.RegionID)
 	client := odps.NewOdps(acc, endpoint)
 
-	p.mu.Lock()
 	if usingRAMRole {
 		p.odpsClients[overrideRAMRole] = client
+		p.lastOdpsClientCreatedTime[overrideRAMRole] = time.Now()
 	} else {
 		p.odpsClients[pc.URN] = client
+		p.lastOdpsClientCreatedTime[overrideRAMRole] = time.Now()
 	}
-	p.mu.Unlock()
+
 	return client, nil
 }
 
