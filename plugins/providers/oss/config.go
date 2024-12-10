@@ -10,10 +10,9 @@ import (
 )
 
 const (
-	AccountTypeRAMUser  = "ram_user"
-	AccountTypeRAMRole  = "ram_role"
-	resourceTypeBucket  = "bucket"
-	parameterRAMRoleKey = "ram_role"
+	AccountTypeRAMUser = "ram_user"
+	AccountTypeRAMRole = "ram_role"
+	resourceTypeBucket = "bucket"
 )
 
 var validResourceTypes = []string{resourceTypeBucket}
