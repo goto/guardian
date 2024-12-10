@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/client"
 	openapiv2 "github.com/alibabacloud-go/darabonba-openapi/v2/client"
@@ -15,7 +14,6 @@ import (
 	sts "github.com/alibabacloud-go/sts-20150401/client"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/account"
-	"github.com/aliyun/aliyun-odps-go-sdk/odps/common"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/restclient"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/security"
 	pv "github.com/goto/guardian/core/provider"
@@ -414,13 +412,13 @@ func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client,
 
 func (p *provider) getOdpsClient(pc *domain.ProviderConfig, overrideRAMRole string) (*odps.Odps, error) {
 	usingRAMRole := overrideRAMRole != ""
-	// if usingRAMRole {
-	// 	if client, ok := p.odpsClients[overrideRAMRole]; ok {
-	// 		return client, nil
-	// 	}
-	// } else if client, ok := p.odpsClients[pc.URN]; ok {
-	// 	return client, nil
-	// }
+	if usingRAMRole {
+		if client, ok := p.odpsClients[overrideRAMRole]; ok {
+			return client, nil
+		}
+	} else if client, ok := p.odpsClients[pc.URN]; ok {
+		return client, nil
+	}
 
 	creds, err := p.getCreds(pc)
 	if err != nil {
@@ -435,10 +433,6 @@ func (p *provider) getOdpsClient(pc *domain.ProviderConfig, overrideRAMRole stri
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println("gmt location ", common.GMT)
-	gmtTime := time.Now().In(common.GMT).Format(time.RFC1123)
-	fmt.Println("gmtTime: ", gmtTime)
 
 	var acc account.Account
 	if creds.RAMRole != "" {
