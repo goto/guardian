@@ -7,12 +7,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
-	openapi "github.com/alibabacloud-go/darabonba-openapi/client"
-	openapiv2 "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	maxcompute "github.com/alibabacloud-go/maxcompute-20220104/client"
-	sts "github.com/alibabacloud-go/sts-20150401/client"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/account"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/restclient"
@@ -20,11 +16,10 @@ import (
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
+	sts "github.com/goto/guardian/pkg/stsClient"
 	"github.com/goto/guardian/utils"
 	"golang.org/x/net/context"
 )
-
-var assumeRoleDuration int64 = 1
 
 //go:generate mockery --name=encryptor --exported --with-expecter
 type encryptor interface {
@@ -34,14 +29,13 @@ type encryptor interface {
 type provider struct {
 	pv.UnimplementedClient
 	pv.PermissionManager
-	typeName                  string
-	encryptor                 encryptor
-	restClients               map[string]*maxcompute.Client
-	odpsClients               map[string]*odps.Odps
-	lastOdpsClientCreatedTime map[string]time.Time
-	lastRestClientCreatedTime map[string]time.Time
-	logger                    log.Logger
-	mu                        sync.Mutex
+	typeName    string
+	encryptor   encryptor
+	restClients map[string]*maxcompute.Client
+	odpsClients map[string]*odps.Odps
+	sts         *sts.Sts
+	logger      log.Logger
+	mu          sync.Mutex
 }
 
 func New(
@@ -50,12 +44,11 @@ func New(
 	logger log.Logger,
 ) *provider {
 	return &provider{
-		typeName:                  typeName,
-		encryptor:                 encryptor,
-		restClients:               make(map[string]*maxcompute.Client),
-		odpsClients:               make(map[string]*odps.Odps),
-		lastOdpsClientCreatedTime: make(map[string]time.Time),
-		lastRestClientCreatedTime: make(map[string]time.Time),
+		typeName:    typeName,
+		encryptor:   encryptor,
+		restClients: make(map[string]*maxcompute.Client),
+		odpsClients: make(map[string]*odps.Odps),
+		sts:         sts.NewSTS(),
 
 		logger: logger,
 	}
@@ -267,11 +260,11 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 			query := fmt.Sprintf("REMOVE USER %s", g.AccountID)
 			job, err := securityManager.Run(query, true, "")
 			if err != nil {
-				return fmt.Errorf("failed to add %q as member in %q: %v", g.AccountID, project, err)
+				return fmt.Errorf("failed to remove %q as member in %q: %v", g.AccountID, project, err)
 			}
 
 			if _, err := job.WaitForSuccess(); err != nil {
-				return fmt.Errorf("failed to add %q as member in %q: %v", g.AccountID, project, err)
+				return fmt.Errorf("failed to remove %q as member in %q: %v", g.AccountID, project, err)
 			}
 		}
 
@@ -359,52 +352,9 @@ func (p *provider) getCreds(pc *domain.ProviderConfig) (*credentials, error) {
 	return creds, nil
 }
 
-func getClientConfig(providerURN, accountID, accountSecret, regionID, assumeAsRAMRole string) (*openapiv2.Config, error) {
-	configV2 := &openapiv2.Config{
-		AccessKeyId:     &accountID,
-		AccessKeySecret: &accountSecret,
-		Endpoint:        &[]string{fmt.Sprintf("maxcompute.%s.aliyuncs.com", regionID)}[0],
-	}
-	if assumeAsRAMRole != "" {
-		stsEndpoint := fmt.Sprintf("sts.%s.aliyuncs.com", regionID)
-		configV1 := &openapi.Config{
-			AccessKeyId:     configV2.AccessKeyId,
-			AccessKeySecret: configV2.AccessKeySecret,
-			Endpoint:        &stsEndpoint,
-		}
-		stsClient, err := sts.NewClient(configV1)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize STS client: %w", err)
-		}
-
-		durationSeconds := assumeRoleDuration * int64(time.Hour.Seconds())
-		res, err := stsClient.AssumeRole(&sts.AssumeRoleRequest{
-			DurationSeconds: &durationSeconds,
-			RoleArn:         &assumeAsRAMRole,
-			RoleSessionName: &providerURN,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to assume role %q: %w", assumeAsRAMRole, err)
-		}
-		// TODO: handle refreshing token when the used one is expired
-
-		configV2.AccessKeyId = res.Body.Credentials.AccessKeyId
-		configV2.AccessKeySecret = res.Body.Credentials.AccessKeySecret
-		configV2.SecurityToken = res.Body.Credentials.SecurityToken
-	}
-
-	return configV2, nil
-}
-
 func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	if client, ok := p.restClients[pc.URN]; ok {
-		clientCreatedTime := p.lastRestClientCreatedTime[pc.URN]
-		clientAge := time.Since(clientCreatedTime)
-
-		if clientAge < time.Duration(assumeRoleDuration)*time.Hour {
+		if p.sts.IsSTSTokenValid(pc.URN) {
 			return client, nil
 		}
 	}
@@ -413,51 +363,46 @@ func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client,
 	if err != nil {
 		return nil, err
 	}
-	clientConfig, err := getClientConfig(pc.URN, creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID, creds.RAMRole)
+
+	stsClient, err := p.sts.GetSTSClient(pc.URN, creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID)
 	if err != nil {
 		return nil, err
 	}
+
+	clientConfig, err := sts.AssumeRole(stsClient, creds.AccessKeyID, creds.RAMRole, pc.URN)
+	if err != nil {
+		return nil, err
+	}
+
 	restClient, err := maxcompute.NewClient(clientConfig)
 	if err != nil {
 		return nil, err
 	}
 
+	p.mu.Lock()
 	p.restClients[pc.URN] = restClient
+	p.mu.Unlock()
 	return restClient, nil
 }
 
-func (p *provider) getOdpsClient(pc *domain.ProviderConfig, overrideRAMRole string) (*odps.Odps, error) {
-	usingRAMRole := overrideRAMRole != ""
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	var existingClient *odps.Odps
-	var ok bool
-	var clientCreatedTime time.Time
-	if usingRAMRole {
-		existingClient, ok = p.odpsClients[overrideRAMRole]
-		clientCreatedTime = p.lastOdpsClientCreatedTime[overrideRAMRole]
-	} else {
-		existingClient, ok = p.odpsClients[pc.URN]
-		clientCreatedTime = p.lastOdpsClientCreatedTime[pc.URN]
-	}
-
-	clientAge := time.Since(clientCreatedTime)
-	if ok && clientAge < time.Duration(assumeRoleDuration)*time.Hour {
-		return existingClient, nil
+func (p *provider) getOdpsClient(pc *domain.ProviderConfig, ramRole string) (*odps.Odps, error) {
+	if existingClient, ok := p.odpsClients[ramRole]; ok {
+		if p.sts.IsSTSTokenValid(ramRole) {
+			return existingClient, nil
+		}
 	}
 
 	creds, err := p.getCreds(pc)
 	if err != nil {
 		return nil, err
 	}
-	ramRole := creds.RAMRole
-	if usingRAMRole {
-		ramRole = overrideRAMRole
+
+	stsClient, err := p.sts.GetSTSClient(ramRole, creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID)
+	if err != nil {
+		return nil, err
 	}
 
-	clientConfig, err := getClientConfig(pc.URN, creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID, ramRole)
+	clientConfig, err := sts.AssumeRole(stsClient, creds.AccessKeyID, ramRole, pc.URN)
 	if err != nil {
 		return nil, err
 	}
@@ -471,13 +416,9 @@ func (p *provider) getOdpsClient(pc *domain.ProviderConfig, overrideRAMRole stri
 	endpoint := fmt.Sprintf("http://service.%s.maxcompute.aliyun.com/api", creds.RegionID)
 	client := odps.NewOdps(acc, endpoint)
 
-	if usingRAMRole {
-		p.odpsClients[overrideRAMRole] = client
-		p.lastOdpsClientCreatedTime[overrideRAMRole] = time.Now()
-	} else {
-		p.odpsClients[pc.URN] = client
-		p.lastOdpsClientCreatedTime[overrideRAMRole] = time.Now()
-	}
+	p.mu.Lock()
+	p.odpsClients[ramRole] = client
+	p.mu.Unlock()
 
 	return client, nil
 }
