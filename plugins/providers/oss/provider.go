@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/client"
 	openapiv2 "github.com/alibabacloud-go/darabonba-openapi/v2/client"
@@ -19,6 +20,8 @@ import (
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
+
+var assumeRoleDuration int64 = 1
 
 //go:generate mockery --name=encryptor --exported --with-expecter
 type encryptor interface {
@@ -43,16 +46,18 @@ type provider struct {
 	typeName  string
 	encryptor encryptor
 
-	ossClients map[string]*oss.Client
+	ossClients               map[string]*oss.Client
+	lastOSSClientCreatedTime map[string]time.Time
 
 	mu sync.Mutex
 }
 
 func NewProvider(typeName string, encryptor encryptor) *provider {
 	return &provider{
-		typeName:   typeName,
-		encryptor:  encryptor,
-		ossClients: make(map[string]*oss.Client),
+		typeName:                 typeName,
+		encryptor:                encryptor,
+		ossClients:               make(map[string]*oss.Client),
+		lastOSSClientCreatedTime: make(map[string]time.Time),
 	}
 }
 
@@ -126,7 +131,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 	}
 
 	if len(g.Permissions) == 0 {
-		return fmt.Errorf("no permissions present for the requested role in provider config")
+		return fmt.Errorf("no permissions in grant")
 	}
 
 	ramRole, err := getRAMRole(g)
@@ -372,7 +377,10 @@ func getClientConfig(providerURN, accountID, accountSecret, regionID, assumeAsRA
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize STS client: %w", err)
 		}
+
+		duration := assumeRoleDuration * int64(time.Hour.Seconds())
 		res, err := stsClient.AssumeRole(&sts.AssumeRoleRequest{
+			DurationSeconds: &duration,
 			RoleArn:         &assumeAsRAMRole,
 			RoleSessionName: &providerURN,
 		})
@@ -402,8 +410,13 @@ func (p *provider) getCreds(pc *domain.ProviderConfig) (*Credentials, error) {
 }
 
 func (p *provider) getOSSClient(pc *domain.ProviderConfig, ramRole string) (*oss.Client, error) {
-	if client, ok := p.ossClients[ramRole]; ok {
-		return client, nil
+	p.mu.Lock()
+	existingClient, ok := p.ossClients[ramRole]
+	clientCreatedTime := p.lastOSSClientCreatedTime[ramRole]
+	p.mu.Unlock()
+
+	if ok && time.Since(clientCreatedTime) < time.Duration(assumeRoleDuration)*time.Hour {
+		return existingClient, nil
 	}
 
 	creds, err := p.getCreds(pc)
@@ -429,6 +442,7 @@ func (p *provider) getOSSClient(pc *domain.ProviderConfig, ramRole string) (*oss
 
 	p.mu.Lock()
 	p.ossClients[ramRole] = client
+	p.lastOSSClientCreatedTime[ramRole] = time.Now()
 	p.mu.Unlock()
 	return client, nil
 }
