@@ -5,6 +5,8 @@ RUN apk add openssl
 
 RUN apk add --no-cache ca-certificates && update-ca-certificates
 
+RUN apk --no-cache add tzdata
+
 RUN curl --output /usr/local/share/ca-certificates/SectigoRSADomainValidationSecureServerCA.crt http://crt.sectigo.com/SectigoRSADomainValidationSecureServerCA.crt
 
 RUN openssl x509 -inform DER -in /usr/local/share/ca-certificates/SectigoRSADomainValidationSecureServerCA.crt -out /usr/local/share/ca-certificates/SectigoRSADomainValidationSecureServerCA.pem -text
