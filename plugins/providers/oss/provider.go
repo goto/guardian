@@ -251,7 +251,10 @@ func revokePermissionsFromPolicy(policyString string, g domain.Grant) (string, e
 		return "", err
 	}
 
-	principalAccountID := g.AccountID
+	principalAccountID, err := getPrincipalFromAccountID(g.AccountID)
+	if err != nil {
+		return "", err
+	}
 	resourceAccountID, err := getAccountIDFromResource(g.Resource)
 	if err != nil {
 		return "", err
@@ -300,7 +303,11 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 		return "", err
 	}
 
-	principalAccountID := g.AccountID
+	principalAccountID, err := getPrincipalFromAccountID(g.AccountID)
+	if err != nil {
+		return "", err
+	}
+
 	resourceAccountID, err := getAccountIDFromResource(g.Resource)
 	if err != nil {
 		return "", err
@@ -420,6 +427,20 @@ func getAccountIDFromResource(resource *domain.Resource) (string, error) {
 		return "", fmt.Errorf("invalid GlobalURN format")
 	}
 	return urnParts[2], nil
+}
+
+func getPrincipalFromAccountID(accountID string) (string, error) {
+	accountIDParts := strings.Split(accountID, "$")
+	if len(accountIDParts) < 2 {
+		return "", fmt.Errorf("invalid accountID format")
+	}
+
+	subParts := strings.Split(accountIDParts[1], ":")
+	if len(subParts) < 2 {
+		return "", fmt.Errorf("invalid accountID format")
+	}
+
+	return subParts[1], nil
 }
 
 func unmarshalPolicy(policy string) (Policy, error) {
