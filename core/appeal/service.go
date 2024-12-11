@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1527,6 +1528,7 @@ func (s *Service) checkExtensionEligibility(a *domain.Appeal, p *domain.Provider
 }
 
 func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[uint]*domain.Policy) (*domain.Policy, error) {
+	var policyConfig domain.PolicyConfig
 	var resourceConfig *domain.ResourceConfig
 	for _, rc := range p.Config.Resources {
 		if rc.Type == a.Resource.Type {
@@ -1537,7 +1539,51 @@ func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[
 	if resourceConfig == nil {
 		return nil, fmt.Errorf("%w: couldn't find %q resource type in the provider config", ErrInvalidResourceType, a.Resource.Type)
 	}
-	policyConfig := resourceConfig.Policy
+	policyConfig = *resourceConfig.Policy
+
+	appealMap, err := a.ToMap()
+	if err != nil {
+		return nil, fmt.Errorf("parsing appeal struct to map: %w", err)
+	}
+
+	var dynamicPolicyConfigData string
+	for _, pc := range p.Config.Policies {
+		if pc.When != "" {
+			v, err := evaluator.Expression(pc.When).EvaluateWithVars(map[string]interface{}{
+				"appeal": appealMap,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			isFalsy := reflect.ValueOf(v).IsZero()
+			if isFalsy {
+				continue
+			}
+
+			dynamicPolicyConfigData = pc.Policy
+			break
+		}
+	}
+
+	if dynamicPolicyConfigData != "" {
+		var dynamicPolicyConfig domain.PolicyConfig
+		policyData := strings.Split(dynamicPolicyConfigData, "@")
+		dynamicPolicyConfig.ID = policyData[0]
+		if len(policyData) > 1 {
+			var version int
+			if policyData[1] == "latest" {
+				version = 0
+			} else {
+				version, err = strconv.Atoi(policyData[1])
+			}
+			if err != nil {
+				return nil, fmt.Errorf("invalid policy version: %w", err)
+			}
+			dynamicPolicyConfig.Version = version
+		}
+		policyConfig = dynamicPolicyConfig
+	}
 
 	policy, ok := policiesMap[policyConfig.ID][uint(policyConfig.Version)]
 	if !ok {
