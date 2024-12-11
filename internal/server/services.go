@@ -32,6 +32,7 @@ import (
 	"github.com/goto/guardian/plugins/providers/maxcompute"
 	"github.com/goto/guardian/plugins/providers/metabase"
 	"github.com/goto/guardian/plugins/providers/noop"
+	"github.com/goto/guardian/plugins/providers/oss"
 	"github.com/goto/guardian/plugins/providers/shield"
 	"github.com/goto/guardian/plugins/providers/tableau"
 	"github.com/goto/salt/audit"
@@ -125,6 +126,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		gitlab.NewProvider(domain.ProviderTypeGitlab, deps.Crypto, deps.Logger),
 		gate.NewProvider(domain.ProviderTypeGate, deps.Crypto),
 		maxcompute.New(domain.ProviderTypeMaxCompute, deps.Crypto, deps.Logger),
+		oss.NewProvider(domain.ProviderTypeOss, deps.Crypto),
 	}
 
 	iamManager := identities.NewManager(deps.Crypto, deps.Validator)

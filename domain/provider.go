@@ -19,6 +19,7 @@ const (
 	ProviderTypeGitlab     = "gitlab"
 	ProviderTypeGate       = "gate"
 	ProviderTypeMaxCompute = "maxcompute"
+	ProviderTypeOss        = "oss"
 )
 
 // Role is the configuration to define a role and mapping the permissions in the provider
