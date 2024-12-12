@@ -417,8 +417,8 @@ func (p *provider) getOdpsClient(pc *domain.ProviderConfig, ramRoleFromAppeal st
 
 	// getting client from memory cache
 	ramRole, stsClientID := p.getRamRoleAndStsClientID("odps", creds, ramRoleFromAppeal)
-	if stsclient, ok := p.getCachedOdpsClient(ramRole, stsClientID, pc.URN); ok {
-		return stsclient, nil
+	if odpsClient, ok := p.getCachedOdpsClient(ramRole, stsClientID, pc.URN); ok {
+		return odpsClient, nil
 	}
 
 	// initialize new client

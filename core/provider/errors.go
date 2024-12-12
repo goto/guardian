@@ -27,4 +27,6 @@ var (
 	ErrAppealValidationInvalidDurationValue     = errors.New("invalid duration value")
 	ErrAppealValidationMissingRequiredParameter = errors.New("missing required parameter")
 	ErrAppealValidationMissingRequiredQuestion  = errors.New("missing required question")
+
+	ErrGrantAlreadyExists = errors.New("grant already exists")
 )
