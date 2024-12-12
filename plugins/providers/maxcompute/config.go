@@ -3,6 +3,7 @@ package maxcompute
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/utils"
@@ -23,6 +24,7 @@ const (
 
 var (
 	validResourceTypes = []string{resourceTypeProject, resourceTypeTable}
+	validTableActions  = []string{"describe", "select", "alter", "update", "drop", "showhistory", "all"}
 )
 
 type config struct {
@@ -67,10 +69,16 @@ func (c *config) validate() error {
 				return fmt.Errorf("permissions are missing for role: %q", role.Name)
 			}
 			for _, permission := range role.Permissions {
-				// TODO: validate permissions
-				_, ok := permission.(string)
+				permissionStr, ok := permission.(string)
 				if !ok {
 					return fmt.Errorf("unexpected permission type: %T, expected: string", permission)
+				}
+
+				switch rc.Type {
+				case resourceTypeTable:
+					if !utils.ContainsString(validTableActions, strings.ToLower(permissionStr)) {
+						return fmt.Errorf("invalid permission %q for table resource", permissionStr)
+					}
 				}
 			}
 		}
