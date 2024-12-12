@@ -67,7 +67,7 @@ func (s *Sts) GetSTSClient(ramRole, userAccessKeyID, userSecret, regionID string
 	return stsClient, nil
 }
 
-func AssumeRole(stsClient *client.Client, userAccessKeyID, roleArn, roleSessionName string) (*openapiV2.Config, error) {
+func AssumeRole(stsClient *client.Client, roleArn, roleSessionName string) (*openapiV2.Config, error) {
 	durationSeconds := assumeRoleDurationHours * int64(time.Hour.Seconds())
 	request := client.AssumeRoleRequest{
 		RoleArn:         &roleArn,

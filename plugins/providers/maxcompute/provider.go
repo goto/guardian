@@ -368,7 +368,7 @@ func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client,
 		return nil, err
 	}
 
-	clientConfig, err := sts.AssumeRole(stsClient, creds.AccessKeyID, creds.RAMRole, pc.URN)
+	clientConfig, err := sts.AssumeRole(stsClient, creds.RAMRole, pc.URN)
 	if err != nil {
 		return nil, err
 	}
@@ -384,39 +384,56 @@ func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client,
 	return restClient, nil
 }
 
-func (p *provider) getOdpsClient(pc *domain.ProviderConfig, ramRole string) (*odps.Odps, error) {
-	if existingClient, ok := p.odpsClients[ramRole]; ok {
-		if p.sts.IsSTSTokenValid(ramRole) {
-			return existingClient, nil
-		}
-	}
-
+func (p *provider) getOdpsClient(pc *domain.ProviderConfig, ramRoleFromAppeal string) (*odps.Odps, error) {
 	creds, err := p.getCreds(pc)
 	if err != nil {
 		return nil, err
 	}
 
-	stsClient, err := p.sts.GetSTSClient(ramRole, creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID)
-	if err != nil {
-		return nil, err
+	// getting client from memory cache
+	var ramRole string
+	switch {
+	case ramRoleFromAppeal != "":
+		ramRole = ramRoleFromAppeal
+		if c, ok := p.odpsClients[ramRoleFromAppeal]; ok && p.sts.IsSTSTokenValid(ramRoleFromAppeal) {
+			return c, nil
+		}
+	case creds.RAMRole != "":
+		ramRole = creds.RAMRole
+		if c, ok := p.odpsClients[pc.URN]; ok && p.sts.IsSTSTokenValid(creds.RAMRole) {
+			return c, nil
+		}
+	default:
+		if c, ok := p.odpsClients[pc.URN]; ok {
+			return c, nil
+		}
 	}
 
-	clientConfig, err := sts.AssumeRole(stsClient, creds.AccessKeyID, ramRole, pc.URN)
-	if err != nil {
-		return nil, err
-	}
-
+	// initialize new client
 	var acc account.Account
-	if creds.RAMRole != "" {
+	if ramRole != "" {
+		stsClient, err := p.sts.GetSTSClient(ramRoleFromAppeal, creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID)
+		if err != nil {
+			return nil, err
+		}
+
+		clientConfig, err := sts.AssumeRole(stsClient, ramRoleFromAppeal, pc.URN)
+		if err != nil {
+			return nil, err
+		}
 		acc = account.NewStsAccount(*clientConfig.AccessKeyId, *clientConfig.AccessKeySecret, *clientConfig.SecurityToken)
 	} else {
-		acc = account.NewAliyunAccount(*clientConfig.AccessKeyId, *clientConfig.AccessKeySecret)
+		acc = account.NewAliyunAccount(creds.AccessKeyID, creds.AccessKeySecret)
 	}
 	endpoint := fmt.Sprintf("http://service.%s.maxcompute.aliyun.com/api", creds.RegionID)
 	client := odps.NewOdps(acc, endpoint)
 
 	p.mu.Lock()
-	p.odpsClients[ramRole] = client
+	if ramRoleFromAppeal != "" {
+		p.odpsClients[ramRoleFromAppeal] = client
+	} else {
+		p.odpsClients[pc.URN] = client
+	}
 	p.mu.Unlock()
 
 	return client, nil
