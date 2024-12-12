@@ -27,8 +27,8 @@ func NewSTS() *Sts {
 	}
 }
 
-func (s *Sts) IsSTSTokenValid(ramRole string) bool {
-	client := s.clients[ramRole]
+func (s *Sts) IsSTSTokenValid(clientIdentifier string) bool {
+	client := s.clients[clientIdentifier]
 	if client == nil {
 		return false
 	}
@@ -53,13 +53,17 @@ func NewSTSClient(userAccessKeyID, userSecretAccessKey, regionID string) (*clien
 	return stsClient, nil
 }
 
-func (s *Sts) GetSTSClient(ramRole, userAccessKeyID, userSecret, regionID string) (*client.Client, error) {
+func (s *Sts) GetSTSClient(clientIdentifier, userAccessKeyID, userSecret, regionID string) (*client.Client, error) {
+	if c, ok := s.clients[clientIdentifier]; ok {
+		return c.client, nil
+	}
+
 	stsClient, err := NewSTSClient(userAccessKeyID, userSecret, regionID)
 	if err != nil {
 		return nil, err
 	}
 
-	s.clients[ramRole] = &StsClient{
+	s.clients[clientIdentifier] = &StsClient{
 		client:          stsClient,
 		expiryTimeStamp: time.Now().Add(time.Duration(assumeRoleDurationHours) * time.Hour),
 	}
@@ -67,7 +71,7 @@ func (s *Sts) GetSTSClient(ramRole, userAccessKeyID, userSecret, regionID string
 	return stsClient, nil
 }
 
-func AssumeRole(stsClient *client.Client, roleArn, roleSessionName string) (*openapiV2.Config, error) {
+func AssumeRole(stsClient *client.Client, roleArn, roleSessionName, regionID string) (*openapiV2.Config, error) {
 	durationSeconds := assumeRoleDurationHours * int64(time.Hour.Seconds())
 	request := client.AssumeRoleRequest{
 		RoleArn:         &roleArn,
@@ -84,6 +88,7 @@ func AssumeRole(stsClient *client.Client, roleArn, roleSessionName string) (*ope
 		AccessKeyId:     res.Body.Credentials.AccessKeyId,
 		AccessKeySecret: res.Body.Credentials.AccessKeySecret,
 		SecurityToken:   res.Body.Credentials.SecurityToken,
+		RegionId:        &regionID,
 	}
 
 	return config, nil
