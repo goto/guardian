@@ -182,7 +182,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 
 		if addAsProjectMember {
 			query := fmt.Sprintf("ADD USER %s", g.AccountID)
-			job, err := execQuery(securityManager, query)
+			job, err := execGrantQuery(securityManager, query)
 			if err != nil {
 				return fmt.Errorf("failed to add %q as member in %q: %v", g.AccountID, project, err)
 			}
@@ -196,7 +196,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		if len(permissions) > 0 {
 			mcRoles := strings.Join(permissions, ", ")
 			query := fmt.Sprintf("GRANT %s TO %s", mcRoles, g.AccountID)
-			job, err := execQuery(securityManager, query)
+			job, err := execGrantQuery(securityManager, query)
 			if err != nil {
 				return fmt.Errorf("failed to grant %q to %q for %q: %v", mcRoles, project, g.AccountID, err)
 			}
@@ -328,7 +328,6 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 		Role:        projectPermissionMember,
 		Permissions: []string{projectPermissionMember},
 		IsPermanent: true,
-		AppealID:    g.AppealID,
 		Resource: &domain.Resource{
 			ProviderType: g.Resource.ProviderType,
 			ProviderURN:  g.Resource.ProviderURN,
@@ -437,7 +436,7 @@ func getParametersFromGrant[T any](g domain.Grant, key string) (T, bool, error) 
 	return value, ok, nil
 }
 
-func execQuery(sm security.Manager, query string) (*security.AuthQueryInstance, error) {
+func execGrantQuery(sm security.Manager, query string) (*security.AuthQueryInstance, error) {
 	instance, err := sm.Run(query, true, "")
 	if err != nil {
 		var restErr restclient.HttpError

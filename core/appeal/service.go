@@ -1515,14 +1515,17 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 		}
 
 		if len(activeDepGrants) > 0 {
-			break
+			continue
 		}
 
+		dg.Status = domain.GrantStatusActive
 		dg.Appeal = &appealCopy
 		if err := s.providerService.GrantAccess(ctx, *dg); err != nil {
 			return fmt.Errorf("failed to grant an access dependency: %w", err)
 		}
+		dg.Appeal = nil
 
+		dg.Owner = a.CreatedBy
 		if err := s.grantService.Create(ctx, dg); err != nil {
 			return fmt.Errorf("failed to store grant of access dependency: %w", err)
 		}
