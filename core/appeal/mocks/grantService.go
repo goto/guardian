@@ -24,6 +24,49 @@ func (_m *GrantService) EXPECT() *GrantService_Expecter {
 	return &GrantService_Expecter{mock: &_m.Mock}
 }
 
+// Create provides a mock function with given fields: ctx, _a1
+func (_m *GrantService) Create(ctx context.Context, _a1 *domain.Grant) error {
+	ret := _m.Called(ctx, _a1)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.Grant) error); ok {
+		r0 = rf(ctx, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// GrantService_Create_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Create'
+type GrantService_Create_Call struct {
+	*mock.Call
+}
+
+// Create is a helper method to define mock.On call
+//   - ctx context.Context
+//   - _a1 *domain.Grant
+func (_e *GrantService_Expecter) Create(ctx interface{}, _a1 interface{}) *GrantService_Create_Call {
+	return &GrantService_Create_Call{Call: _e.mock.On("Create", ctx, _a1)}
+}
+
+func (_c *GrantService_Create_Call) Run(run func(ctx context.Context, _a1 *domain.Grant)) *GrantService_Create_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*domain.Grant))
+	})
+	return _c
+}
+
+func (_c *GrantService_Create_Call) Return(_a0 error) *GrantService_Create_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *GrantService_Create_Call) RunAndReturn(run func(context.Context, *domain.Grant) error) *GrantService_Create_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // List provides a mock function with given fields: _a0, _a1
 func (_m *GrantService) List(_a0 context.Context, _a1 domain.ListGrantsFilter) ([]domain.Grant, error) {
 	ret := _m.Called(_a0, _a1)

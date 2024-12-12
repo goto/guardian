@@ -97,6 +97,7 @@ type grantService interface {
 	List(context.Context, domain.ListGrantsFilter) ([]domain.Grant, error)
 	Prepare(context.Context, domain.Appeal) (*domain.Grant, error)
 	Revoke(ctx context.Context, id, actor, reason string, opts ...grant.Option) (*domain.Grant, error)
+	Create(ctx context.Context, grant *domain.Grant) error
 }
 
 //go:generate mockery --name=auditLogger --exported --with-expecter
@@ -1501,7 +1502,7 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 		return fmt.Errorf("getting grant dependencies: %w", err)
 	}
 	for _, dg := range dependencyGrants {
-		activeGrants, err := s.grantService.List(ctx, domain.ListGrantsFilter{
+		activeDepGrants, err := s.grantService.List(ctx, domain.ListGrantsFilter{
 			Statuses:     []string{string(domain.GrantStatusActive)},
 			AccountIDs:   []string{dg.AccountID},
 			AccountTypes: []string{dg.AccountType},
@@ -1513,7 +1514,7 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 			return fmt.Errorf("failed to get existing active grant dependency: %w", err)
 		}
 
-		if len(activeGrants) > 0 {
+		if len(activeDepGrants) > 0 {
 			break
 		}
 
@@ -1521,7 +1522,10 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 		if err := s.providerService.GrantAccess(ctx, *dg); err != nil {
 			return fmt.Errorf("failed to grant an access dependency: %w", err)
 		}
-		// TODO: store grant to db
+
+		if err := s.grantService.Create(ctx, dg); err != nil {
+			return fmt.Errorf("failed to store grant of access dependency: %w", err)
+		}
 	}
 
 	// grant main access
