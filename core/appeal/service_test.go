@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"github.com/goto/guardian/core/appeal"
 	appealmocks "github.com/goto/guardian/core/appeal/mocks"
@@ -2917,6 +2919,7 @@ func (s *ServiceTestSuite) TestCreate() {
 			h.mockGrantService.EXPECT().List(mock.Anything, mock.Anything).Return([]domain.Grant{}, nil).Once()
 			h.mockGrantService.EXPECT().Prepare(mock.Anything, mock.Anything).Return(&domain.Grant{}, nil).Once()
 			h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(overriddingPolicy, nil).Once()
+			h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
 			h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 
 			err := h.service.Create(context.Background(), []*domain.Appeal{input}, appeal.CreateWithAdditionalAppeal())
@@ -3181,6 +3184,7 @@ func (s *ServiceTestSuite) TestCreate__WithExistingAppealAndWithAutoApprovalStep
 		).
 		Return(preparedGrant, nil).Once()
 	h.mockPolicyService.EXPECT().GetOne(mock.Anything, policies[0].ID, policies[0].Version).Return(policies[0], nil).Once()
+	h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
 	h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 
 	h.mockRepository.EXPECT().
@@ -3371,6 +3375,7 @@ func (s *ServiceTestSuite) TestCreate__WithAdditionalAppeals() {
 	h.mockPolicyService.EXPECT().GetOne(mock.AnythingOfType("*context.cancelCtx"), policies[0].ID, policies[0].Version).Return(policies[0], nil).Once()
 
 	// 2.b grant access for the additional appeal
+	h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
 	h.mockProviderService.EXPECT().GrantAccess(mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("domain.Grant")).Return(nil).Once().Run(func(args mock.Arguments) {
 		grant := args.Get(1).(domain.Grant)
 		s.Equal(expectedAdditionalGrant.ID, grant.ID)
@@ -3384,6 +3389,7 @@ func (s *ServiceTestSuite) TestCreate__WithAdditionalAppeals() {
 	h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 
 	// 1.b grant access for the main appeal
+	h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
 	h.mockProviderService.EXPECT().GrantAccess(h.ctxMatcher, mock.AnythingOfType("domain.Grant")).Return(nil).Once().Run(func(args mock.Arguments) {
 		grant := args.Get(1).(domain.Grant)
 		s.Equal(expectedGrant.ID, grant.ID)
@@ -5271,6 +5277,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 				appeal.RevokeReasonForExtension, mock.Anything, mock.Anything).
 			Return(expectedNewGrant, nil).Once()
 		h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(dummyPolicy, nil).Once()
+		h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
 		h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 		h.mockRepository.EXPECT().Update(h.ctxMatcher, appealDetails).Return(nil).Once()
 		h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
@@ -5717,7 +5724,8 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					h.mockGrantService.EXPECT().
 						Prepare(mock.Anything, mock.Anything).Return(tc.expectedGrant, nil).Once()
 
-					h.mockProviderService.EXPECT().GrantAccess(mock.Anything, *tc.expectedGrant).Return(nil).Once()
+					h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
+					h.mockProviderService.EXPECT().GrantAccess(mock.Anything, grantArgMatcher(*tc.expectedGrant)).Return(nil).Once()
 				}
 
 				h.mockRepository.EXPECT().Update(h.ctxMatcher, tc.expectedResult).Return(nil).Once()
@@ -5874,7 +5882,8 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					h.mockGrantService.EXPECT().
 						Prepare(mock.Anything, mock.Anything).Return(tc.expectedGrant, nil).Once()
 
-					h.mockProviderService.EXPECT().GrantAccess(mock.Anything, *tc.expectedGrant).Return(nil).Once()
+					h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
+					h.mockProviderService.EXPECT().GrantAccess(mock.Anything, grantArgMatcher(*tc.expectedGrant)).Return(nil).Once()
 				}
 
 				h.mockRepository.EXPECT().Update(h.ctxMatcher, tc.expectedResult).Return(nil).Once()
@@ -5972,6 +5981,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 				h.mockGrantService.EXPECT().
 					Prepare(mock.Anything, mock.Anything).Return(nil, nil).Once()
 
+				h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
 				h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 
 				h.mockRepository.EXPECT().Update(h.ctxMatcher, mock.Anything).Return(nil).Once()
@@ -6052,9 +6062,8 @@ func (s *ServiceTestSuite) TestGrantAccessToProvider() {
 				Version: 1,
 			}, nil).Once()
 
-		h.mockProviderService.
-			On("GrantAccess", mock.Anything, mock.Anything).
-			Return(fmt.Errorf("error")).Once()
+		h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
+		h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(fmt.Errorf("error")).Once()
 
 		actualError := h.service.GrantAccessToProvider(context.Background(), &domain.Appeal{
 			PolicyID:      "policy_1",
@@ -6074,9 +6083,8 @@ func (s *ServiceTestSuite) TestGrantAccessToProvider() {
 				Version: 1,
 			}, nil).Once()
 
-		h.mockProviderService.
-			On("GrantAccess", mock.Anything, mock.Anything).
-			Return(nil).Once()
+		h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
+		h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 
 		actualError := h.service.GrantAccessToProvider(context.Background(), &domain.Appeal{
 			PolicyID:      "policy_1",
@@ -6734,5 +6742,16 @@ func (s *ServiceTestSuite) TestGetAppealsTotalCount() {
 
 		s.Equal(expectedCount, actualCount)
 		s.NoError(actualError)
+	})
+}
+
+func grantArgMatcher(expected domain.Grant) any {
+	return mock.MatchedBy(func(actual domain.Grant) bool {
+		return cmp.Equal(
+			expected,
+			actual,
+			cmpopts.EquateApproxTime(time.Millisecond),
+			cmpopts.IgnoreFields(domain.Grant{}, "Appeal"),
+		)
 	})
 }

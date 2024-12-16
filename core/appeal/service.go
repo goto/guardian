@@ -84,6 +84,7 @@ type providerService interface {
 	ValidateAppeal(context.Context, *domain.Appeal, *domain.Provider, *domain.Policy) error
 	GetPermissions(context.Context, *domain.ProviderConfig, string, string) ([]interface{}, error)
 	IsExclusiveRoleAssignment(context.Context, string, string) bool
+	GetDependencyGrants(context.Context, domain.Grant) ([]*domain.Grant, error)
 }
 
 //go:generate mockery --name=resourceService --exported --with-expecter
@@ -97,6 +98,7 @@ type grantService interface {
 	List(context.Context, domain.ListGrantsFilter) ([]domain.Grant, error)
 	Prepare(context.Context, domain.Appeal) (*domain.Grant, error)
 	Revoke(ctx context.Context, id, actor, reason string, opts ...grant.Option) (*domain.Grant, error)
+	Create(ctx context.Context, grant *domain.Grant) error
 }
 
 //go:generate mockery --name=auditLogger --exported --with-expecter
@@ -1490,10 +1492,52 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 		}
 	}
 
-	if err := s.providerService.GrantAccess(ctx, *a.Grant); err != nil {
+	appealCopy := *a
+	appealCopy.Grant = nil
+	grantWithAppeal := *a.Grant
+	grantWithAppeal.Appeal = &appealCopy
+
+	// grant access dependencies (if any)
+	dependencyGrants, err := s.providerService.GetDependencyGrants(ctx, grantWithAppeal)
+	if err != nil {
+		return fmt.Errorf("getting grant dependencies: %w", err)
+	}
+	for _, dg := range dependencyGrants {
+		activeDepGrants, err := s.grantService.List(ctx, domain.ListGrantsFilter{
+			Statuses:     []string{string(domain.GrantStatusActive)},
+			AccountIDs:   []string{dg.AccountID},
+			AccountTypes: []string{dg.AccountType},
+			ResourceIDs:  []string{dg.Resource.ID},
+			Permissions:  dg.Permissions,
+			Size:         1,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get existing active grant dependency: %w", err)
+		}
+
+		if len(activeDepGrants) > 0 {
+			continue
+		}
+
+		dg.Status = domain.GrantStatusActive
+		dg.Appeal = &appealCopy
+		if err := s.providerService.GrantAccess(ctx, *dg); err != nil {
+			return fmt.Errorf("failed to grant an access dependency: %w", err)
+		}
+		dg.Appeal = nil
+
+		dg.Owner = a.CreatedBy
+		if err := s.grantService.Create(ctx, dg); err != nil {
+			return fmt.Errorf("failed to store grant of access dependency: %w", err)
+		}
+	}
+
+	// grant main access
+	if err := s.providerService.GrantAccess(ctx, grantWithAppeal); err != nil {
 		return fmt.Errorf("granting access: %w", err)
 	}
 
+	grantWithAppeal.Appeal = nil
 	return nil
 }
 

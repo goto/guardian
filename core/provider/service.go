@@ -56,6 +56,10 @@ type assignmentTyper interface {
 	IsExclusiveRoleAssignment(context.Context) bool
 }
 
+type grantDependenciesResolver interface {
+	GetDependencyGrants(context.Context, domain.Provider, domain.Grant) ([]*domain.Grant, error)
+}
+
 //go:generate mockery --name=resourceService --exported --with-expecter
 type resourceService interface {
 	Find(context.Context, domain.ListResourcesFilter) ([]*domain.Resource, error)
@@ -567,6 +571,49 @@ func (s *Service) IsExclusiveRoleAssignment(ctx context.Context, providerType, r
 		return c.IsExclusiveRoleAssignment(ctx)
 	}
 	return false
+}
+
+func (s *Service) GetDependencyGrants(ctx context.Context, g domain.Grant) ([]*domain.Grant, error) {
+	client := s.getClient(g.Resource.ProviderType)
+	if client == nil {
+		return nil, ErrInvalidProviderType
+	}
+
+	c, ok := client.(grantDependenciesResolver)
+	if !ok {
+		return nil, nil
+	}
+
+	p, err := s.getProviderConfig(ctx, g.Resource.ProviderType, g.Resource.ProviderURN)
+	if err != nil {
+		return nil, err
+	}
+
+	dependencies, err := c.GetDependencyGrants(ctx, *p, g)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, d := range dependencies {
+		resources, err := s.resourceService.Find(ctx, domain.ListResourcesFilter{
+			ProviderType: d.Resource.ProviderType,
+			ProviderURN:  d.Resource.ProviderURN,
+			ResourceType: d.Resource.Type,
+			ResourceURN:  d.Resource.URN,
+			Size:         1,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to resolve resource %q for grant dependency: %w", d.Resource.URN, err)
+		}
+		if len(resources) == 0 {
+			return nil, fmt.Errorf("unable to resolve resource %q for grant dependency: not found", d.Resource.URN)
+		}
+
+		d.ResourceID = resources[0].ID
+		d.Resource = resources[0]
+	}
+
+	return dependencies, nil
 }
 
 func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]*domain.Resource, int, error) {

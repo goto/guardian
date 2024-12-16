@@ -218,6 +218,27 @@ func (r *GrantRepository) BulkUpsert(ctx context.Context, grants []*domain.Grant
 	})
 }
 
+func (r *GrantRepository) Create(ctx context.Context, g *domain.Grant) error {
+	m := new(model.Grant)
+	if err := m.FromDomain(*g); err != nil {
+		return err
+	}
+
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(m).Error; err != nil {
+			return err
+		}
+
+		newGrant, err := m.ToDomain()
+		if err != nil {
+			return err
+		}
+		*g = *newGrant
+
+		return nil
+	})
+}
+
 func upsertResources(tx *gorm.DB, models []*model.Grant) error {
 	uniqueResourcesMap := map[string]*model.Resource{}
 

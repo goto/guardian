@@ -66,6 +66,49 @@ func (_c *Repository_BulkUpsert_Call) RunAndReturn(run func(context.Context, []*
 	return _c
 }
 
+// Create provides a mock function with given fields: _a0, _a1
+func (_m *Repository) Create(_a0 context.Context, _a1 *domain.Grant) error {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.Grant) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Repository_Create_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Create'
+type Repository_Create_Call struct {
+	*mock.Call
+}
+
+// Create is a helper method to define mock.On call
+//   - _a0 context.Context
+//   - _a1 *domain.Grant
+func (_e *Repository_Expecter) Create(_a0 interface{}, _a1 interface{}) *Repository_Create_Call {
+	return &Repository_Create_Call{Call: _e.mock.On("Create", _a0, _a1)}
+}
+
+func (_c *Repository_Create_Call) Run(run func(_a0 context.Context, _a1 *domain.Grant)) *Repository_Create_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*domain.Grant))
+	})
+	return _c
+}
+
+func (_c *Repository_Create_Call) Return(_a0 error) *Repository_Create_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Repository_Create_Call) RunAndReturn(run func(context.Context, *domain.Grant) error) *Repository_Create_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetByID provides a mock function with given fields: _a0, _a1
 func (_m *Repository) GetByID(_a0 context.Context, _a1 string) (*domain.Grant, error) {
 	ret := _m.Called(_a0, _a1)
