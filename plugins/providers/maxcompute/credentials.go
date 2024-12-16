@@ -11,6 +11,7 @@ type credentials struct {
 	AccessKeySecret string `mapstructure:"access_key_secret" json:"access_key_secret"`
 	RAMRole         string `mapstructure:"ram_role" json:"ram_role"`
 	RegionID        string `mapstructure:"region_id" json:"region_id"`
+	ProjectName     string `mapstructure:"project_name" json:"project_name"`
 }
 
 func (c credentials) validate() error {
@@ -22,6 +23,9 @@ func (c credentials) validate() error {
 	}
 	if c.RegionID == "" {
 		return errors.New("region_id is required")
+	}
+	if c.ProjectName == "" {
+		return errors.New("project_name is required")
 	}
 	return nil
 }

@@ -98,6 +98,12 @@ func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
 }
 
 func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
+	credentials, err := p.getCreds(pc)
+	if err != nil {
+		return nil, err
+	}
+	projectName := credentials.ProjectName
+
 	client, err := p.getRestClient(pc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize maxcompute rest client: %w", err)
@@ -106,58 +112,45 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 	resources := make([]*domain.Resource, 0)
 	availableResourceTypes := pc.GetResourceTypes()
 
-	var marker *string
-	for {
-		res, err := client.ListProjects(&maxcompute.ListProjectsRequest{
-			Marker: marker,
+	res, err := client.GetProject(&projectName, &maxcompute.GetProjectRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch project details of %q: %w", projectName, err)
+	}
+	project := res.Body.Data
+	accountID := strings.TrimPrefix(*project.Owner, "ALIYUN$")
+	if slices.Contains(availableResourceTypes, resourceTypeProject) {
+		resources = append(resources, &domain.Resource{
+			ProviderType: pc.Type,
+			ProviderURN:  pc.URN,
+			Type:         resourceTypeProject,
+			URN:          *project.Name,
+			Name:         *project.Name,
+			GlobalURN:    utils.GetGlobalURN("maxcompute", accountID, resourceTypeProject, *project.Name),
 		})
+	}
+
+	if slices.Contains(availableResourceTypes, resourceTypeTable) {
+		tableRes, err := client.ListTables(project.Name, &maxcompute.ListTablesRequest{})
 		if err != nil {
-			return nil, fmt.Errorf("failed to list projects: %w", err)
+			return nil, fmt.Errorf("failed to list tables for project %s: %w", *project.Name, err)
 		}
 
-		for _, project := range res.Body.Data.Projects {
-			accountID := strings.TrimPrefix(*project.Owner, "ALIYUN$")
-			if slices.Contains(availableResourceTypes, resourceTypeProject) {
-				resources = append(resources, &domain.Resource{
-					ProviderType: pc.Type,
-					ProviderURN:  pc.URN,
-					Type:         resourceTypeProject,
-					URN:          *project.Name,
-					Name:         *project.Name,
-					GlobalURN:    utils.GetGlobalURN("maxcompute", accountID, resourceTypeProject, *project.Name),
-				})
+		for _, table := range tableRes.Body.Data.Tables {
+			var urn string
+			if table.Schema == nil {
+				urn = fmt.Sprintf("%s.%s", *project.Name, *table.Name)
+			} else {
+				urn = fmt.Sprintf("%s.%s.%s", *project.Name, *table.Schema, *table.Name)
 			}
-
-			if slices.Contains(availableResourceTypes, resourceTypeTable) {
-				tableRes, err := client.ListTables(project.Name, &maxcompute.ListTablesRequest{})
-				if err != nil {
-					return nil, fmt.Errorf("failed to list tables for project %s: %w", *project.Name, err)
-				}
-
-				for _, table := range tableRes.Body.Data.Tables {
-					var urn string
-					if table.Schema == nil {
-						urn = fmt.Sprintf("%s.%s", *project.Name, *table.Name)
-					} else {
-						urn = fmt.Sprintf("%s.%s.%s", *project.Name, *table.Schema, *table.Name)
-					}
-					fmt.Printf("table: %v\n", urn)
-					resources = append(resources, &domain.Resource{
-						ProviderType: pc.Type,
-						ProviderURN:  pc.URN,
-						Type:         resourceTypeTable,
-						URN:          urn,
-						Name:         *table.Name,
-						GlobalURN:    utils.GetGlobalURN("maxcompute", accountID, resourceTypeTable, urn),
-					})
-				}
-			}
+			resources = append(resources, &domain.Resource{
+				ProviderType: pc.Type,
+				ProviderURN:  pc.URN,
+				Type:         resourceTypeTable,
+				URN:          urn,
+				Name:         *table.Name,
+				GlobalURN:    utils.GetGlobalURN("maxcompute", accountID, resourceTypeTable, urn),
+			})
 		}
-
-		if res.Body.Data.NextToken == nil {
-			break
-		}
-		marker = res.Body.Data.NextToken
 	}
 
 	return resources, nil
@@ -374,6 +367,7 @@ func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client,
 		return restClient, nil
 	}
 
+	endpoint := fmt.Sprintf("maxcompute.%s.aliyuncs.com", creds.RegionID)
 	var clientConfig *openapiV2.Config
 	if creds.RAMRole != "" {
 		stsClient, err := p.sts.GetSTSClient(stsClientID, creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID)
@@ -385,8 +379,8 @@ func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client,
 		if err != nil {
 			return nil, err
 		}
+		clientConfig.Endpoint = &endpoint
 	} else {
-		endpoint := fmt.Sprintf("http://service.%s.maxcompute.aliyun.com/api", creds.RegionID)
 		clientConfig = &openapiV2.Config{
 			AccessKeyId:     &creds.AccessKeyID,
 			AccessKeySecret: &creds.AccessKeySecret,
