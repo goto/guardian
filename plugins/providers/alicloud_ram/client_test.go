@@ -1,20 +1,19 @@
-package alicloudiam_test
+package alicloud_ram_test
 
 import (
 	"context"
 	"testing"
 
 	"github.com/goto/guardian/domain"
-	"github.com/goto/guardian/plugins/providers/alicloudiam"
+	"github.com/goto/guardian/plugins/providers/alicloud_ram"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewIamClient(t *testing.T) {
+func TestNewAliCloudRAMClient(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
 		roleToAssume    string
-		resourceName    string
 	}
 	tests := []struct {
 		name    string
@@ -26,7 +25,6 @@ func TestNewIamClient(t *testing.T) {
 			args: args{
 				accessKeyID:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
-				resourceName:    "test-resource-name",
 			},
 			wantErr: false,
 		},
@@ -36,14 +34,13 @@ func TestNewIamClient(t *testing.T) {
 				accessKeyID:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
 				roleToAssume:    "test-role-to-assume",
-				resourceName:    "test-resource-name",
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName, tt.args.roleToAssume)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.roleToAssume)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -54,12 +51,11 @@ func TestNewIamClient(t *testing.T) {
 	}
 }
 
-func Test_iamClient_GrantAccess(t *testing.T) {
+func Test_aliCloudRAMClient_GrantAccess(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
 		roleToAssume    string
-		resourceName    string
 		ctx             context.Context
 		policyName      string
 		policyType      string
@@ -75,10 +71,9 @@ func Test_iamClient_GrantAccess(t *testing.T) {
 			args: args{
 				accessKeyID:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
-				resourceName:    "test-resource-name",
 				ctx:             context.TODO(),
 				policyName:      "test-policy-name",
-				policyType:      alicloudiam.PolicyTypeSystem,
+				policyType:      alicloud_ram.PolicyTypeSystem,
 				username:        "test-user",
 			},
 			wantErr: true,
@@ -86,7 +81,7 @@ func Test_iamClient_GrantAccess(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName, tt.args.roleToAssume)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.roleToAssume)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -101,12 +96,11 @@ func Test_iamClient_GrantAccess(t *testing.T) {
 	}
 }
 
-func Test_iamClient_RevokeAccess(t *testing.T) {
+func Test_aliCloudRAMClient_RevokeAccess(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
 		roleToAssume    string
-		resourceName    string
 		ctx             context.Context
 		policyName      string
 		policyType      string
@@ -122,10 +116,9 @@ func Test_iamClient_RevokeAccess(t *testing.T) {
 			args: args{
 				accessKeyID:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
-				resourceName:    "test-resource-name",
 				ctx:             context.TODO(),
 				policyName:      "test-policy-name",
-				policyType:      alicloudiam.PolicyTypeSystem,
+				policyType:      alicloud_ram.PolicyTypeSystem,
 				username:        "test-user",
 			},
 			wantErr: true,
@@ -133,7 +126,7 @@ func Test_iamClient_RevokeAccess(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName, tt.args.roleToAssume)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.roleToAssume)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -148,12 +141,11 @@ func Test_iamClient_RevokeAccess(t *testing.T) {
 	}
 }
 
-func Test_iamClient_GrantAccessToRole(t *testing.T) {
+func Test_aliCloudRAMClient_GrantAccessToRole(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
 		roleToAssume    string
-		resourceName    string
 		ctx             context.Context
 		policyName      string
 		policyType      string
@@ -169,10 +161,9 @@ func Test_iamClient_GrantAccessToRole(t *testing.T) {
 			args: args{
 				accessKeyID:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
-				resourceName:    "test-resource-name",
 				ctx:             context.TODO(),
 				policyName:      "test-policy-name",
-				policyType:      alicloudiam.PolicyTypeSystem,
+				policyType:      alicloud_ram.PolicyTypeSystem,
 				roleName:        "test-role",
 			},
 			wantErr: true,
@@ -180,7 +171,7 @@ func Test_iamClient_GrantAccessToRole(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName, tt.args.roleToAssume)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.roleToAssume)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -195,12 +186,11 @@ func Test_iamClient_GrantAccessToRole(t *testing.T) {
 	}
 }
 
-func Test_iamClient_RevokeAccessFromRole(t *testing.T) {
+func Test_aliCloudRAMClient_RevokeAccessFromRole(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
 		roleToAssume    string
-		resourceName    string
 		ctx             context.Context
 		policyName      string
 		policyType      string
@@ -216,10 +206,9 @@ func Test_iamClient_RevokeAccessFromRole(t *testing.T) {
 			args: args{
 				accessKeyID:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
-				resourceName:    "test-resource-name",
 				ctx:             context.TODO(),
 				policyName:      "test-policy-name",
-				policyType:      alicloudiam.PolicyTypeSystem,
+				policyType:      alicloud_ram.PolicyTypeSystem,
 				roleName:        "test-role",
 			},
 			wantErr: true,
@@ -227,7 +216,7 @@ func Test_iamClient_RevokeAccessFromRole(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName, tt.args.roleToAssume)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.roleToAssume)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -242,12 +231,11 @@ func Test_iamClient_RevokeAccessFromRole(t *testing.T) {
 	}
 }
 
-func Test_iamClient_ListAccess(t *testing.T) {
+func Test_aliCloudRAMClient_ListAccess(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
 		roleToAssume    string
-		resourceName    string
 		ctx             context.Context
 		pc              domain.ProviderConfig
 		r               []*domain.Resource
@@ -262,29 +250,25 @@ func Test_iamClient_ListAccess(t *testing.T) {
 			args: args{
 				accessKeyID:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
-				resourceName:    "test-resource-name",
 				ctx:             context.TODO(),
 				pc: domain.ProviderConfig{
 					URN: "test-urn",
-					Credentials: &alicloudiam.Credentials{
+					Credentials: &alicloud_ram.Credentials{
 						AccessKeyID:     testEncodedAccessKeyID,
 						AccessKeySecret: testEncodedAccessKeySecret,
-						ResourceName:    "test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
 						{
-							Type: alicloudiam.ResourceTypeAccount,
+							Type: alicloud_ram.ResourceTypeAccount,
 							Roles: []*domain.Role{
 								{
 									ID:          "test-system-policy",
 									Name:        "test-system-policy",
-									Type:        alicloudiam.PolicyTypeSystem,
 									Permissions: []interface{}{"test-system-policy-permission"},
 								},
 								{
 									ID:          "test-custom-policy",
 									Name:        "test-custom-policy",
-									Type:        alicloudiam.PolicyTypeCustom,
 									Permissions: []interface{}{"test-custom-policy-permission"},
 								},
 							},
@@ -297,7 +281,7 @@ func Test_iamClient_ListAccess(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName, tt.args.roleToAssume)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.roleToAssume)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -313,12 +297,11 @@ func Test_iamClient_ListAccess(t *testing.T) {
 	}
 }
 
-func Test_iamClient_GetAllPoliciesByType(t *testing.T) {
+func Test_aliCloudRAMClient_GetAllPoliciesByType(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
 		roleToAssume    string
-		resourceName    string
 		ctx             context.Context
 		policyType      string
 		maxItems        int32
@@ -333,9 +316,8 @@ func Test_iamClient_GetAllPoliciesByType(t *testing.T) {
 			args: args{
 				accessKeyID:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
-				resourceName:    "test-resource-name",
 				ctx:             context.TODO(),
-				policyType:      alicloudiam.PolicyTypeSystem,
+				policyType:      alicloud_ram.PolicyTypeSystem,
 				maxItems:        1000,
 			},
 			wantErr: true,
@@ -343,7 +325,7 @@ func Test_iamClient_GetAllPoliciesByType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloudiam.NewIamClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.resourceName, tt.args.roleToAssume)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.roleToAssume)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}

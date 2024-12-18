@@ -1,4 +1,4 @@
-package alicloudiam
+package alicloud_ram
 
 import (
 	"context"
@@ -19,27 +19,29 @@ const (
 
 	aliAccountUserIdDomainSuffix = ".onaliyun.com"
 	aliAccountUserIdPattern      = `^[a-zA-Z0-9._%+-]+@[0-9]+\.onaliyun\.com$`
+	aliRoleSessionExpiration     = 3600
+
+	aliAccountTypeAccessKey  = "access_key"
+	aliAccountTypeRamRoleARN = "ram_role_arn"
 )
 
-type iamClient struct {
-	resourceName    string
+type aliCloudRAMClient struct {
 	accessKeyId     string
 	accessKeySecret string
-	roleToAssume    string
+	ramRole         string // example: `acs:ram::{MAIN_ACCOUNT_ID}:role/{ROLE_NAME}`
 }
 
-// NewIamClient initializes a new instance of AliCloudIamClient.
+// NewAliCloudRAMClient initializes a new instance of AliCloudRAMClient.
 //
-// This function creates and configures an `iamClient` with the provided credentials
-// and resource information. If a role ARN (`roleToAssume`) is specified, it will
+// This function creates and configures an `aliCloudRAMClient` with the provided credentials
+// and resource information. If a role ARN (`ramRole`) is specified, it will
 // be included in the configuration for assuming a RAM role. The function also
 // validates the configuration by attempting to create a new RAM client instance.
-func NewIamClient(accessKeyID, accessKeySecret, resourceName, roleToAssume string) (AliCloudIamClient, error) {
-	c := &iamClient{
-		resourceName:    resourceName,
+func NewAliCloudRAMClient(accessKeyID, accessKeySecret, ramRole string) (AliCloudRAMClient, error) {
+	c := &aliCloudRAMClient{
 		accessKeyId:     accessKeyID,
 		accessKeySecret: accessKeySecret,
-		roleToAssume:    roleToAssume,
+		ramRole:         ramRole,
 	}
 
 	// Validate the configuration by attempting to create a new request client
@@ -51,7 +53,7 @@ func NewIamClient(accessKeyID, accessKeySecret, resourceName, roleToAssume strin
 	return c, nil
 }
 
-func (c *iamClient) GrantAccess(_ context.Context, policyName, policyType, accountID string) error {
+func (c *aliCloudRAMClient) GrantAccess(_ context.Context, policyName, policyType, accountID string) error {
 	reqClient, err := c.newRequestClient()
 	if err != nil {
 		return err
@@ -74,7 +76,7 @@ func (c *iamClient) GrantAccess(_ context.Context, policyName, policyType, accou
 	return nil
 }
 
-func (c *iamClient) RevokeAccess(_ context.Context, policyName, policyType, accountID string) error {
+func (c *aliCloudRAMClient) RevokeAccess(_ context.Context, policyName, policyType, accountID string) error {
 	reqClient, err := c.newRequestClient()
 	if err != nil {
 		return err
@@ -97,7 +99,7 @@ func (c *iamClient) RevokeAccess(_ context.Context, policyName, policyType, acco
 	return nil
 }
 
-func (c *iamClient) GrantAccessToRole(_ context.Context, policyName, policyType, roleName string) error {
+func (c *aliCloudRAMClient) GrantAccessToRole(_ context.Context, policyName, policyType, roleName string) error {
 	reqClient, err := c.newRequestClient()
 	if err != nil {
 		return err
@@ -120,7 +122,7 @@ func (c *iamClient) GrantAccessToRole(_ context.Context, policyName, policyType,
 	return nil
 }
 
-func (c *iamClient) RevokeAccessFromRole(_ context.Context, policyName, policyType, roleName string) error {
+func (c *aliCloudRAMClient) RevokeAccessFromRole(_ context.Context, policyName, policyType, roleName string) error {
 	reqClient, err := c.newRequestClient()
 	if err != nil {
 		return err
@@ -143,12 +145,11 @@ func (c *iamClient) RevokeAccessFromRole(_ context.Context, policyName, policyTy
 	return nil
 }
 
-func (c *iamClient) ListAccess(_ context.Context, _ domain.ProviderConfig, _ []*domain.Resource) (domain.MapResourceAccess, error) {
-	// TODO
-	return nil, ErrUnimplementedMethod
+func (c *aliCloudRAMClient) ListAccess(_ context.Context, _ domain.ProviderConfig, _ []*domain.Resource) (domain.MapResourceAccess, error) {
+	return nil, ErrUnimplementedMethod // TODO
 }
 
-func (c *iamClient) GetAllPoliciesByType(_ context.Context, policyType string, maxItems int32) ([]*ram.ListPoliciesResponseBodyPoliciesPolicy, error) {
+func (c *aliCloudRAMClient) GetAllPoliciesByType(_ context.Context, policyType string, maxItems int32) ([]*ram.ListPoliciesResponseBodyPoliciesPolicy, error) {
 	reqClient, err := c.newRequestClient()
 	if err != nil {
 		return nil, err
@@ -184,22 +185,21 @@ func (c *iamClient) GetAllPoliciesByType(_ context.Context, policyType string, m
 // new client instance for every request.
 //
 // The client uses RAM (Resource Access Management) credentials to authenticate with AliCloud.
-// By default, it uses access key credentials. If a role ARN (`roleToAssume`) is specified,
+// By default, it uses access key credentials. If a role ARN (`ramRole`) is specified,
 // it assumes that role to generate temporary session credentials.
-func (c *iamClient) newRequestClient() (*ram.Client, error) {
+func (c *aliCloudRAMClient) newRequestClient() (*ram.Client, error) {
 	// Default to access key credentials (RAM User)
 	credentialConfig := &credentials.Config{
-		Type:            bptr.FromString("access_key"),
+		Type:            bptr.FromString(aliAccountTypeAccessKey),
 		AccessKeyId:     &c.accessKeyId,
 		AccessKeySecret: &c.accessKeySecret,
 	}
 
 	// If a role to assume is specified, configure credentials to assume the role (RAM Role)
-	if c.roleToAssume != "" {
-		credentialConfig.Type = bptr.FromString("ram_role_arn")
-		credentialConfig.RoleArn = &c.roleToAssume
-		credentialConfig.RoleSessionName = bptr.FromString("session2")
-		credentialConfig.RoleSessionExpiration = bptr.FromInt(3600)
+	if c.ramRole != "" {
+		credentialConfig.Type = bptr.FromString(aliAccountTypeRamRoleARN)
+		credentialConfig.RoleArn = &c.ramRole
+		credentialConfig.RoleSessionExpiration = bptr.FromInt(aliRoleSessionExpiration)
 	}
 
 	credential, err := credentials.NewCredential(credentialConfig)

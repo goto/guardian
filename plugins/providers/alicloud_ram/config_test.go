@@ -1,22 +1,26 @@
-package alicloudiam_test
+package alicloud_ram_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/mocks"
-	"github.com/goto/guardian/plugins/providers/alicloudiam"
+	"github.com/goto/guardian/plugins/providers/alicloud_ram"
 	"github.com/stretchr/testify/assert"
 )
 
 const (
+	testMainAccountID            = "5123xxxxxxxxxx"
 	testAccessKeyID              = "test-access-key-id"
 	testAccessKeySecret          = "test-access-key-secret"
 	testEncryptedAccessKeyID     = "test-encrypted-access-key-id"
 	testEncryptedAccessKeySecret = "test-encrypted-access-key-secret"
-	testEncodedAccessKeyID       = "dGVzdC1hY2Nlc3Mta2V5LWlk"
-	testEncodedAccessKeySecret   = "dGVzdC1hY2Nlc3Mta2V5LXNlY3JldA=="
+
+	// no worries this is base64 from random string
+	testEncodedAccessKeyID     = "dGVzdC1hY2Nlc3Mta2V5LWlk"
+	testEncodedAccessKeySecret = "dGVzdC1hY2Nlc3Mta2V5LXNlY3JldA=="
 )
 
 func TestCredentials_Encrypt(t *testing.T) {
@@ -26,10 +30,10 @@ func TestCredentials_Encrypt(t *testing.T) {
 	}
 	tests := []struct {
 		name       string
-		field      *alicloudiam.Credentials
+		field      *alicloud_ram.Credentials
 		args       args
-		mock       func(field *alicloudiam.Credentials)
-		assertFunc func(field *alicloudiam.Credentials)
+		mock       func(field *alicloud_ram.Credentials)
+		assertFunc func(field *alicloud_ram.Credentials)
 		wantErr    bool
 	}{
 		{
@@ -42,13 +46,13 @@ func TestCredentials_Encrypt(t *testing.T) {
 		},
 		{
 			name: "error when encrypting access key id",
-			field: &alicloudiam.Credentials{
+			field: &alicloud_ram.Credentials{
+				MainAccountID:   testMainAccountID,
 				AccessKeyID:     testAccessKeyID,
 				AccessKeySecret: testAccessKeySecret,
-				ResourceName:    "test-resource-name",
 			},
 			args: args{encryptor: encryptor},
-			mock: func(c *alicloudiam.Credentials) {
+			mock: func(c *alicloud_ram.Credentials) {
 				encryptor.On("Encrypt", c.AccessKeyID).Return("", errors.New("test")).Once()
 			},
 			assertFunc: nil,
@@ -56,13 +60,13 @@ func TestCredentials_Encrypt(t *testing.T) {
 		},
 		{
 			name: "error when encrypting access key secret",
-			field: &alicloudiam.Credentials{
+			field: &alicloud_ram.Credentials{
+				MainAccountID:   testMainAccountID,
 				AccessKeyID:     testAccessKeyID,
 				AccessKeySecret: testAccessKeySecret,
-				ResourceName:    "test-resource-name",
 			},
 			args: args{encryptor: encryptor},
-			mock: func(c *alicloudiam.Credentials) {
+			mock: func(c *alicloud_ram.Credentials) {
 				encryptor.On("Encrypt", c.AccessKeyID).Return(testEncryptedAccessKeyID, nil).Once()
 				encryptor.On("Encrypt", c.AccessKeySecret).Return("", errors.New("test")).Once()
 			},
@@ -71,17 +75,17 @@ func TestCredentials_Encrypt(t *testing.T) {
 		},
 		{
 			name: "success encrypting credentials",
-			field: &alicloudiam.Credentials{
+			field: &alicloud_ram.Credentials{
+				MainAccountID:   testMainAccountID,
 				AccessKeyID:     testAccessKeyID,
 				AccessKeySecret: testAccessKeySecret,
-				ResourceName:    "test-resource-name",
 			},
 			args: args{encryptor: encryptor},
-			mock: func(c *alicloudiam.Credentials) {
+			mock: func(c *alicloud_ram.Credentials) {
 				encryptor.On("Encrypt", c.AccessKeyID).Return(testEncryptedAccessKeyID, nil).Once()
 				encryptor.On("Encrypt", c.AccessKeySecret).Return(testEncryptedAccessKeySecret, nil).Once()
 			},
-			assertFunc: func(field *alicloudiam.Credentials) {
+			assertFunc: func(field *alicloud_ram.Credentials) {
 				assert.Equal(t, testEncryptedAccessKeyID, field.AccessKeyID)
 				assert.Equal(t, testEncryptedAccessKeySecret, field.AccessKeySecret)
 			},
@@ -113,10 +117,10 @@ func TestCredentials_Decrypt(t *testing.T) {
 	}
 	tests := []struct {
 		name       string
-		field      *alicloudiam.Credentials
+		field      *alicloud_ram.Credentials
 		args       args
-		mock       func(field *alicloudiam.Credentials)
-		assertFunc func(field *alicloudiam.Credentials)
+		mock       func(field *alicloud_ram.Credentials)
+		assertFunc func(field *alicloud_ram.Credentials)
 		wantErr    bool
 	}{
 		{
@@ -129,13 +133,13 @@ func TestCredentials_Decrypt(t *testing.T) {
 		},
 		{
 			name: "error when decrypting access key id",
-			field: &alicloudiam.Credentials{
+			field: &alicloud_ram.Credentials{
+
 				AccessKeyID:     testEncryptedAccessKeyID,
 				AccessKeySecret: testEncryptedAccessKeySecret,
-				ResourceName:    "test-resource-name",
 			},
 			args: args{decryptor: decryptor},
-			mock: func(c *alicloudiam.Credentials) {
+			mock: func(c *alicloud_ram.Credentials) {
 				decryptor.On("Decrypt", c.AccessKeyID).Return("", errors.New("test")).Once()
 			},
 			assertFunc: nil,
@@ -143,13 +147,12 @@ func TestCredentials_Decrypt(t *testing.T) {
 		},
 		{
 			name: "error when decrypting access key secret",
-			field: &alicloudiam.Credentials{
+			field: &alicloud_ram.Credentials{
 				AccessKeyID:     testEncryptedAccessKeyID,
 				AccessKeySecret: testEncryptedAccessKeySecret,
-				ResourceName:    "test-resource-name",
 			},
 			args: args{decryptor: decryptor},
-			mock: func(c *alicloudiam.Credentials) {
+			mock: func(c *alicloud_ram.Credentials) {
 				decryptor.On("Decrypt", c.AccessKeyID).Return(testAccessKeyID, nil).Once()
 				decryptor.On("Decrypt", c.AccessKeySecret).Return("", errors.New("test")).Once()
 			},
@@ -158,17 +161,16 @@ func TestCredentials_Decrypt(t *testing.T) {
 		},
 		{
 			name: "success decrypting credentials",
-			field: &alicloudiam.Credentials{
+			field: &alicloud_ram.Credentials{
 				AccessKeyID:     testEncryptedAccessKeyID,
 				AccessKeySecret: testEncryptedAccessKeySecret,
-				ResourceName:    "test-resource-name",
 			},
 			args: args{decryptor: decryptor},
-			mock: func(c *alicloudiam.Credentials) {
+			mock: func(c *alicloud_ram.Credentials) {
 				decryptor.On("Decrypt", c.AccessKeyID).Return(testAccessKeyID, nil).Once()
 				decryptor.On("Decrypt", c.AccessKeySecret).Return(testAccessKeySecret, nil).Once()
 			},
-			assertFunc: func(field *alicloudiam.Credentials) {
+			assertFunc: func(field *alicloud_ram.Credentials) {
 				assert.Equal(t, testAccessKeyID, field.AccessKeyID)
 				assert.Equal(t, testAccessKeySecret, field.AccessKeySecret)
 			},
@@ -193,6 +195,43 @@ func TestCredentials_Decrypt(t *testing.T) {
 	}
 }
 
+func TestPermission_String(t *testing.T) {
+	type fields struct {
+		Name string
+		Type string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "success",
+			fields: fields{
+				Name: "oss:ListObjects",
+				Type: alicloud_ram.PolicyTypeSystem,
+			},
+			want: fmt.Sprintf("oss:ListObjects@%s", alicloud_ram.PolicyTypeSystem),
+		},
+		{
+			name: "success without type",
+			fields: fields{
+				Name: "oss:ListObjects",
+			},
+			want: "oss:ListObjects",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := alicloud_ram.Permission{
+				Name: tt.fields.Name,
+				Type: tt.fields.Type,
+			}
+			assert.Equalf(t, tt.want, p.String(), "String()")
+		})
+	}
+}
+
 func TestNewConfig(t *testing.T) {
 	type args struct {
 		pc     *domain.ProviderConfig
@@ -209,7 +248,7 @@ func TestNewConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.NotNil(t, alicloudiam.NewConfig(tt.args.pc, tt.args.crypto))
+			assert.NotNil(t, alicloud_ram.NewConfig(tt.args.pc, tt.args.crypto))
 		})
 	}
 }
@@ -222,8 +261,8 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 	tests := []struct {
 		name       string
 		field      field
-		mock       func(c *alicloudiam.Config)
-		assertFunc func(c *alicloudiam.Config)
+		mock       func(c *alicloud_ram.Config)
+		assertFunc func(c *alicloud_ram.Config)
 		wantErr    bool
 	}{
 		{
@@ -247,10 +286,10 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 		{
 			name: "error empty resource",
 			field: field{
-				pc: &domain.ProviderConfig{Credentials: &alicloudiam.Credentials{
+				pc: &domain.ProviderConfig{Credentials: &alicloud_ram.Credentials{
+					MainAccountID:   testMainAccountID,
 					AccessKeyID:     testEncodedAccessKeyID,
 					AccessKeySecret: testEncodedAccessKeySecret,
-					ResourceName:    "test-resource-name",
 				}},
 			},
 			mock:       nil,
@@ -261,10 +300,10 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 			name: "error invalid resource type",
 			field: field{
 				pc: &domain.ProviderConfig{
-					Credentials: &alicloudiam.Credentials{
+					Credentials: &alicloud_ram.Credentials{
+						MainAccountID:   testMainAccountID,
 						AccessKeyID:     testEncodedAccessKeyID,
 						AccessKeySecret: testEncodedAccessKeySecret,
-						ResourceName:    "test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
 						{
@@ -281,14 +320,14 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 			name: "error empty resource role",
 			field: field{
 				pc: &domain.ProviderConfig{
-					Credentials: &alicloudiam.Credentials{
+					Credentials: &alicloud_ram.Credentials{
+						MainAccountID:   testMainAccountID,
 						AccessKeyID:     testEncodedAccessKeyID,
 						AccessKeySecret: testEncodedAccessKeySecret,
-						ResourceName:    "test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
 						{
-							Type: alicloudiam.ResourceTypeAccount,
+							Type: alicloud_ram.ResourceTypeAccount,
 						},
 					},
 				},
@@ -301,14 +340,14 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 			name: "error empty resource role permission",
 			field: field{
 				pc: &domain.ProviderConfig{
-					Credentials: &alicloudiam.Credentials{
+					Credentials: &alicloud_ram.Credentials{
+						MainAccountID:   testMainAccountID,
 						AccessKeyID:     testEncodedAccessKeyID,
 						AccessKeySecret: testEncodedAccessKeySecret,
-						ResourceName:    "test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
 						{
-							Type: alicloudiam.ResourceTypeAccount,
+							Type: alicloud_ram.ResourceTypeAccount,
 							Roles: []*domain.Role{
 								{
 									ID:          "OSSReadAndOSSImportRead",
@@ -328,14 +367,14 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 			name: "error contain duplicate resource type",
 			field: field{
 				pc: &domain.ProviderConfig{
-					Credentials: &alicloudiam.Credentials{
+					Credentials: &alicloud_ram.Credentials{
+						MainAccountID:   testMainAccountID,
 						AccessKeyID:     testEncodedAccessKeyID,
 						AccessKeySecret: testEncodedAccessKeySecret,
-						ResourceName:    "test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
 						{
-							Type: alicloudiam.ResourceTypeAccount,
+							Type: alicloud_ram.ResourceTypeAccount,
 							Roles: []*domain.Role{
 								{
 									ID:   "OSSReadAndOSSImportRead",
@@ -348,7 +387,7 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 							},
 						},
 						{
-							Type: alicloudiam.ResourceTypeAccount,
+							Type: alicloud_ram.ResourceTypeAccount,
 							Roles: []*domain.Role{
 								{
 									ID:   "OSSReadAndOSSImportRead",
@@ -371,14 +410,14 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 			name: "error contain duplicate resource role id",
 			field: field{
 				pc: &domain.ProviderConfig{
-					Credentials: &alicloudiam.Credentials{
+					Credentials: &alicloud_ram.Credentials{
+						MainAccountID:   testMainAccountID,
 						AccessKeyID:     testEncodedAccessKeyID,
 						AccessKeySecret: testEncodedAccessKeySecret,
-						ResourceName:    "test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
 						{
-							Type: alicloudiam.ResourceTypeAccount,
+							Type: alicloud_ram.ResourceTypeAccount,
 							Roles: []*domain.Role{
 								{
 									ID:   "OSSReadAndOSSImportRead",
@@ -409,14 +448,14 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 			name: "success parse and validate",
 			field: field{
 				pc: &domain.ProviderConfig{
-					Credentials: &alicloudiam.Credentials{
+					Credentials: &alicloud_ram.Credentials{
+						MainAccountID:   testMainAccountID,
 						AccessKeyID:     "dGVzdC1hY2Nlc3Mta2V5LWlk",
 						AccessKeySecret: testEncodedAccessKeySecret,
-						ResourceName:    "test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
 						{
-							Type: alicloudiam.ResourceTypeAccount,
+							Type: alicloud_ram.ResourceTypeAccount,
 							Roles: []*domain.Role{
 								{
 									ID:   "OSSReadAndOSSImportRead",
@@ -432,7 +471,7 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 				},
 			},
 			mock: nil,
-			assertFunc: func(c *alicloudiam.Config) {
+			assertFunc: func(c *alicloud_ram.Config) {
 				// try to re-call it
 				assert.NoError(t, c.ParseAndValidate())
 			},
@@ -441,7 +480,7 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := alicloudiam.NewConfig(tt.field.pc, tt.field.crypto)
+			c := alicloud_ram.NewConfig(tt.field.pc, tt.field.crypto)
 			if tt.mock != nil {
 				tt.mock(c)
 			}
@@ -467,8 +506,8 @@ func TestConfig_EncryptCredentials(t *testing.T) {
 	tests := []struct {
 		name       string
 		field      field
-		mock       func(c *alicloudiam.Config)
-		assertFunc func(c *alicloudiam.Config)
+		mock       func(c *alicloud_ram.Config)
+		assertFunc func(c *alicloud_ram.Config)
 		wantErr    bool
 	}{
 		{
@@ -482,14 +521,14 @@ func TestConfig_EncryptCredentials(t *testing.T) {
 			name: "error fail to encrypt config credentials",
 			field: field{
 				pc: &domain.ProviderConfig{
-					Credentials: &alicloudiam.Credentials{
+					Credentials: &alicloud_ram.Credentials{
+						MainAccountID:   testMainAccountID,
 						AccessKeyID:     testEncodedAccessKeyID,
 						AccessKeySecret: testEncodedAccessKeySecret,
-						ResourceName:    "test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
 						{
-							Type: alicloudiam.ResourceTypeAccount,
+							Type: alicloud_ram.ResourceTypeAccount,
 							Roles: []*domain.Role{
 								{
 									ID:   "OSSReadAndOSSImportRead",
@@ -505,7 +544,7 @@ func TestConfig_EncryptCredentials(t *testing.T) {
 				},
 				crypto: crypto,
 			},
-			mock: func(c *alicloudiam.Config) {
+			mock: func(c *alicloud_ram.Config) {
 				crypto.On("Encrypt", testAccessKeyID).Return("", errors.New("test")).Once()
 			},
 			assertFunc: nil,
@@ -515,14 +554,14 @@ func TestConfig_EncryptCredentials(t *testing.T) {
 			name: "success encrypt config credentials",
 			field: field{
 				pc: &domain.ProviderConfig{
-					Credentials: &alicloudiam.Credentials{
+					Credentials: &alicloud_ram.Credentials{
+						MainAccountID:   testMainAccountID,
 						AccessKeyID:     testEncodedAccessKeyID,
 						AccessKeySecret: testEncodedAccessKeySecret,
-						ResourceName:    "test-resource-name",
 					},
 					Resources: []*domain.ResourceConfig{
 						{
-							Type: alicloudiam.ResourceTypeAccount,
+							Type: alicloud_ram.ResourceTypeAccount,
 							Roles: []*domain.Role{
 								{
 									ID:   "OSSReadAndOSSImportRead",
@@ -538,12 +577,12 @@ func TestConfig_EncryptCredentials(t *testing.T) {
 				},
 				crypto: crypto,
 			},
-			mock: func(c *alicloudiam.Config) {
+			mock: func(c *alicloud_ram.Config) {
 				crypto.On("Encrypt", testAccessKeyID).Return(testEncryptedAccessKeyID, nil).Once()
 				crypto.On("Encrypt", testAccessKeySecret).Return(testEncryptedAccessKeySecret, nil).Once()
 			},
-			assertFunc: func(c *alicloudiam.Config) {
-				credentials := c.ProviderConfig.Credentials.(*alicloudiam.Credentials)
+			assertFunc: func(c *alicloud_ram.Config) {
+				credentials := c.ProviderConfig.Credentials.(*alicloud_ram.Credentials)
 				assert.Equal(t, testEncryptedAccessKeyID, credentials.AccessKeyID)
 				assert.Equal(t, testEncryptedAccessKeySecret, credentials.AccessKeySecret)
 			},
@@ -552,7 +591,7 @@ func TestConfig_EncryptCredentials(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := alicloudiam.NewConfig(tt.field.pc, tt.field.crypto)
+			c := alicloud_ram.NewConfig(tt.field.pc, tt.field.crypto)
 			if tt.mock != nil {
 				tt.mock(c)
 			}

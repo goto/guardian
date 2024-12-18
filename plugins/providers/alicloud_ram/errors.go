@@ -1,4 +1,4 @@
-package alicloudiam
+package alicloud_ram
 
 import (
 	"errors"

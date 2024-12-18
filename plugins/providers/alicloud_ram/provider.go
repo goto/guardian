@@ -1,4 +1,4 @@
-package alicloudiam
+package alicloud_ram
 
 import (
 	"context"
@@ -15,8 +15,8 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-//go:generate mockery --name=AliCloudIamClient --exported --with-expecter
-type AliCloudIamClient interface {
+//go:generate mockery --name=AliCloudRAMClient --exported --with-expecter
+type AliCloudRAMClient interface {
 	GrantAccess(ctx context.Context, policyName, policyType, username string) error
 	RevokeAccess(ctx context.Context, policyName, policyType, username string) error
 	GrantAccessToRole(ctx context.Context, policyName, policyType, roleName string) error
@@ -34,7 +34,7 @@ type Provider struct {
 	provider.PermissionManager
 
 	typeName string
-	Clients  map[string]AliCloudIamClient
+	Clients  map[string]AliCloudRAMClient
 	crypto   encryptor
 	logger   log.Logger
 }
@@ -42,7 +42,7 @@ type Provider struct {
 func NewProvider(typeName string, crypto encryptor, logger log.Logger) *Provider {
 	return &Provider{
 		typeName: typeName,
-		Clients:  map[string]AliCloudIamClient{},
+		Clients:  map[string]AliCloudRAMClient{},
 		crypto:   crypto,
 		logger:   logger,
 	}
@@ -60,7 +60,7 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 		return err
 	}
 
-	client, err := p.getIamClient(pc)
+	client, err := p.getClient(pc)
 	if err != nil {
 		return err
 	}
@@ -77,21 +77,21 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 func (p *Provider) GetResources(_ context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
 	resources := make([]*domain.Resource, len(pc.Resources))
 	for i, rc := range pc.Resources {
+		var creds Credentials
+		if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
+			return nil, err
+		}
+		source := fmt.Sprintf("alicloud_%v", rc.Type)
 		switch rc.Type {
 		case ResourceTypeAccount:
-			var creds Credentials
-			if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
-				return nil, err
-			}
 			resources[i] = &domain.Resource{
 				ProviderType: pc.Type,
 				ProviderURN:  pc.URN,
 				Type:         rc.Type,
-				URN:          creds.ResourceName,
-				Name:         fmt.Sprintf("%s - AliCloud IAM", creds.ResourceName),
-				GlobalURN:    utils.GetGlobalURN("alicloudiam", pc.URN, rc.Type, creds.ResourceName),
+				URN:          creds.MainAccountID,
+				Name:         pc.URN,
+				GlobalURN:    utils.GetGlobalURN(source, creds.MainAccountID, rc.Type, creds.MainAccountID),
 			}
-
 		default:
 			return nil, ErrInvalidResourceType
 		}
@@ -101,7 +101,7 @@ func (p *Provider) GetResources(_ context.Context, pc *domain.ProviderConfig) ([
 }
 
 func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
-	client, err := p.getIamClient(pc)
+	client, err := p.getClient(pc)
 	if err != nil {
 		return err
 	}
@@ -146,7 +146,7 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 }
 
 func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
-	client, err := p.getIamClient(pc)
+	client, err := p.getClient(pc)
 	if err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ func (p *Provider) GetAccountTypes() []string {
 }
 
 func (p *Provider) ListAccess(ctx context.Context, pc domain.ProviderConfig, resources []*domain.Resource) (domain.MapResourceAccess, error) {
-	client, err := p.getIamClient(&pc)
+	client, err := p.getClient(&pc)
 	if err != nil {
 		return nil, err
 	}
@@ -211,20 +211,20 @@ func (p *Provider) ListAccess(ctx context.Context, pc domain.ProviderConfig, res
 	return client.ListAccess(ctx, pc, resources)
 }
 
-func (p *Provider) getIamClient(pc *domain.ProviderConfig) (AliCloudIamClient, error) {
+func (p *Provider) getClient(pc *domain.ProviderConfig) (AliCloudRAMClient, error) {
 	var credentials Credentials
 	err := mapstructure.Decode(pc.Credentials, &credentials)
 	if err != nil {
 		return nil, err
 	}
-	providerURN := pc.URN
 
-	if p.Clients[providerURN] != nil {
-		return p.Clients[providerURN], nil
+	providerURN := pc.URN
+	if client, ok := p.Clients[providerURN]; ok && client != nil {
+		return client, nil
 	}
 
 	_ = credentials.Decrypt(p.crypto)
-	client, err := NewIamClient(credentials.AccessKeyID, credentials.AccessKeySecret, credentials.ResourceName, credentials.RoleToAssume)
+	client, err := NewAliCloudRAMClient(credentials.AccessKeyID, credentials.AccessKeySecret, credentials.RAMRole)
 	if err != nil {
 		return nil, err
 	}

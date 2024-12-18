@@ -1,4 +1,4 @@
-package alicloudiam
+package alicloud_ram
 
 import (
 	"context"
@@ -14,13 +14,15 @@ import (
 const (
 	AccountTypeRamUser = "ramUser"
 	AccountTypeRamRole = "ramRole"
+
+	maxFetchItem int32 = 1000
 )
 
 type Credentials struct {
+	MainAccountID   string `mapstructure:"main_account_id" json:"main_account_id" validate:"required"` // example: 5123xxxxxxxxx
 	AccessKeyID     string `mapstructure:"access_key_id" json:"access_key_id" validate:"required,base64"`
 	AccessKeySecret string `mapstructure:"access_key_secret" json:"access_key_secret" validate:"required,base64"`
-	RoleToAssume    string `mapstructure:"role_to_assume" json:"role_to_assume,omitempty"`
-	ResourceName    string `mapstructure:"resource_name" json:"resource_name" validate:"required"`
+	RAMRole         string `mapstructure:"ram_role" json:"ram_role,omitempty"` // example: `acs:ram::{MAIN_ACCOUNT_ID}:role/{ROLE_NAME}`
 }
 
 func (c *Credentials) Encrypt(encryptor domain.Encryptor) error {
@@ -66,6 +68,14 @@ func (c *Credentials) Decrypt(decryptor domain.Decryptor) error {
 type Permission struct {
 	Name string `mapstructure:"name" json:"name" validate:"required"`
 	Type string `mapstructure:"type" json:"type" validate:"required,oneof=System Custom"`
+}
+
+func (p Permission) String() string {
+	str := p.Name
+	if p.Type != "" {
+		str += fmt.Sprintf("@%s", p.Type)
+	}
+	return str
 }
 
 type Config struct {
@@ -179,9 +189,7 @@ func (c *Config) EncryptCredentials() error {
 	return nil
 }
 
-func (c *Config) validatePermissions(ctx context.Context, resource *domain.ResourceConfig, client AliCloudIamClient) error {
-	const maxFetchItem int32 = 1000
-
+func (c *Config) validatePermissions(ctx context.Context, resource *domain.ResourceConfig, client AliCloudRAMClient) error {
 	systemPolicies, err := client.GetAllPoliciesByType(ctx, PolicyTypeSystem, maxFetchItem)
 	if err != nil {
 		return err
