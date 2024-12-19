@@ -7,18 +7,19 @@ import (
 )
 
 const (
-	ProviderTypeAliCloudRAM = "alicloud_ram"
-	ProviderTypeBigQuery    = "bigquery"
-	ProviderTypeMetabase    = "metabase"
-	ProviderTypeGrafana     = "grafana"
-	ProviderTypeTableau     = "tableau"
-	ProviderTypeGCloudIAM   = "gcloud_iam"
-	ProviderTypeNoOp        = "noop"
-	ProviderTypeGCS         = "gcs"
-	ProviderTypePolicyTag   = "dataplex"
-	ProviderTypeShield      = "shield"
-	ProviderTypeGitlab      = "gitlab"
-	ProviderTypeGate        = "gate"
+	ProviderTypeBigQuery   = "bigquery"
+	ProviderTypeMetabase   = "metabase"
+	ProviderTypeGrafana    = "grafana"
+	ProviderTypeTableau    = "tableau"
+	ProviderTypeGCloudIAM  = "gcloud_iam"
+	ProviderTypeNoOp       = "noop"
+	ProviderTypeGCS        = "gcs"
+	ProviderTypePolicyTag  = "dataplex"
+	ProviderTypeShield     = "shield"
+	ProviderTypeGitlab     = "gitlab"
+	ProviderTypeGate       = "gate"
+	ProviderTypeMaxCompute = "maxcompute"
+	ProviderTypeOss        = "oss"
 )
 
 // Role is the configuration to define a role and mapping the permissions in the provider
@@ -58,9 +59,8 @@ type AppealConfig struct {
 	AllowPermanentAccess         bool   `json:"allow_permanent_access" yaml:"allow_permanent_access"`
 	AllowActiveAccessExtensionIn string `json:"allow_active_access_extension_in" yaml:"allow_active_access_extension_in" validate:"required"`
 }
-
 type ProviderConfig struct {
-	Type                string               `json:"type" yaml:"type" validate:"required,oneof=alicloud_ram google_bigquery metabase grafana tableau gcloud_iam noop gcs shield"`
+	Type                string               `json:"type" yaml:"type" validate:"required,oneof=google_bigquery metabase grafana tableau gcloud_iam noop gcs shield"`
 	URN                 string               `json:"urn" yaml:"urn" validate:"required"`
 	AllowedAccountTypes []string             `json:"allowed_account_types" yaml:"allowed_account_types" validate:"omitempty,min=1"`
 	Labels              map[string]string    `json:"labels,omitempty" yaml:"labels,omitempty"`
@@ -69,6 +69,7 @@ type ProviderConfig struct {
 	Resources           []*ResourceConfig    `json:"resources" yaml:"resources" validate:"required"`
 	Parameters          []*ProviderParameter `json:"parameters,omitempty" yaml:"parameters,omitempty"`
 	Activity            *ActivityConfig      `json:"activity,omitempty" yaml:"activity,omitempty"`
+	Policies            []*ProviderPolicy    `json:"policies,omitempty" yaml:"policies,omitempty"`
 }
 
 type ProviderParameter struct {
@@ -81,6 +82,13 @@ type ProviderParameter struct {
 func (pc ProviderConfig) GetResourceTypes() (resourceTypes []string) {
 	for _, rc := range pc.Resources {
 		resourceTypes = append(resourceTypes, rc.Type)
+	}
+	return
+}
+
+func (pc ProviderConfig) GetParameterKeys() (keys []string) {
+	for _, param := range pc.Parameters {
+		keys = append(keys, param.Key)
 	}
 	return
 }
@@ -111,4 +119,9 @@ type ProviderType struct {
 type ActivityConfig struct {
 	Source  string
 	Options map[string]interface{}
+}
+
+type ProviderPolicy struct {
+	When   string `json:"when" yaml:"when"`
+	Policy string `json:"policy" yaml:"policy"`
 }

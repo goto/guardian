@@ -56,6 +56,10 @@ type assignmentTyper interface {
 	IsExclusiveRoleAssignment(context.Context) bool
 }
 
+type grantDependenciesResolver interface {
+	GetDependencyGrants(context.Context, domain.Provider, domain.Grant) ([]*domain.Grant, error)
+}
+
 //go:generate mockery --name=resourceService --exported --with-expecter
 type resourceService interface {
 	Find(context.Context, domain.ListResourcesFilter) ([]*domain.Resource, error)
@@ -569,33 +573,79 @@ func (s *Service) IsExclusiveRoleAssignment(ctx context.Context, providerType, r
 	return false
 }
 
+func (s *Service) GetDependencyGrants(ctx context.Context, g domain.Grant) ([]*domain.Grant, error) {
+	client := s.getClient(g.Resource.ProviderType)
+	if client == nil {
+		return nil, ErrInvalidProviderType
+	}
+
+	c, ok := client.(grantDependenciesResolver)
+	if !ok {
+		return nil, nil
+	}
+
+	p, err := s.getProviderConfig(ctx, g.Resource.ProviderType, g.Resource.ProviderURN)
+	if err != nil {
+		return nil, err
+	}
+
+	dependencies, err := c.GetDependencyGrants(ctx, *p, g)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, d := range dependencies {
+		resources, err := s.resourceService.Find(ctx, domain.ListResourcesFilter{
+			ProviderType: d.Resource.ProviderType,
+			ProviderURN:  d.Resource.ProviderURN,
+			ResourceType: d.Resource.Type,
+			ResourceURN:  d.Resource.URN,
+			Size:         1,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to resolve resource %q for grant dependency: %w", d.Resource.URN, err)
+		}
+		if len(resources) == 0 {
+			return nil, fmt.Errorf("unable to resolve resource %q for grant dependency: not found", d.Resource.URN)
+		}
+
+		d.ResourceID = resources[0].ID
+		d.Resource = resources[0]
+	}
+
+	return dependencies, nil
+}
+
 func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]*domain.Resource, int, error) {
 	c := s.getClient(p.Type)
 	if c == nil {
 		return nil, 0, fmt.Errorf("%w: %v", ErrInvalidProviderType, p.Type)
 	}
 
-	existingGuardianResources, err := s.resourceService.Find(ctx, domain.ListResourcesFilter{
+	existingResources, err := s.resourceService.Find(ctx, domain.ListResourcesFilter{
 		ProviderType: p.Type,
 		ProviderURN:  p.URN,
 	})
 	if err != nil {
 		return nil, 0, err
 	}
+	mapExistingResources := make(map[string]*domain.Resource, len(existingResources))
+	for _, existing := range existingResources {
+		mapExistingResources[existing.GlobalURN] = existing
+	}
 
+	newResourcesWithChildren, err := c.GetResources(ctx, p.Config)
+	if err != nil {
+		return nil, 0, fmt.Errorf("error fetching resources for %v: %w", p.ID, err)
+	}
 	resourceTypeFilterMap := make(map[string]string)
 	for _, rc := range p.Config.Resources {
 		if len(rc.Filter) > 0 {
 			resourceTypeFilterMap[rc.Type] = rc.Filter
 		}
 	}
-
-	newProviderResources, err := c.GetResources(ctx, p.Config)
-	if err != nil {
-		return nil, 0, fmt.Errorf("error fetching resources for %v: %w", p.ID, err)
-	}
 	filteredResources := make([]*domain.Resource, 0)
-	for _, r := range newProviderResources {
+	for _, r := range newResourcesWithChildren {
 		if filterExpression, ok := resourceTypeFilterMap[r.Type]; ok {
 			v, err := evaluator.Expression(filterExpression).EvaluateWithStruct(r)
 			if err != nil {
@@ -608,51 +658,56 @@ func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]
 			filteredResources = append(filteredResources, r)
 		}
 	}
-	flattenedProviderResources := flattenResources(filteredResources)
 
-	existingProviderResources := map[string]bool{}
-	updatedResources := []*domain.Resource{}
-	for _, newResource := range flattenedProviderResources {
-		found := false
-		for _, existingResource := range existingGuardianResources {
-			if existingResource.Type == newResource.Type && existingResource.URN == newResource.URN {
-				found = true
-				if existingDetails := existingResource.Details; existingDetails != nil {
-					if newResource.Details != nil {
-						for key, value := range existingDetails {
-							if _, ok := newResource.Details[key]; !ok {
-								newResource.Details[key] = value
-							}
-						}
-					} else {
-						newResource.Details = existingDetails
-					}
-					if isUpdated, diff := compareResources(*existingResource, *newResource); isUpdated {
-						s.logger.Debug(ctx, "diff", "resources", diff)
-						updatedResources = append(updatedResources, newResource)
-						s.logger.Info(ctx, "resources is updated", "resource", newResource.URN)
+	newAndUpdatedResources := s.compareResources(ctx, mapExistingResources, filteredResources)
+	if len(newAndUpdatedResources) == 0 {
+		return []*domain.Resource{}, 0, nil
+	}
+	for _, deletedResource := range mapExistingResources {
+		deletedResource.IsDeleted = true
+		newAndUpdatedResources = append(newAndUpdatedResources, deletedResource)
+		s.logger.Info(ctx, "resource deleted", "resource", deletedResource.GlobalURN)
+	}
+
+	return newAndUpdatedResources, len(newResourcesWithChildren), nil
+}
+
+func (s *Service) compareResources(ctx context.Context, existingResources map[string]*domain.Resource, newResources []*domain.Resource) []*domain.Resource {
+	var res []*domain.Resource
+	for _, new := range newResources {
+		new.Children = s.compareResources(ctx, existingResources, new.Children)
+
+		existing, exist := existingResources[new.GlobalURN]
+		if !exist {
+			// new resource
+			res = append(res, new)
+			continue
+		}
+		delete(existingResources, new.GlobalURN)
+		if existingDetails := existing.Details; existingDetails != nil {
+			if new.Details != nil {
+				for key, value := range existingDetails {
+					if _, ok := new.Details[key]; !ok {
+						new.Details[key] = value
 					}
 				}
-				existingProviderResources[existingResource.ID] = true
-				break
+			} else {
+				new.Details = existingDetails
 			}
 		}
-		if !found {
-			updatedResources = append(updatedResources, newResource)
-			s.logger.Info(ctx, "new resource added", "resource", newResource.Name)
+		if len(new.Children) == 0 {
+			isUpdated, diff := compareResource(*existing, *new)
+			if !isUpdated {
+				continue
+			}
+			s.logger.Debug(ctx, "diff", "resources", diff)
+			s.logger.Info(ctx, "resources is updated", "resource", new.URN)
 		}
+
+		res = append(res, new)
 	}
 
-	// mark IsDeleted of guardian resources that no longer exist in provider
-	for _, r := range existingGuardianResources {
-		if _, ok := existingProviderResources[r.ID]; !ok {
-			r.IsDeleted = true
-			updatedResources = append(updatedResources, r)
-			s.logger.Info(ctx, "resource deleted", "resource", r.Name)
-		}
-	}
-
-	return updatedResources, len(newProviderResources), nil
+	return res
 }
 
 func (s *Service) validateAppealParam(a *domain.Appeal) error {

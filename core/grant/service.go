@@ -30,6 +30,7 @@ type repository interface {
 	BulkUpsert(context.Context, []*domain.Grant) error
 	GetGrantsTotalCount(context.Context, domain.ListGrantsFilter) (int64, error)
 	ListUserRoles(context.Context, string) ([]string, error)
+	Create(context.Context, *domain.Grant) error
 }
 
 //go:generate mockery --name=providerService --exported --with-expecter
@@ -108,6 +109,10 @@ func (s *Service) GetByID(ctx context.Context, id string) (*domain.Grant, error)
 		return nil, ErrEmptyIDParam
 	}
 	return s.repo.GetByID(ctx, id)
+}
+
+func (s *Service) Create(ctx context.Context, grant *domain.Grant) error {
+	return s.repo.Create(ctx, grant)
 }
 
 func (s *Service) Update(ctx context.Context, payload *domain.GrantUpdate) (*domain.Grant, error) {

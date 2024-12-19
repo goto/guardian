@@ -3,7 +3,7 @@ COMMIT := $(shell git rev-parse --short HEAD)
 TAG := "$(shell git rev-list --tags --max-count=1)"
 VERSION := "$(shell git describe --tags ${TAG})-next"
 BUILD_DIR=dist
-PROTON_COMMIT := "5709addd6a1a35b6c085eca96ae2c1deaf3842cf"
+PROTON_COMMIT := "629e2f8d4b3b0634238e8b99663ccf8fa409bb39"
 
 .PHONY: all build clean test tidy vet proto setup format generate
 
@@ -81,4 +81,3 @@ setup:
 	go get github.com/bufbuild/buf/cmd/buf@v1.15.1
 	go get github.com/vektra/mockery/v2@v2.33.0
 	go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.59
-	

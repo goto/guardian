@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -83,6 +84,7 @@ type providerService interface {
 	ValidateAppeal(context.Context, *domain.Appeal, *domain.Provider, *domain.Policy) error
 	GetPermissions(context.Context, *domain.ProviderConfig, string, string) ([]interface{}, error)
 	IsExclusiveRoleAssignment(context.Context, string, string) bool
+	GetDependencyGrants(context.Context, domain.Grant) ([]*domain.Grant, error)
 }
 
 //go:generate mockery --name=resourceService --exported --with-expecter
@@ -96,6 +98,7 @@ type grantService interface {
 	List(context.Context, domain.ListGrantsFilter) ([]domain.Grant, error)
 	Prepare(context.Context, domain.Appeal) (*domain.Grant, error)
 	Revoke(ctx context.Context, id, actor, reason string, opts ...grant.Option) (*domain.Grant, error)
+	Create(ctx context.Context, grant *domain.Grant) error
 }
 
 //go:generate mockery --name=auditLogger --exported --with-expecter
@@ -1489,10 +1492,52 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 		}
 	}
 
-	if err := s.providerService.GrantAccess(ctx, *a.Grant); err != nil {
+	appealCopy := *a
+	appealCopy.Grant = nil
+	grantWithAppeal := *a.Grant
+	grantWithAppeal.Appeal = &appealCopy
+
+	// grant access dependencies (if any)
+	dependencyGrants, err := s.providerService.GetDependencyGrants(ctx, grantWithAppeal)
+	if err != nil {
+		return fmt.Errorf("getting grant dependencies: %w", err)
+	}
+	for _, dg := range dependencyGrants {
+		activeDepGrants, err := s.grantService.List(ctx, domain.ListGrantsFilter{
+			Statuses:     []string{string(domain.GrantStatusActive)},
+			AccountIDs:   []string{dg.AccountID},
+			AccountTypes: []string{dg.AccountType},
+			ResourceIDs:  []string{dg.Resource.ID},
+			Permissions:  dg.Permissions,
+			Size:         1,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get existing active grant dependency: %w", err)
+		}
+
+		if len(activeDepGrants) > 0 {
+			continue
+		}
+
+		dg.Status = domain.GrantStatusActive
+		dg.Appeal = &appealCopy
+		if err := s.providerService.GrantAccess(ctx, *dg); err != nil {
+			return fmt.Errorf("failed to grant an access dependency: %w", err)
+		}
+		dg.Appeal = nil
+
+		dg.Owner = a.CreatedBy
+		if err := s.grantService.Create(ctx, dg); err != nil {
+			return fmt.Errorf("failed to store grant of access dependency: %w", err)
+		}
+	}
+
+	// grant main access
+	if err := s.providerService.GrantAccess(ctx, grantWithAppeal); err != nil {
 		return fmt.Errorf("granting access: %w", err)
 	}
 
+	grantWithAppeal.Appeal = nil
 	return nil
 }
 
@@ -1527,6 +1572,7 @@ func (s *Service) checkExtensionEligibility(a *domain.Appeal, p *domain.Provider
 }
 
 func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[uint]*domain.Policy) (*domain.Policy, error) {
+	var policyConfig domain.PolicyConfig
 	var resourceConfig *domain.ResourceConfig
 	for _, rc := range p.Config.Resources {
 		if rc.Type == a.Resource.Type {
@@ -1537,7 +1583,51 @@ func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[
 	if resourceConfig == nil {
 		return nil, fmt.Errorf("%w: couldn't find %q resource type in the provider config", ErrInvalidResourceType, a.Resource.Type)
 	}
-	policyConfig := resourceConfig.Policy
+	policyConfig = *resourceConfig.Policy
+
+	appealMap, err := a.ToMap()
+	if err != nil {
+		return nil, fmt.Errorf("parsing appeal struct to map: %w", err)
+	}
+
+	var dynamicPolicyConfigData string
+	for _, pc := range p.Config.Policies {
+		if pc.When != "" {
+			v, err := evaluator.Expression(pc.When).EvaluateWithVars(map[string]interface{}{
+				"appeal": appealMap,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			isFalsy := reflect.ValueOf(v).IsZero()
+			if isFalsy {
+				continue
+			}
+
+			dynamicPolicyConfigData = pc.Policy
+			break
+		}
+	}
+
+	if dynamicPolicyConfigData != "" {
+		var dynamicPolicyConfig domain.PolicyConfig
+		policyData := strings.Split(dynamicPolicyConfigData, "@")
+		dynamicPolicyConfig.ID = policyData[0]
+		if len(policyData) > 1 {
+			var version int
+			if policyData[1] == "latest" {
+				version = 0
+			} else {
+				version, err = strconv.Atoi(policyData[1])
+			}
+			if err != nil {
+				return nil, fmt.Errorf("invalid policy version: %w", err)
+			}
+			dynamicPolicyConfig.Version = version
+		}
+		policyConfig = dynamicPolicyConfig
+	}
 
 	policy, ok := policiesMap[policyConfig.ID][uint(policyConfig.Version)]
 	if !ok {
