@@ -179,6 +179,7 @@ github.com/alibabacloud-go/darabonba-map v0.0.2/go.mod h1:28AJaX8FOE/ym8OUFWga+M
 github.com/alibabacloud-go/darabonba-openapi v0.1.16/go.mod h1:ZjyqRbbZOaUBSh7keeH8VQN/BzCPvxCQwMuJGDdbmXQ=
 github.com/alibabacloud-go/darabonba-openapi v0.2.1 h1:WyzxxKvhdVDlwpAMOHgAiCJ+NXa6g5ZWPFEzaK/ewwY=
 github.com/alibabacloud-go/darabonba-openapi v0.2.1/go.mod h1:zXOqLbpIqq543oioL9IuuZYOQgHQ5B8/n5OPrnko8aY=
+github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.7/go.mod h1:CzQnh+94WDnJOnKZH5YRyouL+OOcdBnXY5VWAf0McgI=
 github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.8/go.mod h1:CzQnh+94WDnJOnKZH5YRyouL+OOcdBnXY5VWAf0McgI=
 github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.10 h1:GEYkMApgpKEVDn6z12DcH1EGYpDYRB8JxsazM4Rywak=
 github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.10/go.mod h1:26a14FGhZVELuz2cc2AolvW4RHmIO3/HRwsdHhaIPDE=
@@ -199,6 +200,8 @@ github.com/alibabacloud-go/openapi-util v0.0.10/go.mod h1:sQuElr4ywwFRlCCberQwKR
 github.com/alibabacloud-go/openapi-util v0.0.11/go.mod h1:sQuElr4ywwFRlCCberQwKRFhRzIyG4QTP/P4y1CJ6Ws=
 github.com/alibabacloud-go/openapi-util v0.1.0 h1:0z75cIULkDrdEhkLWgi9tnLe+KhAFE/r5Pb3312/eAY=
 github.com/alibabacloud-go/openapi-util v0.1.0/go.mod h1:sQuElr4ywwFRlCCberQwKRFhRzIyG4QTP/P4y1CJ6Ws=
+github.com/alibabacloud-go/ram-20150501/v2 v2.1.0 h1:l4ssQZwmqO3V0MUQeY3DRiIJSjoRrjvo9BcojlrRXYc=
+github.com/alibabacloud-go/ram-20150501/v2 v2.1.0/go.mod h1:mSHwkEe0Qgxkhe/GVpHsuJ9SAI6AaZjxj3DuL5kX/ng=
 github.com/alibabacloud-go/sts-20150401 v1.1.2 h1:Bs+5YxsiJf1Zdij1ziWUmvsm8VQM599JALOmom7T1T8=
 github.com/alibabacloud-go/sts-20150401 v1.1.2/go.mod h1:JQImPX2JjCaARhUB51H3JUPSpbXCT1PFJkDJvgl+f5I=
 github.com/alibabacloud-go/tea v1.1.0/go.mod h1:IkGyUSX4Ba1V+k4pCtJUc6jDpZLFph9QMy2VUPTwukg=
@@ -278,6 +281,8 @@ github.com/aws/smithy-go v1.7.0/go.mod h1:SObp3lf9smib00L/v3U2eAKG8FyQ7iLrJnQiAm
 github.com/aws/smithy-go v1.8.0/go.mod h1:SObp3lf9smib00L/v3U2eAKG8FyQ7iLrJnQiAmR5n+E=
 github.com/aymerick/douceur v0.2.0 h1:Mv+mAeH1Q+n9Fr+oyamOlAkUNPWPlA8PPGR0QAaYuPk=
 github.com/aymerick/douceur v0.2.0/go.mod h1:wlT5vV2O3h55X9m7iVYN0TBM0NH/MmbLnd30/FjWUq4=
+github.com/bearaujus/bptr v0.1.0 h1:4qGaQuZv/8V7T8Vi4c94LC9fra44f3fbmg1qv9PSjr8=
+github.com/bearaujus/bptr v0.1.0/go.mod h1:epipv8zSeEKawxVhpFFjuZw9DDruaNwUdSkGTgdm4b4=
 github.com/benbjohnson/clock v1.0.3/go.mod h1:bGMdMPoPVvcYyt1gHDf4J2KE153Yf9BuiUKYMaxlTDM=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
