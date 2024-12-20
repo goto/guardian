@@ -17,6 +17,6 @@ var (
 	ErrGrantRoleNotFoundAtResource   = errors.New("grant role not found at resource")
 	ErrEmptyGrantRole                = errors.New("empty grant role")
 	ErrInvalidPolicyType             = fmt.Errorf("invalid policy type. policy type must be one of: %v\n", getPolicyTypes())
-	ErrInvalidAliAccountUserID       = errors.New("invalid ali account user id. see: https://github.com/goto/guardian/tree/main/plugins/providers/alicloudiam/docs/ali-account-user-id-example.png")
+	ErrInvalidAliAccountUserID       = errors.New("invalid ali account user id. see: https://github.com/goto/guardian/tree/main/plugins/providers/alicloud_ram/docs/ali-account-user-id-example.png")
 	ErrEmptyResourceConfig           = errors.New("empty resource config")
 )
