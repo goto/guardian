@@ -70,14 +70,6 @@ type Permission struct {
 	Type string `mapstructure:"type" json:"type" validate:"required,oneof=System Custom"`
 }
 
-func (p Permission) String() string {
-	str := p.Name
-	if p.Type != "" {
-		str += fmt.Sprintf("@%s", p.Type)
-	}
-	return str
-}
-
 type Config struct {
 	ProviderConfig *domain.ProviderConfig
 	valid          bool

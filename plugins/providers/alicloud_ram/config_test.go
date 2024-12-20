@@ -2,7 +2,6 @@ package alicloud_ram_test
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/goto/guardian/domain"
@@ -191,43 +190,6 @@ func TestCredentials_Decrypt(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-		})
-	}
-}
-
-func TestPermission_String(t *testing.T) {
-	type fields struct {
-		Name string
-		Type string
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   string
-	}{
-		{
-			name: "success",
-			fields: fields{
-				Name: "oss:ListObjects",
-				Type: alicloud_ram.PolicyTypeSystem,
-			},
-			want: fmt.Sprintf("oss:ListObjects@%s", alicloud_ram.PolicyTypeSystem),
-		},
-		{
-			name: "success without type",
-			fields: fields{
-				Name: "oss:ListObjects",
-			},
-			want: "oss:ListObjects",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := alicloud_ram.Permission{
-				Name: tt.fields.Name,
-				Type: tt.fields.Type,
-			}
-			assert.Equalf(t, tt.want, p.String(), "String()")
 		})
 	}
 }
