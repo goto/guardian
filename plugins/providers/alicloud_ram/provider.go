@@ -224,7 +224,7 @@ func (p *Provider) getClient(pc *domain.ProviderConfig) (AliCloudRAMClient, erro
 	}
 
 	_ = credentials.Decrypt(p.crypto)
-	client, err := NewAliCloudRAMClient(credentials.AccessKeyID, credentials.AccessKeySecret, credentials.RAMRole)
+	client, err := NewAliCloudRAMClient(credentials.AccessKeyID, credentials.AccessKeySecret, credentials.RAMRole, credentials.RegionID)
 	if err != nil {
 		return nil, err
 	}
@@ -274,13 +274,6 @@ func getAccountTypes() []string {
 	return []string{
 		AccountTypeRamUser,
 		AccountTypeRamRole,
-	}
-}
-
-func getPolicyTypes() []string {
-	return []string{
-		PolicyTypeSystem,
-		PolicyTypeCustom,
 	}
 }
 

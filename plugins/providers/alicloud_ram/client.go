@@ -29,7 +29,8 @@ const (
 type aliCloudRAMClient struct {
 	accessKeyId     string
 	accessKeySecret string
-	ramRole         string // example: `acs:ram::{MAIN_ACCOUNT_ID}:role/{ROLE_NAME}`
+	ramRole         string // (optional) example: `acs:ram::{MAIN_ACCOUNT_ID}:role/{ROLE_NAME}`
+	regionId        string // (optional) can be empty for using default region id. see: https://www.alibabacloud.com/help/en/cloud-migration-guide-for-beginners/latest/regions-and-zones
 }
 
 // NewAliCloudRAMClient initializes a new instance of AliCloudRAMClient.
@@ -38,11 +39,12 @@ type aliCloudRAMClient struct {
 // and resource information. If a role ARN (`ramRole`) is specified, it will
 // be included in the configuration for assuming a RAM role. The function also
 // validates the configuration by attempting to create a new RAM client instance.
-func NewAliCloudRAMClient(accessKeyID, accessKeySecret, ramRole string) (AliCloudRAMClient, error) {
+func NewAliCloudRAMClient(accessKeyID, accessKeySecret, ramRole, regionId string) (AliCloudRAMClient, error) {
 	c := &aliCloudRAMClient{
 		accessKeyId:     accessKeyID,
 		accessKeySecret: accessKeySecret,
 		ramRole:         ramRole,
+		regionId:        regionId,
 	}
 
 	// Validate the ram role ARN if present
@@ -62,7 +64,7 @@ func NewAliCloudRAMClient(accessKeyID, accessKeySecret, ramRole string) (AliClou
 		}
 	}
 
-	// Validate the configuration by attempting to create a new request client
+	// Validate the configuration by creating a new dummy request client
 	_, err := c.newRequestClient()
 	if err != nil {
 		return nil, err
@@ -208,16 +210,16 @@ func (c *aliCloudRAMClient) GetAllPoliciesByType(_ context.Context, policyType s
 func (c *aliCloudRAMClient) newRequestClient() (*ram.Client, error) {
 	// Default to access key credentials (RAM User)
 	credentialConfig := &credentials.Config{
-		Type:            bptr.FromString(aliAccountTypeAccessKey),
-		AccessKeyId:     &c.accessKeyId,
-		AccessKeySecret: &c.accessKeySecret,
+		Type:            bptr.FromStringNilAble(aliAccountTypeAccessKey),
+		AccessKeyId:     bptr.FromStringNilAble(c.accessKeyId),
+		AccessKeySecret: bptr.FromStringNilAble(c.accessKeySecret),
 	}
 
 	// If a role to assume is specified, configure credentials to assume the role (RAM Role)
 	if c.ramRole != "" {
-		credentialConfig.Type = bptr.FromString(aliAccountTypeRamRoleARN)
-		credentialConfig.RoleArn = &c.ramRole
-		credentialConfig.RoleSessionExpiration = bptr.FromInt(aliRoleSessionExpiration)
+		credentialConfig.Type = bptr.FromStringNilAble(aliAccountTypeRamRoleARN)
+		credentialConfig.RoleArn = bptr.FromStringNilAble(c.ramRole)
+		credentialConfig.RoleSessionExpiration = bptr.FromIntNilAble(aliRoleSessionExpiration)
 	}
 
 	credential, err := credentials.NewCredential(credentialConfig)
@@ -225,7 +227,10 @@ func (c *aliCloudRAMClient) newRequestClient() (*ram.Client, error) {
 		return nil, fmt.Errorf("failed to create a new credentials: %w", err)
 	}
 
-	reqClient, err := ram.NewClient(&openapi.Config{Credential: credential})
+	reqClient, err := ram.NewClient(&openapi.Config{
+		Credential: credential,
+		RegionId:   bptr.FromStringNilAble(c.regionId),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RAM client: %w", err)
 	}

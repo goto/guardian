@@ -22,7 +22,8 @@ type Credentials struct {
 	MainAccountID   string `mapstructure:"main_account_id" json:"main_account_id" validate:"required"` // example: 5123xxxxxxxxx
 	AccessKeyID     string `mapstructure:"access_key_id" json:"access_key_id" validate:"required,base64"`
 	AccessKeySecret string `mapstructure:"access_key_secret" json:"access_key_secret" validate:"required,base64"`
-	RAMRole         string `mapstructure:"ram_role" json:"ram_role,omitempty"` // example: `acs:ram::{MAIN_ACCOUNT_ID}:role/{ROLE_NAME}`
+	RAMRole         string `mapstructure:"ram_role" json:"ram_role,omitempty"` // (optional) example: `acs:ram::{MAIN_ACCOUNT_ID}:role/{ROLE_NAME}`
+	RegionID        string // (optional) can be empty for using default region id. see: https://www.alibabacloud.com/help/en/cloud-migration-guide-for-beginners/latest/regions-and-zones
 }
 
 func (c *Credentials) Encrypt(encryptor domain.Encryptor) error {

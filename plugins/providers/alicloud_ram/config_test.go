@@ -161,8 +161,11 @@ func TestCredentials_Decrypt(t *testing.T) {
 		{
 			name: "success decrypting credentials",
 			field: &alicloud_ram.Credentials{
+				MainAccountID:   "5123xxxxxxxxx",
 				AccessKeyID:     testEncryptedAccessKeyID,
 				AccessKeySecret: testEncryptedAccessKeySecret,
+				RAMRole:         "acs:ram::500xxxxxxxx:role/role-name",
+				RegionID:        "",
 			},
 			args: args{decryptor: decryptor},
 			mock: func(c *alicloud_ram.Credentials) {
@@ -170,8 +173,11 @@ func TestCredentials_Decrypt(t *testing.T) {
 				decryptor.On("Decrypt", c.AccessKeySecret).Return(testAccessKeySecret, nil).Once()
 			},
 			assertFunc: func(field *alicloud_ram.Credentials) {
+				assert.Equal(t, "5123xxxxxxxxx", field.MainAccountID)
 				assert.Equal(t, testAccessKeyID, field.AccessKeyID)
 				assert.Equal(t, testAccessKeySecret, field.AccessKeySecret)
+				assert.Equal(t, "acs:ram::500xxxxxxxx:role/role-name", field.RAMRole)
+				assert.Equal(t, "", field.RegionID)
 			},
 			wantErr: false,
 		},

@@ -11,9 +11,10 @@ import (
 
 func TestNewAliCloudRAMClient(t *testing.T) {
 	type args struct {
-		accessKeyID     string
+		accessKeyId     string
 		accessKeySecret string
 		ramRole         string
+		regionId        string
 	}
 	tests := []struct {
 		name    string
@@ -23,7 +24,7 @@ func TestNewAliCloudRAMClient(t *testing.T) {
 		{
 			name: "error creating AliCloud RAM client with role - invalid role arn",
 			args: args{
-				accessKeyID:     testAccessKeyID,
+				accessKeyId:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
 				ramRole:         "invalid-role-arn",
 			},
@@ -32,7 +33,7 @@ func TestNewAliCloudRAMClient(t *testing.T) {
 		{
 			name: "error creating AliCloud RAM client with role - unsupported service type",
 			args: args{
-				accessKeyID:     testAccessKeyID,
+				accessKeyId:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
 				ramRole:         "acs:unsupported-service-type::500xxxxxxxx:role/role-name",
 			},
@@ -41,7 +42,7 @@ func TestNewAliCloudRAMClient(t *testing.T) {
 		{
 			name: "error creating AliCloud RAM client with role - invalid resource",
 			args: args{
-				accessKeyID:     testAccessKeyID,
+				accessKeyId:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
 				ramRole:         "acs:ram::500xxxxxxxx:invalid-resource",
 			},
@@ -50,7 +51,7 @@ func TestNewAliCloudRAMClient(t *testing.T) {
 		{
 			name: "error creating AliCloud RAM client with role - unsupported resource type",
 			args: args{
-				accessKeyID:     testAccessKeyID,
+				accessKeyId:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
 				ramRole:         "acs:ram::500xxxxxxxx:unsupported-resource-type/role-name",
 			},
@@ -59,7 +60,7 @@ func TestNewAliCloudRAMClient(t *testing.T) {
 		{
 			name: "error creating AliCloud RAM client with role - empty role name or resource name",
 			args: args{
-				accessKeyID:     testAccessKeyID,
+				accessKeyId:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
 				ramRole:         "acs:ram::500xxxxxxxx:role/",
 			},
@@ -68,7 +69,7 @@ func TestNewAliCloudRAMClient(t *testing.T) {
 		{
 			name: "success creating AliCloud RAM client with role",
 			args: args{
-				accessKeyID:     testAccessKeyID,
+				accessKeyId:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
 				ramRole:         "acs:ram::500xxxxxxxx:role/role-name",
 			},
@@ -77,7 +78,7 @@ func TestNewAliCloudRAMClient(t *testing.T) {
 		{
 			name: "success creating AliCloud RAM client",
 			args: args{
-				accessKeyID:     testAccessKeyID,
+				accessKeyId:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
 			},
 			wantErr: false,
@@ -85,7 +86,7 @@ func TestNewAliCloudRAMClient(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.ramRole)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyId, tt.args.accessKeySecret, tt.args.ramRole, tt.args.regionId)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -98,9 +99,10 @@ func TestNewAliCloudRAMClient(t *testing.T) {
 
 func Test_aliCloudRAMClient_GrantAccess(t *testing.T) {
 	type args struct {
-		accessKeyID     string
+		accessKeyId     string
 		accessKeySecret string
-		roleToAssume    string
+		ramRole         string
+		regionId        string
 		ctx             context.Context
 		policyName      string
 		policyType      string
@@ -114,7 +116,7 @@ func Test_aliCloudRAMClient_GrantAccess(t *testing.T) {
 		{
 			name: "error when granting access to user",
 			args: args{
-				accessKeyID:     testAccessKeyID,
+				accessKeyId:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
 				ctx:             context.TODO(),
 				policyName:      "test-policy-name",
@@ -126,7 +128,7 @@ func Test_aliCloudRAMClient_GrantAccess(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.roleToAssume)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyId, tt.args.accessKeySecret, tt.args.ramRole, tt.args.regionId)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -143,9 +145,10 @@ func Test_aliCloudRAMClient_GrantAccess(t *testing.T) {
 
 func Test_aliCloudRAMClient_RevokeAccess(t *testing.T) {
 	type args struct {
-		accessKeyID     string
+		accessKeyId     string
 		accessKeySecret string
-		roleToAssume    string
+		ramRole         string
+		regionId        string
 		ctx             context.Context
 		policyName      string
 		policyType      string
@@ -159,7 +162,7 @@ func Test_aliCloudRAMClient_RevokeAccess(t *testing.T) {
 		{
 			name: "error when revoking access to user",
 			args: args{
-				accessKeyID:     testAccessKeyID,
+				accessKeyId:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
 				ctx:             context.TODO(),
 				policyName:      "test-policy-name",
@@ -171,7 +174,7 @@ func Test_aliCloudRAMClient_RevokeAccess(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.roleToAssume)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyId, tt.args.accessKeySecret, tt.args.ramRole, tt.args.regionId)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -188,9 +191,10 @@ func Test_aliCloudRAMClient_RevokeAccess(t *testing.T) {
 
 func Test_aliCloudRAMClient_GrantAccessToRole(t *testing.T) {
 	type args struct {
-		accessKeyID     string
+		accessKeyId     string
 		accessKeySecret string
-		roleToAssume    string
+		ramRole         string
+		regionId        string
 		ctx             context.Context
 		policyName      string
 		policyType      string
@@ -204,7 +208,7 @@ func Test_aliCloudRAMClient_GrantAccessToRole(t *testing.T) {
 		{
 			name: "error when granting access to role",
 			args: args{
-				accessKeyID:     testAccessKeyID,
+				accessKeyId:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
 				ctx:             context.TODO(),
 				policyName:      "test-policy-name",
@@ -216,7 +220,7 @@ func Test_aliCloudRAMClient_GrantAccessToRole(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.roleToAssume)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyId, tt.args.accessKeySecret, tt.args.ramRole, tt.args.regionId)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -233,9 +237,10 @@ func Test_aliCloudRAMClient_GrantAccessToRole(t *testing.T) {
 
 func Test_aliCloudRAMClient_RevokeAccessFromRole(t *testing.T) {
 	type args struct {
-		accessKeyID     string
+		accessKeyId     string
 		accessKeySecret string
-		roleToAssume    string
+		ramRole         string
+		regionId        string
 		ctx             context.Context
 		policyName      string
 		policyType      string
@@ -249,7 +254,7 @@ func Test_aliCloudRAMClient_RevokeAccessFromRole(t *testing.T) {
 		{
 			name: "error when revoking access to role",
 			args: args{
-				accessKeyID:     testAccessKeyID,
+				accessKeyId:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
 				ctx:             context.TODO(),
 				policyName:      "test-policy-name",
@@ -261,7 +266,7 @@ func Test_aliCloudRAMClient_RevokeAccessFromRole(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.roleToAssume)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyId, tt.args.accessKeySecret, tt.args.ramRole, tt.args.regionId)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -278,9 +283,10 @@ func Test_aliCloudRAMClient_RevokeAccessFromRole(t *testing.T) {
 
 func Test_aliCloudRAMClient_ListAccess(t *testing.T) {
 	type args struct {
-		accessKeyID     string
+		accessKeyId     string
 		accessKeySecret string
-		roleToAssume    string
+		ramRole         string
+		regionId        string
 		ctx             context.Context
 		pc              domain.ProviderConfig
 		r               []*domain.Resource
@@ -293,7 +299,7 @@ func Test_aliCloudRAMClient_ListAccess(t *testing.T) {
 		{
 			name: "error not implemented when listing access",
 			args: args{
-				accessKeyID:     testAccessKeyID,
+				accessKeyId:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
 				ctx:             context.TODO(),
 				pc: domain.ProviderConfig{
@@ -326,7 +332,7 @@ func Test_aliCloudRAMClient_ListAccess(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.roleToAssume)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyId, tt.args.accessKeySecret, tt.args.ramRole, tt.args.regionId)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
@@ -344,9 +350,10 @@ func Test_aliCloudRAMClient_ListAccess(t *testing.T) {
 
 func Test_aliCloudRAMClient_GetAllPoliciesByType(t *testing.T) {
 	type args struct {
-		accessKeyID     string
+		accessKeyId     string
 		accessKeySecret string
-		roleToAssume    string
+		ramRole         string
+		regionId        string
 		ctx             context.Context
 		policyType      string
 		maxItems        int32
@@ -359,7 +366,7 @@ func Test_aliCloudRAMClient_GetAllPoliciesByType(t *testing.T) {
 		{
 			name: "error when get all policies by type",
 			args: args{
-				accessKeyID:     testAccessKeyID,
+				accessKeyId:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
 				ctx:             context.TODO(),
 				policyType:      alicloud_ram.PolicyTypeSystem,
@@ -370,7 +377,7 @@ func Test_aliCloudRAMClient_GetAllPoliciesByType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.roleToAssume)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyId, tt.args.accessKeySecret, tt.args.ramRole, tt.args.regionId)
 			if err != nil {
 				assert.FailNow(t, err.Error())
 			}
