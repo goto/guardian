@@ -2,6 +2,7 @@ package alicloud_ram
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -42,6 +43,23 @@ func NewAliCloudRAMClient(accessKeyID, accessKeySecret, ramRole string) (AliClou
 		accessKeyId:     accessKeyID,
 		accessKeySecret: accessKeySecret,
 		ramRole:         ramRole,
+	}
+
+	// Validate the ram role ARN if present
+	if c.ramRole != "" {
+		arn, err := parseAliCloudARN(c.ramRole)
+		if err != nil {
+			return nil, ErrInvalidAliCloudRoleARN
+		}
+		if arn.Service != "ram" {
+			return nil, ErrRoleServiceTypeIsNotSupported
+		}
+		if arn.ResourceType != "role" {
+			return nil, ErrRoleResourceTypeIsNotSupported
+		}
+		if arn.ResourceName == "" {
+			return nil, ErrRoleResourceNameIsEmpty
+		}
 	}
 
 	// Validate the configuration by attempting to create a new request client
@@ -213,4 +231,38 @@ func (c *aliCloudRAMClient) newRequestClient() (*ram.Client, error) {
 	}
 
 	return reqClient, nil
+}
+
+type aliCloudARN struct {
+	Prefix       string // The ARN prefix (e.g., "acs")
+	Service      string // The service name (e.g., "ram")
+	Region       string // The region (empty for global services like RAM)
+	AccountID    string // The account ID (e.g., "5123xxxxxxx")
+	ResourceType string // The resource type (e.g., "role")
+	ResourceName string // The resource name (e.g., "role-name")
+}
+
+// parseAliCloudARN parses an ARN string into an aliCloudARN struct
+// example: `acs:ram::500xxxxxxxx:role/role-name`
+func parseAliCloudARN(arn string) (*aliCloudARN, error) {
+	// Split the ARN string by ":"
+	parts := strings.Split(arn, ":")
+	if len(parts) != 5 {
+		return nil, errors.New("invalid ARN format")
+	}
+
+	// Split the last part to extract resource type and name
+	resourceParts := strings.Split(parts[4], "/")
+	if len(resourceParts) != 2 {
+		return nil, errors.New("invalid resource format")
+	}
+
+	return &aliCloudARN{
+		Prefix:       parts[0],
+		Service:      parts[1],
+		Region:       parts[2],
+		AccountID:    parts[3],
+		ResourceType: resourceParts[0],
+		ResourceName: resourceParts[1],
+	}, nil
 }

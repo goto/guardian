@@ -13,7 +13,7 @@ func TestNewAliCloudRAMClient(t *testing.T) {
 	type args struct {
 		accessKeyID     string
 		accessKeySecret string
-		roleToAssume    string
+		ramRole         string
 	}
 	tests := []struct {
 		name    string
@@ -21,26 +21,71 @@ func TestNewAliCloudRAMClient(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "success creating a new ram user",
+			name: "error creating AliCloud RAM client with role - invalid role arn",
 			args: args{
 				accessKeyID:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
+				ramRole:         "invalid-role-arn",
+			},
+			wantErr: true,
+		},
+		{
+			name: "error creating AliCloud RAM client with role - unsupported service type",
+			args: args{
+				accessKeyID:     testAccessKeyID,
+				accessKeySecret: testAccessKeySecret,
+				ramRole:         "acs:unsupported-service-type::500xxxxxxxx:role/role-name",
+			},
+			wantErr: true,
+		},
+		{
+			name: "error creating AliCloud RAM client with role - invalid resource",
+			args: args{
+				accessKeyID:     testAccessKeyID,
+				accessKeySecret: testAccessKeySecret,
+				ramRole:         "acs:ram::500xxxxxxxx:invalid-resource",
+			},
+			wantErr: true,
+		},
+		{
+			name: "error creating AliCloud RAM client with role - unsupported resource type",
+			args: args{
+				accessKeyID:     testAccessKeyID,
+				accessKeySecret: testAccessKeySecret,
+				ramRole:         "acs:ram::500xxxxxxxx:unsupported-resource-type/role-name",
+			},
+			wantErr: true,
+		},
+		{
+			name: "error creating AliCloud RAM client with role - empty role name or resource name",
+			args: args{
+				accessKeyID:     testAccessKeyID,
+				accessKeySecret: testAccessKeySecret,
+				ramRole:         "acs:ram::500xxxxxxxx:role/",
+			},
+			wantErr: true,
+		},
+		{
+			name: "success creating AliCloud RAM client with role",
+			args: args{
+				accessKeyID:     testAccessKeyID,
+				accessKeySecret: testAccessKeySecret,
+				ramRole:         "acs:ram::500xxxxxxxx:role/role-name",
 			},
 			wantErr: false,
 		},
 		{
-			name: "success creating a new ram role",
+			name: "success creating AliCloud RAM client",
 			args: args{
 				accessKeyID:     testAccessKeyID,
 				accessKeySecret: testAccessKeySecret,
-				roleToAssume:    "test-role-to-assume",
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.roleToAssume)
+			client, err := alicloud_ram.NewAliCloudRAMClient(tt.args.accessKeyID, tt.args.accessKeySecret, tt.args.ramRole)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

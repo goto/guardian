@@ -296,7 +296,7 @@ func getResourceTypes() []string {
 func splitAliAccountUserId(d string) (string, string, error) {
 	matched, _ := regexp.MatchString(aliAccountUserIdPattern, d)
 	if !matched {
-		return "", "", ErrInvalidAliAccountUserID
+		return "", "", ErrInvalidAliCloudAccountUserID
 	}
 
 	accountUserIDSplit := strings.Split(d, "@")
