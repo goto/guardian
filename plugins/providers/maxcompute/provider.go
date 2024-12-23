@@ -458,10 +458,8 @@ func (p *provider) getRamRoleAndStsClientID(clientType string, creds *credential
 }
 
 func (p *provider) getCachedOdpsClient(ramRole, stsClientID, urn string) (*odps.Odps, bool) {
-	if c, ok := p.odpsClients[ramRole]; ok {
-		if c.stsClientExist && p.sts.IsSTSTokenValid(stsClientID) {
-			return c.client, true
-		}
+	c, ok := p.odpsClients[ramRole]
+	if ramRole != "" && ok && c.stsClientExist && p.sts.IsSTSTokenValid(stsClientID) {
 		return c.client, true
 	}
 
@@ -474,7 +472,7 @@ func (p *provider) getCachedOdpsClient(ramRole, stsClientID, urn string) (*odps.
 
 func (p *provider) getCachedRestClient(ramRole, stsClientID, urn string) (*maxcompute.Client, bool) {
 	c, ok := p.restClients[ramRole]
-	if ok && c.stsClientExist && p.sts.IsSTSTokenValid(stsClientID) {
+	if ramRole != "" && ok && c.stsClientExist && p.sts.IsSTSTokenValid(stsClientID) {
 		return c.client, true
 	}
 

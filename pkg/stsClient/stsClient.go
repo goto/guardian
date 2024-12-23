@@ -54,7 +54,7 @@ func NewSTSClient(userAccessKeyID, userSecretAccessKey, regionID string) (*clien
 }
 
 func (s *Sts) GetSTSClient(clientIdentifier, userAccessKeyID, userSecret, regionID string) (*client.Client, error) {
-	if c, ok := s.clients[clientIdentifier]; ok {
+	if c, ok := s.clients[clientIdentifier]; ok && s.IsSTSTokenValid(clientIdentifier) {
 		return c.client, nil
 	}
 
