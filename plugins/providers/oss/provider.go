@@ -432,10 +432,8 @@ func (p *provider) getOSSClient(pc *domain.ProviderConfig, ramRole string) (*oss
 }
 
 func (p *provider) getCachedOSSClient(ramRole, stsClientID, urn string) (*oss.Client, bool) {
-	if c, ok := p.ossClients[ramRole]; ok {
-		if c.stsClientExist && p.sts.IsSTSTokenValid(stsClientID) {
-			return c.client, true
-		}
+	c, ok := p.ossClients[ramRole]
+	if ramRole != "" && ok && c.stsClientExist && p.sts.IsSTSTokenValid(stsClientID) {
 		return c.client, true
 	}
 
