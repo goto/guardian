@@ -60,7 +60,14 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 		return err
 	}
 
-	client, err := p.getClient(pc)
+	var credentials Credentials
+	err := mapstructure.Decode(pc.Credentials, &credentials)
+	if err != nil {
+		return err
+	}
+
+	_ = credentials.Decrypt(p.crypto)
+	client, err := NewAliCloudRAMClient(credentials.AccessKeyID, credentials.AccessKeySecret, credentials.RAMRole, credentials.RegionID)
 	if err != nil {
 		return err
 	}
@@ -71,7 +78,15 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 		}
 	}
 
-	return c.EncryptCredentials()
+	// encrypt the pc.ProviderConfig
+	err = c.EncryptCredentials()
+	if err != nil {
+		return err
+	}
+
+	// add the client to the cache when validation is success on write operation
+	p.Clients[pc.URN] = client
+	return nil
 }
 
 func (p *Provider) GetResources(_ context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
@@ -218,8 +233,7 @@ func (p *Provider) getClient(pc *domain.ProviderConfig) (AliCloudRAMClient, erro
 		return nil, err
 	}
 
-	providerURN := pc.URN
-	if client, ok := p.Clients[providerURN]; ok && client != nil {
+	if client, ok := p.Clients[pc.URN]; ok && client != nil {
 		return client, nil
 	}
 
@@ -229,7 +243,7 @@ func (p *Provider) getClient(pc *domain.ProviderConfig) (AliCloudRAMClient, erro
 		return nil, err
 	}
 
-	p.Clients[providerURN] = client
+	p.Clients[pc.URN] = client
 	return client, nil
 }
 
