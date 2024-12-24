@@ -468,12 +468,12 @@ func getPrincipalFromAccountID(accountID, accountType string) (string, error) {
 	if accountType == AccountTypeRAMUser {
 		accountIDParts := strings.Split(accountID, "$")
 		if len(accountIDParts) < 2 {
-			return "", fmt.Errorf("invalid accountID format")
+			return "", fmt.Errorf("invalid accountID format: %q", accountID)
 		}
 
 		subParts := strings.Split(accountIDParts[1], ":")
 		if len(subParts) < 2 {
-			return "", fmt.Errorf("invalid accountID format")
+			return "", fmt.Errorf("invalid accountID format: %q", accountID)
 		}
 
 		return subParts[1], nil
@@ -481,13 +481,13 @@ func getPrincipalFromAccountID(accountID, accountType string) (string, error) {
 
 		accountIDParts := strings.Split(accountID, ":")
 		if len(accountIDParts) < 5 {
-			return "", fmt.Errorf("invalid accountID format")
+			return "", fmt.Errorf("invalid accountID format: %q", accountID)
 		}
 
 		mainAccountID := accountIDParts[3]
 		roleNameParts := strings.Split(accountIDParts[4], "/")
 		if len(roleNameParts) < 2 {
-			return "", fmt.Errorf("invalid accountID format")
+			return "", fmt.Errorf("invalid accountID format: %q", accountID)
 		}
 
 		roleName := roleNameParts[1]
@@ -496,7 +496,7 @@ func getPrincipalFromAccountID(accountID, accountType string) (string, error) {
 		return fmt.Sprintf("arn:sts::%s:assumed-role/%s/*", mainAccountID, roleName), nil
 	}
 
-	return "", fmt.Errorf("invalid account type")
+	return "", fmt.Errorf("invalid account type: %q", accountType)
 
 }
 
