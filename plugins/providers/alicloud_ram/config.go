@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	AccountTypeRamUser = "ramUser"
-	AccountTypeRamRole = "ramRole"
+	AccountTypeRamUser = "ram_user"
+	AccountTypeRamRole = "ram_role"
 
 	maxFetchItem int32 = 1000
 )

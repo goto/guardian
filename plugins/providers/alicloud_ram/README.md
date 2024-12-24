@@ -122,8 +122,8 @@
   "type": "alicloud_ram",
   "urn": "al-xxxx-id-x:500xxxxxxxxxxxxx", // using self main account id
   "allowed_account_types": [
-    "ramUser",
-    "ramRole"
+    "ram_user",
+    "ram_role"
   ],
   "credentials": {
     "main_account_id": "500xxxxxxxxxxxxx", // using self main account id
@@ -184,8 +184,8 @@
   "type": "alicloud_ram",
   "urn": "al-xxxx-id-x:501xxxxxxxxxxxxx", // using role main account id
   "allowed_account_types": [
-    "ramUser",
-    "ramRole"
+    "ram_user",
+    "ram_role"
   ],
   "credentials": {
     "main_account_id": "501xxxxxxxxxxxxx", // using role main account id
@@ -260,7 +260,7 @@
     }
   ],
   "account_id": "example.user@500xxxxxxxxxxxxx.onaliyun.com",
-  "account_type": "ramUser"
+  "account_type": "ram_user"
 }
 ```
 
@@ -282,7 +282,7 @@
     }
   ],
   "account_id": "role-name",
-  "account_type": "ramRole"
+  "account_type": "ram_role"
 }
 ```
 
