@@ -81,4 +81,3 @@ setup:
 	go get github.com/bufbuild/buf/cmd/buf@v1.15.1
 	go get github.com/vektra/mockery/v2@v2.33.0
 	go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.59
-	
