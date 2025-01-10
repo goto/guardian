@@ -141,9 +141,6 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			if schema == nil {
 				return
 			}
-			if slices.Contains(credentials.ExcludedSchemas, schema.Name()) {
-				return
-			}
 			schemaRes[schema.Name()] = struct{}{}
 		})
 		if err != nil {
@@ -159,7 +156,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 					SchemaName: bptr.FromString(schemaName),
 				})
 				if err != nil {
-					return nil, fmt.Errorf("failed to list tables for project %s: %w", *project.Name, err)
+					return nil, fmt.Errorf("failed to list tables for project '%s' using schema '%s': %w", bptr.ToStringSafe(project.Name), bptr.FromString(schemaName), err)
 				}
 				marker = tmpTableRes.Body.Data.Marker
 
