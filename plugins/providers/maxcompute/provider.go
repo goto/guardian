@@ -131,7 +131,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 	}
 
 	if slices.Contains(availableResourceTypes, resourceTypeTable) {
-		odpsClient, err := p.getOdpsClient(pc, "")
+		odpsClient, err := p.getOdpsClient(pc, credentials.RAMRole)
 		if err != nil {
 			return nil, err
 		}
