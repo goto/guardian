@@ -218,7 +218,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		}
 
 		if addAsProjectMember {
-			query := fmt.Sprintf("ADD USER %s", g.AccountID)
+			query := fmt.Sprintf("ADD USER `%s`", g.AccountID)
 			job, err := execGrantQuery(securityManager, query)
 			if err != nil {
 				return fmt.Errorf("failed to add %q as member in %q: %v", g.AccountID, project, err)
@@ -232,7 +232,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 
 		if len(permissions) > 0 {
 			mcRoles := strings.Join(permissions, ", ")
-			query := fmt.Sprintf("GRANT %s TO %s", mcRoles, g.AccountID)
+			query := fmt.Sprintf("GRANT %s TO `%s`", mcRoles, g.AccountID)
 			job, err := execGrantQuery(securityManager, query)
 			if err != nil {
 				return fmt.Errorf("failed to grant %q to %q for %q: %v", mcRoles, project, g.AccountID, err)
@@ -248,7 +248,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		securityManager := client.Project(project).SecurityManager()
 
 		actions := strings.Join(g.Permissions, ", ")
-		query := fmt.Sprintf("GRANT %s ON TABLE %s TO USER %s", actions, g.Resource.Name, g.AccountID)
+		query := fmt.Sprintf("GRANT %s ON TABLE %s TO USER `%s`", actions, g.Resource.Name, g.AccountID)
 		job, err := securityManager.Run(query, true, "")
 		if err != nil {
 			return fmt.Errorf("failed to grant %q to %q for %q: %v", actions, g.Resource.URN, g.AccountID, err)
@@ -294,7 +294,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		}
 
 		if revokeFromProjectMember {
-			query := fmt.Sprintf("REMOVE USER %s", g.AccountID)
+			query := fmt.Sprintf("REMOVE USER `%s`", g.AccountID)
 			job, err := securityManager.Run(query, true, "")
 			if err != nil {
 				return fmt.Errorf("failed to remove %q as member in %q: %v", g.AccountID, project, err)
@@ -307,7 +307,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 
 		if len(permissions) > 0 {
 			mcRoles := strings.Join(permissions, ", ")
-			query := fmt.Sprintf("REVOKE %s FROM %s", mcRoles, g.AccountID)
+			query := fmt.Sprintf("REVOKE %s FROM `%s`", mcRoles, g.AccountID)
 			job, err := securityManager.Run(query, true, "")
 			if err != nil {
 				return fmt.Errorf("failed to revoke %q from %q for %q: %v", mcRoles, project, g.AccountID, err)
@@ -322,7 +322,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		securityManager := client.Project(project).SecurityManager()
 
 		actions := strings.Join(g.Permissions, ", ")
-		query := fmt.Sprintf("REVOKE %s ON TABLE %s FROM USER %s", actions, g.Resource.Name, g.AccountID)
+		query := fmt.Sprintf("REVOKE %s ON TABLE %s FROM USER `%s`", actions, g.Resource.Name, g.AccountID)
 		job, err := securityManager.Run(query, true, "")
 		if err != nil {
 			return fmt.Errorf("failed to revoke %q from %q for %q: %v", actions, g.Resource.URN, g.AccountID, err)
