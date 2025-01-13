@@ -13,6 +13,7 @@ import (
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/account"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/restclient"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/security"
+	"github.com/bearaujus/bptr"
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
@@ -130,26 +131,57 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 	}
 
 	if slices.Contains(availableResourceTypes, resourceTypeTable) {
-		tableRes, err := client.ListTables(project.Name, &maxcompute.ListTablesRequest{})
+		odpsClient, err := p.getOdpsClient(pc, "")
 		if err != nil {
-			return nil, fmt.Errorf("failed to list tables for project %s: %w", *project.Name, err)
+			return nil, err
 		}
 
-		for _, table := range tableRes.Body.Data.Tables {
-			var urn string
-			if table.Schema == nil {
-				urn = fmt.Sprintf("%s.%s", *project.Name, *table.Name)
-			} else {
-				urn = fmt.Sprintf("%s.%s.%s", *project.Name, *table.Schema, *table.Name)
+		schemaRes := map[string]struct{}{"default": {}}
+		err = odpsClient.Project(bptr.ToStringSafe(project.Name)).Schemas().List(func(schema *odps.Schema, err error) {
+			if schema == nil {
+				return
 			}
-			resources = append(resources, &domain.Resource{
-				ProviderType: pc.Type,
-				ProviderURN:  pc.URN,
-				Type:         resourceTypeTable,
-				URN:          urn,
-				Name:         *table.Name,
-				GlobalURN:    utils.GetGlobalURN("maxcompute", accountID, resourceTypeTable, urn),
-			})
+			schemaRes[schema.Name()] = struct{}{}
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		for schemaName := range schemaRes {
+			var marker *string
+			var tableRes []*maxcompute.ListTablesResponseBodyDataTables
+			for {
+				tmpTableRes, err := client.ListTables(project.Name, &maxcompute.ListTablesRequest{
+					Marker:     marker,
+					SchemaName: bptr.FromString(schemaName),
+				})
+				if err != nil {
+					return nil, fmt.Errorf("failed to list tables for project '%s' using schema '%s': %w", bptr.ToStringSafe(project.Name), schemaName, err)
+				}
+				marker = tmpTableRes.Body.Data.Marker
+
+				tableRes = append(tableRes, tmpTableRes.Body.Data.Tables...)
+				if bptr.ToStringSafe(marker) == "" {
+					break
+				}
+			}
+
+			for _, table := range tableRes {
+				var urn string
+				if table.Schema == nil {
+					urn = fmt.Sprintf("%s.%s", bptr.ToStringSafe(project.Name), bptr.ToStringSafe(table.Name))
+				} else {
+					urn = fmt.Sprintf("%s.%s.%s", bptr.ToStringSafe(project.Name), bptr.ToStringSafe(table.Schema), bptr.ToStringSafe(table.Name))
+				}
+				resources = append(resources, &domain.Resource{
+					ProviderType: pc.Type,
+					ProviderURN:  pc.URN,
+					Type:         resourceTypeTable,
+					URN:          urn,
+					Name:         bptr.ToStringSafe(table.Name),
+					GlobalURN:    utils.GetGlobalURN("maxcompute", accountID, resourceTypeTable, urn),
+				})
+			}
 		}
 	}
 
