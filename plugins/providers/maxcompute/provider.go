@@ -136,7 +136,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			return nil, err
 		}
 
-		schemaRes := map[string]struct{}{"default": {}}
+		schemaRes := map[string]struct{}{defaultSchemaName: {}}
 		err = odpsClient.Project(bptr.ToStringSafe(project.Name)).Schemas().List(func(schema *odps.Schema, err error) {
 			if schema == nil {
 				return
@@ -169,10 +169,9 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			for _, table := range tableRes {
 				var urn string
 				if table.Schema == nil {
-					urn = fmt.Sprintf("%s.%s", bptr.ToStringSafe(project.Name), bptr.ToStringSafe(table.Name))
-				} else {
-					urn = fmt.Sprintf("%s.%s.%s", bptr.ToStringSafe(project.Name), bptr.ToStringSafe(table.Schema), bptr.ToStringSafe(table.Name))
+					table.Schema = bptr.FromString(defaultSchemaName)
 				}
+				urn = fmt.Sprintf("%s.%s.%s", bptr.ToStringSafe(project.Name), bptr.ToStringSafe(table.Schema), bptr.ToStringSafe(table.Name))
 				resources = append(resources, &domain.Resource{
 					ProviderType: pc.Type,
 					ProviderURN:  pc.URN,
@@ -248,7 +247,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		securityManager := client.Project(project).SecurityManager()
 
 		actions := strings.Join(g.Permissions, ", ")
-		query := fmt.Sprintf("GRANT %s ON TABLE %s TO USER `%s`", actions, g.Resource.Name, g.AccountID)
+		query := fmt.Sprintf("GRANT %s ON TABLE %s TO USER `%s`", actions, g.Resource.URN, g.AccountID)
 		job, err := securityManager.Run(query, true, "")
 		if err != nil {
 			return fmt.Errorf("failed to grant %q to %q for %q: %v", actions, g.Resource.URN, g.AccountID, err)
@@ -322,7 +321,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		securityManager := client.Project(project).SecurityManager()
 
 		actions := strings.Join(g.Permissions, ", ")
-		query := fmt.Sprintf("REVOKE %s ON TABLE %s FROM USER `%s`", actions, g.Resource.Name, g.AccountID)
+		query := fmt.Sprintf("REVOKE %s ON TABLE %s FROM USER `%s`", actions, g.Resource.URN, g.AccountID)
 		job, err := securityManager.Run(query, true, "")
 		if err != nil {
 			return fmt.Errorf("failed to revoke %q from %q for %q: %v", actions, g.Resource.URN, g.AccountID, err)
