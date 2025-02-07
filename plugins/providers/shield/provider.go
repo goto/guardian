@@ -43,11 +43,15 @@ func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
 }
 
 func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
+
+	p.logger.Info(ctx, "*** pc", pc)
+
 	var creds Credentials
 	if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
 		return nil, err
 	}
 
+	p.logger.Info(ctx, "*** creds", creds)
 	client, err := p.getClient(pc.URN, creds)
 	if err != nil {
 		return nil, err

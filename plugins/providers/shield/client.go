@@ -67,6 +67,9 @@ type ClientConfig struct {
 }
 
 func NewClient(config *ClientConfig, logger log.Logger) (*client, error) {
+
+	logger.Info(context.Background(), "*** config", config)
+
 	if err := validator.New().Struct(config); err != nil {
 		return nil, err
 	}
@@ -94,6 +97,9 @@ func NewClient(config *ClientConfig, logger log.Logger) (*client, error) {
 
 func (c *client) newRequest(method, path string, body interface{}, authEmail string) (*http.Request, error) {
 	u, err := c.baseURL.Parse(path)
+
+	c.logger.Info(context.Background(), "*** url", u)
+
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +248,7 @@ func (c *client) GrantTeamAccess(ctx context.Context, resource *Team, userId str
 
 	endPoint := path.Join(groupsEndpoint, "/", resource.ID, "/", role)
 
-	c.logger.Info(ctx, "*** endPoint")
+	c.logger.Info(ctx, "*** endPoint", endPoint)
 
 	req, err := c.newRequest(http.MethodPost, endPoint, body, "")
 	if err != nil {
