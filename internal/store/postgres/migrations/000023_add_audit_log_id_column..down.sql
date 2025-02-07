@@ -1,0 +1,9 @@
+BEGIN;
+
+ALTER TABLE "audit_logs"
+DROP CONSTRAINT IF EXISTS audit_logs_pkey;
+
+ALTER TABLE "audit_logs"
+DROP COLUMN IF EXISTS "id";
+
+COMMIT;
