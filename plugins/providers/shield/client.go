@@ -234,20 +234,30 @@ func (c *client) GetOrganizations(ctx context.Context) ([]*Organization, error) 
 }
 
 func (c *client) GrantTeamAccess(ctx context.Context, resource *Team, userId string, role string) error {
+
+	c.logger.Info(ctx, "*** Granting team access...")
+
 	body := make(map[string][]string)
 	body["userIds"] = append(body["userIds"], userId)
 
 	endPoint := path.Join(groupsEndpoint, "/", resource.ID, "/", role)
+
+	c.logger.Info(ctx, "*** endPoint")
+
 	req, err := c.newRequest(http.MethodPost, endPoint, body, "")
 	if err != nil {
+		c.logger.Info(ctx, "** new req error: ", err)
 		return err
 	}
 
 	var users []*User
 	var response interface{}
 	if _, err := c.do(ctx, req, &response); err != nil {
+		c.logger.Info(ctx, "** do req error: ", err)
 		return err
 	}
+
+	c.logger.Info(ctx, "** response: ", response)
 
 	if v, ok := response.(map[string]interface{}); ok && v[usersConst] != nil {
 		err = mapstructure.Decode(v[usersConst], &users)
