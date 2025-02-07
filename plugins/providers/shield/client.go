@@ -248,22 +248,24 @@ func (c *client) GrantTeamAccess(ctx context.Context, resource *Team, userId str
 
 	endPoint := path.Join(groupsEndpoint, "/", resource.ID, "/", role)
 
-	c.logger.Info(ctx, "*** endPoint", endPoint)
+	fmt.Println("endPoint")
+	fmt.Println(endPoint)
 
 	req, err := c.newRequest(http.MethodPost, endPoint, body, "")
 	if err != nil {
-		c.logger.Info(ctx, "** new req error: ", err)
+		fmt.Println(err)
 		return err
 	}
 
 	var users []*User
 	var response interface{}
 	if _, err := c.do(ctx, req, &response); err != nil {
-		c.logger.Info(ctx, "** do req error: ", err)
+		fmt.Println(err)
 		return err
 	}
 
-	c.logger.Info(ctx, "** response: ", response)
+	fmt.Println("response")
+	fmt.Println(response)
 
 	if v, ok := response.(map[string]interface{}); ok && v[usersConst] != nil {
 		err = mapstructure.Decode(v[usersConst], &users)

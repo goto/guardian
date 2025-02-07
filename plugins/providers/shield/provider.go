@@ -2,6 +2,7 @@ package shield
 
 import (
 	"context"
+	"fmt"
 
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
@@ -152,10 +153,25 @@ func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*
 }
 
 func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a domain.Grant) error {
+
+	if pc == nil {
+		err := fmt.Errorf("ProviderConfig is nil")
+		return err
+	}
+
+	fmt.Println(pc.Credentials)
+
 	var creds Credentials
 	if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
 		return err
 	}
+
+	fmt.Println("printing creds...")
+	fmt.Println(creds)
+	fmt.Println(creds.AuthEmail)
+	fmt.Println(creds.AuthHeader)
+	fmt.Println(creds.Host)
+
 	client, err := p.getClient(pc.URN, creds)
 	if err != nil {
 		return err
