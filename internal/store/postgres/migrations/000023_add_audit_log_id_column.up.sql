@@ -7,7 +7,13 @@ UPDATE "audit_logs"
 SET "id" = uuid_generate_v4()
 WHERE "id" IS NULL;
 
-ALTER TABLE "audit_logs"
-ADD CONSTRAINT IF NOT EXISTS audit_logs_pkey PRIMARY KEY ("id");
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'audit_logs_pkey'
+  ) THEN
+    ALTER TABLE "audit_logs" ADD CONSTRAINT audit_logs_pkey PRIMARY KEY ("id");
+  END IF;
+END $$;
 
 COMMIT;
