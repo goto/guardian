@@ -1676,9 +1676,12 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 				}
 
 				res, err := metadataCl.MakeRequest(egctx)
-				if err != nil || (res.StatusCode < 200 && res.StatusCode > 300) {
-					if !cfg.AllowFailed {
-						return fmt.Errorf("error fetching resource: %w", err)
+
+				if !cfg.AllowFailed {
+					if err != nil {
+						return fmt.Errorf("error fetching metadata for key %s from url %s, method: %s, body: %s : %w", key, cfg.URL, cfg.Method, cfg.Body, err)
+					} else if res.StatusCode < 200 || res.StatusCode > 300 {
+						return fmt.Errorf("status 2xx not received for metadata key %s from url %s, method: %s, body: %s", key, cfg.URL, cfg.Method, cfg.Body)
 					}
 				}
 
