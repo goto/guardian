@@ -28,12 +28,12 @@ func NewSTS() *Sts {
 }
 
 func (s *Sts) IsSTSTokenValid(clientIdentifier string) bool {
-	client := s.clients[clientIdentifier]
-	if client == nil {
+	c := s.clients[clientIdentifier]
+	if c == nil {
 		return false
 	}
 
-	return time.Now().Before(client.expiryTimeStamp)
+	return time.Now().Before(c.expiryTimeStamp)
 }
 
 func NewSTSClient(userAccessKeyID, userSecretAccessKey, regionID string) (*client.Client, error) {
@@ -65,7 +65,7 @@ func (s *Sts) GetSTSClient(clientIdentifier, userAccessKeyID, userSecret, region
 
 	s.clients[clientIdentifier] = &StsClient{
 		client:          stsClient,
-		expiryTimeStamp: time.Now().Add(time.Duration(assumeRoleDurationHours) * time.Hour),
+		expiryTimeStamp: time.Now().Add(GetDefaultTokenExp()),
 	}
 
 	return stsClient, nil
@@ -92,4 +92,8 @@ func AssumeRole(stsClient *client.Client, roleArn, roleSessionName, regionID str
 	}
 
 	return config, nil
+}
+
+func GetDefaultTokenExp() time.Duration {
+	return time.Duration(assumeRoleDurationHours) * time.Hour
 }

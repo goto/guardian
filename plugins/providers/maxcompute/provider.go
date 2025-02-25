@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"slices"
 	"strings"
-	"sync"
 
 	maxcompute "github.com/alibabacloud-go/maxcompute-20220104/client"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/account"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/restclient"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/security"
+	"github.com/bearaujus/bmemcache"
 	"github.com/bearaujus/bptr"
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
@@ -44,11 +44,10 @@ type provider struct {
 	pv.PermissionManager
 	typeName    string
 	encryptor   encryptor
-	restClients map[string]RestClient
-	odpsClients map[string]ODPSClient
+	restClients bmemcache.BMemCache[RestClient]
+	odpsClients bmemcache.BMemCache[ODPSClient]
 	sts         *sts.Sts
 	logger      log.Logger
-	mu          sync.Mutex
 }
 
 func New(
@@ -59,8 +58,8 @@ func New(
 	return &provider{
 		typeName:    typeName,
 		encryptor:   encryptor,
-		restClients: make(map[string]RestClient),
-		odpsClients: make(map[string]ODPSClient),
+		restClients: bmemcache.New[RestClient](),
+		odpsClients: bmemcache.New[ODPSClient](),
 		sts:         sts.NewSTS(),
 
 		logger: logger,
@@ -393,20 +392,22 @@ func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client,
 		return nil, err
 	}
 
+	// getting client from memory cache
 	ramRole, stsClientID := p.getRamRoleAndStsClientID("rest", creds, "")
 	if restClient, ok := p.getCachedRestClient(ramRole, stsClientID, pc.URN); ok {
 		return restClient, nil
 	}
 
+	// initialize new client
 	endpoint := fmt.Sprintf("maxcompute.%s.aliyuncs.com", creds.RegionID)
 	var clientConfig *openapiV2.Config
-	if creds.RAMRole != "" {
+	if ramRole != "" {
 		stsClient, err := p.sts.GetSTSClient(stsClientID, creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID)
 		if err != nil {
 			return nil, err
 		}
 
-		clientConfig, err = sts.AssumeRole(stsClient, creds.RAMRole, pc.URN, creds.RegionID)
+		clientConfig, err = sts.AssumeRole(stsClient, ramRole, pc.URN, creds.RegionID)
 		if err != nil {
 			return nil, err
 		}
@@ -424,13 +425,12 @@ func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client,
 		return nil, err
 	}
 
-	p.mu.Lock()
-	if creds.RAMRole != "" {
-		p.restClients[creds.RAMRole] = RestClient{client: restClient, stsClientExist: true}
+	if ramRole != "" {
+		p.restClients.Set(RestClient{client: restClient, stsClientExist: true}, ramRole)
 	} else {
-		p.restClients[pc.URN] = RestClient{client: restClient}
+		p.restClients.SetWithExp(RestClient{client: restClient}, sts.GetDefaultTokenExp(), pc.URN)
 	}
-	p.mu.Unlock()
+
 	return restClient, nil
 }
 
@@ -462,16 +462,14 @@ func (p *provider) getOdpsClient(pc *domain.ProviderConfig, ramRoleFromAppeal st
 	} else {
 		acc = account.NewAliyunAccount(creds.AccessKeyID, creds.AccessKeySecret)
 	}
+
 	endpoint := fmt.Sprintf("http://service.%s.maxcompute.aliyun.com/api", creds.RegionID)
 	client := odps.NewOdps(acc, endpoint)
-
-	p.mu.Lock()
-	if ramRoleFromAppeal != "" {
-		p.odpsClients[ramRoleFromAppeal] = ODPSClient{client: client, stsClientExist: true}
+	if ramRole != "" {
+		p.odpsClients.Set(ODPSClient{client: client, stsClientExist: true}, ramRole)
 	} else {
-		p.odpsClients[pc.URN] = ODPSClient{client: client}
+		p.odpsClients.SetWithExp(ODPSClient{client: client}, sts.GetDefaultTokenExp(), pc.URN)
 	}
-	p.mu.Unlock()
 
 	return client, nil
 }
@@ -489,29 +487,35 @@ func (p *provider) getRamRoleAndStsClientID(clientType string, creds *credential
 }
 
 func (p *provider) getCachedOdpsClient(ramRole, stsClientID, urn string) (*odps.Odps, bool) {
-	c, ok := p.odpsClients[ramRole]
-	if ramRole != "" && ok && c.stsClientExist && p.sts.IsSTSTokenValid(stsClientID) {
-		return c.client, true
+	k := urn
+	if ramRole != "" {
+		k = ramRole
 	}
-
-	if c, ok := p.odpsClients[urn]; ok {
-		return c.client, true
+	c, err := p.odpsClients.Get(k)
+	if err != nil {
+		return nil, false
 	}
-
-	return nil, false
+	if c.stsClientExist && !p.sts.IsSTSTokenValid(stsClientID) {
+		_ = p.odpsClients.Delete(k)
+		return nil, false
+	}
+	return c.client, true
 }
 
 func (p *provider) getCachedRestClient(ramRole, stsClientID, urn string) (*maxcompute.Client, bool) {
-	c, ok := p.restClients[ramRole]
-	if ramRole != "" && ok && c.stsClientExist && p.sts.IsSTSTokenValid(stsClientID) {
-		return c.client, true
+	k := urn
+	if ramRole != "" {
+		k = ramRole
 	}
-
-	if c, ok := p.restClients[urn]; ok {
-		return c.client, true
+	c, err := p.restClients.Get(k)
+	if err != nil {
+		return nil, false
 	}
-
-	return nil, false
+	if c.stsClientExist && !p.sts.IsSTSTokenValid(stsClientID) {
+		_ = p.restClients.Delete(k)
+		return nil, false
+	}
+	return c.client, true
 }
 
 func getParametersFromGrant[T any](g domain.Grant, key string) (T, bool, error) {
