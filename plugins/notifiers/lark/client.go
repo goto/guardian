@@ -134,6 +134,9 @@ func (n *Notifier) sendMessage(workspace LarkWorkspace, email string, messageBlo
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Content-Type", "application/json")
 	_, err = n.sendMessageRequest(req)
+	if err != nil {
+		err = errors.Join(err, errors.New(string(data)))
+	}
 	return err
 }
 
