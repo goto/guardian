@@ -28,6 +28,13 @@ type tokenResponse struct {
 	Expire int    `json:"expire"`
 }
 
+type messageResponse struct {
+	Code    int                    `json:"code"`
+	Message string                 `json:"msg"`
+	Data    map[string]interface{} `json:"data,omitempty"`
+	Error   map[string]interface{} `json:"error,omitempty"`
+}
+
 type Payload struct {
 	AppID     string `json:"app_id"`
 	AppSecret string `json:"app_secret"`
@@ -126,7 +133,7 @@ func (n *Notifier) sendMessage(workspace LarkWorkspace, email string, messageBlo
 	}
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Content-Type", "application/json")
-	_, err = n.sendRequest(req)
+	_, err = n.sendMessageRequest(req)
 	return err
 }
 
@@ -145,7 +152,7 @@ func (n *Notifier) findTenantAccessToken(clientId string, clientSecret string, w
 		return "", err
 	}
 	req.Header.Add("Content-Type", "application/json")
-	result, err := n.sendRequest(req)
+	result, err := n.sendTenantAccessTokenRequest(req)
 	if err != nil {
 		return "", fmt.Errorf("error get tenant access token for workspace: %s - %s", ws.WorkspaceName, err)
 	}
@@ -155,7 +162,7 @@ func (n *Notifier) findTenantAccessToken(clientId string, clientSecret string, w
 	return result.Token, nil
 }
 
-func (n *Notifier) sendRequest(req *http.Request) (*tokenResponse, error) {
+func (n *Notifier) sendTenantAccessTokenRequest(req *http.Request) (*tokenResponse, error) {
 	resp, err := n.httpClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -167,6 +174,26 @@ func (n *Notifier) sendRequest(req *http.Request) (*tokenResponse, error) {
 	}
 	if result.OK != "ok" {
 		return &result, errors.New(result.OK)
+	}
+	return &result, nil
+}
+
+func (n *Notifier) sendMessageRequest(req *http.Request) (*messageResponse, error) {
+	resp, err := n.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	var result messageResponse
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+	if result.Code != 0 {
+		data, err := json.Marshal(result)
+		if err != nil {
+			return nil, errors.New(result.Message)
+		}
+		return nil, errors.New(string(data))
 	}
 	return &result, nil
 }
