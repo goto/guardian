@@ -133,10 +133,7 @@ func (n *Notifier) sendMessage(workspace LarkWorkspace, email string, messageBlo
 	}
 	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Content-Type", "application/json")
-	_, err = n.sendMessageRequest(req)
-	if err != nil {
-		err = errors.Join(err, errors.New(string(data)))
-	}
+	_, err = n.sendMessageRequest(req, payload)
 	return err
 }
 
@@ -181,7 +178,7 @@ func (n *Notifier) sendTenantAccessTokenRequest(req *http.Request) (*tokenRespon
 	return &result, nil
 }
 
-func (n *Notifier) sendMessageRequest(req *http.Request) (*messageResponse, error) {
+func (n *Notifier) sendMessageRequest(req *http.Request, reqPayload map[string]interface{}) (*messageResponse, error) {
 	resp, err := n.httpClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -192,6 +189,7 @@ func (n *Notifier) sendMessageRequest(req *http.Request) (*messageResponse, erro
 		return nil, err
 	}
 	if result.Code != 0 { // non 0 code means the API has returned some error(s)
+		result.Data = reqPayload
 		d, err := json.Marshal(result)
 		if err != nil {
 			return nil, errors.New(result.Message)
