@@ -191,12 +191,12 @@ func (n *Notifier) sendMessageRequest(req *http.Request) (*messageResponse, erro
 	if err != nil {
 		return nil, err
 	}
-	if result.Code != 0 {
-		data, err := json.Marshal(result)
+	if result.Code != 0 { // non 0 code means the API has returned some error(s)
+		d, err := json.Marshal(result)
 		if err != nil {
 			return nil, errors.New(result.Message)
 		}
-		return nil, errors.New(string(data))
+		return nil, errors.New(string(d))
 	}
 	return &result, nil
 }
