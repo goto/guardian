@@ -12,7 +12,7 @@ import (
 
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
-	aliauth "github.com/goto/guardian/pkg/aliAuth"
+	aliauth "github.com/goto/guardian/pkg/aliauth"
 	"github.com/goto/guardian/utils"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"

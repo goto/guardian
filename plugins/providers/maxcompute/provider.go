@@ -15,7 +15,7 @@ import (
 	"github.com/bearaujus/bptr"
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
-	aliauth "github.com/goto/guardian/pkg/aliAuth"
+	aliauth "github.com/goto/guardian/pkg/aliauth"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/utils"
 	"golang.org/x/net/context"
@@ -425,13 +425,13 @@ func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client,
 	return restClient, nil
 }
 
-func (p *provider) getOdpsClient(pc *domain.ProviderConfig, ramRoleFromAppeal string) (*odps.Odps, error) {
+func (p *provider) getOdpsClient(pc *domain.ProviderConfig, overrideRamRole string) (*odps.Odps, error) {
 	creds, err := p.getCreds(pc)
 	if err != nil {
 		return nil, err
 	}
 
-	ramRole := p.getRamRole(creds, ramRoleFromAppeal)
+	ramRole := p.getRamRole(creds, overrideRamRole)
 	cachedClientKey := fmt.Sprintf("%s:%s", creds.AccessKeyID, ramRole)
 
 	p.mu.Lock()
@@ -459,11 +459,11 @@ func (p *provider) getOdpsClient(pc *domain.ProviderConfig, ramRoleFromAppeal st
 	return client, nil
 }
 
-func (p *provider) getRamRole(creds *credentials, ramRoleFromAppeal string) string {
+func (p *provider) getRamRole(creds *credentials, overrideRamRole string) string {
 	var ramRole string
 	switch {
-	case ramRoleFromAppeal != "":
-		ramRole = ramRoleFromAppeal
+	case overrideRamRole != "":
+		ramRole = overrideRamRole
 	case creds.RAMRole != "":
 		ramRole = creds.RAMRole
 	}

@@ -11,17 +11,16 @@ import (
 	openapiV2 "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 )
 
-const assumeRoleDurationHours int64 = 1
+var assumeRoleDefaultDuration = time.Hour
+var durationSeconds = int64(assumeRoleDefaultDuration.Seconds())
 
-var durationSeconds = assumeRoleDurationHours * int64(time.Hour.Seconds())
-
-type AliAuthAccount struct {
+type aliAuthAccount struct {
 	Account    account.Account
 	ExpiryTime *time.Time // Only set for STS accounts
 }
 
 type AliAuthConfig struct {
-	account  *AliAuthAccount
+	account  *aliAuthAccount
 	regionID string
 }
 
@@ -34,9 +33,9 @@ func NewConfig(ramUserAccessKeyID, ramUserAccessKeySecret, regionID, ramRole, ro
 		return nil, fmt.Errorf("role session name is required when assuming a role")
 	}
 
-	var authAccount *AliAuthAccount
+	var authAccount *aliAuthAccount
 	if ramRole == "" {
-		authAccount = &AliAuthAccount{
+		authAccount = &aliAuthAccount{
 			Account: account.NewAliyunAccount(ramUserAccessKeyID, ramUserAccessKeySecret),
 		}
 	} else {
@@ -44,7 +43,7 @@ func NewConfig(ramUserAccessKeyID, ramUserAccessKeySecret, regionID, ramRole, ro
 		if err != nil {
 			return nil, err
 		}
-		authAccount = &AliAuthAccount{
+		authAccount = &aliAuthAccount{
 			Account:    stsAcc,
 			ExpiryTime: &expiry, // Ensure expiry time is always set
 		}
@@ -129,6 +128,6 @@ func getSTSAccount(ramRole, roleSessionName, accessKeyID, accessKeySecret, regio
 		return nil, time.Time{}, fmt.Errorf("failed to assume role: %w", err)
 	}
 
-	expiryTimeStamp := time.Now().Add(time.Hour * time.Duration(assumeRoleDurationHours))
+	expiryTimeStamp := time.Now().Add(assumeRoleDefaultDuration)
 	return account.NewStsAccount(*res.Body.Credentials.AccessKeyId, *res.Body.Credentials.AccessKeySecret, *res.Body.Credentials.SecurityToken), expiryTimeStamp, nil
 }
