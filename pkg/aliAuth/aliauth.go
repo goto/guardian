@@ -7,6 +7,8 @@ import (
 	openapi "github.com/alibabacloud-go/darabonba-openapi/client"
 	"github.com/alibabacloud-go/sts-20150401/client"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+
+	openapiV2 "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 )
 
 const assumeRoleDurationHours int64 = 1
@@ -18,14 +20,9 @@ type AliAuthAccount struct {
 	ExpiryTime *time.Time // Only set for STS accounts
 }
 
-type AliAuthCredentials struct {
-	AccessKeyID     string
-	AccessKeySecret string
-	SecurityToken   string
-}
-
 type AliAuthConfig struct {
-	account *AliAuthAccount
+	account  *AliAuthAccount
+	regionID string
 }
 
 func NewConfig(ramUserAccessKeyID, ramUserAccessKeySecret, regionID, ramRole, roleSessionName string) (*AliAuthConfig, error) {
@@ -53,7 +50,7 @@ func NewConfig(ramUserAccessKeyID, ramUserAccessKeySecret, regionID, ramRole, ro
 		}
 	}
 
-	return &AliAuthConfig{account: authAccount}, nil
+	return &AliAuthConfig{account: authAccount, regionID: regionID}, nil
 }
 
 func (a *AliAuthConfig) IsConfigValid() bool {
@@ -74,27 +71,36 @@ func (a *AliAuthConfig) GetAccount() account.Account {
 	return a.account.Account
 }
 
-func (a *AliAuthConfig) GetCredentials() (AliAuthCredentials, error) {
+func (a *AliAuthConfig) GetCredentials() (*openapiV2.Config, error) {
+	var accessKeyId, accessKeySecret, securityToken string
+
 	switch acc := a.account.Account.(type) {
 	case *account.AliyunAccount:
-		return AliAuthCredentials{
-			AccessKeyID:     acc.AccessId(),
-			AccessKeySecret: acc.AccessKey(),
-		}, nil
+		accessKeyId = acc.AccessId()
+		accessKeySecret = acc.AccessKey()
 	case *account.StsAccount:
 		cred, err := acc.Credential()
 		if err != nil {
-			return AliAuthCredentials{}, fmt.Errorf("failed to get STS credentials: %w", err)
+			return &openapiV2.Config{}, fmt.Errorf("failed to get STS credentials: %w", err)
 		}
-		return AliAuthCredentials{
-			AccessKeyID:     *cred.AccessKeyId,
-			AccessKeySecret: *cred.AccessKeySecret,
-			SecurityToken:   *cred.SecurityToken,
-		}, nil
 
+		if cred.AccessKeyId == nil || cred.AccessKeySecret == nil || cred.SecurityToken == nil {
+			return nil, fmt.Errorf("STS credentials contain nil values")
+		}
+
+		accessKeyId = *cred.AccessKeyId
+		accessKeySecret = *cred.AccessKeySecret
+		securityToken = *cred.SecurityToken
 	default:
-		return AliAuthCredentials{}, fmt.Errorf("unknown account type")
+		return &openapiV2.Config{}, fmt.Errorf("unknown account type")
 	}
+
+	return &openapiV2.Config{
+		AccessKeyId:     &accessKeyId,
+		AccessKeySecret: &accessKeySecret,
+		SecurityToken:   &securityToken,
+		RegionId:        &a.regionID,
+	}, nil
 }
 
 // getSTSAccount obtains an STS account by assuming a RAM role

@@ -19,8 +19,6 @@ import (
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/utils"
 	"golang.org/x/net/context"
-
-	openapiV2 "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 )
 
 //go:generate mockery --name=encryptor --exported --with-expecter
@@ -414,12 +412,8 @@ func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client,
 	}
 
 	endpoint := fmt.Sprintf("maxcompute.%s.aliyuncs.com", creds.RegionID)
-	restClient, err := maxcompute.NewClient(&openapiV2.Config{
-		AccessKeyId:     &authCreds.AccessKeyID,
-		AccessKeySecret: &authCreds.AccessKeySecret,
-		Endpoint:        &endpoint,
-	})
-
+	authCreds.Endpoint = &endpoint
+	restClient, err := maxcompute.NewClient(authCreds)
 	if err != nil {
 		return nil, err
 	}

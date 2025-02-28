@@ -402,7 +402,7 @@ func (p *provider) getOSSClient(pc *domain.ProviderConfig, ramRole string) (*oss
 	p.mu.Unlock()
 
 	// Create new OSS client
-	client, err := p.newOSSClient(creds, ramRole, pc.URN)
+	client, authConfig, err := p.newOSSClient(creds, ramRole, pc.URN)
 	if err != nil {
 		return nil, err
 	}
@@ -410,30 +410,33 @@ func (p *provider) getOSSClient(pc *domain.ProviderConfig, ramRole string) (*oss
 	// Store in cache
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.ossClients[cachedClientKey] = OSSClient{client: client}
+	p.ossClients[cachedClientKey] = OSSClient{client: client, authConfig: authConfig}
 
 	return client, nil
 }
 
-func (p *provider) newOSSClient(creds *Credentials, ramRole, urn string) (*oss.Client, error) {
+func (p *provider) newOSSClient(creds *Credentials, ramRole, urn string) (*oss.Client, aliauth.AliAuthConfig, error) {
 	endpoint := fmt.Sprintf("https://oss-%s.aliyuncs.com", creds.RegionID)
 
 	authConfig, err := aliauth.NewConfig(creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID, ramRole, urn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create auth config: %w", err)
+		return nil, aliauth.AliAuthConfig{}, fmt.Errorf("failed to create auth config: %w", err)
 	}
 
 	authCreds, err := authConfig.GetCredentials()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get credentials: %w", err)
+		return nil, *authConfig, fmt.Errorf("failed to get credentials: %w", err)
 	}
 
+	var ossClient *oss.Client
 	// Initialize OSS client with security token if available
-	if authCreds.SecurityToken != "" {
-		return oss.New(endpoint, authCreds.AccessKeyID, authCreds.AccessKeySecret, oss.SecurityToken(authCreds.SecurityToken))
+	if *authCreds.SecurityToken != "" {
+		ossClient, err = oss.New(endpoint, *authCreds.AccessKeyId, *authCreds.AccessKeySecret, oss.SecurityToken(*authCreds.SecurityToken))
+		return ossClient, *authConfig, err
 	}
 
-	return oss.New(endpoint, creds.AccessKeyID, creds.AccessKeySecret)
+	ossClient, err = oss.New(endpoint, creds.AccessKeyID, creds.AccessKeySecret)
+	return ossClient, *authConfig, err
 }
 
 func getRAMRole(g domain.Grant) (string, error) {
