@@ -12,7 +12,7 @@ import (
 
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
-	sts "github.com/goto/guardian/pkg/stsClient"
+	aliauth "github.com/goto/guardian/pkg/aliauth"
 	"github.com/goto/guardian/utils"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
@@ -36,8 +36,8 @@ type Policy struct {
 }
 
 type OSSClient struct {
-	client         *oss.Client
-	stsClientExist bool
+	client     *oss.Client
+	authConfig aliauth.AliAuthConfig
 }
 type provider struct {
 	pv.UnimplementedClient
@@ -46,7 +46,6 @@ type provider struct {
 	encryptor encryptor
 
 	ossClients map[string]OSSClient
-	sts        *sts.Sts
 
 	mu sync.Mutex
 }
@@ -56,7 +55,6 @@ func NewProvider(typeName string, encryptor encryptor) *provider {
 		typeName:   typeName,
 		encryptor:  encryptor,
 		ossClients: make(map[string]OSSClient),
-		sts:        sts.NewSTS(),
 	}
 }
 
@@ -235,7 +233,6 @@ func policyStatementExist(statement PolicyStatement, resourceAccountID string, g
 		}
 	}
 	return true
-
 }
 
 func removePrincipalFromPolicy(statement PolicyStatement, principalAccountID string) PolicyStatement {
@@ -391,57 +388,55 @@ func (p *provider) getOSSClient(pc *domain.ProviderConfig, ramRole string) (*oss
 		ramRole = creds.RAMRole
 	}
 
-	stsClientID := "oss-" + ramRole
-	if ossClient, ok := p.getCachedOSSClient(ramRole, stsClientID, pc.URN); ok {
-		return ossClient, nil
-	}
+	cachedClientKey := fmt.Sprintf("%s:%s", creds.AccessKeyID, ramRole)
 
-	endpoint := fmt.Sprintf("https://oss-%s.aliyuncs.com", creds.RegionID)
-	var client *oss.Client
-	if ramRole != "" {
-		stsClient, err := p.sts.GetSTSClient(stsClientID, creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID)
-		if err != nil {
-			return nil, err
-		}
-
-		clientConfig, err := sts.AssumeRole(stsClient, creds.RAMRole, pc.URN, creds.RegionID)
-		if err != nil {
-			return nil, err
-		}
-
-		clientOpts := oss.SecurityToken(*clientConfig.SecurityToken)
-		client, err = oss.New(endpoint, *clientConfig.AccessKeyId, *clientConfig.AccessKeySecret, clientOpts)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize oss client: %w", err)
-		}
-	} else {
-		client, err = oss.New(endpoint, creds.AccessKeyID, creds.AccessKeySecret)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize oss client: %w", err)
-		}
-	}
-
+	// Check cache for existing client
 	p.mu.Lock()
-	if ramRole != "" {
-		p.ossClients[ramRole] = OSSClient{client: client, stsClientExist: true}
-	} else {
-		p.ossClients[pc.URN] = OSSClient{client: client}
+	if cachedClient, exists := p.ossClients[cachedClientKey]; exists {
+		if cachedClient.authConfig.IsConfigValid() {
+			p.mu.Unlock()
+			return cachedClient.client, nil
+		}
+		delete(p.ossClients, cachedClientKey)
 	}
 	p.mu.Unlock()
+
+	// Create new OSS client
+	client, authConfig, err := p.newOSSClient(creds, ramRole, pc.URN)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store in cache
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.ossClients[cachedClientKey] = OSSClient{client: client, authConfig: authConfig}
+
 	return client, nil
 }
 
-func (p *provider) getCachedOSSClient(ramRole, stsClientID, urn string) (*oss.Client, bool) {
-	c, ok := p.ossClients[ramRole]
-	if ramRole != "" && ok && c.stsClientExist && p.sts.IsSTSTokenValid(stsClientID) {
-		return c.client, true
+func (p *provider) newOSSClient(creds *Credentials, ramRole, urn string) (*oss.Client, aliauth.AliAuthConfig, error) {
+	endpoint := fmt.Sprintf("https://oss-%s.aliyuncs.com", creds.RegionID)
+
+	authConfig, err := aliauth.NewConfig(creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID, ramRole, urn)
+	if err != nil {
+		return nil, aliauth.AliAuthConfig{}, fmt.Errorf("failed to create auth config: %w", err)
 	}
 
-	if c, ok := p.ossClients[urn]; ok {
-		return c.client, true
+	authCreds, err := authConfig.GetCredentials()
+	if err != nil {
+		return nil, *authConfig, fmt.Errorf("failed to get credentials: %w", err)
 	}
 
-	return nil, false
+	var ossClient *oss.Client
+	// Initialize OSS client with security token if available
+	if *authCreds.SecurityToken != "" {
+		ossClient, err = oss.New(endpoint, *authCreds.AccessKeyId, *authCreds.AccessKeySecret, oss.SecurityToken(*authCreds.SecurityToken))
+		return ossClient, *authConfig, err
+	}
+
+	ossClient, err = oss.New(endpoint, creds.AccessKeyID, creds.AccessKeySecret)
+	return ossClient, *authConfig, err
 }
 
 func getRAMRole(g domain.Grant) (string, error) {
@@ -476,7 +471,6 @@ func getPrincipalFromAccountID(accountID, accountType string) (string, error) {
 
 		return subParts[1], nil
 	} else if accountType == AccountTypeRAMRole {
-
 		accountIDParts := strings.Split(accountID, ":")
 		if len(accountIDParts) < 5 {
 			return "", fmt.Errorf("invalid accountID format: %q", accountID)
@@ -495,7 +489,6 @@ func getPrincipalFromAccountID(accountID, accountType string) (string, error) {
 	}
 
 	return "", fmt.Errorf("invalid account type: %q", accountType)
-
 }
 
 func unmarshalPolicy(policy string) (Policy, error) {
