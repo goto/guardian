@@ -435,7 +435,6 @@ func (p *provider) getOdpsClient(pc *domain.ProviderConfig, overrideRamRole stri
 
 	if c, exists := p.odpsClients[cachedClientKey]; exists {
 		if c.authConfig.IsConfigValid() {
-			fmt.Println("retreived cached client")
 			return c.client, nil
 		}
 		p.mu.Lock()
@@ -455,7 +454,6 @@ func (p *provider) getOdpsClient(pc *domain.ProviderConfig, overrideRamRole stri
 	defer p.mu.Unlock()
 	p.odpsClients[cachedClientKey] = ODPSClient{client: client, authConfig: authConfig}
 
-	fmt.Println("created new client")
 	return client, nil
 }
 
