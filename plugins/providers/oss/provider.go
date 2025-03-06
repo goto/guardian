@@ -391,15 +391,14 @@ func (p *provider) getOSSClient(pc *domain.ProviderConfig, ramRole string) (*oss
 	cachedClientKey := fmt.Sprintf("%s:%s", creds.AccessKeyID, ramRole)
 
 	// Check cache for existing client
-	p.mu.Lock()
 	if cachedClient, exists := p.ossClients[cachedClientKey]; exists {
 		if cachedClient.authConfig.IsConfigValid() {
-			p.mu.Unlock()
 			return cachedClient.client, nil
 		}
+		p.mu.Lock()
 		delete(p.ossClients, cachedClientKey)
+		p.mu.Unlock()
 	}
-	p.mu.Unlock()
 
 	// Create new OSS client
 	client, authConfig, err := p.newOSSClient(creds, ramRole, pc.URN)

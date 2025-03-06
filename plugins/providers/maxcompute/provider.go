@@ -391,15 +391,14 @@ func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client,
 	ramRole := p.getRamRole(creds, "")
 	cachedClientKey := fmt.Sprintf("%s:%s", creds.AccessKeyID, ramRole)
 
-	p.mu.Lock()
 	if c, exists := p.restClients[cachedClientKey]; exists {
 		if c.authConfig.IsConfigValid() {
-			p.mu.Unlock()
 			return c.client, nil
 		}
+		p.mu.Lock()
 		delete(p.restClients, cachedClientKey)
+		p.mu.Unlock()
 	}
-	p.mu.Unlock()
 
 	authCofig, err := aliauth.NewConfig(creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID, ramRole, pc.URN)
 	if err != nil {
@@ -434,15 +433,14 @@ func (p *provider) getOdpsClient(pc *domain.ProviderConfig, overrideRamRole stri
 	ramRole := p.getRamRole(creds, overrideRamRole)
 	cachedClientKey := fmt.Sprintf("%s:%s", creds.AccessKeyID, ramRole)
 
-	p.mu.Lock()
 	if c, exists := p.odpsClients[cachedClientKey]; exists {
 		if c.authConfig.IsConfigValid() {
-			p.mu.Unlock()
 			return c.client, nil
 		}
+		p.mu.Lock()
 		delete(p.odpsClients, cachedClientKey)
+		p.mu.Unlock()
 	}
-	p.mu.Unlock()
 
 	authConfig, err := aliauth.NewConfig(creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID, ramRole, pc.URN)
 	if err != nil {
