@@ -24,10 +24,11 @@ type encryptor interface {
 }
 
 type PolicyStatement struct {
-	Action    []string `json:"Action"`
-	Effect    string   `json:"Effect"`
-	Principal []string `json:"Principal"`
-	Resource  []string `json:"Resource"`
+	Action    []string               `json:"Action"`
+	Effect    string                 `json:"Effect"`
+	Principal []string               `json:"Principal"`
+	Resource  []string               `json:"Resource"`
+	Condition map[string]interface{} `json:"Condition,omitempty"`
 }
 
 type Policy struct {
@@ -235,7 +236,6 @@ func policyStatementExist(statement PolicyStatement, resourceAccountID string, g
 		}
 	}
 	return true
-
 }
 
 func removePrincipalFromPolicy(statement PolicyStatement, principalAccountID string) PolicyStatement {
@@ -321,11 +321,20 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 	}
 
 	statements, matchingStatements := findStatementsWithMatchingActions(bucketPolicy, resourceAccountID, g)
+
+	resource := fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN)
+	resourceWithWildcard := fmt.Sprintf("acs:oss:*:%s:%s/*", resourceAccountID, g.Resource.URN)
+	resources := []string{resourceWithWildcard}
+
+	if g.Role == "admin" {
+		resources = append(resources, resource)
+	}
+
 	statementToUpdate := PolicyStatement{
 		Action:    g.Permissions,
 		Effect:    "Allow",
 		Principal: []string{principalAccountID},
-		Resource:  []string{fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN)},
+		Resource:  resources,
 	}
 
 	foundStatementToUpdate := false
@@ -347,6 +356,12 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 		statements = append(statements, statementToUpdate)
 	}
 
+	//	Add additional statement for viewer and creator to allow listing objects and getting objects
+	if g.Role == "creator" || g.Role == "viewer" {
+		additionalStatement := createAdditionalStatement(principalAccountID, resource)
+		statements = append(statements, additionalStatement)
+	}
+
 	bucketPolicy.Statement = statements
 	marshaledPolicy, err := marshalPolicy(bucketPolicy)
 	if err != nil {
@@ -354,6 +369,26 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 	}
 
 	return marshaledPolicy, nil
+}
+
+// Helper function to create additional statements for "creator" or "viewer" roles
+func createAdditionalStatement(principalAccountID, resource string) PolicyStatement {
+	return PolicyStatement{
+		Effect: "Allow",
+		Action: []string{
+			"oss:ListObjects",
+			"oss:GetObject",
+		},
+		Principal: []string{principalAccountID},
+		Resource: []string{
+			resource,
+		},
+		Condition: map[string]interface{}{
+			"StringLike": map[string]interface{}{
+				"oss:Prefix": []string{"*"},
+			},
+		},
+	}
 }
 
 func findStatementsWithMatchingActions(bucketPolicy Policy, resourceAccountID string, g domain.Grant) ([]PolicyStatement, []PolicyStatement) {
@@ -476,7 +511,6 @@ func getPrincipalFromAccountID(accountID, accountType string) (string, error) {
 
 		return subParts[1], nil
 	} else if accountType == AccountTypeRAMRole {
-
 		accountIDParts := strings.Split(accountID, ":")
 		if len(accountIDParts) < 5 {
 			return "", fmt.Errorf("invalid accountID format: %q", accountID)
@@ -495,7 +529,6 @@ func getPrincipalFromAccountID(accountID, accountType string) (string, error) {
 	}
 
 	return "", fmt.Errorf("invalid account type: %q", accountType)
-
 }
 
 func unmarshalPolicy(policy string) (Policy, error) {
