@@ -378,12 +378,13 @@ func (p *provider) getCreds(pc *domain.ProviderConfig) (*Credentials, error) {
 	return creds, nil
 }
 
-func (p *provider) getOSSClient(pc *domain.ProviderConfig, ramRole string) (*oss.Client, error) {
+func (p *provider) getOSSClient(pc *domain.ProviderConfig, overrideRamRole string) (*oss.Client, error) {
 	creds, err := p.getCreds(pc)
 	if err != nil {
 		return nil, err
 	}
 
+	ramRole := overrideRamRole
 	if ramRole == "" {
 		ramRole = creds.RAMRole
 	}
@@ -393,6 +394,7 @@ func (p *provider) getOSSClient(pc *domain.ProviderConfig, ramRole string) (*oss
 	// Check cache for existing client
 	if cachedClient, exists := p.ossClients[cachedClientKey]; exists {
 		if cachedClient.authConfig.IsConfigValid() {
+			fmt.Println("Using cached OSS client")
 			return cachedClient.client, nil
 		}
 		p.mu.Lock()
@@ -410,7 +412,7 @@ func (p *provider) getOSSClient(pc *domain.ProviderConfig, ramRole string) (*oss
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.ossClients[cachedClientKey] = OSSClient{client: client, authConfig: authConfig}
-
+	fmt.Println("Created new OSS client")
 	return client, nil
 }
 
@@ -443,7 +445,7 @@ func getRAMRole(g domain.Grant) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("acs:ram::%s:role/guardian.bot", resourceAccountID), nil
+	return fmt.Sprintf("acs:ram::%s:role/guardian-bot", resourceAccountID), nil
 }
 
 func getAccountIDFromResource(resource *domain.Resource) (string, error) {
