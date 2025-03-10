@@ -238,15 +238,11 @@ func policyStatementExist(statement PolicyStatement, resourceAccountID string, g
 
 func addionalPolicyStatementExist(statement PolicyStatement, resourceAccountID string, g domain.Grant) bool {
 	resourceMatch := slices.Contains(statement.Resource, fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN))
-	if !resourceMatch {
+	if !resourceMatch || len(statement.Action) != 2 {
 		return false
 	}
 
-	if len(statement.Action) == 2 && resourceMatch {
-		return slices.Contains(statement.Action, "oss:ListObjects") && slices.Contains(statement.Action, "oss:GetObject")
-	}
-
-	return true
+	return slices.Contains(statement.Action, "oss:ListObjects") && slices.Contains(statement.Action, "oss:GetObject")
 }
 
 func removePrincipalFromPolicy(statement PolicyStatement, principalAccountID string) PolicyStatement {
@@ -306,7 +302,7 @@ func revokePermissionsFromPolicy(policyString string, g domain.Grant) (string, e
 		}
 
 		skipRemoval := false
-		for _, s := range bucketPolicy.Statement {
+		for _, s := range statements {
 			if &s != &statement && slices.Contains(s.Principal, principalAccountID) && !slices.Contains(s.Action, "oss:*") {
 				skipRemoval = true
 				break
