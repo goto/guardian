@@ -221,7 +221,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 }
 
 func policyStatementExist(statement PolicyStatement, resourceAccountID string, g domain.Grant) bool {
-	resourceMatch := slices.Contains(statement.Resource, fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN))
+	resourceMatch := slices.Contains(statement.Resource, fmt.Sprintf("acs:oss:*:%s:%s/*", resourceAccountID, g.Resource.URN))
 	if !resourceMatch {
 		return false
 	}
@@ -235,6 +235,19 @@ func policyStatementExist(statement PolicyStatement, resourceAccountID string, g
 			return false
 		}
 	}
+	return true
+}
+
+func addionalPolicyStatementExist(statement PolicyStatement, resourceAccountID string, g domain.Grant) bool {
+	resourceMatch := slices.Contains(statement.Resource, fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN))
+	if !resourceMatch {
+		return false
+	}
+
+	if len(statement.Action) == 2 && resourceMatch {
+		return slices.Contains(statement.Action, "oss:ListObjects") && slices.Contains(statement.Action, "oss:GetObject")
+	}
+
 	return true
 }
 
@@ -267,8 +280,8 @@ func revokePermissionsFromPolicy(policyString string, g domain.Grant) (string, e
 		return "", err
 	}
 
-	statements, matchingStatements := findStatementsWithMatchingActions(bucketPolicy, resourceAccountID, g)
-	if len(matchingStatements) == 0 {
+	statements, matchingStatements, additionalMatchingStatements := findStatementsWithMatchingActions(bucketPolicy, resourceAccountID, g)
+	if len(matchingStatements) == 0 && len(additionalMatchingStatements) == 0 {
 		return policyString, nil
 	}
 
@@ -287,7 +300,35 @@ func revokePermissionsFromPolicy(policyString string, g domain.Grant) (string, e
 		statementFoundToRevokePermission = true
 	}
 
-	if !statementFoundToRevokePermission {
+	addtionalStatementFoundToRevokePermission := false
+	for _, statement := range additionalMatchingStatements {
+		if !slices.Contains(statement.Principal, principalAccountID) {
+			statements = append(statements, statement)
+			continue
+		}
+
+		skipRemoval := false
+		for _, s := range bucketPolicy.Statement {
+			if &s != &statement && slices.Contains(s.Principal, principalAccountID) && !slices.Contains(s.Action, "oss:*") {
+				skipRemoval = true
+				break
+			}
+		}
+
+		if skipRemoval {
+			statements = append(statements, statement)
+			continue
+		}
+
+		// revoke access of the principal
+		updatedStatement := removePrincipalFromPolicy(statement, principalAccountID)
+		if len(updatedStatement.Principal) > 0 {
+			statements = append(statements, updatedStatement)
+		}
+		addtionalStatementFoundToRevokePermission = true
+	}
+
+	if !statementFoundToRevokePermission && !addtionalStatementFoundToRevokePermission {
 		return "", fmt.Errorf("access not found for role: %s", g.Role)
 	}
 
@@ -320,7 +361,7 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 		return "", err
 	}
 
-	statements, matchingStatements := findStatementsWithMatchingActions(bucketPolicy, resourceAccountID, g)
+	statements, matchingStatements, additionalMatchingStatements := findStatementsWithMatchingActions(bucketPolicy, resourceAccountID, g)
 
 	resource := fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN)
 	resourceWithWildcard := fmt.Sprintf("acs:oss:*:%s:%s/*", resourceAccountID, g.Resource.URN)
@@ -351,6 +392,17 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 		statements = append(statements, statement)
 	}
 
+	foundAdditionalStatementToUpdate := false
+	for _, statement := range additionalMatchingStatements {
+		if !foundAdditionalStatementToUpdate {
+			foundAdditionalStatementToUpdate = true
+			if !slices.Contains(statement.Principal, principalAccountID) {
+				statement.Principal = append(statement.Principal, principalAccountID)
+			}
+		}
+		statements = append(statements, statement)
+	}
+
 	// if no matching statement found, add the new statement
 	if !foundStatementToUpdate {
 		statements = append(statements, statementToUpdate)
@@ -359,7 +411,20 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 	//	Add additional statement for viewer and creator to allow listing objects and getting objects
 	if g.Role == "creator" || g.Role == "viewer" {
 		additionalStatement := createAdditionalStatement(principalAccountID, resource)
-		statements = append(statements, additionalStatement)
+		// Check if a statement already exists with only "oss:ListObjects" and "oss:GetObject"
+		existingStatementFound := false
+		for _, statement := range statements {
+			if len(statement.Action) == 2 &&
+				slices.Contains(statement.Action, "oss:ListObjects") &&
+				slices.Contains(statement.Action, "oss:GetObject") &&
+				slices.Contains(statement.Resource, resource) {
+				existingStatementFound = true
+				break
+			}
+		}
+		if !existingStatementFound {
+			statements = append(statements, additionalStatement)
+		}
 	}
 
 	bucketPolicy.Statement = statements
@@ -391,17 +456,20 @@ func createAdditionalStatement(principalAccountID, resource string) PolicyStatem
 	}
 }
 
-func findStatementsWithMatchingActions(bucketPolicy Policy, resourceAccountID string, g domain.Grant) ([]PolicyStatement, []PolicyStatement) {
+func findStatementsWithMatchingActions(bucketPolicy Policy, resourceAccountID string, g domain.Grant) ([]PolicyStatement, []PolicyStatement, []PolicyStatement) {
 	var statements []PolicyStatement
 	var matchingStatements []PolicyStatement
+	var additionalMatchingStatements []PolicyStatement
 	for _, statement := range bucketPolicy.Statement {
 		if policyStatementExist(statement, resourceAccountID, g) {
 			matchingStatements = append(matchingStatements, statement)
+		} else if addionalPolicyStatementExist(statement, resourceAccountID, g) {
+			additionalMatchingStatements = append(additionalMatchingStatements, statement)
 		} else {
 			statements = append(statements, statement)
 		}
 	}
-	return statements, matchingStatements
+	return statements, matchingStatements, additionalMatchingStatements
 }
 
 func (p *provider) getCreds(pc *domain.ProviderConfig) (*Credentials, error) {
