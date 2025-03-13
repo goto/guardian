@@ -11,10 +11,13 @@ import (
 )
 
 const (
+	sourceName = "maxcompute"
+
 	accountTypeRAMUser = "ram_user"
 	accountTypeRAMRole = "ram_role"
 
 	resourceTypeProject = "project"
+	resourceTypeSchema  = "schema"
 	resourceTypeTable   = "table"
 
 	parameterRAMRoleKey = "ram_role"
