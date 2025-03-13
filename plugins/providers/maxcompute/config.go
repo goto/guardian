@@ -28,7 +28,7 @@ const (
 )
 
 var (
-	validResourceTypes = []string{resourceTypeProject, resourceTypeTable}
+	validResourceTypes = []string{resourceTypeProject, resourceTypeSchema, resourceTypeTable}
 	validTableActions  = []string{"describe", "select", "alter", "update", "drop", "showhistory", "all"}
 )
 
