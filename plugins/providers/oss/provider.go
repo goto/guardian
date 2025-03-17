@@ -24,11 +24,10 @@ type encryptor interface {
 }
 
 type PolicyStatement struct {
-	Action    []string               `json:"Action"`
-	Effect    string                 `json:"Effect"`
-	Principal []string               `json:"Principal"`
-	Resource  []string               `json:"Resource"`
-	Condition map[string]interface{} `json:"Condition,omitempty"`
+	Action    []string `json:"Action"`
+	Effect    string   `json:"Effect"`
+	Principal []string `json:"Principal"`
+	Resource  []string `json:"Resource"`
 }
 
 type Policy struct {
@@ -219,7 +218,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 }
 
 func policyStatementExist(statement PolicyStatement, resourceAccountID string, g domain.Grant) bool {
-	resourceMatch := slices.Contains(statement.Resource, fmt.Sprintf("acs:oss:*:%s:%s/*", resourceAccountID, g.Resource.URN))
+	resourceMatch := slices.Contains(statement.Resource, fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN))
 	if !resourceMatch {
 		return false
 	}
@@ -234,15 +233,6 @@ func policyStatementExist(statement PolicyStatement, resourceAccountID string, g
 		}
 	}
 	return true
-}
-
-func addionalPolicyStatementExist(statement PolicyStatement, resourceAccountID string, g domain.Grant) bool {
-	resourceMatch := slices.Contains(statement.Resource, fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN))
-	if !resourceMatch || len(statement.Action) != 2 {
-		return false
-	}
-
-	return slices.Contains(statement.Action, "oss:ListObjects") && slices.Contains(statement.Action, "oss:GetObject")
 }
 
 func removePrincipalFromPolicy(statement PolicyStatement, principalAccountID string) PolicyStatement {
@@ -274,8 +264,8 @@ func revokePermissionsFromPolicy(policyString string, g domain.Grant) (string, e
 		return "", err
 	}
 
-	statements, matchingStatements, additionalMatchingStatements := findStatementsWithMatchingActions(bucketPolicy, resourceAccountID, g)
-	if len(matchingStatements) == 0 && len(additionalMatchingStatements) == 0 {
+	statements, matchingStatements := findStatementsWithMatchingActions(bucketPolicy, resourceAccountID, g)
+	if len(matchingStatements) == 0 {
 		return policyString, nil
 	}
 
@@ -294,35 +284,7 @@ func revokePermissionsFromPolicy(policyString string, g domain.Grant) (string, e
 		statementFoundToRevokePermission = true
 	}
 
-	addtionalStatementFoundToRevokePermission := false
-	for _, statement := range additionalMatchingStatements {
-		if !slices.Contains(statement.Principal, principalAccountID) {
-			statements = append(statements, statement)
-			continue
-		}
-
-		skipRemoval := false
-		for _, s := range statements {
-			if &s != &statement && slices.Contains(s.Principal, principalAccountID) && !slices.Contains(s.Action, "oss:*") {
-				skipRemoval = true
-				break
-			}
-		}
-
-		if skipRemoval {
-			statements = append(statements, statement)
-			continue
-		}
-
-		// revoke access of the principal
-		updatedStatement := removePrincipalFromPolicy(statement, principalAccountID)
-		if len(updatedStatement.Principal) > 0 {
-			statements = append(statements, updatedStatement)
-		}
-		addtionalStatementFoundToRevokePermission = true
-	}
-
-	if !statementFoundToRevokePermission && !addtionalStatementFoundToRevokePermission {
+	if !statementFoundToRevokePermission {
 		return "", fmt.Errorf("access not found for role: %s", g.Role)
 	}
 
@@ -355,15 +317,11 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 		return "", err
 	}
 
-	statements, matchingStatements, additionalMatchingStatements := findStatementsWithMatchingActions(bucketPolicy, resourceAccountID, g)
+	statements, matchingStatements := findStatementsWithMatchingActions(bucketPolicy, resourceAccountID, g)
 
 	resource := fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN)
 	resourceWithWildcard := fmt.Sprintf("acs:oss:*:%s:%s/*", resourceAccountID, g.Resource.URN)
-	resources := []string{resourceWithWildcard}
-
-	if g.Role == "admin" {
-		resources = append(resources, resource)
-	}
+	resources := []string{resourceWithWildcard, resource}
 
 	statementToUpdate := PolicyStatement{
 		Action:    g.Permissions,
@@ -386,39 +344,9 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 		statements = append(statements, statement)
 	}
 
-	foundAdditionalStatementToUpdate := false
-	for _, statement := range additionalMatchingStatements {
-		if !foundAdditionalStatementToUpdate {
-			foundAdditionalStatementToUpdate = true
-			if !slices.Contains(statement.Principal, principalAccountID) {
-				statement.Principal = append(statement.Principal, principalAccountID)
-			}
-		}
-		statements = append(statements, statement)
-	}
-
 	// if no matching statement found, add the new statement
 	if !foundStatementToUpdate {
 		statements = append(statements, statementToUpdate)
-	}
-
-	//	Add additional statement for viewer and creator to allow listing objects and getting objects
-	if g.Role == "creator" || g.Role == "viewer" {
-		additionalStatement := createAdditionalStatement(principalAccountID, resource)
-		// Check if a statement already exists with only "oss:ListObjects" and "oss:GetObject"
-		existingStatementFound := false
-		for _, statement := range statements {
-			if len(statement.Action) == 2 &&
-				slices.Contains(statement.Action, "oss:ListObjects") &&
-				slices.Contains(statement.Action, "oss:GetObject") &&
-				slices.Contains(statement.Resource, resource) {
-				existingStatementFound = true
-				break
-			}
-		}
-		if !existingStatementFound {
-			statements = append(statements, additionalStatement)
-		}
 	}
 
 	bucketPolicy.Statement = statements
@@ -430,40 +358,17 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 	return marshaledPolicy, nil
 }
 
-// Helper function to create additional statements for "creator" or "viewer" roles
-func createAdditionalStatement(principalAccountID, resource string) PolicyStatement {
-	return PolicyStatement{
-		Effect: "Allow",
-		Action: []string{
-			"oss:ListObjects",
-			"oss:GetObject",
-		},
-		Principal: []string{principalAccountID},
-		Resource: []string{
-			resource,
-		},
-		Condition: map[string]interface{}{
-			"StringLike": map[string]interface{}{
-				"oss:Prefix": []string{"*"},
-			},
-		},
-	}
-}
-
-func findStatementsWithMatchingActions(bucketPolicy Policy, resourceAccountID string, g domain.Grant) ([]PolicyStatement, []PolicyStatement, []PolicyStatement) {
+func findStatementsWithMatchingActions(bucketPolicy Policy, resourceAccountID string, g domain.Grant) ([]PolicyStatement, []PolicyStatement) {
 	var statements []PolicyStatement
 	var matchingStatements []PolicyStatement
-	var additionalMatchingStatements []PolicyStatement
 	for _, statement := range bucketPolicy.Statement {
 		if policyStatementExist(statement, resourceAccountID, g) {
 			matchingStatements = append(matchingStatements, statement)
-		} else if addionalPolicyStatementExist(statement, resourceAccountID, g) {
-			additionalMatchingStatements = append(additionalMatchingStatements, statement)
 		} else {
 			statements = append(statements, statement)
 		}
 	}
-	return statements, matchingStatements, additionalMatchingStatements
+	return statements, matchingStatements
 }
 
 func (p *provider) getCreds(pc *domain.ProviderConfig) (*Credentials, error) {
