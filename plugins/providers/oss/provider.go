@@ -318,11 +318,16 @@ func updatePolicyToGrantPermissions(policy string, g domain.Grant) (string, erro
 	}
 
 	statements, matchingStatements := findStatementsWithMatchingActions(bucketPolicy, resourceAccountID, g)
+
+	resource := fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN)
+	resourceWithWildcard := fmt.Sprintf("acs:oss:*:%s:%s/*", resourceAccountID, g.Resource.URN)
+	resources := []string{resourceWithWildcard, resource}
+
 	statementToUpdate := PolicyStatement{
 		Action:    g.Permissions,
 		Effect:    "Allow",
 		Principal: []string{principalAccountID},
-		Resource:  []string{fmt.Sprintf("acs:oss:*:%s:%s", resourceAccountID, g.Resource.URN)},
+		Resource:  resources,
 	}
 
 	foundStatementToUpdate := false
