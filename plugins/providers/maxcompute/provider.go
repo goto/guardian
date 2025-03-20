@@ -411,7 +411,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 }
 
 func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, g domain.Grant) ([]*domain.Grant, error) {
-	if g.Resource.ProviderType != "maxcompute" {
+	if g.Resource.ProviderType != sourceName {
 		return nil, fmt.Errorf("unsupported provider type: %q", g.Resource.ProviderType)
 	}
 
@@ -421,6 +421,8 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 		if !slices.Contains(g.Permissions, projectPermissionMember) {
 			projectName = g.Resource.URN
 		}
+	case resourceTypeSchema:
+		projectName = strings.Split(g.Resource.URN, ".")[0]
 	case resourceTypeTable:
 		projectName = strings.Split(g.Resource.URN, ".")[0]
 	default:
