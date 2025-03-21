@@ -11,10 +11,13 @@ import (
 )
 
 const (
+	sourceName = "maxcompute"
+
 	accountTypeRAMUser = "ram_user"
 	accountTypeRAMRole = "ram_role"
 
 	resourceTypeProject = "project"
+	resourceTypeSchema  = "schema"
 	resourceTypeTable   = "table"
 
 	parameterRAMRoleKey = "ram_role"
@@ -25,7 +28,7 @@ const (
 )
 
 var (
-	validResourceTypes = []string{resourceTypeProject, resourceTypeTable}
+	validResourceTypes = []string{resourceTypeProject, resourceTypeSchema, resourceTypeTable}
 	validTableActions  = []string{"describe", "select", "alter", "update", "drop", "showhistory", "all"}
 )
 

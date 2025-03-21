@@ -19,6 +19,7 @@ require (
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
 	github.com/aliyun/credentials-go v1.3.10
 	github.com/antonmedv/expr v1.15.3
+	github.com/bearaujus/berror v0.0.1
 	github.com/bearaujus/bptr v0.1.0
 	github.com/envoyproxy/protoc-gen-validate v1.0.2
 	github.com/go-playground/validator/v10 v10.4.1
@@ -34,6 +35,7 @@ require (
 	github.com/mcuadros/go-defaults v1.2.0
 	github.com/mcuadros/go-lookup v0.0.0-20200831155250-80f87a4fa5ee
 	github.com/mitchellh/mapstructure v1.4.3
+	github.com/moul/http2curl v1.0.0
 	github.com/ory/dockertest/v3 v3.9.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/sergi/go-diff v1.3.1
@@ -55,6 +57,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.29.0
 	go.opentelemetry.io/otel/sdk v1.29.0
 	go.opentelemetry.io/otel/sdk/metric v1.27.0
+	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1
 	golang.org/x/net v0.23.0
 	golang.org/x/oauth2 v0.22.0
 	golang.org/x/sync v0.4.0
