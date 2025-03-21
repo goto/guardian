@@ -33,7 +33,7 @@ func (c *client) RoleBindingNamespaceCreate(ctx context.Context, in *RoleBinding
 	if len(in.Members) == 0 {
 		return nil, ErrRoleBindingNamespaceEmptyMemberToBind.New(in.RoleName)
 	}
-	binding, err := c.RoleBindingNamespaceGet(ctx, &RoleBindingNamespaceGetRequest{RoleName: in.RoleName})
+	binding, err := c.RoleBindingNamespaceGetAll(ctx, &RoleBindingNamespaceGetAllRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (c *client) RoleBindingNamespaceCreate(ctx context.Context, in *RoleBinding
 
 	// construct request params
 	method := http.MethodPost
-	path := fmt.Sprintf("api/catalog/v1alpha/namespaces/%v/roles/%v:setPolicy", c.accountID, in.RoleName)
+	path := fmt.Sprintf("api/catalog/v1alpha/namespaces/%v:setPolicy", c.accountID)
 	params := url.Values{"principleFormat": []string{"id"}}
 	body, err := json.Marshal(binding)
 	if err != nil {
@@ -81,9 +81,33 @@ func (c *client) RoleBindingNamespaceGet(ctx context.Context, in *RoleBindingNam
 		return nil, ErrRoleBindingNamespaceMissingRole.New()
 	}
 
+	// request
+	binding, err := c.RoleBindingNamespaceGetAll(ctx, &RoleBindingNamespaceGetAllRequest{})
+	if err != nil {
+		return nil, err
+	}
+	err = binding.collect(in.RoleName)
+	if err != nil {
+		return nil, ErrRoleBindingNamespaceRoleNotExist.New(in.RoleName, err)
+	}
+	return binding, nil
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Get All
+// ---------------------------------------------------------------------------------------------------------------------
+
+type RoleBindingNamespaceGetAllRequest struct{}
+
+func (c *client) RoleBindingNamespaceGetAll(ctx context.Context, in *RoleBindingNamespaceGetAllRequest) (*RoleBinding, error) {
+	// validation
+	if in == nil {
+		in = new(RoleBindingNamespaceGetAllRequest)
+	}
+
 	// construct request params
 	method := http.MethodPost
-	path := fmt.Sprintf("api/catalog/v1alpha/namespaces/%v/roles/%v:getPolicy", c.accountID, in.RoleName)
+	path := fmt.Sprintf("api/catalog/v1alpha/namespaces/%v:getPolicy", c.accountID)
 	params := url.Values{"principleFormat": []string{"id"}}
 
 	// request
@@ -117,7 +141,7 @@ func (c *client) RoleBindingNamespaceDelete(ctx context.Context, in *RoleBinding
 	if len(in.Members) == 0 {
 		return ErrRoleBindingNamespaceEmptyMemberToUnbind.New(in.RoleName)
 	}
-	binding, err := c.RoleBindingNamespaceGet(ctx, &RoleBindingNamespaceGetRequest{RoleName: in.RoleName})
+	binding, err := c.RoleBindingNamespaceGetAll(ctx, &RoleBindingNamespaceGetAllRequest{})
 	if err != nil {
 		return err
 	}
@@ -129,7 +153,7 @@ func (c *client) RoleBindingNamespaceDelete(ctx context.Context, in *RoleBinding
 
 	// construct request params
 	method := http.MethodPost
-	path := fmt.Sprintf("api/catalog/v1alpha/namespaces/%v/roles/%v:setPolicy", c.accountID, in.RoleName)
+	path := fmt.Sprintf("api/catalog/v1alpha/namespaces/%v:setPolicy", c.accountID)
 	params := url.Values{"principleFormat": []string{"id"}}
 	body, err := json.Marshal(binding)
 	if err != nil {

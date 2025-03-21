@@ -278,7 +278,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 				Members:             []string{g.AccountID},
 				IgnoreAlreadyExists: true,
 			}); err != nil {
-				return fmt.Errorf("failed to grant schema level access from member %q on %q: %v", g.AccountID, g.Resource.URN, err)
+				return fmt.Errorf("failed to grant schema level access to member %q on %q: %v", g.AccountID, g.Resource.URN, err)
 			}
 		}
 

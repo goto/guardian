@@ -88,6 +88,7 @@ func (rb *RoleBinding) fromRaw(in RoleBindingRaw) {
 }
 
 func (rb *RoleBinding) add(roleName string, membersToAdd []string, ignoreAlreadyExist bool) error {
+	membersToAdd = slices.GenericsStandardizeSlice(membersToAdd)
 	raw := rb.toRaw()
 	members, ok := raw[roleName]
 	if !ok {
@@ -100,7 +101,7 @@ func (rb *RoleBinding) add(roleName string, membersToAdd []string, ignoreAlready
 			}
 			for _, memberToAdd := range membersToAdd {
 				if _, ok = validator[memberToAdd]; ok {
-					return fmt.Errorf("member '%s' on role '%s' is already exist on current bindings", memberToAdd, roleName)
+					return fmt.Errorf("member '%s' on role '%s' is already exist on current active bindings", memberToAdd, roleName)
 				}
 			}
 		}
@@ -111,10 +112,11 @@ func (rb *RoleBinding) add(roleName string, membersToAdd []string, ignoreAlready
 }
 
 func (rb *RoleBinding) reduce(roleName string, membersToRemove []string, ignoreNotExist bool) error {
+	membersToRemove = slices.GenericsStandardizeSlice(membersToRemove)
 	raw := rb.toRaw()
 	members, ok := raw[roleName]
 	if !ok && !ignoreNotExist {
-		return fmt.Errorf("role '%s' is does not exist on current bindings", roleName)
+		return fmt.Errorf("role '%s' is does not exist on current active bindings", roleName)
 	} else if ok {
 		validator := make(map[string]struct{})
 		for _, member := range members {
@@ -125,7 +127,7 @@ func (rb *RoleBinding) reduce(roleName string, membersToRemove []string, ignoreN
 				if ignoreNotExist {
 					continue
 				}
-				return fmt.Errorf("member '%s' on role '%s' is does not exist on current bindings", memberToRemove, roleName)
+				return fmt.Errorf("member '%s' on role '%s' is does not exist on current active bindings", memberToRemove, roleName)
 			}
 			delete(validator, memberToRemove)
 		}
@@ -143,7 +145,7 @@ func (rb *RoleBinding) collect(roleName string) error {
 	raw := rb.toRaw()
 	members, ok := raw[roleName]
 	if !ok {
-		return fmt.Errorf("role '%s' is does not exist on current bindings", roleName)
+		return fmt.Errorf("role '%s' is does not exist on current active bindings", roleName)
 	}
 	rb.fromRaw(map[string][]string{roleName: members})
 	return nil

@@ -32,6 +32,7 @@ type Client interface {
 
 	RoleBindingNamespaceCreate(ctx context.Context, in *RoleBindingNamespaceCreateRequest) (*RoleBinding, error)
 	RoleBindingNamespaceGet(ctx context.Context, in *RoleBindingNamespaceGetRequest) (*RoleBinding, error)
+	RoleBindingNamespaceGetAll(ctx context.Context, in *RoleBindingNamespaceGetAllRequest) (*RoleBinding, error)
 	RoleBindingNamespaceDelete(ctx context.Context, in *RoleBindingNamespaceDeleteRequest) error
 
 	RoleBindingSchemaCreate(ctx context.Context, in *RoleBindingSchemaCreateRequest) (*RoleBinding, error)
