@@ -1,8 +1,9 @@
-package slices
+package slices_test
 
 import (
 	"testing"
 
+	"github.com/goto/guardian/pkg/slices"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/exp/constraints"
 )
@@ -25,7 +26,7 @@ func TestGenericsFilterSliceEmptyValues(t *testing.T) {
 	}
 	for _, tt := range testsString {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, GenericsFilterSliceEmptyValues(tt.args.list), "GenericsFilterSliceEmptyValues(%v)", tt.args.list)
+			assert.Equalf(t, tt.want, slices.GenericsFilterSliceEmptyValues(tt.args.list), "GenericsFilterSliceEmptyValues(%v)", tt.args.list)
 		})
 	}
 	testsInt := []testCase[int]{
@@ -37,7 +38,7 @@ func TestGenericsFilterSliceEmptyValues(t *testing.T) {
 	}
 	for _, tt := range testsInt {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, GenericsFilterSliceEmptyValues(tt.args.list), "GenericsFilterSliceEmptyValues(%v)", tt.args.list)
+			assert.Equalf(t, tt.want, slices.GenericsFilterSliceEmptyValues(tt.args.list), "GenericsFilterSliceEmptyValues(%v)", tt.args.list)
 		})
 	}
 	testsBool := []testCase[bool]{
@@ -49,7 +50,7 @@ func TestGenericsFilterSliceEmptyValues(t *testing.T) {
 	}
 	for _, tt := range testsBool {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, GenericsFilterSliceEmptyValues(tt.args.list), "GenericsFilterSliceEmptyValues(%v)", tt.args.list)
+			assert.Equalf(t, tt.want, slices.GenericsFilterSliceEmptyValues(tt.args.list), "GenericsFilterSliceEmptyValues(%v)", tt.args.list)
 		})
 	}
 }
@@ -77,7 +78,7 @@ func TestGenericsUniqueSliceValues(t *testing.T) {
 	}
 	for _, tt := range testsString {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, GenericsUniqueSliceValues(tt.args.list), "GenericsUniqueSliceValues(%v)", tt.args.list)
+			assert.Equalf(t, tt.want, slices.GenericsUniqueSliceValues(tt.args.list), "GenericsUniqueSliceValues(%v)", tt.args.list)
 		})
 	}
 	testsInt := []testCase[int]{
@@ -89,7 +90,7 @@ func TestGenericsUniqueSliceValues(t *testing.T) {
 	}
 	for _, tt := range testsInt {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, GenericsUniqueSliceValues(tt.args.list), "GenericsUniqueSliceValues(%v)", tt.args.list)
+			assert.Equalf(t, tt.want, slices.GenericsUniqueSliceValues(tt.args.list), "GenericsUniqueSliceValues(%v)", tt.args.list)
 		})
 	}
 	testsBool := []testCase[bool]{
@@ -101,7 +102,7 @@ func TestGenericsUniqueSliceValues(t *testing.T) {
 	}
 	for _, tt := range testsBool {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, GenericsUniqueSliceValues(tt.args.list), "GenericsUniqueSliceValues(%v)", tt.args.list)
+			assert.Equalf(t, tt.want, slices.GenericsUniqueSliceValues(tt.args.list), "GenericsUniqueSliceValues(%v)", tt.args.list)
 		})
 	}
 }
@@ -137,7 +138,7 @@ func TestGenericsIsSliceEqual(t *testing.T) {
 			name: "type string not equal",
 			args: args[string]{
 				a: []string{"orange", "orange", "grape", "mellon", "apple", "apple", "orange"},
-				b: []string{"orange", "grape", "apple", "orange", "grape", "mellon", "orange"},
+				b: []string{"orange", "grape", "apple", "orange", "grape", "mellon", "mellon"},
 			},
 			want: false,
 		},
@@ -160,7 +161,7 @@ func TestGenericsIsSliceEqual(t *testing.T) {
 	}
 	for _, tt := range testsString {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, GenericsIsSliceEqual(tt.args.a, tt.args.b), "GenericsIsSliceEqual(%v, %v)", tt.args.a, tt.args.b)
+			assert.Equalf(t, tt.want, slices.GenericsIsSliceEqual(tt.args.a, tt.args.b), "GenericsIsSliceEqual(%v, %v)", tt.args.a, tt.args.b)
 		})
 	}
 	testsInt := []testCase[int]{
@@ -207,7 +208,7 @@ func TestGenericsIsSliceEqual(t *testing.T) {
 	}
 	for _, tt := range testsInt {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, GenericsIsSliceEqual(tt.args.a, tt.args.b), "GenericsIsSliceEqual(%v, %v)", tt.args.a, tt.args.b)
+			assert.Equalf(t, tt.want, slices.GenericsIsSliceEqual(tt.args.a, tt.args.b), "GenericsIsSliceEqual(%v, %v)", tt.args.a, tt.args.b)
 		})
 	}
 	testsBool := []testCase[bool]{
@@ -254,12 +255,12 @@ func TestGenericsIsSliceEqual(t *testing.T) {
 	}
 	for _, tt := range testsBool {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, GenericsIsSliceEqual(tt.args.a, tt.args.b), "GenericsIsSliceEqual(%v, %v)", tt.args.a, tt.args.b)
+			assert.Equalf(t, tt.want, slices.GenericsIsSliceEqual(tt.args.a, tt.args.b), "GenericsIsSliceEqual(%v, %v)", tt.args.a, tt.args.b)
 		})
 	}
 }
 
-func TestGenericsStandardizeSliceqweqwe(t *testing.T) {
+func TestGenericsStandardizeSlice(t *testing.T) {
 	type args[T constraints.Ordered] struct {
 		list []T
 	}
@@ -297,7 +298,7 @@ func TestGenericsStandardizeSliceqweqwe(t *testing.T) {
 	}
 	for _, tt := range testsString {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, GenericsStandardizeSlice(tt.args.list), "GenericsStandardizeSlice(%v)", tt.args.list)
+			assert.Equalf(t, tt.want, slices.GenericsStandardizeSlice(tt.args.list), "GenericsStandardizeSlice(%v)", tt.args.list)
 		})
 	}
 	testsInt := []testCase[int]{
@@ -329,7 +330,7 @@ func TestGenericsStandardizeSliceqweqwe(t *testing.T) {
 	}
 	for _, tt := range testsInt {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, GenericsStandardizeSlice(tt.args.list), "GenericsStandardizeSlice(%v)", tt.args.list)
+			assert.Equalf(t, tt.want, slices.GenericsStandardizeSlice(tt.args.list), "GenericsStandardizeSlice(%v)", tt.args.list)
 		})
 	}
 }

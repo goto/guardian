@@ -10,7 +10,8 @@ func GenericsFilterSliceEmptyValues[T comparable](list []T) []T {
 	result := make([]T, 0)
 	var emptyValue T
 	for _, v := range list {
-		if v == emptyValue { // if value is empty (ex: 0, "", false)
+		// if T value is empty (ex: "", 0, false)
+		if v == emptyValue {
 			continue
 		}
 		result = append(result, v)
@@ -48,7 +49,6 @@ func GenericsIsSliceEqual[T comparable](a, b []T) bool {
 }
 
 func GenericsStandardizeSlice[T constraints.Ordered](list []T) []T {
-	// catalog apis not accept nil value
 	if list == nil {
 		list = make([]T, 0)
 		return list
