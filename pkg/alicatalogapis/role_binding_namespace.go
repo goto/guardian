@@ -1,3 +1,4 @@
+//nolint:wastedassign
 package alicatalogapis
 
 import (
