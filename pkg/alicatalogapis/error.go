@@ -9,6 +9,13 @@ import (
 )
 
 var (
+	ErrInitMissingAccessKeyID     = errors.New("access key id is missing")
+	ErrInitMissingAccessKeySecret = errors.New("access key secret is missing")
+	ErrInitMissingAccountID       = errors.New("account id is missing")
+	ErrInitMissingRegionID        = errors.New("region id is missing")
+)
+
+var (
 	errCommonFormatBadRequest           = "bad request. err: %v"
 	errCommonFormatFailMarshalJSON      = "fail to marshal json. data: %v. err: %v"
 	errCommonFormatRoleNotExist         = "role '%v' does not exist. err: %v"

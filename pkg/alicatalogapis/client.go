@@ -56,16 +56,16 @@ type client struct {
 
 func NewClient(accessKeyID, accessKeySecret, regionID, accountID string, clientOptions ...ClientOption) (Client, error) {
 	if accessKeyID == "" {
-		return nil, fmt.Errorf("access key id is missing")
+		return nil, ErrInitMissingAccessKeyID
 	}
 	if accessKeySecret == "" {
-		return nil, fmt.Errorf("access key secret is missing")
+		return nil, ErrInitMissingAccessKeySecret
 	}
 	if accountID == "" {
-		return nil, fmt.Errorf("account id is missing")
+		return nil, ErrInitMissingAccountID
 	}
 	if regionID == "" {
-		return nil, fmt.Errorf("region id is missing")
+		return nil, ErrInitMissingRegionID
 	}
 	c := &client{
 		accessKeyID:     accessKeyID,
@@ -180,7 +180,7 @@ func (c *client) sendRawRequest(ctx context.Context, method, path string, queryP
 	}
 	req, err := http.NewRequestWithContext(ctx, method, reqURL, reqBody)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fail to create request. %w", err)
 	}
 	for k, v := range header {
 		req.Header.Set(k, v)
@@ -211,7 +211,11 @@ func (c *client) sendRawRequest(ctx context.Context, method, path string, queryP
 			c.debugLogger.Printf(" - REQ CURL \n%s\n", curlStr)
 		}
 	}
-	return c.httpClient.Do(req)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return resp, fmt.Errorf("fail to send request. %w", err)
+	}
+	return resp, nil
 }
 
 func (c *client) prepareRequest(req *http.Request, rawBody []byte) {
@@ -293,11 +297,11 @@ func (c *client) prepareRequest(req *http.Request, rawBody []byte) {
 
 	canonicalHeaders := []string{req.Method}
 	for _, key := range headerKeys {
+		v := headersToSign[key]
 		if strings.HasPrefix(key, "x-odps-") {
-			canonicalHeaders = append(canonicalHeaders, key+":"+headersToSign[key])
-		} else {
-			canonicalHeaders = append(canonicalHeaders, headersToSign[key])
+			v = fmt.Sprintf("%s:%s", key, headersToSign[key])
 		}
+		canonicalHeaders = append(canonicalHeaders, v)
 	}
 
 	// generate request auth
