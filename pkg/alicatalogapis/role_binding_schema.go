@@ -16,11 +16,10 @@ import (
 // ---------------------------------------------------------------------------------------------------------------------
 
 type RoleBindingSchemaCreateRequest struct {
-	Project             string
-	Schema              string
-	RoleName            string
-	Members             []string
-	IgnoreAlreadyExists bool
+	Project  string
+	Schema   string
+	RoleName string
+	Members  []string
 }
 
 func (c *client) RoleBindingSchemaCreate(ctx context.Context, in *RoleBindingSchemaCreateRequest) (*RoleBinding, error) {
@@ -48,10 +47,7 @@ func (c *client) RoleBindingSchemaCreate(ctx context.Context, in *RoleBindingSch
 	if err != nil {
 		return nil, err
 	}
-	err = binding.add(in.RoleName, in.Members, in.IgnoreAlreadyExists)
-	if err != nil {
-		return nil, ErrRoleBindingSchemaMemberAlreadyExist.New(err)
-	}
+	binding.add(in.RoleName, in.Members)
 	binding.Policy.toAliFormat(c.accountID)
 
 	// construct request params
@@ -65,54 +61,14 @@ func (c *client) RoleBindingSchemaCreate(ctx context.Context, in *RoleBindingSch
 
 	// request
 	policy := new(RoleBindingPolicy)
-	defer policy.toUserFormat()
 	if err = c.sendRequestAndUnmarshal(ctx, method, path, params, nil, body, http.StatusOK, policy); err != nil {
 		if strings.Contains(err.Error(), "role does not exists") {
 			return nil, ErrRoleBindingSchemaRoleNotExist.New(in.RoleName, err)
 		}
 		return nil, ErrRoleBindingSchemaBadRequest.New(err)
 	}
+	policy.toUserFormat()
 	return &RoleBinding{Policy: policy}, nil
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// Get
-// ---------------------------------------------------------------------------------------------------------------------
-
-type RoleBindingSchemaGetRequest struct {
-	Project  string
-	Schema   string
-	RoleName string
-}
-
-func (c *client) RoleBindingSchemaGet(ctx context.Context, in *RoleBindingSchemaGetRequest) (*RoleBinding, error) {
-	// validation
-	if in == nil {
-		in = new(RoleBindingSchemaGetRequest)
-	}
-	if in.Project == "" {
-		return nil, ErrRoleBindingSchemaMissingProject.New()
-	}
-	if in.Schema == "" {
-		return nil, ErrRoleBindingSchemaMissingSchema.New()
-	}
-	if in.RoleName == "" {
-		return nil, ErrRoleBindingSchemaMissingRole.New()
-	}
-
-	// request
-	binding, err := c.RoleBindingSchemaGetAll(ctx, &RoleBindingSchemaGetAllRequest{
-		Project: in.Project,
-		Schema:  in.Schema,
-	})
-	if err != nil {
-		return nil, err
-	}
-	err = binding.collect(in.RoleName)
-	if err != nil {
-		return nil, ErrRoleBindingSchemaRoleNotExist.New(in.RoleName, err)
-	}
-	return binding, nil
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -143,10 +99,10 @@ func (c *client) RoleBindingSchemaGetAll(ctx context.Context, in *RoleBindingSch
 
 	// request
 	policy := new(RoleBindingPolicy)
-	defer policy.toUserFormat()
 	if err := c.sendRequestAndUnmarshal(ctx, method, path, params, nil, nil, http.StatusOK, policy); err != nil {
 		return nil, ErrRoleBindingSchemaBadRequest.New(err)
 	}
+	policy.toUserFormat()
 	return &RoleBinding{Policy: policy}, nil
 }
 
@@ -155,11 +111,10 @@ func (c *client) RoleBindingSchemaGetAll(ctx context.Context, in *RoleBindingSch
 // ---------------------------------------------------------------------------------------------------------------------
 
 type RoleBindingSchemaDeleteRequest struct {
-	Project         string
-	Schema          string
-	RoleName        string
-	Members         []string
-	IgnoreNotExists bool
+	Project  string
+	Schema   string
+	RoleName string
+	Members  []string
 }
 
 func (c *client) RoleBindingSchemaDelete(ctx context.Context, in *RoleBindingSchemaDeleteRequest) error {
@@ -187,10 +142,7 @@ func (c *client) RoleBindingSchemaDelete(ctx context.Context, in *RoleBindingSch
 	if err != nil {
 		return err
 	}
-	err = binding.reduce(in.RoleName, in.Members, in.IgnoreNotExists)
-	if err != nil {
-		return ErrRoleBindingSchemaMemberOrRoleNotExist.New(err)
-	}
+	binding.reduce(in.RoleName, in.Members)
 	binding.Policy.toAliFormat(c.accountID)
 
 	// construct request params

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/bearaujus/berror"
 )
@@ -16,69 +17,22 @@ var (
 )
 
 var (
-	errCommonFormatBadRequest           = "bad request. err: %v"
-	errCommonFormatFailMarshalJSON      = "fail to marshal json. data: %v. err: %v"
-	errCommonFormatRoleNotExist         = "role '%v' does not exist. err: %v"
-	errCommonFormatMissingRole          = "role is missing"
-	errCommonFormatEmptyMemberToBind    = "empty member to bind into role '%v'"
-	errCommonFormatEmptyMemberToUnbind  = "empty member to unbind into role '%v'"
-	errCommonFormatMemberAlreadyExist   = "member is already exist. err: %v"
-	errCommonFormatMemberOrRoleNotExist = "member or role does not exist. err: %v"
-)
-
-var (
-	ErrRoleBadRequest = berror.NewErrDefinition(errCommonFormatBadRequest,
-		newErrOptions("role", "001")...)
-	ErrRoleFailMarshalJSON = berror.NewErrDefinition(errCommonFormatFailMarshalJSON,
-		newErrOptions("role", "002")...)
-	ErrRoleAlreadyExist = berror.NewErrDefinition("role '%v' is already exist. err: %v",
-		newErrOptions("role", "003")...)
-	ErrRoleNotExist = berror.NewErrDefinition(errCommonFormatRoleNotExist,
-		newErrOptions("role", "004")...)
-	ErrRoleMissingRole = berror.NewErrDefinition(errCommonFormatMissingRole,
-		newErrOptions("role", "005")...)
-)
-
-var (
-	ErrRoleBindingNamespaceBadRequest = berror.NewErrDefinition(errCommonFormatBadRequest,
-		newErrOptions("role_binding_namespace", "001")...)
-	ErrRoleBindingNamespaceFailMarshalJSON = berror.NewErrDefinition(errCommonFormatFailMarshalJSON,
-		newErrOptions("role_binding_namespace", "002")...)
-	ErrRoleBindingNamespaceMemberAlreadyExist = berror.NewErrDefinition(errCommonFormatMemberAlreadyExist,
-		newErrOptions("role_binding_namespace", "003")...)
-	ErrRoleBindingNamespaceMemberOrRoleNotExist = berror.NewErrDefinition(errCommonFormatMemberOrRoleNotExist,
-		newErrOptions("role_binding_namespace", "004")...)
-	ErrRoleBindingNamespaceRoleNotExist = berror.NewErrDefinition(errCommonFormatRoleNotExist,
-		newErrOptions("role_binding_namespace", "005")...)
-	ErrRoleBindingNamespaceEmptyMemberToBind = berror.NewErrDefinition(errCommonFormatEmptyMemberToBind,
-		newErrOptions("role_binding_namespace", "006")...)
-	ErrRoleBindingNamespaceEmptyMemberToUnbind = berror.NewErrDefinition(errCommonFormatEmptyMemberToUnbind,
-		newErrOptions("role_binding_namespace", "007")...)
-	ErrRoleBindingNamespaceMissingRole = berror.NewErrDefinition(errCommonFormatMissingRole,
-		newErrOptions("role_binding_namespace", "008")...)
-)
-
-var (
-	ErrRoleBindingSchemaBadRequest = berror.NewErrDefinition(errCommonFormatBadRequest,
+	ErrRoleBindingSchemaBadRequest = berror.NewErrDefinition("bad request. err: %v",
 		newErrOptions("role_binding_schema", "001")...)
-	ErrRoleBindingSchemaFailMarshalJSON = berror.NewErrDefinition(errCommonFormatFailMarshalJSON,
+	ErrRoleBindingSchemaFailMarshalJSON = berror.NewErrDefinition("fail to marshal json. data: %v. err: %v",
 		newErrOptions("role_binding_schema", "002")...)
-	ErrRoleBindingSchemaMemberAlreadyExist = berror.NewErrDefinition(errCommonFormatMemberAlreadyExist,
+	ErrRoleBindingSchemaRoleNotExist = berror.NewErrDefinition("role '%v' does not exist. err: %v",
 		newErrOptions("role_binding_schema", "003")...)
-	ErrRoleBindingSchemaMemberOrRoleNotExist = berror.NewErrDefinition(errCommonFormatMemberOrRoleNotExist,
+	ErrRoleBindingSchemaEmptyMemberToBind = berror.NewErrDefinition("empty member to bind into role '%v'",
 		newErrOptions("role_binding_schema", "004")...)
-	ErrRoleBindingSchemaRoleNotExist = berror.NewErrDefinition(errCommonFormatRoleNotExist,
+	ErrRoleBindingSchemaEmptyMemberToUnbind = berror.NewErrDefinition("empty member to unbind into role '%v'",
 		newErrOptions("role_binding_schema", "005")...)
-	ErrRoleBindingSchemaEmptyMemberToBind = berror.NewErrDefinition(errCommonFormatEmptyMemberToBind,
-		newErrOptions("role_binding_schema", "006")...)
-	ErrRoleBindingSchemaEmptyMemberToUnbind = berror.NewErrDefinition(errCommonFormatEmptyMemberToUnbind,
-		newErrOptions("role_binding_schema", "007")...)
 	ErrRoleBindingSchemaMissingProject = berror.NewErrDefinition("project is missing",
-		newErrOptions("role_binding_schema", "008")...)
+		newErrOptions("role_binding_schema", "006")...)
 	ErrRoleBindingSchemaMissingSchema = berror.NewErrDefinition("schema is missing",
-		newErrOptions("role_binding_schema", "009")...)
-	ErrRoleBindingSchemaMissingRole = berror.NewErrDefinition(errCommonFormatMissingRole,
-		newErrOptions("role_binding_schema", "010")...)
+		newErrOptions("role_binding_schema", "007")...)
+	ErrRoleBindingSchemaMissingRole = berror.NewErrDefinition("role is missing",
+		newErrOptions("role_binding_schema", "008")...)
 )
 
 func newErrOptions(module string, code string) []berror.ErrDefinitionOption {
@@ -86,6 +40,10 @@ func newErrOptions(module string, code string) []berror.ErrDefinitionOption {
 		berror.OptionErrDefinitionWithErrCode(fmt.Sprintf("alicatalogapis-%v-%v", module, code)),
 		berror.OptionErrDefinitionWithDisabledStackTrace(),
 	}
+}
+
+func newRespErr(resp *http.Response) *commonRespErr {
+	return &commonRespErr{RequestID: resp.Header.Get("x-odps-request-id"), StatusCode: resp.StatusCode}
 }
 
 type commonRespErr struct {

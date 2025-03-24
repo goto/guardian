@@ -8,18 +8,6 @@ import (
 )
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Role
-// ---------------------------------------------------------------------------------------------------------------------
-
-type Role struct {
-	RoleName    string   `json:"roleName"` // ex: datawriter
-	RoleURN     string   `json:"name"`     // ex: namespaces/5123xxx/roles/datawriter
-	Description string   `json:"description"`
-	Permissions []string `json:"includedPermissions,omitempty"` // ex: ["ListSchema", "GetSchema"]
-	Deleted     bool     `json:"deleted"`
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
 // Role Binding
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -87,58 +75,40 @@ func (rb *RoleBinding) fromRaw(in RoleBindingRaw) {
 	}
 }
 
-func (rb *RoleBinding) add(roleName string, membersToAdd []string, ignoreAlreadyExist bool) error {
+func (rb *RoleBinding) add(roleName string, membersToAdd []string) {
 	membersToAdd = slices.GenericsStandardizeSlice(membersToAdd)
 	raw := rb.toRaw()
 	members, ok := raw[roleName]
 	if !ok {
 		raw[roleName] = membersToAdd
 	} else {
-		if !ignoreAlreadyExist {
-			validator := make(map[string]struct{})
-			for _, member := range members {
-				validator[member] = struct{}{}
-			}
-			for _, memberToAdd := range membersToAdd {
-				if _, ok = validator[memberToAdd]; ok {
-					return fmt.Errorf("member '%s' on role '%s' is already exist on current active bindings", memberToAdd, roleName)
-				}
-			}
-		}
 		raw[roleName] = append(members, membersToAdd...)
 	}
 	rb.fromRaw(raw)
-	return nil
 }
 
-func (rb *RoleBinding) reduce(roleName string, membersToRemove []string, ignoreNotExist bool) error {
+func (rb *RoleBinding) reduce(roleName string, membersToRemove []string) {
 	membersToRemove = slices.GenericsStandardizeSlice(membersToRemove)
 	raw := rb.toRaw()
 	members, ok := raw[roleName]
-	if !ok && !ignoreNotExist {
-		return fmt.Errorf("role '%s' is does not exist on current active bindings", roleName)
-	} else if ok {
-		validator := make(map[string]struct{})
+	if ok {
+		tmp := make(map[string]struct{})
 		for _, member := range members {
-			validator[member] = struct{}{}
+			tmp[member] = struct{}{}
 		}
 		for _, memberToRemove := range membersToRemove {
-			if _, ok = validator[memberToRemove]; !ok {
-				if ignoreNotExist {
-					continue
-				}
-				return fmt.Errorf("member '%s' on role '%s' is does not exist on current active bindings", memberToRemove, roleName)
+			if _, ok = tmp[memberToRemove]; ok {
+				delete(tmp, memberToRemove)
 			}
-			delete(validator, memberToRemove)
 		}
-		members = make([]string, len(validator))
-		for member := range validator {
+		// initiate new members
+		members = make([]string, len(tmp))
+		for member := range tmp {
 			members = append(members, member)
 		}
-		raw[roleName] = members
 	}
+	raw[roleName] = members
 	rb.fromRaw(raw)
-	return nil
 }
 
 func (rb *RoleBinding) collect(roleName string) error {

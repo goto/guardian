@@ -11,32 +11,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/moul/http2curl"
 )
 
 type Client interface {
-	RoleCreate(ctx context.Context, in *RoleCreateRequest) (*Role, error)
-	RoleGet(ctx context.Context, in *RoleGetRequest) (*Role, error)
-	RoleGetAll(ctx context.Context, in *RoleGetAllRequest) ([]*Role, error)
-	RoleUpdate(ctx context.Context, in *RoleUpdateRequest) (*Role, error)
-	RoleDelete(ctx context.Context, in *RoleDeleteRequest) error
-
-	RoleBindingNamespaceCreate(ctx context.Context, in *RoleBindingNamespaceCreateRequest) (*RoleBinding, error)
-	RoleBindingNamespaceGet(ctx context.Context, in *RoleBindingNamespaceGetRequest) (*RoleBinding, error)
-	RoleBindingNamespaceGetAll(ctx context.Context, in *RoleBindingNamespaceGetAllRequest) (*RoleBinding, error)
-	RoleBindingNamespaceDelete(ctx context.Context, in *RoleBindingNamespaceDeleteRequest) error
-
 	RoleBindingSchemaCreate(ctx context.Context, in *RoleBindingSchemaCreateRequest) (*RoleBinding, error)
-	RoleBindingSchemaGet(ctx context.Context, in *RoleBindingSchemaGetRequest) (*RoleBinding, error)
 	RoleBindingSchemaGetAll(ctx context.Context, in *RoleBindingSchemaGetAllRequest) (*RoleBinding, error)
 	RoleBindingSchemaDelete(ctx context.Context, in *RoleBindingSchemaDeleteRequest) error
 }
@@ -49,9 +33,6 @@ type client struct {
 	host            string
 
 	httpClient *http.Client
-
-	debugMode   bool
-	debugLogger Logger
 }
 
 func NewClient(accessKeyID, accessKeySecret, regionID, accountID string, clientOptions ...ClientOption) (Client, error) {
@@ -72,15 +53,10 @@ func NewClient(accessKeyID, accessKeySecret, regionID, accountID string, clientO
 		accessKeySecret: accessKeySecret,
 		accountID:       accountID,
 		host:            fmt.Sprintf("http://catalogapi.%s.maxcompute.aliyun.com", regionID),
+		httpClient:      http.DefaultClient,
 	}
 	for _, option := range clientOptions {
 		option.ApplyTo(c)
-	}
-	if c.httpClient == nil {
-		c.httpClient = http.DefaultClient
-	}
-	if c.debugMode && c.debugLogger == nil {
-		c.debugLogger = log.New(os.Stdout, "", 0)
 	}
 	return c, nil
 }
@@ -93,14 +69,6 @@ type ClientOption interface {
 	ApplyTo(c *client)
 }
 
-func WithHTTPClient(httpClient *http.Client) ClientOption {
-	return &withHTTPClient{httpClient}
-}
-
-type withHTTPClient struct{ httpClient *http.Client }
-
-func (w *withHTTPClient) ApplyTo(c *client) { c.httpClient = w.httpClient }
-
 func WithSecurityToken(securityToken string) ClientOption {
 	return &withSecurityToken{securityToken}
 }
@@ -109,40 +77,21 @@ type withSecurityToken struct{ securityToken string }
 
 func (w *withSecurityToken) ApplyTo(c *client) { c.securityToken = w.securityToken }
 
-func WithDebugMode() ClientOption {
-	return &withDebugMode{}
-}
-
-type withDebugMode struct{}
-
-func (w *withDebugMode) ApplyTo(c *client) { c.debugMode = true }
-
-func WithDebugLogger(logger Logger) ClientOption {
-	return &withDebugLogger{logger}
-}
-
-type withDebugLogger struct{ logger Logger }
-
-func (w *withDebugLogger) ApplyTo(c *client) { c.debugLogger = w.logger }
-
 // ---------------------------------------------------------------------------------------------------------------------
 // Client HTTP
 // ---------------------------------------------------------------------------------------------------------------------
 
 func (c *client) sendRequestAndUnmarshal(ctx context.Context, method, path string, queryParams url.Values, header map[string]string, rawBody []byte, expectedStatusCode int, unmarshalTarget interface{}) error {
+	// sending the actual request
 	resp, err := c.sendRawRequest(ctx, method, path, queryParams, header, rawBody)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	respErr := &commonRespErr{RequestID: resp.Header.Get("x-odps-request-id"), StatusCode: resp.StatusCode}
+	respErr := newRespErr(resp)
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return respErr.FromErr("fail to read response body", err)
-	}
-	if c.debugMode && len(respBody) > 0 {
-		ps(c.debugLogger)
-		c.debugLogger.Printf(" - RESP BODY\n%s\n", respBody)
 	}
 	if resp.StatusCode != expectedStatusCode {
 		reason := fmt.Sprintf("unexpected response status code: %v (%v). expected: %v (%v)", resp.StatusCode, http.StatusText(resp.StatusCode), expectedStatusCode, http.StatusText(expectedStatusCode))
@@ -160,7 +109,7 @@ func (c *client) sendRequest(ctx context.Context, method, path string, queryPara
 		return err
 	}
 	defer resp.Body.Close()
-	respErr := &commonRespErr{RequestID: resp.Header.Get("x-odps-request-id"), StatusCode: resp.StatusCode}
+	respErr := newRespErr(resp)
 	if resp.StatusCode != expectedStatusCode {
 		reason := fmt.Sprintf("unexpected response status code: %v (%v). expected: %v (%v)", resp.StatusCode, http.StatusText(resp.StatusCode), expectedStatusCode, http.StatusText(expectedStatusCode))
 		respBody, _ := io.ReadAll(resp.Body)
@@ -186,31 +135,6 @@ func (c *client) sendRawRequest(ctx context.Context, method, path string, queryP
 		req.Header.Set(k, v)
 	}
 	c.prepareRequest(req, rawBody)
-	if c.debugMode {
-		curl, _ := http2curl.GetCurlCommand(req)
-		curlStr := curl.String()
-		requestHeaderStr := fmt.Sprint(req.Header)
-		for _, sensitiveHeaderKey := range []string{"Authorization", "Authorization-Sts-Token"} {
-			if v := req.Header.Get(sensitiveHeaderKey); v != "" {
-				curlStr = strings.ReplaceAll(curlStr, v, "{TRUNCATED}")
-				requestHeaderStr = strings.ReplaceAll(requestHeaderStr, v, "{TRUNCATED}")
-			}
-		}
-		ps(c.debugLogger)
-		c.debugLogger.Printf(" => [%v] %v\n", method, reqURL)
-		if len(req.Header) > 0 {
-			ps(c.debugLogger)
-			c.debugLogger.Printf(" - REQ HEADER\n%s\n", requestHeaderStr)
-		}
-		if len(rawBody) > 0 {
-			ps(c.debugLogger)
-			c.debugLogger.Printf(" - REQ BODY\n%s\n", rawBody)
-		}
-		if curlStr != "" {
-			ps(c.debugLogger)
-			c.debugLogger.Printf(" - REQ CURL \n%s\n", curlStr)
-		}
-	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return resp, fmt.Errorf("fail to send request. %w", err)
