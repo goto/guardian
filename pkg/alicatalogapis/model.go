@@ -1,7 +1,6 @@
 package alicatalogapis
 
 import (
-	"fmt"
 	"path"
 
 	"github.com/goto/guardian/pkg/slices"
@@ -109,14 +108,4 @@ func (rb *RoleBinding) reduce(roleName string, membersToRemove []string) {
 	}
 	raw[roleName] = members
 	rb.fromRaw(raw)
-}
-
-func (rb *RoleBinding) collect(roleName string) error {
-	raw := rb.toRaw()
-	members, ok := raw[roleName]
-	if !ok {
-		return fmt.Errorf("role '%s' is does not exist on current active bindings", roleName)
-	}
-	rb.fromRaw(map[string][]string{roleName: members})
-	return nil
 }
