@@ -256,7 +256,3 @@ type Logger interface {
 	Printf(format string, v ...any)
 	Println(v ...any)
 }
-
-func ps(logger Logger) {
-	logger.Println(strings.Repeat("-", 50))
-}
