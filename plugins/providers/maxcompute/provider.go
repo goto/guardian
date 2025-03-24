@@ -272,11 +272,10 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 
 		for _, permission := range g.Permissions {
 			if _, err = client.RoleBindingSchemaCreate(ctx, &alicatalogapis.RoleBindingSchemaCreateRequest{
-				Project:             project,
-				Schema:              schema,
-				RoleName:            permission,
-				Members:             []string{g.AccountID},
-				IgnoreAlreadyExists: true,
+				Project:  project,
+				Schema:   schema,
+				RoleName: permission,
+				Members:  []string{g.AccountID},
 			}); err != nil {
 				return fmt.Errorf("failed to grant schema level access to member %q on %q: %v", g.AccountID, g.Resource.URN, err)
 			}
@@ -374,11 +373,10 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 
 		for _, permission := range g.Permissions {
 			if err = client.RoleBindingSchemaDelete(ctx, &alicatalogapis.RoleBindingSchemaDeleteRequest{
-				Project:         project,
-				Schema:          schema,
-				RoleName:        permission,
-				Members:         []string{g.AccountID},
-				IgnoreNotExists: true,
+				Project:  project,
+				Schema:   schema,
+				RoleName: permission,
+				Members:  []string{g.AccountID},
 			}); err != nil {
 				return fmt.Errorf("failed to revoke schema level access from member %q on %q: %v", g.AccountID, g.Resource.URN, err)
 			}
