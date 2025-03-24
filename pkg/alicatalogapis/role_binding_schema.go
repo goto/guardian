@@ -142,7 +142,7 @@ func (c *client) RoleBindingSchemaDelete(ctx context.Context, in *RoleBindingSch
 	if err != nil {
 		return err
 	}
-	binding.reduce(in.RoleName, in.Members)
+	binding.remove(in.RoleName, in.Members)
 	binding.Policy.toAliFormat(c.accountID)
 
 	// construct request params

@@ -86,7 +86,7 @@ func (rb *RoleBinding) add(roleName string, membersToAdd []string) {
 	rb.fromRaw(raw)
 }
 
-func (rb *RoleBinding) reduce(roleName string, membersToRemove []string) {
+func (rb *RoleBinding) remove(roleName string, membersToRemove []string) {
 	membersToRemove = slices.GenericsStandardizeSlice(membersToRemove)
 	raw := rb.toRaw()
 	members, ok := raw[roleName]
