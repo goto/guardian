@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	sourceName = "maxcompute"
+	sourceName              = "maxcompute"
+	tableFetchMaxItem int32 = 100
 
 	accountTypeRAMUser = "ram_user"
 	accountTypeRAMRole = "ram_role"
