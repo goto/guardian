@@ -172,7 +172,6 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 					tmpTableRes, err := client.ListTables(project.Name, &maxcompute.ListTablesRequest{
 						Marker:     marker,
 						MaxItem:    bptr.FromInt32(tableFetchMaxItem), // 1 min - 100 max
-						Prefix:     nil,
 						SchemaName: bptr.FromString(schemaName),
 					})
 					if err != nil {
