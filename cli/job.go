@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/goto/guardian/pkg/log"
+	"github.com/goto/guardian/pkg/opentelemetry"
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/MakeNowJust/heredoc"
@@ -69,6 +70,17 @@ func runJobCmd() *cobra.Command {
 			}
 
 			logger := log.NewCtxLogger(config.LogLevel, []string{config.AuditLogTraceIDHeaderKey})
+			ctx := context.Background()
+			if config.Telemetry.Enabled {
+				logger.Info(ctx, "open telemetry is initiating...")
+				shutdownOtel, err := opentelemetry.Init(ctx, config.Telemetry)
+				if err != nil {
+					return fmt.Errorf("error initiating open telemetry: %w", err)
+				}
+				logger.Info(ctx, "open telemetry is initiated!")
+				defer shutdownOtel()
+			}
+
 			crypto := crypto.NewAES(config.EncryptionSecretKeyKey)
 			validator := validator.New()
 
