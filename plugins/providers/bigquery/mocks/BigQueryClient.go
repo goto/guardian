@@ -244,13 +244,13 @@ func (_c *BigQueryClient_GetTables_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
-// GrantDatasetAccess provides a mock function with given fields: ctx, d, user, role
-func (_m *BigQueryClient) GrantDatasetAccess(ctx context.Context, d *bigquery.Dataset, user string, role string) error {
-	ret := _m.Called(ctx, d, user, role)
+// GrantDatasetAccess provides a mock function with given fields: ctx, d, accountType, accountID, role
+func (_m *BigQueryClient) GrantDatasetAccess(ctx context.Context, d *bigquery.Dataset, accountType string, accountID string, role string) error {
+	ret := _m.Called(ctx, d, accountType, accountID, role)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *bigquery.Dataset, string, string) error); ok {
-		r0 = rf(ctx, d, user, role)
+	if rf, ok := ret.Get(0).(func(context.Context, *bigquery.Dataset, string, string, string) error); ok {
+		r0 = rf(ctx, d, accountType, accountID, role)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -266,15 +266,16 @@ type BigQueryClient_GrantDatasetAccess_Call struct {
 // GrantDatasetAccess is a helper method to define mock.On call
 //   - ctx context.Context
 //   - d *bigquery.Dataset
-//   - user string
+//   - accountType string
+//   - accountID string
 //   - role string
-func (_e *BigQueryClient_Expecter) GrantDatasetAccess(ctx interface{}, d interface{}, user interface{}, role interface{}) *BigQueryClient_GrantDatasetAccess_Call {
-	return &BigQueryClient_GrantDatasetAccess_Call{Call: _e.mock.On("GrantDatasetAccess", ctx, d, user, role)}
+func (_e *BigQueryClient_Expecter) GrantDatasetAccess(ctx interface{}, d interface{}, accountType interface{}, accountID interface{}, role interface{}) *BigQueryClient_GrantDatasetAccess_Call {
+	return &BigQueryClient_GrantDatasetAccess_Call{Call: _e.mock.On("GrantDatasetAccess", ctx, d, accountType, accountID, role)}
 }
 
-func (_c *BigQueryClient_GrantDatasetAccess_Call) Run(run func(ctx context.Context, d *bigquery.Dataset, user string, role string)) *BigQueryClient_GrantDatasetAccess_Call {
+func (_c *BigQueryClient_GrantDatasetAccess_Call) Run(run func(ctx context.Context, d *bigquery.Dataset, accountType string, accountID string, role string)) *BigQueryClient_GrantDatasetAccess_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*bigquery.Dataset), args[2].(string), args[3].(string))
+		run(args[0].(context.Context), args[1].(*bigquery.Dataset), args[2].(string), args[3].(string), args[4].(string))
 	})
 	return _c
 }
@@ -284,7 +285,7 @@ func (_c *BigQueryClient_GrantDatasetAccess_Call) Return(_a0 error) *BigQueryCli
 	return _c
 }
 
-func (_c *BigQueryClient_GrantDatasetAccess_Call) RunAndReturn(run func(context.Context, *bigquery.Dataset, string, string) error) *BigQueryClient_GrantDatasetAccess_Call {
+func (_c *BigQueryClient_GrantDatasetAccess_Call) RunAndReturn(run func(context.Context, *bigquery.Dataset, string, string, string) error) *BigQueryClient_GrantDatasetAccess_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -445,13 +446,13 @@ func (_c *BigQueryClient_ListRolePermissions_Call) RunAndReturn(run func(context
 	return _c
 }
 
-// RevokeDatasetAccess provides a mock function with given fields: ctx, d, user, role
-func (_m *BigQueryClient) RevokeDatasetAccess(ctx context.Context, d *bigquery.Dataset, user string, role string) error {
-	ret := _m.Called(ctx, d, user, role)
+// RevokeDatasetAccess provides a mock function with given fields: ctx, d, accountType, accountID, role
+func (_m *BigQueryClient) RevokeDatasetAccess(ctx context.Context, d *bigquery.Dataset, accountType string, accountID string, role string) error {
+	ret := _m.Called(ctx, d, accountType, accountID, role)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *bigquery.Dataset, string, string) error); ok {
-		r0 = rf(ctx, d, user, role)
+	if rf, ok := ret.Get(0).(func(context.Context, *bigquery.Dataset, string, string, string) error); ok {
+		r0 = rf(ctx, d, accountType, accountID, role)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -467,15 +468,16 @@ type BigQueryClient_RevokeDatasetAccess_Call struct {
 // RevokeDatasetAccess is a helper method to define mock.On call
 //   - ctx context.Context
 //   - d *bigquery.Dataset
-//   - user string
+//   - accountType string
+//   - accountID string
 //   - role string
-func (_e *BigQueryClient_Expecter) RevokeDatasetAccess(ctx interface{}, d interface{}, user interface{}, role interface{}) *BigQueryClient_RevokeDatasetAccess_Call {
-	return &BigQueryClient_RevokeDatasetAccess_Call{Call: _e.mock.On("RevokeDatasetAccess", ctx, d, user, role)}
+func (_e *BigQueryClient_Expecter) RevokeDatasetAccess(ctx interface{}, d interface{}, accountType interface{}, accountID interface{}, role interface{}) *BigQueryClient_RevokeDatasetAccess_Call {
+	return &BigQueryClient_RevokeDatasetAccess_Call{Call: _e.mock.On("RevokeDatasetAccess", ctx, d, accountType, accountID, role)}
 }
 
-func (_c *BigQueryClient_RevokeDatasetAccess_Call) Run(run func(ctx context.Context, d *bigquery.Dataset, user string, role string)) *BigQueryClient_RevokeDatasetAccess_Call {
+func (_c *BigQueryClient_RevokeDatasetAccess_Call) Run(run func(ctx context.Context, d *bigquery.Dataset, accountType string, accountID string, role string)) *BigQueryClient_RevokeDatasetAccess_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*bigquery.Dataset), args[2].(string), args[3].(string))
+		run(args[0].(context.Context), args[1].(*bigquery.Dataset), args[2].(string), args[3].(string), args[4].(string))
 	})
 	return _c
 }
@@ -485,7 +487,7 @@ func (_c *BigQueryClient_RevokeDatasetAccess_Call) Return(_a0 error) *BigQueryCl
 	return _c
 }
 
-func (_c *BigQueryClient_RevokeDatasetAccess_Call) RunAndReturn(run func(context.Context, *bigquery.Dataset, string, string) error) *BigQueryClient_RevokeDatasetAccess_Call {
+func (_c *BigQueryClient_RevokeDatasetAccess_Call) RunAndReturn(run func(context.Context, *bigquery.Dataset, string, string, string) error) *BigQueryClient_RevokeDatasetAccess_Call {
 	_c.Call.Return(run)
 	return _c
 }
