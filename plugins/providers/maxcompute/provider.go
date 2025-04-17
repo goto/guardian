@@ -292,7 +292,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		securityManager := client.Project(project).SecurityManager()
 
 		actions := strings.Join(g.Permissions, ", ")
-		query := fmt.Sprintf("GRANT %s ON TABLE %s TO USER `%s`", actions, g.Resource.URN, g.AccountID)
+		query := fmt.Sprintf("GRANT %s ON TABLE %s TO USER `%s`", actions, transformIdentifier(g.Resource.URN), g.AccountID)
 		job, err := securityManager.Run(query, true, "")
 		if err != nil {
 			return fmt.Errorf("failed to grant %q to %q for %q: %v", actions, g.Resource.URN, g.AccountID, err)
@@ -393,7 +393,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		securityManager := client.Project(project).SecurityManager()
 
 		actions := strings.Join(g.Permissions, ", ")
-		query := fmt.Sprintf("REVOKE %s ON TABLE %s FROM USER `%s`", actions, g.Resource.URN, g.AccountID)
+		query := fmt.Sprintf("REVOKE %s ON TABLE %s FROM USER `%s`", actions, transformIdentifier(g.Resource.URN), g.AccountID)
 		job, err := securityManager.Run(query, true, "")
 		if err != nil {
 			return fmt.Errorf("failed to revoke %q from %q for %q: %v", actions, g.Resource.URN, g.AccountID, err)
@@ -635,4 +635,18 @@ func execGrantQuery(sm security.Manager, query string) (*security.AuthQueryInsta
 	}
 
 	return instance, nil
+}
+
+func transformIdentifier(v string) string {
+	parts := strings.Split(v, ".")
+	for i, part := range parts {
+		if !strings.HasPrefix(part, "`") {
+			part = fmt.Sprintf("`%s", part)
+		}
+		if !strings.HasSuffix(part, "`") {
+			part = fmt.Sprintf("%s`", part)
+		}
+		parts[i] = part
+	}
+	return strings.Join(parts, ".")
 }
