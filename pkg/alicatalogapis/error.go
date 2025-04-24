@@ -17,6 +17,21 @@ var (
 )
 
 var (
+	ErrRoleBindingProjectBadRequest = berror.NewErrDefinition("bad request. err: %v",
+		newErrOptions("role_binding_project", "001")...)
+	ErrRoleBindingProjectFailMarshalJSON = berror.NewErrDefinition("fail to marshal json. data: %v. err: %v",
+		newErrOptions("role_binding_project", "002")...)
+	ErrRoleBindingProjectRoleNotExist = berror.NewErrDefinition("role '%v' does not exist. err: %v",
+		newErrOptions("role_binding_project", "003")...)
+	ErrRoleBindingProjectEmptyMemberToBind = berror.NewErrDefinition("empty member to bind into role '%v'",
+		newErrOptions("role_binding_project", "004")...)
+	ErrRoleBindingProjectMissingProject = berror.NewErrDefinition("project is missing",
+		newErrOptions("role_binding_project", "005")...)
+	ErrRoleBindingProjectMissingRole = berror.NewErrDefinition("role is missing",
+		newErrOptions("role_binding_schema", "006")...)
+)
+
+var (
 	ErrRoleBindingSchemaBadRequest = berror.NewErrDefinition("bad request. err: %v",
 		newErrOptions("role_binding_schema", "001")...)
 	ErrRoleBindingSchemaFailMarshalJSON = berror.NewErrDefinition("fail to marshal json. data: %v. err: %v",

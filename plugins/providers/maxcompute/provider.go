@@ -282,6 +282,14 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 			}
 		}
 
+		if _, err = client.RoleBindingProjectCreate(ctx, &alicatalogapis.RoleBindingProjectCreateRequest{
+			Project:  project,
+			RoleName: "project_schema_member",
+			Members:  []string{g.AccountID},
+		}); err != nil {
+			return fmt.Errorf("failed to grant schema level access member role to member %q on %q: %v", g.AccountID, g.Resource.URN, err)
+		}
+
 	case resourceTypeTable:
 		client, err := p.getOdpsClient(pc, ramRole)
 		if err != nil {
@@ -421,7 +429,7 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 			projectName = g.Resource.URN
 		}
 	case resourceTypeSchema:
-		projectName = strings.Split(g.Resource.URN, ".")[0]
+		fallthrough
 	case resourceTypeTable:
 		projectName = strings.Split(g.Resource.URN, ".")[0]
 	default:
