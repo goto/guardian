@@ -282,12 +282,19 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 			}
 		}
 
-		if _, err = client.RoleBindingProjectCreate(ctx, &alicatalogapis.RoleBindingProjectCreateRequest{
-			Project:  project,
-			RoleName: "project_schema_member",
-			Members:  []string{g.AccountID},
-		}); err != nil {
-			return fmt.Errorf("failed to grant schema level access member role to member %q on %q: %v", g.AccountID, g.Resource.URN, err)
+		schemaDefaultRoleName, err := p.getSchemaDefaultRoleName(pc)
+		if err != nil {
+			return err
+		}
+
+		if schemaDefaultRoleName != "" {
+			if _, err = client.RoleBindingProjectCreate(ctx, &alicatalogapis.RoleBindingProjectCreateRequest{
+				Project:  project,
+				RoleName: schemaDefaultRoleName,
+				Members:  []string{g.AccountID},
+			}); err != nil {
+				return fmt.Errorf("failed to grant schema level access default role to member %q on %q: %v", g.AccountID, g.Resource.URN, err)
+			}
 		}
 
 	case resourceTypeTable:
@@ -605,6 +612,14 @@ func (p *provider) getRamRole(creds *credentials, overrideRamRole string) string
 		ramRole = creds.RAMRole
 	}
 	return ramRole
+}
+
+func (p *provider) getSchemaDefaultRoleName(pc *domain.ProviderConfig) (string, error) {
+	creds, err := p.getCreds(pc)
+	if err != nil {
+		return "", err
+	}
+	return creds.SchemaDefaultPolicy, nil
 }
 
 // getAccountIDFromRamRole expected input format: 'acs:ram::{ACCOUNT-ID}:role/{ROLE-NAME}'
