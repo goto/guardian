@@ -20,6 +20,9 @@ import (
 )
 
 type Client interface {
+	RoleBindingProjectCreate(ctx context.Context, in *RoleBindingProjectCreateRequest) (*RoleBinding, error)
+	RoleBindingProjectGetAll(ctx context.Context, in *RoleBindingProjectGetAllRequest) (*RoleBinding, error)
+	
 	RoleBindingSchemaCreate(ctx context.Context, in *RoleBindingSchemaCreateRequest) (*RoleBinding, error)
 	RoleBindingSchemaGetAll(ctx context.Context, in *RoleBindingSchemaGetAllRequest) (*RoleBinding, error)
 	RoleBindingSchemaDelete(ctx context.Context, in *RoleBindingSchemaDeleteRequest) error

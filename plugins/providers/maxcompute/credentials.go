@@ -7,11 +7,12 @@ import (
 )
 
 type credentials struct {
-	AccessKeyID     string `mapstructure:"access_key_id" json:"access_key_id"`
-	AccessKeySecret string `mapstructure:"access_key_secret" json:"access_key_secret"`
-	RAMRole         string `mapstructure:"ram_role" json:"ram_role"`
-	RegionID        string `mapstructure:"region_id" json:"region_id"`
-	ProjectName     string `mapstructure:"project_name" json:"project_name"`
+	AccessKeyID         string `mapstructure:"access_key_id" json:"access_key_id"`
+	AccessKeySecret     string `mapstructure:"access_key_secret" json:"access_key_secret"`
+	RAMRole             string `mapstructure:"ram_role" json:"ram_role"`
+	RegionID            string `mapstructure:"region_id" json:"region_id"`
+	ProjectName         string `mapstructure:"project_name" json:"project_name"`
+	SchemaDefaultPolicy string `mapstructure:"schema_default_policy" json:"schema_default_policy"`
 }
 
 func (c credentials) validate() error {
