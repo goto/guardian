@@ -2,6 +2,7 @@ package log
 
 import (
 	"context"
+	"errors"
 	"io"
 
 	saltLog "github.com/goto/salt/log"
@@ -36,20 +37,30 @@ type Logger interface {
 	Writer() io.Writer
 }
 
+type LoggerOption func(*CtxLogger)
+type metadataContextKey struct{}
+
 type CtxLogger struct {
-	log  saltLog.Logger
-	keys []string
+	log          saltLog.Logger
+	keys         []string
+	withMetadata func(context.Context) (context.Context, error)
 }
 
 // NewCtxLoggerWithSaltLogger returns a logger that will add context value to the log message, wrapped with saltLog.Logger
-func NewCtxLoggerWithSaltLogger(log saltLog.Logger, ctxKeys []string) *CtxLogger {
-	return &CtxLogger{log: log, keys: ctxKeys}
+func NewCtxLoggerWithSaltLogger(log saltLog.Logger, ctxKeys []string, opts ...LoggerOption) *CtxLogger {
+	ctxLogger := &CtxLogger{log: log, keys: ctxKeys}
+	for _, o := range opts {
+		o(ctxLogger)
+	}
+
+	return ctxLogger
 }
 
 // NewCtxLogger returns a logger that will add context value to the log message
-func NewCtxLogger(logLevel string, ctxKeys []string) *CtxLogger {
+func NewCtxLogger(logLevel string, ctxKeys []string, opts ...LoggerOption) *CtxLogger {
 	saltLogger := saltLog.NewLogrus(saltLog.LogrusWithLevel(logLevel))
-	return NewCtxLoggerWithSaltLogger(saltLogger, ctxKeys)
+	ctxLogger := NewCtxLoggerWithSaltLogger(saltLogger, ctxKeys, opts...)
+	return ctxLogger
 }
 
 func (l *CtxLogger) Debug(ctx context.Context, msg string, args ...interface{}) {
@@ -93,4 +104,31 @@ func (l *CtxLogger) addCtxToArgs(ctx context.Context, args []interface{}) []inte
 	}
 
 	return args
+}
+
+func WithMetadata(ctx context.Context, md map[string]interface{}) (context.Context, error) {
+	existingMetadata := ctx.Value(metadataContextKey{})
+	if existingMetadata == nil {
+		return context.WithValue(ctx, metadataContextKey{}, md), nil
+	}
+
+	// append new metadata
+	mapMd, ok := existingMetadata.(map[string]interface{})
+	if !ok {
+		return nil, errors.New("failed to cast existing metadata to map[string]interface{} type")
+	}
+	for k, v := range md {
+		mapMd[k] = v
+	}
+
+	return context.WithValue(ctx, metadataContextKey{}, mapMd), nil
+}
+
+func WithMetadataExtractor(fn func(context.Context) map[string]interface{}) LoggerOption {
+	return func(s *CtxLogger) {
+		s.withMetadata = func(ctx context.Context) (context.Context, error) {
+			md := fn(ctx)
+			return WithMetadata(ctx, md)
+		}
+	}
 }
