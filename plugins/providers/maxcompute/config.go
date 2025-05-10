@@ -24,13 +24,13 @@ const (
 	parameterRAMRoleKey = "ram_role"
 
 	projectPermissionMember = "member"
-
-	defaultSchemaName = "default"
 )
 
 var (
 	validResourceTypes = []string{resourceTypeProject, resourceTypeSchema, resourceTypeTable}
-	validTableActions  = []string{"describe", "select", "alter", "update", "drop", "showhistory", "all"}
+
+	// https://www.alibabacloud.com/help/en/maxcompute/user-guide/maxcompute-permissions
+	validTableActions = []string{"describe", "select", "alter", "update", "drop", "showhistory", "all"}
 )
 
 type config struct {
