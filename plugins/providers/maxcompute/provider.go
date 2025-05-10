@@ -105,8 +105,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 		for i := range schemas {
 			schema := schemas[i]
 			eg.Go(func() error {
-				var tables = make([]*domain.Resource, 0)
-				tables, err = p.getTablesFromSchema(ctx, pc, "", accountId, project, schema)
+				tables, err := p.getTablesFromSchema(ctx, pc, "", accountId, project, schema)
 				if err != nil {
 					return err
 				}
