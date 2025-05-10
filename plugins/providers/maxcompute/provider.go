@@ -178,6 +178,15 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 			for i := range permissions {
 				permission := permissions[i]
 				eg.Go(func() error {
+					return p.validateProjectRole(ctx, pc, overrideRAMRole, project, permission)
+				})
+			}
+			if err := eg.Wait(); err != nil {
+				return err
+			}
+			for i := range permissions {
+				permission := permissions[i]
+				eg.Go(func() error {
 					return p.grantProjectRoleToMember(ctx, pc, overrideRAMRole, project, g.AccountID, permission)
 				})
 			}
@@ -278,6 +287,15 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		if len(permissions) > 0 {
 			eg, ctx := errgroup.WithContext(ctx)
 			eg.SetLimit(p.concurrency)
+			for i := range permissions {
+				permission := permissions[i]
+				eg.Go(func() error {
+					return p.validateProjectRole(ctx, pc, overrideRAMRole, project, permission)
+				})
+			}
+			if err := eg.Wait(); err != nil {
+				return err
+			}
 			for i := range permissions {
 				permission := permissions[i]
 				eg.Go(func() error {
