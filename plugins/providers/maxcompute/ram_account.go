@@ -86,7 +86,7 @@ func ParseRoleAccountId(in string) (*RoleAccountId, error) {
 		return nil, errors.New("role account id is empty")
 	}
 	tmp := strings.ReplaceAll(strings.ToLower(in), strings.ToLower(AccountIdPrefix), "") // 5123xxx:role/role-name
-	tmp = strings.ReplaceAll(strings.ToLower(in), strings.ToLower(ARNRolePrefix), "")    // 5123xxx:role/role-name
+	tmp = strings.ReplaceAll(tmp, strings.ToLower(ARNRolePrefix), "")                    // 5123xxx:role/role-name
 	if tmp == strings.ToLower(in) {
 		return nil, fmt.Errorf("invalid role account id: '%s'", in)
 	}

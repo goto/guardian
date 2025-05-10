@@ -24,8 +24,6 @@ const (
 	parameterRAMRoleKey = "ram_role"
 
 	projectPermissionMember = "member"
-
-	defaultSchemaName = "default"
 )
 
 var (
