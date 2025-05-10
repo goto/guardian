@@ -2,132 +2,141 @@ package aliauth
 
 import (
 	"fmt"
-	"time"
+	"strings"
+	"unicode"
 
-	openapi "github.com/alibabacloud-go/darabonba-openapi/client"
-	"github.com/alibabacloud-go/sts-20150401/client"
+	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/account"
-
-	openapiV2 "github.com/alibabacloud-go/darabonba-openapi/v2/client"
+	"github.com/aliyun/credentials-go/credentials"
+	"github.com/bearaujus/bptr"
+	"github.com/google/uuid"
 )
 
-var assumeRoleDefaultDuration = time.Hour
-var durationSeconds = int64(assumeRoleDefaultDuration.Seconds())
-
-type aliAuthAccount struct {
-	Account    account.Account
-	ExpiryTime *time.Time // Only set for STS accounts
+type AliAuth interface {
+	GetCredentials() (credentials.Credential, error)
+	GetOpenAPIConfig() (*openapi.Config, error)
+	GetAccount() (account.Account, error)
 }
 
-type AliAuthConfig struct {
-	account  *aliAuthAccount
-	regionID string
+type aliAuth struct {
+	accessKeyId     string
+	accessKeySecret string
+	regionId        string
+	ramRoleARN      string // optional (e,g. acs:ram::5123xxx:role/role-name)
 }
 
-func NewConfig(ramUserAccessKeyID, ramUserAccessKeySecret, regionID, ramRole, roleSessionName string) (*AliAuthConfig, error) {
-	if ramUserAccessKeyID == "" || ramUserAccessKeySecret == "" || regionID == "" {
-		return nil, fmt.Errorf("access key ID, secret, and region ID are required")
+func NewConfig(accessKeyId, accessKeySecret, regionID string, opts ...AliAuthOption) (AliAuth, error) {
+	if accessKeyId == "" {
+		return nil, fmt.Errorf("access key id is empty")
 	}
-
-	if ramRole != "" && roleSessionName == "" {
-		return nil, fmt.Errorf("role session name is required when assuming a role")
+	if accessKeySecret == "" {
+		return nil, fmt.Errorf("access key secret is empty")
 	}
-
-	var authAccount *aliAuthAccount
-	if ramRole == "" {
-		authAccount = &aliAuthAccount{
-			Account: account.NewAliyunAccount(ramUserAccessKeyID, ramUserAccessKeySecret),
+	if regionID == "" {
+		return nil, fmt.Errorf("region id is empty")
+	}
+	a := &aliAuth{
+		accessKeyId:     accessKeyId,
+		accessKeySecret: accessKeySecret,
+		regionId:        regionID,
+	}
+	for _, opt := range opts {
+		if opt == nil {
+			continue
 		}
-	} else {
-		stsAcc, expiry, err := getSTSAccount(ramRole, roleSessionName, ramUserAccessKeyID, ramUserAccessKeySecret, regionID)
+		opt.ApplyTo(a)
+	}
+	if a.ramRoleARN != "" {
+		a.ramRoleARN = strings.TrimSpace(a.ramRoleARN) // acs:ram::5123xxx:role/role-name
+		if a.ramRoleARN == "" {
+			return nil, fmt.Errorf("ram role arn is invalid")
+		}
+		tmp := strings.ReplaceAll(strings.ToLower(a.ramRoleARN), strings.ToLower("acs:ram::"), "") // 5123xxx:role/role-name
+		if tmp == strings.ToLower(a.ramRoleARN) {
+			return nil, fmt.Errorf("ram role arn is invalid: '%s'", a.ramRoleARN)
+		}
+		tmpS := strings.Split(tmp, ":role/") // [0] 5123xxx, [1] role-name
+		if len(tmpS) != 2 {
+			return nil, fmt.Errorf("ram role arn is invalid: '%s'", a.ramRoleARN)
+		}
+		if tmpS[0] == "" { // 5123xxx
+			return nil, fmt.Errorf("empty account id from ram role arn: '%s'", a.ramRoleARN)
+		}
+		if tmpS[1] == "" { // role-name
+			return nil, fmt.Errorf("empty role name from ram role arn: '%s'", a.ramRoleARN)
+		}
+		for _, r := range tmpS[0] {
+			if !unicode.IsDigit(r) {
+				return nil, fmt.Errorf("invalid account id from ram role arn: '%s'", a.ramRoleARN)
+			}
+		}
+		a.ramRoleARN = strings.ToLower(a.ramRoleARN)
+	}
+	if err := a.validate(); err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
+func (a *aliAuth) GetCredentials() (credentials.Credential, error) {
+	cfg := &credentials.Config{
+		Type:            bptr.FromStringNilAble("access_key"),
+		AccessKeyId:     bptr.FromStringNilAble(a.accessKeyId),
+		AccessKeySecret: bptr.FromStringNilAble(a.accessKeySecret),
+	}
+	if a.ramRoleARN != "" {
+		cfg.Type = bptr.FromStringNilAble("ram_role_arn")
+		cfg.RoleArn = bptr.FromStringNilAble(a.ramRoleARN)
+		cfg.RoleSessionName = bptr.FromStringNilAble(fmt.Sprintf("aliauth_%s", uuid.New().String()))
+	}
+	creds, err := credentials.NewCredential(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a new credentials: %w", err)
+	}
+	return creds, nil
+}
+
+func (a *aliAuth) GetOpenAPIConfig() (*openapi.Config, error) {
+	creds, err := a.GetCredentials()
+	if err != nil {
+		return nil, err
+	}
+	accessKeyId, err := creds.GetAccessKeyId()
+	if err != nil {
+		return nil, err
+	}
+	accessKeySecret, err := creds.GetAccessKeySecret()
+	if err != nil {
+		return nil, err
+	}
+	ret := &openapi.Config{
+		AccessKeyId:     accessKeyId,
+		AccessKeySecret: accessKeySecret,
+		RegionId:        bptr.FromStringNilAble(a.regionId),
+		Credential:      creds,
+	}
+	if a.ramRoleARN != "" {
+		securityToken, err := creds.GetSecurityToken()
 		if err != nil {
 			return nil, err
 		}
-		authAccount = &aliAuthAccount{
-			Account:    stsAcc,
-			ExpiryTime: &expiry, // Ensure expiry time is always set
-		}
+		ret.SecurityToken = securityToken
 	}
-
-	return &AliAuthConfig{account: authAccount, regionID: regionID}, nil
+	return ret, nil
 }
 
-func (a *AliAuthConfig) IsConfigValid() bool {
-	switch a.account.Account.(type) {
-	case *account.AliyunAccount:
-		return true
-	case *account.StsAccount:
-		if a.account.ExpiryTime == nil {
-			return false // Safety check to prevent nil dereference
-		}
-		return time.Now().Before(*a.account.ExpiryTime)
-	default:
-		return false
-	}
-}
-
-func (a *AliAuthConfig) GetAccount() account.Account {
-	return a.account.Account
-}
-
-func (a *AliAuthConfig) GetCredentials() (*openapiV2.Config, error) {
-	var accessKeyId, accessKeySecret, securityToken string
-
-	switch acc := a.account.Account.(type) {
-	case *account.AliyunAccount:
-		accessKeyId = acc.AccessId()
-		accessKeySecret = acc.AccessKey()
-	case *account.StsAccount:
-		cred, err := acc.Credential()
-		if err != nil {
-			return &openapiV2.Config{}, fmt.Errorf("failed to get STS credentials: %w", err)
-		}
-
-		if cred.AccessKeyId == nil || cred.AccessKeySecret == nil || cred.SecurityToken == nil {
-			return nil, fmt.Errorf("STS credentials contain nil values")
-		}
-
-		accessKeyId = *cred.AccessKeyId
-		accessKeySecret = *cred.AccessKeySecret
-		securityToken = *cred.SecurityToken
-	default:
-		return &openapiV2.Config{}, fmt.Errorf("unknown account type")
-	}
-
-	return &openapiV2.Config{
-		AccessKeyId:     &accessKeyId,
-		AccessKeySecret: &accessKeySecret,
-		SecurityToken:   &securityToken,
-		RegionId:        &a.regionID,
-	}, nil
-}
-
-// getSTSAccount obtains an STS account by assuming a RAM role
-func getSTSAccount(ramRole, roleSessionName, accessKeyID, accessKeySecret, regionID string) (*account.StsAccount, time.Time, error) {
-	stsEndpoint := fmt.Sprintf("sts.%s.aliyuncs.com", regionID)
-
-	config := &openapi.Config{
-		AccessKeyId:     &accessKeyID,
-		AccessKeySecret: &accessKeySecret,
-		Endpoint:        &stsEndpoint,
-	}
-
-	stsClient, err := client.NewClient(config)
+func (a *aliAuth) GetAccount() (account.Account, error) {
+	creds, err := a.GetCredentials()
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("failed to initialize STS client: %w", err)
+		return nil, err
 	}
+	return account.NewStsAccountWithCredential(creds), nil
+}
 
-	request := &client.AssumeRoleRequest{
-		RoleArn:         &ramRole,
-		RoleSessionName: &roleSessionName,
-		DurationSeconds: &durationSeconds,
-	}
-
-	res, err := stsClient.AssumeRole(request)
+func (a *aliAuth) validate() error {
+	_, err := a.GetCredentials()
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("failed to assume role: %w", err)
+		return fmt.Errorf("invalid credentials: %w", err)
 	}
-
-	expiryTimeStamp := time.Now().Add(assumeRoleDefaultDuration)
-	return account.NewStsAccount(*res.Body.Credentials.AccessKeyId, *res.Body.Credentials.AccessKeySecret, *res.Body.Credentials.SecurityToken), expiryTimeStamp, nil
+	return nil
 }

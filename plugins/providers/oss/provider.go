@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/bearaujus/bptr"
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	aliauth "github.com/goto/guardian/pkg/aliauth"
@@ -35,26 +36,19 @@ type Policy struct {
 	Statement []PolicyStatement `json:"Statement"`
 }
 
-type OSSClient struct {
-	client     *oss.Client
-	authConfig aliauth.AliAuthConfig
-}
 type provider struct {
 	pv.UnimplementedClient
 	pv.PermissionManager
 	typeName  string
 	encryptor encryptor
-
-	ossClients map[string]OSSClient
-
-	mu sync.Mutex
+	mu        *sync.Mutex
 }
 
 func NewProvider(typeName string, encryptor encryptor) *provider {
 	return &provider{
-		typeName:   typeName,
-		encryptor:  encryptor,
-		ossClients: make(map[string]OSSClient),
+		typeName:  typeName,
+		encryptor: encryptor,
+		mu:        &sync.Mutex{},
 	}
 }
 
@@ -394,53 +388,42 @@ func (p *provider) getOSSClient(pc *domain.ProviderConfig, overrideRamRole strin
 		ramRole = creds.RAMRole
 	}
 
-	cachedClientKey := fmt.Sprintf("%s:%s", creds.AccessKeyID, ramRole)
-
-	// Check cache for existing client
-	if cachedClient, exists := p.ossClients[cachedClientKey]; exists {
-		if cachedClient.authConfig.IsConfigValid() {
-			return cachedClient.client, nil
-		}
-		p.mu.Lock()
-		delete(p.ossClients, cachedClientKey)
-		p.mu.Unlock()
-	}
-
 	// Create new OSS client
-	client, authConfig, err := p.newOSSClient(creds, ramRole, pc.URN)
+	client, err := p.newOSSClient(creds, ramRole)
 	if err != nil {
 		return nil, err
 	}
 
-	// Store in cache
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.ossClients[cachedClientKey] = OSSClient{client: client, authConfig: authConfig}
 	return client, nil
 }
 
-func (p *provider) newOSSClient(creds *Credentials, ramRole, urn string) (*oss.Client, aliauth.AliAuthConfig, error) {
+func (p *provider) newOSSClient(creds *Credentials, ramRole string) (*oss.Client, error) {
 	endpoint := fmt.Sprintf("https://oss-%s.aliyuncs.com", creds.RegionID)
 
-	authConfig, err := aliauth.NewConfig(creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID, ramRole, urn)
+	var aliAuthOptions []aliauth.AliAuthOption
+	if ramRole != "" {
+		aliAuthOptions = append(aliAuthOptions, aliauth.WithRAMRoleARN(ramRole))
+	}
+	authConfig, err := aliauth.NewConfig(creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID, aliAuthOptions...)
 	if err != nil {
-		return nil, aliauth.AliAuthConfig{}, fmt.Errorf("failed to create auth config: %w", err)
+		return nil, fmt.Errorf("failed to create auth config: %w", err)
 	}
 
-	authCreds, err := authConfig.GetCredentials()
+	openAPIConfig, err := authConfig.GetOpenAPIConfig()
 	if err != nil {
-		return nil, *authConfig, fmt.Errorf("failed to get credentials: %w", err)
+		return nil, err
 	}
+	securityToken := bptr.ToStringSafe(openAPIConfig.SecurityToken)
 
-	var ossClient *oss.Client
-	// Initialize OSS client with security token if available
-	if *authCreds.SecurityToken != "" {
-		ossClient, err = oss.New(endpoint, *authCreds.AccessKeyId, *authCreds.AccessKeySecret, oss.SecurityToken(*authCreds.SecurityToken))
-		return ossClient, *authConfig, err
+	var ossClientOptions []oss.ClientOption
+	if securityToken != "" {
+		ossClientOptions = append(ossClientOptions, oss.SecurityToken(securityToken))
 	}
-
-	ossClient, err = oss.New(endpoint, creds.AccessKeyID, creds.AccessKeySecret)
-	return ossClient, *authConfig, err
+	ossClient, err := oss.New(endpoint, creds.AccessKeyID, creds.AccessKeySecret, ossClientOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create oss client: %w", err)
+	}
+	return ossClient, err
 }
 
 func getRAMRole(g domain.Grant) (string, error) {

@@ -9,15 +9,13 @@ require (
 	cloud.google.com/go/storage v1.30.1
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/MakeNowJust/heredoc v1.0.0
-	github.com/alibabacloud-go/darabonba-openapi v0.2.1
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.10
 	github.com/alibabacloud-go/maxcompute-20220104 v1.4.1
 	github.com/alibabacloud-go/ram-20150501/v2 v2.1.0
-	github.com/alibabacloud-go/sts-20150401 v1.1.2
 	github.com/alibabacloud-go/tea-utils/v2 v2.0.6
 	github.com/aliyun/aliyun-odps-go-sdk v0.3.15
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
-	github.com/aliyun/credentials-go v1.3.10
+	github.com/aliyun/credentials-go v1.4.6
 	github.com/antonmedv/expr v1.15.3
 	github.com/bearaujus/berror v0.0.1
 	github.com/bearaujus/bptr v0.1.0
