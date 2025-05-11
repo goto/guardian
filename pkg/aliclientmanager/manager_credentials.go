@@ -71,6 +71,19 @@ func (c *Credentials) ToODPSAccount() (odpsAccount.Account, error) {
 	return odpsAccount.NewStsAccountWithCredential(aliyunCreds), nil
 }
 
+func (c *Credentials) validate() error {
+	if c.AccessKeyId == "" {
+		return fmt.Errorf("access key id is empty")
+	}
+	if c.AccessKeySecret == "" {
+		return fmt.Errorf("access key secret is empty")
+	}
+	if c.RegionId == "" {
+		return fmt.Errorf("region id is empty")
+	}
+	return nil
+}
+
 func isSTSAccessKeyId(accessKey string) bool {
 	return strings.HasPrefix(strings.ToUpper(accessKey), "STS.")
 }

@@ -31,14 +31,8 @@ type Manager[T any] struct {
 }
 
 func NewConfig[T any](credentials Credentials, clientInitFunc func(c Credentials) (T, error)) (*Manager[T], error) {
-	if credentials.AccessKeyId == "" {
-		return nil, fmt.Errorf("access key id is empty")
-	}
-	if credentials.AccessKeySecret == "" {
-		return nil, fmt.Errorf("access key secret is empty")
-	}
-	if credentials.RegionId == "" {
-		return nil, fmt.Errorf("region id is empty")
+	if err := credentials.validate(); err != nil {
+		return nil, err
 	}
 	if clientInitFunc == nil {
 		return nil, fmt.Errorf("client init function is nil")
@@ -48,13 +42,45 @@ func NewConfig[T any](credentials Credentials, clientInitFunc func(c Credentials
 		mu:             &sync.Mutex{},
 		clientInitFunc: clientInitFunc,
 	}
+	man.mu.Lock()
+	defer man.mu.Unlock()
 	if err := man.invoke(); err != nil {
 		return nil, fmt.Errorf("fail to generate config: %w", err)
 	}
 	return man, nil
 }
 
+func GetCredentialsIdentity(credentials Credentials) (*sts.GetCallerIdentityResponseBody, error) {
+	if err := credentials.validate(); err != nil {
+		return nil, err
+	}
+	openAPIConfig, err := credentials.ToOpenAPIConfig()
+	if err != nil {
+		return nil, err
+	}
+	stsClient, err := sts.NewClient(openAPIConfig)
+	if err != nil {
+		return nil, err
+	}
+	// [TESTED]
+	// 1. we can call this function both when ram role arn is present or not
+	// 2. the error need to be masked, since it exposes access key id
+	validationResp, err := stsClient.GetCallerIdentity()
+	if err != nil {
+		if strings.Contains(err.Error(), "InvalidSecurityToken.Expired") {
+			return nil, fmt.Errorf("credentials config are not accepted by alicloud service: %w", err)
+		}
+		return nil, fmt.Errorf("credentials config are not accepted by alicloud service")
+	}
+	return validationResp.Body, err
+}
+
 func (man *Manager[T]) GetClient() (T, error) {
+	// [TESTED] need to lock here, otherwise when there are parallels execution when on the exact
+	// time when sts token is expired, Manager.invoke() will be executed more than 1 time.
+	// Also, this is the only one impl of Manager function that exposed to outside.
+	man.mu.Lock()
+	defer man.mu.Unlock()
 	if !man.initialized || !man.isValid() {
 		if err := man.invoke(); err != nil {
 			var nilT T
@@ -76,42 +102,29 @@ func (man *Manager[T]) isValid() bool {
 			return true
 		}
 	}
-	man.mu.Lock()
-	defer man.mu.Unlock()
 	man.initialized = false
 	return false
 }
 
 func (man *Manager[T]) invoke() error {
-	man.mu.Lock()
-	defer man.mu.Unlock()
 	openAPIConfig, err := man.credentials.ToOpenAPIConfig()
 	if err != nil {
 		return fmt.Errorf("fail to generate openapi config: %w", err)
 	}
-	validator, err := sts.NewClient(openAPIConfig)
-	if err != nil {
-		return err
-	}
-	// [TESTED]
-	// 1. we can call this function both when ram role arn is present or not
-	// 2. the error need to be masked, since it exposes access key id
-	validationResp, err := validator.GetCallerIdentity()
-	if err != nil {
-		if strings.Contains(err.Error(), "InvalidSecurityToken.Expired") {
-			return fmt.Errorf("credentials config are not accepted by alicloud service: %w", err)
-		}
-		return fmt.Errorf("credentials config are not accepted by alicloud service")
-	}
-	// for user, we give STS credentials if ram role arn is present instead of giving the raw one
-	man.clientCredentials = &Credentials{
-		AccountId:       bptr.ToStringSafe(validationResp.Body.AccountId),
+	// for client, we give STS credentials if ram role arn is present instead of giving the raw one
+	var clientCredentials = Credentials{
 		AccessKeyId:     bptr.ToStringSafe(openAPIConfig.AccessKeyId),
 		AccessKeySecret: bptr.ToStringSafe(openAPIConfig.AccessKeySecret),
 		SecurityToken:   bptr.ToStringSafe(openAPIConfig.SecurityToken),
 		RegionId:        bptr.ToStringSafe(openAPIConfig.RegionId),
 		RAMRoleARN:      man.credentials.RAMRoleARN,
 	}
+	credentialsIdentity, err := GetCredentialsIdentity(clientCredentials)
+	if err != nil {
+		return fmt.Errorf("fail to get credentials identity: %w", err)
+	}
+	clientCredentials.AccountId = bptr.ToStringSafe(credentialsIdentity.AccountId)
+	man.clientCredentials = &clientCredentials
 	// create a new credentials object to prevent values changes from outside
 	var c = *man.clientCredentials
 	man.client, err = man.clientInitFunc(c)
