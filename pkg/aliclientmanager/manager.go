@@ -42,8 +42,6 @@ func NewConfig[T any](credentials Credentials, clientInitFunc func(c Credentials
 		mu:             &sync.Mutex{},
 		clientInitFunc: clientInitFunc,
 	}
-	man.mu.Lock()
-	defer man.mu.Unlock()
 	if err := man.invoke(); err != nil {
 		return nil, fmt.Errorf("fail to generate config: %w", err)
 	}
