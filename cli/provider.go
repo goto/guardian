@@ -78,7 +78,7 @@ func listProvidersCmd() *cobra.Command {
 
 			fmt.Printf(" \nShowing %d of %d providers\n \n", len(providers), len(providers))
 
-			report = append(report, []string{"ID", "TYPE", "URN"})
+			report = append(report, []string{"ID", "TYPE", "urn"})
 
 			for _, p := range providers {
 				report = append(report, []string{

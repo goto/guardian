@@ -269,11 +269,11 @@ func (r *RequirementTrigger) IsMatch(a *Appeal) (bool, error) {
 }
 
 type ResourceIdentifier struct {
-	ProviderType string `json:"provider_type" yaml:"provider_type" validate:"required_with=ProviderURN Type URN"`
-	ProviderURN  string `json:"provider_urn" yaml:"provider_urn" validate:"required_with=ProviderType Type URN"`
-	Type         string `json:"type" yaml:"type" validate:"required_with=ProviderType ProviderURN URN"`
+	ProviderType string `json:"provider_type" yaml:"provider_type" validate:"required_with=ProviderURN Type urn"`
+	ProviderURN  string `json:"provider_urn" yaml:"provider_urn" validate:"required_with=ProviderType Type urn"`
+	Type         string `json:"type" yaml:"type" validate:"required_with=ProviderType ProviderURN urn"`
 	URN          string `json:"urn" yaml:"urn" validate:"required_with=ProviderType ProviderURN Type"`
-	ID           string `json:"id" yaml:"id" validate:"required_without_all=ProviderType ProviderURN Type URN"`
+	ID           string `json:"id" yaml:"id" validate:"required_without_all=ProviderType ProviderURN Type urn"`
 }
 
 type AdditionalAppeal struct {
