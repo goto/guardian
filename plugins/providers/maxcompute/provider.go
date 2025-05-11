@@ -6,9 +6,12 @@ import (
 	"strings"
 	"sync"
 
+	maxcompute "github.com/alibabacloud-go/maxcompute-20220104/client"
+	"github.com/aliyun/aliyun-odps-go-sdk/odps"
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/alicatalogapis"
+	"github.com/goto/guardian/pkg/aliclientmanager"
 	"github.com/goto/guardian/pkg/log"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
@@ -27,6 +30,10 @@ type provider struct {
 	logger      log.Logger
 	mu          *sync.Mutex
 	concurrency int
+
+	restClientsCache        map[string]*aliclientmanager.Manager[*maxcompute.Client]
+	odpsClientsCache        map[string]*aliclientmanager.Manager[*odps.Odps]
+	catalogAPIsClientsCache map[string]*aliclientmanager.Manager[alicatalogapis.Client]
 }
 
 func New(
@@ -35,11 +42,14 @@ func New(
 	logger log.Logger,
 ) *provider {
 	return &provider{
-		typeName:    typeName,
-		encryptor:   encryptor,
-		logger:      logger,
-		mu:          &sync.Mutex{},
-		concurrency: 20,
+		typeName:                typeName,
+		encryptor:               encryptor,
+		logger:                  logger,
+		mu:                      &sync.Mutex{},
+		concurrency:             20,
+		restClientsCache:        make(map[string]*aliclientmanager.Manager[*maxcompute.Client]),
+		odpsClientsCache:        make(map[string]*aliclientmanager.Manager[*odps.Odps]),
+		catalogAPIsClientsCache: make(map[string]*aliclientmanager.Manager[alicatalogapis.Client]),
 	}
 }
 
@@ -393,17 +403,6 @@ func (p *provider) getCreds(pc *domain.ProviderConfig) (*credentials, error) {
 		return nil, fmt.Errorf("failed to decrypt credentials: %w", err)
 	}
 	return creds, nil
-}
-
-func (p *provider) getRamRole(creds *credentials, overrideRamRole string) string {
-	var ramRole string
-	switch {
-	case overrideRamRole != "":
-		ramRole = overrideRamRole
-	case creds.RAMRole != "":
-		ramRole = creds.RAMRole
-	}
-	return ramRole
 }
 
 func (p *provider) getSchemaDefaultRoleName(pc *domain.ProviderConfig) (string, error) {

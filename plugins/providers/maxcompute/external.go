@@ -15,8 +15,8 @@ import (
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/security"
 	"github.com/bearaujus/bptr"
 	"github.com/goto/guardian/domain"
-	"github.com/goto/guardian/pkg/aliauth"
 	"github.com/goto/guardian/pkg/alicatalogapis"
+	"github.com/goto/guardian/pkg/aliclientmanager"
 	"github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
@@ -483,106 +483,131 @@ func (p *provider) revokeTableRolesFromMember(ctx context.Context, pc *domain.Pr
 // External Client
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client, error) {
+func (p *provider) getClientCredentials(pc *domain.ProviderConfig, overrideRamRole string) (string, aliclientmanager.Credentials, error) {
 	creds, err := p.getCreds(pc)
 	if err != nil {
-		return nil, err
+		return "", aliclientmanager.Credentials{}, err
 	}
-
-	ramRole := p.getRamRole(creds, "")
-	var aliAuthOptions []aliauth.AliAuthOption
-	if ramRole != "" {
-		aliAuthOptions = append(aliAuthOptions, aliauth.WithRAMRoleARN(ramRole))
+	ramRole := overrideRamRole
+	if creds.RAMRole != "" {
+		ramRole = creds.RAMRole
 	}
+	cacheKeyFrags := fmt.Sprintf("%s:%s:%s", creds.AccessKeyID, creds.RegionID, ramRole)
+	manCreds := aliclientmanager.Credentials{
+		AccessKeyId:     creds.AccessKeyID,
+		AccessKeySecret: creds.AccessKeySecret,
+		RegionId:        creds.RegionID,
+		RAMRoleARN:      ramRole,
+	}
+	return cacheKeyFrags, manCreds, nil
+}
 
-	authConfig, err := aliauth.NewConfig(creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID, aliAuthOptions...)
+func (p *provider) getRestClient(pc *domain.ProviderConfig) (*maxcompute.Client, error) {
+	cacheKeyFrags, manCreds, err := p.getClientCredentials(pc, "")
 	if err != nil {
 		return nil, err
 	}
 
-	authCreds, err := authConfig.GetOpenAPIConfig()
+	if c, exists := p.restClientsCache[cacheKeyFrags]; exists {
+		restClient, err := c.GetClient()
+		if err != nil {
+			return nil, err
+		}
+		return restClient, nil
+	}
+
+	clientInitFunc := func(c aliclientmanager.Credentials) (*maxcompute.Client, error) {
+		aliyunCreds, err := c.ToOpenAPIConfig()
+		if err != nil {
+			return nil, err
+		}
+		var endpoint = fmt.Sprintf("maxcompute.%s.aliyuncs.com", c.RegionId)
+		aliyunCreds.Endpoint = bptr.FromStringNilAble(endpoint)
+		restClient, err := maxcompute.NewClient(aliyunCreds)
+		if err != nil {
+			return nil, err
+		}
+		return restClient, nil
+	}
+
+	manager, err := aliclientmanager.NewConfig[*maxcompute.Client](manCreds, clientInitFunc)
 	if err != nil {
 		return nil, err
 	}
 
-	endpoint := fmt.Sprintf("maxcompute.%s.aliyuncs.com", creds.RegionID)
-	authCreds.Endpoint = &endpoint
-	restClient, err := maxcompute.NewClient(authCreds)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	p.restClientsCache[cacheKeyFrags] = manager
+	p.mu.Unlock()
 
-	return restClient, nil
+	return p.getRestClient(pc)
 }
 
 func (p *provider) getOdpsClient(pc *domain.ProviderConfig, overrideRamRole string) (*odps.Odps, error) {
-	creds, err := p.getCreds(pc)
+	cacheKeyFrags, manCreds, err := p.getClientCredentials(pc, overrideRamRole)
 	if err != nil {
 		return nil, err
 	}
 
-	ramRole := p.getRamRole(creds, overrideRamRole)
-	var aliAuthOptions []aliauth.AliAuthOption
-	if ramRole != "" {
-		aliAuthOptions = append(aliAuthOptions, aliauth.WithRAMRoleARN(ramRole))
+	if c, exists := p.odpsClientsCache[cacheKeyFrags]; exists {
+		odpsClient, err := c.GetClient()
+		if err != nil {
+			return nil, err
+		}
+		return odpsClient, nil
 	}
 
-	authConfig, err := aliauth.NewConfig(creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID, aliAuthOptions...)
+	clientInitFunc := func(c aliclientmanager.Credentials) (*odps.Odps, error) {
+		odpsAccount, err := c.ToODPSAccount()
+		if err != nil {
+			return nil, err
+		}
+		var endpoint = fmt.Sprintf("http://service.%s.maxcompute.aliyun.com/api", c.RegionId)
+		var odpsClient = odps.NewOdps(odpsAccount, endpoint)
+		return odpsClient, nil
+	}
+
+	manager, err := aliclientmanager.NewConfig[*odps.Odps](manCreds, clientInitFunc)
 	if err != nil {
 		return nil, err
 	}
 
-	account, err := authConfig.GetAccount()
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	p.odpsClientsCache[cacheKeyFrags] = manager
+	p.mu.Unlock()
 
-	endpoint := fmt.Sprintf("http://service.%s.maxcompute.aliyun.com/api", creds.RegionID)
-	client := odps.NewOdps(account, endpoint)
-
-	return client, nil
+	return p.getOdpsClient(pc, overrideRamRole)
 }
 
 func (p *provider) getCatalogAPIsClient(pc *domain.ProviderConfig, overrideRamRole string) (alicatalogapis.Client, error) {
-	creds, err := p.getCreds(pc)
+	cacheKeyFrags, manCreds, err := p.getClientCredentials(pc, overrideRamRole)
 	if err != nil {
 		return nil, err
 	}
 
-	ramRole := p.getRamRole(creds, overrideRamRole)
-	var aliAuthOptions []aliauth.AliAuthOption
-	if ramRole != "" {
-		aliAuthOptions = append(aliAuthOptions, aliauth.WithRAMRoleARN(ramRole))
+	if c, exists := p.catalogAPIsClientsCache[cacheKeyFrags]; exists {
+		catalogAPIsClient, err := c.GetClient()
+		if err != nil {
+			return nil, err
+		}
+		return catalogAPIsClient, nil
 	}
 
-	authConfig, err := aliauth.NewConfig(creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID, aliAuthOptions...)
+	clientInitFunc := func(c aliclientmanager.Credentials) (alicatalogapis.Client, error) {
+		return alicatalogapis.NewClient(c.AccessKeyId, c.AccessKeySecret, c.RegionId, c.AccountId,
+			alicatalogapis.WithSecurityToken(c.SecurityToken),
+		)
+	}
+
+	manager, err := aliclientmanager.NewConfig[alicatalogapis.Client](manCreds, clientInitFunc)
 	if err != nil {
 		return nil, err
 	}
 
-	openAPIConfig, err := authConfig.GetOpenAPIConfig()
-	if err != nil {
-		return nil, err
-	}
-	securityToken := bptr.ToStringSafe(openAPIConfig.SecurityToken)
+	p.mu.Lock()
+	p.catalogAPIsClientsCache[cacheKeyFrags] = manager
+	p.mu.Unlock()
 
-	var clientOptions []alicatalogapis.ClientOption
-	if securityToken != "" {
-		clientOptions = append(clientOptions, alicatalogapis.WithSecurityToken(securityToken))
-	}
-
-	client, err := alicatalogapis.NewClient(
-		bptr.ToStringSafe(openAPIConfig.AccessKeyId),
-		bptr.ToStringSafe(openAPIConfig.AccessKeySecret),
-		bptr.ToStringSafe(openAPIConfig.RegionId),
-		authConfig.GetAccountId(),
-		clientOptions...,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return client, nil
+	return p.getCatalogAPIsClient(pc, overrideRamRole)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
