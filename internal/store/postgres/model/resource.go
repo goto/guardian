@@ -26,7 +26,7 @@ type Resource struct {
 	GlobalURN    *string `gorm:"uniqueIndex:resource_global_urn"`
 
 	Children []Resource `gorm:"ForeignKey:ParentID;References:ID"`
-	Provider Provider   `gorm:"ForeignKey:ProviderType,ProviderURN;References:Type,urn"`
+	Provider Provider   `gorm:"ForeignKey:ProviderType,ProviderURN;References:Type,URN"`
 
 	CreatedAt time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime"`

@@ -103,7 +103,6 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 		eg, ctx := errgroup.WithContext(ctx)
 		eg.SetLimit(p.concurrency)
 		for i := range schemas {
-			i := i
 			schema := schemas[i]
 			eg.Go(func() error {
 				tables, err := p.getTablesFromSchema(ctx, pc, "", accountId, project, schema)
@@ -145,11 +144,11 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 	}
 
 	if overrideRAMRole != "" {
-		ra, err := parseRoleAccountId(overrideRAMRole)
+		ra, err := ParseRoleAccountId(overrideRAMRole)
 		if err != nil {
 			return fmt.Errorf("failed to parse %q role from grant: %w", overrideRAMRole, err)
 		}
-		overrideRAMRole = ra.urn()
+		overrideRAMRole = ra.URN()
 	}
 
 	switch g.Resource.Type {
@@ -257,11 +256,11 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 	}
 
 	if overrideRAMRole != "" {
-		ra, err := parseRoleAccountId(overrideRAMRole)
+		ra, err := ParseRoleAccountId(overrideRAMRole)
 		if err != nil {
 			return fmt.Errorf("failed to parse %q role from grant: %w", overrideRAMRole, err)
 		}
-		overrideRAMRole = ra.urn()
+		overrideRAMRole = ra.URN()
 	}
 
 	switch g.Resource.Type {

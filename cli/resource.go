@@ -102,7 +102,7 @@ func listResourcesCmd(adapter handlerv1beta1.ProtoAdapter) *cobra.Command {
 
 			fmt.Printf(" \nShowing %d of %d resources\n \n", len(resources), len(resources))
 
-			report = append(report, []string{"ID", "PROVIDER", "TYPE", "urn", "NAME"})
+			report = append(report, []string{"ID", "PROVIDER", "TYPE", "URN", "NAME"})
 			for _, r := range resources {
 				report = append(report, []string{
 					fmt.Sprintf("%v", r.GetId()),
@@ -174,7 +174,7 @@ func viewResourceCmd(adapter handlerv1beta1.ProtoAdapter) *cobra.Command {
 				report := [][]string{}
 				r := res.GetResource()
 
-				report = append(report, []string{"ID", "PROVIDER", "TYPE", "urn", "NAME"})
+				report = append(report, []string{"ID", "PROVIDER", "TYPE", "URN", "NAME"})
 
 				report = append(report, []string{
 					fmt.Sprintf("%v", r.GetId()),

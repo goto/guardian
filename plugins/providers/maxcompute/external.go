@@ -50,7 +50,7 @@ func (p *provider) getProject(ctx context.Context, pc *domain.ProviderConfig) (*
 
 	accountID := strings.TrimPrefix(owner, "ALIYUN$")
 	if credentials.RAMRole != "" {
-		ac, err := parseRoleAccountId(credentials.RAMRole)
+		ac, err := ParseRoleAccountId(credentials.RAMRole)
 		if err == nil {
 			accountID = ac.AccountId
 		}
@@ -192,7 +192,7 @@ func (p *provider) addMemberToProject(ctx context.Context, pc *domain.ProviderCo
 		return fmt.Errorf("fail to initialize odps client when adding member to project from project '%s': %w", project, err)
 	}
 
-	ramAccountId, err = parseAccountId(ramAccountId)
+	ramAccountId, err = ParseAccountId(ramAccountId)
 	if err != nil {
 		return fmt.Errorf("fail to parse ram account id when adding member to project from project '%s': %w", project, err)
 	}
@@ -222,7 +222,7 @@ func (p *provider) removeMemberFromProject(ctx context.Context, pc *domain.Provi
 		return fmt.Errorf("fail to initialize odps client when adding member to project from project '%s': %w", project, err)
 	}
 
-	ramAccountId, err = parseAccountId(ramAccountId)
+	ramAccountId, err = ParseAccountId(ramAccountId)
 	if err != nil {
 		return fmt.Errorf("fail to parse ram account id when adding member to project from project '%s': %w", project, err)
 	}
@@ -267,7 +267,7 @@ func (p *provider) listProjectMemberRoles(ctx context.Context, pc *domain.Provid
 		return nil, fmt.Errorf("fail to initialize odps client when retrieving project member roles from project '%s': %w", project, err)
 	}
 
-	ramAccountId, err = parseAccountId(ramAccountId)
+	ramAccountId, err = ParseAccountId(ramAccountId)
 	if err != nil {
 		return nil, fmt.Errorf("fail to parse ram account id when retrieving project member roles from project '%s': %w", project, err)
 	}
@@ -319,7 +319,7 @@ func (p *provider) grantProjectRoleToMember(ctx context.Context, pc *domain.Prov
 		return fmt.Errorf("fail to initialize odps client when granting member project role from project '%s': %w", project, err)
 	}
 
-	ramAccountId, err = parseAccountId(ramAccountId)
+	ramAccountId, err = ParseAccountId(ramAccountId)
 	if err != nil {
 		return fmt.Errorf("fail to parse ram account id when granting member project role from project '%s': %w", project, err)
 	}
@@ -349,7 +349,7 @@ func (p *provider) revokeProjectRoleFromMember(ctx context.Context, pc *domain.P
 		return fmt.Errorf("fail to initialize odps client when revoking member project role from project '%s': %w", project, err)
 	}
 
-	ramAccountId, err = parseAccountId(ramAccountId)
+	ramAccountId, err = ParseAccountId(ramAccountId)
 	if err != nil {
 		return fmt.Errorf("fail to parse ram account id when revoking member project role from project '%s': %w", project, err)
 	}
@@ -412,22 +412,22 @@ func (p *provider) validateProjectRole(ctx context.Context, pc *domain.ProviderC
 
 func (p *provider) grantTableRolesToMember(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, project, schema, table, ramAccountId string, roles ...string) error {
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("fail to grant member table role from '%s.%s.%s': %w", project, schema, table, err)
+		return fmt.Errorf("fail to grant member table role from project '%s': %w", project, err)
 	}
 
 	odpsClient, err := p.getOdpsClient(pc, overrideRAMRole)
 	if err != nil {
-		return fmt.Errorf("fail to initialize odps client when granting member table role from '%s.%s.%s': %w", project, schema, table, err)
+		return fmt.Errorf("fail to initialize odps client when granting member table role from project '%s': %w", project, err)
 	}
 
-	ramAccountId, err = parseAccountId(ramAccountId)
+	ramAccountId, err = ParseAccountId(ramAccountId)
 	if err != nil {
-		return fmt.Errorf("fail to parse ram account id when granting member table role from '%s.%s.%s': %w", project, schema, table, err)
+		return fmt.Errorf("fail to parse ram account id when granting member table role from project '%s': %w", project, err)
 	}
 
 	roles = slices.GenericsStandardizeSlice(roles)
 	if len(roles) == 0 {
-		return fmt.Errorf("fail to grant member table role from '%s.%s.%s': empty role", project, schema, table)
+		return fmt.Errorf("fail to grant member table role from project '%s': empty role", project)
 	}
 
 	var invoker = odpsClient.Project(project).SecurityManager()
@@ -439,31 +439,31 @@ func (p *provider) grantTableRolesToMember(ctx context.Context, pc *domain.Provi
 			if restErr.StatusCode == http.StatusConflict && restErr.ErrorMessage.ErrorCode == "ObjectAlreadyExists" {
 				return nil
 			}
-			return fmt.Errorf("fail to grant member table role from '%s.%s.%s': %s", project, schema, table, restErr.ErrorMessage.Message)
+			return fmt.Errorf("fail to grant member table role from project '%s': %s", project, restErr.ErrorMessage.Message)
 		}
-		return fmt.Errorf("fail to grant member table role from '%s.%s.%s': %w", project, schema, table, err)
+		return fmt.Errorf("fail to grant member table role from project '%s': %w", project, err)
 	}
 	return nil
 }
 
 func (p *provider) revokeTableRolesFromMember(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, project, schema, table, ramAccountId string, roles ...string) error {
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("fail to revoke member table role from '%s.%s.%s': %w", project, schema, table, err)
+		return fmt.Errorf("fail to revoke member table role from project '%s': %w", project, err)
 	}
 
 	odpsClient, err := p.getOdpsClient(pc, overrideRAMRole)
 	if err != nil {
-		return fmt.Errorf("fail to initialize odps client when revoking member table role from '%s.%s.%s': %w", project, schema, table, err)
+		return fmt.Errorf("fail to initialize odps client when revoking member table role from project '%s': %w", project, err)
 	}
 
-	ramAccountId, err = parseAccountId(ramAccountId)
+	ramAccountId, err = ParseAccountId(ramAccountId)
 	if err != nil {
-		return fmt.Errorf("fail to parse ram account id when revoking member table role from '%s.%s.%s': %w", project, schema, table, err)
+		return fmt.Errorf("fail to parse ram account id when revoking member table role from project '%s': %w", project, err)
 	}
 
 	roles = slices.GenericsStandardizeSlice(roles)
 	if len(roles) == 0 {
-		return fmt.Errorf("fail to revoke member table role from '%s.%s.%s': empty role", project, schema, table)
+		return fmt.Errorf("fail to revoke member table role from project '%s': empty role", project)
 	}
 
 	var invoker = odpsClient.Project(project).SecurityManager()
@@ -472,9 +472,9 @@ func (p *provider) revokeTableRolesFromMember(ctx context.Context, pc *domain.Pr
 	if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
 		var restErr restclient.HttpError
 		if errors.As(err, &restErr) {
-			return fmt.Errorf("fail to revoke member table role from '%s.%s.%s': %s", project, schema, table, restErr.ErrorMessage.Message)
+			return fmt.Errorf("fail to revoke member table role from project '%s': %s", project, restErr.ErrorMessage.Message)
 		}
-		return fmt.Errorf("fail to revoke member table role from '%s.%s.%s': %w", project, schema, table, err)
+		return fmt.Errorf("fail to revoke member table role from project '%s': %w", project, err)
 	}
 	return nil
 }
@@ -555,6 +555,11 @@ func (p *provider) getCatalogAPIsClient(pc *domain.ProviderConfig, overrideRamRo
 		aliAuthOptions = append(aliAuthOptions, aliauth.WithRAMRoleARN(ramRole))
 	}
 
+	ra, err := ParseRoleAccountId(ramRole)
+	if err != nil {
+		return nil, err
+	}
+
 	authConfig, err := aliauth.NewConfig(creds.AccessKeyID, creds.AccessKeySecret, creds.RegionID, aliAuthOptions...)
 	if err != nil {
 		return nil, err
@@ -575,7 +580,7 @@ func (p *provider) getCatalogAPIsClient(pc *domain.ProviderConfig, overrideRamRo
 		bptr.ToStringSafe(openAPIConfig.AccessKeyId),
 		bptr.ToStringSafe(openAPIConfig.AccessKeySecret),
 		bptr.ToStringSafe(openAPIConfig.RegionId),
-		authConfig.GetAccountId(),
+		ra.URN(),
 		clientOptions...,
 	)
 	if err != nil {
