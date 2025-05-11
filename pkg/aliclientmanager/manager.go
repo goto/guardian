@@ -70,7 +70,7 @@ func GetCredentialsIdentity(credentials Credentials) (*sts.GetCallerIdentityResp
 		}
 		return nil, fmt.Errorf("credentials config are not accepted by alicloud service")
 	}
-	return validationResp.Body, err
+	return validationResp.Body, nil
 }
 
 func (man *Manager[T]) GetClient() (T, error) {
