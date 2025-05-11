@@ -154,14 +154,6 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		overrideRAMRole = r
 	}
 
-	if overrideRAMRole != "" {
-		ra, err := parseRoleAccountId(overrideRAMRole)
-		if err != nil {
-			return fmt.Errorf("failed to parse %q role from grant: %w", overrideRAMRole, err)
-		}
-		overrideRAMRole = ra.urn()
-	}
-
 	switch g.Resource.Type {
 	case resourceTypeProject:
 		project := g.Resource.URN
@@ -264,14 +256,6 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 			return fmt.Errorf("failed to get %q parameter value from grant: %w", parameterRAMRoleKey, err)
 		}
 		overrideRAMRole = r
-	}
-
-	if overrideRAMRole != "" {
-		ra, err := parseRoleAccountId(overrideRAMRole)
-		if err != nil {
-			return fmt.Errorf("failed to parse %q role from grant: %w", overrideRAMRole, err)
-		}
-		overrideRAMRole = ra.urn()
 	}
 
 	switch g.Resource.Type {
