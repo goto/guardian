@@ -114,7 +114,7 @@ func (man *Manager[T]) invoke() error {
 		AccessKeyId:     bptr.ToStringSafe(openAPIConfig.AccessKeyId),
 		AccessKeySecret: bptr.ToStringSafe(openAPIConfig.AccessKeySecret),
 		SecurityToken:   bptr.ToStringSafe(openAPIConfig.SecurityToken),
-		RegionId:        bptr.ToStringSafe(openAPIConfig.RegionId),
+		RegionId:        man.credentials.RegionId,
 		RAMRoleARN:      man.credentials.RAMRoleARN,
 	}
 	credentialsIdentity, err := GetCredentialsIdentity(clientCredentials)

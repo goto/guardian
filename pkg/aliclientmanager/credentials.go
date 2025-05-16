@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
+	"github.com/aliyun/aliyun-odps-go-sdk/odps"
 	odpsAccount "github.com/aliyun/aliyun-odps-go-sdk/odps/account"
 	aliyun "github.com/aliyun/credentials-go/credentials"
 	"github.com/bearaujus/bptr"
@@ -42,33 +43,39 @@ func (c *Credentials) ToAliyunCredentials() (aliyun.Credential, error) {
 }
 
 func (c *Credentials) ToOpenAPIConfig() (*openapi.Config, error) {
-	aliyunCreds, err := c.ToAliyunCredentials()
+	ac, err := c.ToAliyunCredentials()
 	if err != nil {
 		return nil, err
 	}
-	cm, err := aliyunCreds.GetCredential()
+	cm, err := ac.GetCredential()
 	if err != nil {
 		return nil, err
 	}
-	var securityToken = bptr.FromStringNilAble(c.SecurityToken)
-	if c.RAMRoleARN != "" && isSTSAccessKeyId(bptr.ToStringSafe(cm.AccessKeyId)) {
-		securityToken = bptr.FromStringNilAble(bptr.ToStringSafe(cm.SecurityToken)) // create a new object
-	}
+	// create a new object for AccessKeyId, AccessKeySecret, SecurityToken
 	return &openapi.Config{
-		AccessKeyId:     bptr.FromStringNilAble(bptr.ToStringSafe(cm.AccessKeyId)),     // create a new object
-		AccessKeySecret: bptr.FromStringNilAble(bptr.ToStringSafe(cm.AccessKeySecret)), // create a new object
-		SecurityToken:   securityToken,
+		AccessKeyId:     cm.AccessKeyId,
+		AccessKeySecret: cm.AccessKeySecret,
+		SecurityToken:   cm.SecurityToken,
 		RegionId:        bptr.FromStringNilAble(c.RegionId),
-		Credential:      aliyunCreds,
+		Credential:      ac,
 	}, nil
 }
 
 func (c *Credentials) ToODPSAccount() (odpsAccount.Account, error) {
-	aliyunCreds, err := c.ToAliyunCredentials()
+	ac, err := c.ToAliyunCredentials()
 	if err != nil {
 		return nil, err
 	}
-	return odpsAccount.NewStsAccountWithCredential(aliyunCreds), nil
+	cm, err := ac.GetCredential()
+	if err != nil {
+		return nil, err
+	}
+	var oc = &odps.Config{
+		AccessId:  bptr.ToStringSafe(cm.AccessKeyId),
+		AccessKey: bptr.ToStringSafe(cm.AccessKeySecret),
+		StsToken:  bptr.ToStringSafe(cm.SecurityToken),
+	}
+	return oc.GenAccount(), nil
 }
 
 func (c *Credentials) validate() error {
@@ -80,6 +87,9 @@ func (c *Credentials) validate() error {
 	}
 	if c.RegionId == "" {
 		return fmt.Errorf("region id is empty")
+	}
+	if isSTSAccessKeyId(c.AccessKeyId) && c.SecurityToken == "" {
+		return fmt.Errorf("security token is empty")
 	}
 	return nil
 }
