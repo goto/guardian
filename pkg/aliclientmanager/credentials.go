@@ -51,7 +51,6 @@ func (c *Credentials) ToOpenAPIConfig() (*openapi.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	// create a new object for AccessKeyId, AccessKeySecret, SecurityToken
 	return &openapi.Config{
 		AccessKeyId:     cm.AccessKeyId,
 		AccessKeySecret: cm.AccessKeySecret,
