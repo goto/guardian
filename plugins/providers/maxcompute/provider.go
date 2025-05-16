@@ -8,13 +8,13 @@ import (
 
 	maxcompute "github.com/alibabacloud-go/maxcompute-20220104/client"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps"
+	"github.com/bearaujus/bworker/pool"
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/alicatalogapis"
 	"github.com/goto/guardian/pkg/aliclientmanager"
 	"github.com/goto/guardian/pkg/log"
 	"golang.org/x/net/context"
-	"golang.org/x/sync/errgroup"
 )
 
 //go:generate mockery --name=encryptor --exported --with-expecter
@@ -110,12 +110,13 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 	}
 
 	if slices.Contains(availableResourceTypes, resourceTypeTable) {
-		eg, ctx := errgroup.WithContext(ctx)
-		eg.SetLimit(p.concurrency)
+		var errW error
+		var w = pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
+		defer w.Shutdown()
 		for i := range schemas {
 			i := i
 			schema := schemas[i]
-			eg.Go(func() error {
+			w.Do(func() error {
 				tables, err := p.getTablesFromSchema(ctx, pc, "", accountId, project, schema)
 				if err != nil {
 					return err
@@ -127,8 +128,9 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 				return nil
 			})
 		}
-		if err = eg.Wait(); err != nil {
-			return nil, err
+		w.Wait()
+		if errW != nil {
+			return nil, errW
 		}
 	}
 
@@ -175,25 +177,28 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		}
 
 		if len(permissions) > 0 {
-			eg, ctx := errgroup.WithContext(ctx)
-			eg.SetLimit(p.concurrency)
+			var errW error
+			var w = pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
+			defer w.Shutdown()
 			for i := range permissions {
 				permission := permissions[i]
-				eg.Go(func() error {
+				w.Do(func() error {
 					return p.validateProjectRole(ctx, pc, overrideRAMRole, project, permission)
 				})
 			}
-			if err := eg.Wait(); err != nil {
-				return err
+			w.Wait()
+			if errW != nil {
+				return errW
 			}
 			for i := range permissions {
 				permission := permissions[i]
-				eg.Go(func() error {
+				w.Do(func() error {
 					return p.grantProjectRoleToMember(ctx, pc, overrideRAMRole, project, g.AccountID, permission)
 				})
 			}
-			if err := eg.Wait(); err != nil {
-				return err
+			w.Wait()
+			if errW != nil {
+				return errW
 			}
 		}
 
@@ -279,25 +284,28 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		}
 
 		if len(permissions) > 0 {
-			eg, ctx := errgroup.WithContext(ctx)
-			eg.SetLimit(p.concurrency)
+			var errW error
+			var w = pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
+			defer w.Shutdown()
 			for i := range permissions {
 				permission := permissions[i]
-				eg.Go(func() error {
+				w.Do(func() error {
 					return p.validateProjectRole(ctx, pc, overrideRAMRole, project, permission)
 				})
 			}
-			if err := eg.Wait(); err != nil {
-				return err
+			w.Wait()
+			if errW != nil {
+				return errW
 			}
 			for i := range permissions {
 				permission := permissions[i]
-				eg.Go(func() error {
+				w.Do(func() error {
 					return p.revokeProjectRoleFromMember(ctx, pc, overrideRAMRole, project, g.AccountID, permission)
 				})
 			}
-			if err := eg.Wait(); err != nil {
-				return err
+			w.Wait()
+			if errW != nil {
+				return errW
 			}
 		}
 

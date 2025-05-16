@@ -88,6 +88,7 @@ require (
 	github.com/apache/arrow/go/v12 v12.0.0 // indirect
 	github.com/apache/thrift v0.16.0 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
+	github.com/bearaujus/bworker v0.0.11 // indirect
 	github.com/briandowns/spinner v1.18.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/charmbracelet/glamour v0.3.0 // indirect
