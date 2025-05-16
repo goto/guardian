@@ -90,14 +90,22 @@ func (man *Manager[T]) GetClient() (T, error) {
 
 func (man *Manager[T]) isValid() bool {
 	if man.initialized {
-		// validate if manager credentials is not having ram role arn
-		// validate if client credentials is not sts
-		if man.credentials.RAMRoleARN == "" && !isSTSAccessKeyId(man.clientCredentials.AccessKeyId) {
+		// check if source credentials are access_key based (type: access_key)
+		if !isSTSAccessKeyId(man.credentials.AccessKeyId) && man.credentials.SecurityToken == "" {
 			return true
 		}
-		var sessionDurationSeconds = int(time.Since(man.clientCreatedAt).Seconds())
-		if sessionDurationSeconds <= sessionDurationThresholdSeconds {
+		// check if source credentials are sts based (type: sts)
+		if isSTSAccessKeyId(man.credentials.AccessKeyId) && man.credentials.SecurityToken != "" {
+			// for now, we're returning the client instead of regenerating new one,
+			// since it's not possible to regenerate the token if the token was sts based.
 			return true
+		}
+		// check if source credentials are ram_role_arn based (type: ram_role_arn)
+		if !isSTSAccessKeyId(man.credentials.AccessKeyId) && man.credentials.RAMRoleARN != "" {
+			var sessionDurationSeconds = int(time.Since(man.clientCreatedAt).Seconds())
+			if sessionDurationSeconds <= sessionDurationThresholdSeconds {
+				return true
+			}
 		}
 	}
 	man.initialized = false
