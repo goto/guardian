@@ -8,12 +8,14 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 
 	maxcompute "github.com/alibabacloud-go/maxcompute-20220104/client"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/restclient"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/security"
 	"github.com/bearaujus/bptr"
+	"github.com/bearaujus/bworker/pool"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/alicatalogapis"
 	"github.com/goto/guardian/pkg/aliclientmanager"
@@ -186,12 +188,12 @@ func (p *provider) getTablesFromSchema(ctx context.Context, pc *domain.ProviderC
 
 func (p *provider) addMemberToProject(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, project, ramAccountId string) error {
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("fail to add member to project from '%s': %w", project, err)
+		return fmt.Errorf("fail to add member to project '%s': %w", project, err)
 	}
 
 	odpsClient, err := p.getOdpsClient(pc, overrideRAMRole)
 	if err != nil {
-		return fmt.Errorf("fail to initialize odps client when adding member to project from '%s': %w", project, err)
+		return fmt.Errorf("fail to initialize odps client when adding member to project '%s': %w", project, err)
 	}
 
 	var invoker = odpsClient.Project(project).SecurityManager()
@@ -202,21 +204,21 @@ func (p *provider) addMemberToProject(ctx context.Context, pc *domain.ProviderCo
 			if restErr.StatusCode == http.StatusConflict && restErr.ErrorMessage.ErrorCode == "ObjectAlreadyExists" {
 				return nil
 			}
-			return fmt.Errorf("fail to add member to project from '%s': %s", project, restErr.ErrorMessage.Message)
+			return fmt.Errorf("fail to add member to project '%s': %s", project, restErr.ErrorMessage.Message)
 		}
-		return fmt.Errorf("fail to add member to project from '%s': %w", project, err)
+		return fmt.Errorf("fail to add member to project '%s': %w", project, err)
 	}
 	return nil
 }
 
 func (p *provider) removeMemberFromProject(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, project, ramAccountId string) error {
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("fail to add member to project from '%s': %w", project, err)
+		return fmt.Errorf("fail to remove member from project '%s': %w", project, err)
 	}
 
 	odpsClient, err := p.getOdpsClient(pc, overrideRAMRole)
 	if err != nil {
-		return fmt.Errorf("fail to initialize odps client when adding member to project from '%s': %w", project, err)
+		return fmt.Errorf("fail to initialize odps client when removing member from project '%s': %w", project, err)
 	}
 
 	var invoker = odpsClient.Project(project).SecurityManager()
@@ -232,19 +234,17 @@ func (p *provider) removeMemberFromProject(ctx context.Context, pc *domain.Provi
 			if restErr.StatusCode == http.StatusConflict && restErr.ErrorMessage.ErrorCode == "DeleteConflict" {
 				roles, err := p.listProjectMemberRoles(ctx, pc, overrideRAMRole, project, ramAccountId)
 				if err != nil {
-					return fmt.Errorf("fail to remove project member from '%s': %w", project, err)
+					return fmt.Errorf("fail to remove member from project '%s': %w", project, err)
 				}
-				for _, role := range roles {
-					err = p.revokeProjectRoleFromMember(ctx, pc, overrideRAMRole, project, ramAccountId, role)
-					if err != nil {
-						return fmt.Errorf("fail to remove project member from '%s': %w", project, err)
-					}
+				err = p.revokeProjectRolesFromMember(ctx, pc, overrideRAMRole, project, ramAccountId, roles...)
+				if err != nil {
+					return fmt.Errorf("fail to remove member from project '%s': %w", project, err)
 				}
 				return p.removeMemberFromProject(ctx, pc, overrideRAMRole, project, ramAccountId)
 			}
-			return fmt.Errorf("fail to remove project member from '%s': %s", project, restErr.ErrorMessage.Message)
+			return fmt.Errorf("fail to remove member from project '%s': %s", project, restErr.ErrorMessage.Message)
 		}
-		return fmt.Errorf("fail to remove project member from '%s': %w", project, err)
+		return fmt.Errorf("fail to remove member from project '%s': %w", project, err)
 	}
 	return nil
 }
@@ -296,57 +296,113 @@ func (p *provider) listProjectMemberRoles(ctx context.Context, pc *domain.Provid
 			to a user may result in an error.
 --------------------------------------------------------------------------------------------------------------------- */
 
-func (p *provider) grantProjectRoleToMember(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, project, ramAccountId, role string) error {
+func (p *provider) grantProjectRolesToMember(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, project, ramAccountId string, roles ...string) error {
+	if len(roles) == 0 {
+		return nil
+	}
+
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("fail to grant member project role from '%s': %w", project, err)
+		return fmt.Errorf("fail to grant project role to '%s': %w", project, err)
 	}
 
 	odpsClient, err := p.getOdpsClient(pc, overrideRAMRole)
 	if err != nil {
-		return fmt.Errorf("fail to initialize odps client when granting member project role from '%s': %w", project, err)
+		return fmt.Errorf("fail to initialize odps client when granting project role to '%s': %w", project, err)
 	}
 
-	var invoker = odpsClient.Project(project).SecurityManager()
-	var query = fmt.Sprintf("GRANT `%s` TO `%s`;", role, ramAccountId)
-	if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
-		var restErr restclient.HttpError
-		if errors.As(err, &restErr) {
-			if restErr.StatusCode == http.StatusConflict && restErr.ErrorMessage.ErrorCode == "ObjectAlreadyExists" {
-				return nil
+	var errW error
+	var w = pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
+	defer w.Shutdown()
+	var roleAdded []string
+	var mu = &sync.Mutex{}
+
+	for i := range roles {
+		role := roles[i]
+		w.Do(func() error {
+			var invoker = odpsClient.Project(project).SecurityManager()
+			var query = fmt.Sprintf("GRANT `%s` TO `%s`;", role, ramAccountId)
+			if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
+				var restErr restclient.HttpError
+				if errors.As(err, &restErr) {
+					if restErr.StatusCode == http.StatusConflict && restErr.ErrorMessage.ErrorCode == "ObjectAlreadyExists" {
+						return nil
+					}
+					return fmt.Errorf(restErr.ErrorMessage.Message)
+				}
+				return err
 			}
-			return fmt.Errorf("fail to grant member project role from '%s': %s", project, restErr.ErrorMessage.Message)
-		}
-		return fmt.Errorf("fail to grant member project role from '%s': %w", project, err)
+			mu.Lock()
+			roleAdded = append(roleAdded, role)
+			mu.Unlock()
+			return nil
+		})
+	}
+
+	w.Wait()
+	if errW != nil {
+		// rollback
+		_ = p.revokeProjectRolesFromMember(ctx, pc, overrideRAMRole, project, ramAccountId, roleAdded...)
+		return fmt.Errorf("fail to grant project role to '%s': %w", project, errW)
 	}
 	return nil
 }
 
-func (p *provider) revokeProjectRoleFromMember(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, project, ramAccountId, role string) error {
+func (p *provider) revokeProjectRolesFromMember(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, project, ramAccountId string, roles ...string) error {
+	if len(roles) == 0 {
+		return nil
+	}
+
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("fail to revoke member project role from '%s': %w", project, err)
+		return fmt.Errorf("fail to revoke project role from '%s': %w", project, err)
 	}
 
 	odpsClient, err := p.getOdpsClient(pc, overrideRAMRole)
 	if err != nil {
-		return fmt.Errorf("fail to initialize odps client when revoking member project role from '%s': %w", project, err)
+		return fmt.Errorf("fail to initialize odps client when revoking project role from '%s': %w", project, err)
 	}
 
-	var invoker = odpsClient.Project(project).SecurityManager()
-	var query = fmt.Sprintf("REVOKE `%s` FROM `%s`;", role, ramAccountId)
-	if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
-		var restErr restclient.HttpError
-		if errors.As(err, &restErr) {
-			if restErr.StatusCode == http.StatusNotFound && restErr.ErrorMessage.ErrorCode == "NoSuchObject" && !regexp.MustCompile(`^the role '[^']+' does not exist$`).MatchString(restErr.ErrorMessage.Message) {
-				return nil
+	var errW error
+	var w = pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
+	defer w.Shutdown()
+	var roleRevoked []string
+	var mu = &sync.Mutex{}
+
+	for i := range roles {
+		role := roles[i]
+		w.Do(func() error {
+			var invoker = odpsClient.Project(project).SecurityManager()
+			var query = fmt.Sprintf("REVOKE `%s` FROM `%s`;", role, ramAccountId)
+			if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
+				var restErr restclient.HttpError
+				if errors.As(err, &restErr) {
+					if restErr.StatusCode == http.StatusNotFound && restErr.ErrorMessage.ErrorCode == "NoSuchObject" && !regexp.MustCompile(`^the role '[^']+' does not exist$`).MatchString(restErr.ErrorMessage.Message) {
+						return nil
+					}
+					return errors.New(restErr.ErrorMessage.Message)
+				}
+				return err
 			}
-			return fmt.Errorf("fail to revoke member project role from '%s': %s", project, restErr.ErrorMessage.Message)
-		}
-		return fmt.Errorf("fail to revoke member project role from '%s': %w", project, err)
+			mu.Lock()
+			roleRevoked = append(roleRevoked, role)
+			mu.Unlock()
+			return nil
+		})
+	}
+
+	w.Wait()
+	if errW != nil {
+		// rollback
+		_ = p.grantProjectRolesToMember(ctx, pc, overrideRAMRole, project, ramAccountId, roleRevoked...)
+		return fmt.Errorf("fail to revoke project role from '%s': %w", project, errW)
 	}
 	return nil
 }
 
-func (p *provider) validateProjectRole(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, project, role string) error {
+func (p *provider) validateProjectRole(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, project string, roles ...string) error {
+	if len(roles) == 0 {
+		return nil
+	}
+
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("fail to validate project role from '%s': %w", project, err)
 	}
@@ -356,14 +412,29 @@ func (p *provider) validateProjectRole(ctx context.Context, pc *domain.ProviderC
 		return fmt.Errorf("fail to initialize odps client when validating project role from '%s': %w", project, err)
 	}
 
-	var invoker = odpsClient.Project(project).SecurityManager()
-	var query = fmt.Sprintf("DESCRIBE ROLE `%s`;", role)
-	if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
-		var restErr restclient.HttpError
-		if errors.As(err, &restErr) {
-			return fmt.Errorf("fail to validate project role from '%s': %s", project, restErr.ErrorMessage.Message)
-		}
-		return fmt.Errorf("fail to validate project role from '%s': %w", project, err)
+	var errW error
+	var w = pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
+	defer w.Shutdown()
+
+	for i := range roles {
+		role := roles[i]
+		w.Do(func() error {
+			var invoker = odpsClient.Project(project).SecurityManager()
+			var query = fmt.Sprintf("DESCRIBE ROLE `%s`;", role)
+			if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
+				var restErr restclient.HttpError
+				if errors.As(err, &restErr) {
+					return errors.New(restErr.ErrorMessage.Message)
+				}
+				return err
+			}
+			return nil
+		})
+	}
+
+	w.Wait()
+	if errW != nil {
+		return fmt.Errorf("fail to validate project role from '%s': %w", project, errW)
 	}
 	return nil
 }
@@ -388,22 +459,21 @@ func (p *provider) validateProjectRole(ctx context.Context, pc *domain.ProviderC
 --------------------------------------------------------------------------------------------------------------------- */
 
 func (p *provider) grantTableRolesToMember(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, project, schema, table, ramAccountId string, roles ...string) error {
+	if len(roles) == 0 {
+		return nil
+	}
+
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("fail to grant member table role from '%s.%s.%s': %w", project, schema, table, err)
+		return fmt.Errorf("fail to grant table role to '%s.%s.%s': %w", project, schema, table, err)
 	}
 
 	odpsClient, err := p.getOdpsClient(pc, overrideRAMRole)
 	if err != nil {
-		return fmt.Errorf("fail to initialize odps client when granting member table role from '%s.%s.%s': %w", project, schema, table, err)
-	}
-
-	roles = slices.GenericsStandardizeSlice(roles)
-	if len(roles) == 0 {
-		return fmt.Errorf("fail to grant member table role from '%s.%s.%s': empty role", project, schema, table)
+		return fmt.Errorf("fail to initialize odps client when granting table role to '%s.%s.%s': %w", project, schema, table, err)
 	}
 
 	var invoker = odpsClient.Project(project).SecurityManager()
-	roleQuery := strings.Join(roles, ", ")
+	roleQuery := strings.Join(slices.GenericsStandardizeSlice(roles), ", ")
 	var query = fmt.Sprintf("GRANT %s ON TABLE `%s`.`%s`.`%s` TO USER `%s`;", roleQuery, project, schema, table, ramAccountId)
 	if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
 		var restErr restclient.HttpError
@@ -411,37 +481,36 @@ func (p *provider) grantTableRolesToMember(ctx context.Context, pc *domain.Provi
 			if restErr.StatusCode == http.StatusConflict && restErr.ErrorMessage.ErrorCode == "ObjectAlreadyExists" {
 				return nil
 			}
-			return fmt.Errorf("fail to grant member table role from '%s.%s.%s': %s", project, schema, table, restErr.ErrorMessage.Message)
+			return fmt.Errorf("fail to grant table role to '%s.%s.%s': %s", project, schema, table, restErr.ErrorMessage.Message)
 		}
-		return fmt.Errorf("fail to grant member table role from '%s.%s.%s': %w", project, schema, table, err)
+		return fmt.Errorf("fail to grant table role to '%s.%s.%s': %w", project, schema, table, err)
 	}
 	return nil
 }
 
 func (p *provider) revokeTableRolesFromMember(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, project, schema, table, ramAccountId string, roles ...string) error {
+	if len(roles) == 0 {
+		return nil
+	}
+
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("fail to revoke member table role from '%s.%s.%s': %w", project, schema, table, err)
+		return fmt.Errorf("fail to revoke table role from '%s.%s.%s': %w", project, schema, table, err)
 	}
 
 	odpsClient, err := p.getOdpsClient(pc, overrideRAMRole)
 	if err != nil {
-		return fmt.Errorf("fail to initialize odps client when revoking member table role from '%s.%s.%s': %w", project, schema, table, err)
-	}
-
-	roles = slices.GenericsStandardizeSlice(roles)
-	if len(roles) == 0 {
-		return fmt.Errorf("fail to revoke member table role from '%s.%s.%s': empty role", project, schema, table)
+		return fmt.Errorf("fail to initialize odps client when revoking table role from '%s.%s.%s': %w", project, schema, table, err)
 	}
 
 	var invoker = odpsClient.Project(project).SecurityManager()
-	roleQuery := strings.Join(roles, ", ")
+	roleQuery := strings.Join(slices.GenericsStandardizeSlice(roles), ", ")
 	var query = fmt.Sprintf("REVOKE %s ON TABLE `%s`.`%s`.`%s` FROM USER `%s`", roleQuery, project, schema, table, ramAccountId)
 	if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
 		var restErr restclient.HttpError
 		if errors.As(err, &restErr) {
-			return fmt.Errorf("fail to revoke member table role from '%s.%s.%s': %s", project, schema, table, restErr.ErrorMessage.Message)
+			return fmt.Errorf("fail to revoke table role from '%s.%s.%s': %s", project, schema, table, restErr.ErrorMessage.Message)
 		}
-		return fmt.Errorf("fail to revoke member table role from '%s.%s.%s': %w", project, schema, table, err)
+		return fmt.Errorf("fail to revoke table role from '%s.%s.%s': %w", project, schema, table, err)
 	}
 	return nil
 }

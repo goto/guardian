@@ -176,30 +176,12 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 			}
 		}
 
-		if len(permissions) > 0 {
-			var errW error
-			var w = pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
-			defer w.Shutdown()
-			for i := range permissions {
-				permission := permissions[i]
-				w.Do(func() error {
-					return p.validateProjectRole(ctx, pc, overrideRAMRole, project, permission)
-				})
-			}
-			w.Wait()
-			if errW != nil {
-				return errW
-			}
-			for i := range permissions {
-				permission := permissions[i]
-				w.Do(func() error {
-					return p.grantProjectRoleToMember(ctx, pc, overrideRAMRole, project, g.AccountID, permission)
-				})
-			}
-			w.Wait()
-			if errW != nil {
-				return errW
-			}
+		if err := p.validateProjectRole(ctx, pc, overrideRAMRole, project, permissions...); err != nil {
+			return err
+		}
+
+		if err := p.grantProjectRolesToMember(ctx, pc, overrideRAMRole, project, g.AccountID, permissions...); err != nil {
+			return err
 		}
 
 	case resourceTypeSchema:
@@ -218,7 +200,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 				RoleName: permission,
 				Members:  []string{g.AccountID},
 			}); err != nil {
-				return fmt.Errorf("failed to grant schema level access to member %q on %q: %v", g.AccountID, g.Resource.URN, err)
+				return fmt.Errorf("fail to grant schema roles at '%s.%s': %w", project, schema, err)
 			}
 		}
 
@@ -233,7 +215,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 				RoleName: schemaDefaultRoleName,
 				Members:  []string{g.AccountID},
 			}); err != nil {
-				return fmt.Errorf("failed to grant schema level access default role to member %q on %q: %v", g.AccountID, g.Resource.URN, err)
+				return fmt.Errorf("fail to grant schema default roles at '%s.%s': %w", project, schema, err)
 			}
 		}
 
@@ -283,30 +265,12 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 			}
 		}
 
-		if len(permissions) > 0 {
-			var errW error
-			var w = pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
-			defer w.Shutdown()
-			for i := range permissions {
-				permission := permissions[i]
-				w.Do(func() error {
-					return p.validateProjectRole(ctx, pc, overrideRAMRole, project, permission)
-				})
-			}
-			w.Wait()
-			if errW != nil {
-				return errW
-			}
-			for i := range permissions {
-				permission := permissions[i]
-				w.Do(func() error {
-					return p.revokeProjectRoleFromMember(ctx, pc, overrideRAMRole, project, g.AccountID, permission)
-				})
-			}
-			w.Wait()
-			if errW != nil {
-				return errW
-			}
+		if err := p.validateProjectRole(ctx, pc, overrideRAMRole, project, permissions...); err != nil {
+			return err
+		}
+
+		if err := p.revokeProjectRolesFromMember(ctx, pc, overrideRAMRole, project, g.AccountID, permissions...); err != nil {
+			return err
 		}
 
 	case resourceTypeSchema:
@@ -325,7 +289,7 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 				RoleName: permission,
 				Members:  []string{g.AccountID},
 			}); err != nil {
-				return fmt.Errorf("failed to revoke schema level access from member %q on %q: %v", g.AccountID, g.Resource.URN, err)
+				return fmt.Errorf("fail to revoke schema roles from '%s.%s': %w", project, schema, err)
 			}
 		}
 
