@@ -79,7 +79,7 @@ func (man *Manager[T]) GetClient() (T, error) {
 	// Also, this is the only one impl of Manager function that exposed to outside.
 	man.mu.Lock()
 	defer man.mu.Unlock()
-	if !man.initialized || !man.isValid() {
+	if !man.isValid() {
 		if err := man.invoke(); err != nil {
 			var nilT T
 			return nilT, fmt.Errorf("fail to generate config: %w", err)
@@ -89,27 +89,27 @@ func (man *Manager[T]) GetClient() (T, error) {
 }
 
 func (man *Manager[T]) isValid() bool {
-	if man.initialized {
-		// check if source credentials are access_key based (type: access_key)
-		if !isSTSAccessKeyId(man.credentials.AccessKeyId) && man.credentials.SecurityToken == "" {
-			return true
-		}
+	if !man.initialized {
+		return false
+	}
+	var (
 		// check if source credentials are sts based (type: sts)
-		if isSTSAccessKeyId(man.credentials.AccessKeyId) && man.credentials.SecurityToken != "" {
-			// for now, we're returning the client instead of regenerating new one,
-			// since it's not possible to regenerate the token if the token was sts based.
-			return true
-		}
+		// for now, we're returning the client instead of regenerating new one,
+		// since it's not possible to regenerate the token if the token was sts based.
+		typeSTS = isSTSAccessKeyId(man.credentials.AccessKeyId) && man.credentials.SecurityToken != ""
+		// check if source credentials are access_key based (type: access_key)
+		typeAccessKey = !typeSTS && man.credentials.RAMRoleARN == ""
 		// check if source credentials are ram_role_arn based (type: ram_role_arn)
-		if !isSTSAccessKeyId(man.credentials.AccessKeyId) && man.credentials.RAMRoleARN != "" {
-			var sessionDurationSeconds = int(time.Since(man.clientCreatedAt).Seconds())
-			if sessionDurationSeconds <= sessionDurationThresholdSeconds {
-				return true
-			}
+		typeRAMRoleARN = !(typeAccessKey || typeSTS) && man.credentials.RAMRoleARN != ""
+	)
+	if typeRAMRoleARN {
+		var sessionDurationSeconds = int(time.Since(man.clientCreatedAt).Seconds())
+		if sessionDurationSeconds >= sessionDurationThresholdSeconds {
+			man.initialized = false
+			return false
 		}
 	}
-	man.initialized = false
-	return false
+	return true
 }
 
 func (man *Manager[T]) invoke() error {
