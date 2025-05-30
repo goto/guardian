@@ -58,7 +58,7 @@ func (p *provider) GetType() string {
 }
 
 func (p *provider) GetAccountTypes() []string {
-	return []string{accountTypeRAMUser, accountTypeRAMRole}
+	return []string{accountTypeRAMUser, accountTypeBotUser, accountTypeRAMRole}
 }
 
 func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*domain.Role, error) {

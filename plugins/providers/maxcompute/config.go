@@ -15,6 +15,7 @@ const (
 	tableFetchMaxItem int32 = 100
 
 	accountTypeRAMUser = "ram_user"
+	accountTypeBotUser = "bot_user"
 	accountTypeRAMRole = "ram_role"
 
 	resourceTypeProject = "project"
