@@ -95,7 +95,7 @@ func (p *provider) getSchemasFromProject(ctx context.Context, pc *domain.Provide
 			return p.getSchemasFromProject(ctx, pc, overrideRAMRole, accountID, project)
 		}
 		var restErr restclient.HttpError
-		if errors.As(err, &restErr) {
+		if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
 			return nil, fmt.Errorf("fail to retrieve schemas from '%s': %s", project.Name, restErr.ErrorMessage.Message)
 		}
 		return nil, fmt.Errorf("fail to retrieve schemas from '%s': %w", project.Name, err)
@@ -151,7 +151,7 @@ func (p *provider) getTablesFromSchema(ctx context.Context, pc *domain.ProviderC
 			return p.getTablesFromSchema(ctx, pc, overrideRAMRole, accountID, project, schema)
 		}
 		var restErr restclient.HttpError
-		if errors.As(err, &restErr) {
+		if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
 			return nil, fmt.Errorf("fail to retrieve tables from '%s' and schema '%s': %s", project.Name, schema.Name, restErr.ErrorMessage.Message)
 		}
 		return nil, fmt.Errorf("fail to retrieve tables from '%s' and schema '%s': %w", project.Name, schema.Name, err)
@@ -200,7 +200,7 @@ func (p *provider) addMemberToProject(ctx context.Context, pc *domain.ProviderCo
 	var query = fmt.Sprintf("ADD USER `%s`", ramAccountId)
 	if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
 		var restErr restclient.HttpError
-		if errors.As(err, &restErr) {
+		if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
 			if restErr.StatusCode == http.StatusConflict && restErr.ErrorMessage.ErrorCode == "ObjectAlreadyExists" {
 				return nil
 			}
@@ -225,7 +225,7 @@ func (p *provider) removeMemberFromProject(ctx context.Context, pc *domain.Provi
 	var query = fmt.Sprintf("REMOVE USER `%s`", ramAccountId)
 	if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
 		var restErr restclient.HttpError
-		if errors.As(err, &restErr) {
+		if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
 			// member is not exist
 			if restErr.StatusCode == http.StatusNotFound && restErr.ErrorMessage.ErrorCode == "NoSuchObject" {
 				return nil
@@ -264,7 +264,7 @@ func (p *provider) listProjectMemberRoles(ctx context.Context, pc *domain.Provid
 	rawData, err := odpsExecuteQueryOnSecurityManager(ctx, invoker, query)
 	if err != nil {
 		var restErr restclient.HttpError
-		if errors.As(err, &restErr) {
+		if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
 			return nil, fmt.Errorf("fail to retrieve project member roles from '%s': %s", project, restErr.ErrorMessage.Message)
 		}
 		return nil, fmt.Errorf("fail to retrieve project member roles from '%s': %w", project, err)
@@ -323,7 +323,7 @@ func (p *provider) grantProjectRolesToMember(ctx context.Context, pc *domain.Pro
 			var query = fmt.Sprintf("GRANT `%s` TO `%s`;", role, ramAccountId)
 			if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
 				var restErr restclient.HttpError
-				if errors.As(err, &restErr) {
+				if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
 					if restErr.StatusCode == http.StatusConflict && restErr.ErrorMessage.ErrorCode == "ObjectAlreadyExists" {
 						return nil
 					}
@@ -374,7 +374,7 @@ func (p *provider) revokeProjectRolesFromMember(ctx context.Context, pc *domain.
 			var query = fmt.Sprintf("REVOKE `%s` FROM `%s`;", role, ramAccountId)
 			if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
 				var restErr restclient.HttpError
-				if errors.As(err, &restErr) {
+				if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
 					if restErr.StatusCode == http.StatusNotFound && restErr.ErrorMessage.ErrorCode == "NoSuchObject" && !regexp.MustCompile(`^the role '[^']+' does not exist$`).MatchString(restErr.ErrorMessage.Message) {
 						return nil
 					}
@@ -423,7 +423,7 @@ func (p *provider) validateProjectRole(ctx context.Context, pc *domain.ProviderC
 			var query = fmt.Sprintf("DESCRIBE ROLE `%s`;", role)
 			if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
 				var restErr restclient.HttpError
-				if errors.As(err, &restErr) {
+				if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
 					return errors.New(restErr.ErrorMessage.Message)
 				}
 				return err
@@ -477,7 +477,7 @@ func (p *provider) grantTableRolesToMember(ctx context.Context, pc *domain.Provi
 	var query = fmt.Sprintf("GRANT %s ON TABLE `%s`.`%s`.`%s` TO USER `%s`;", roleQuery, project, schema, table, ramAccountId)
 	if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
 		var restErr restclient.HttpError
-		if errors.As(err, &restErr) {
+		if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
 			if restErr.StatusCode == http.StatusConflict && restErr.ErrorMessage.ErrorCode == "ObjectAlreadyExists" {
 				return nil
 			}
@@ -507,7 +507,7 @@ func (p *provider) revokeTableRolesFromMember(ctx context.Context, pc *domain.Pr
 	var query = fmt.Sprintf("REVOKE %s ON TABLE `%s`.`%s`.`%s` FROM USER `%s`", roleQuery, project, schema, table, ramAccountId)
 	if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
 		var restErr restclient.HttpError
-		if errors.As(err, &restErr) {
+		if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
 			return fmt.Errorf("fail to revoke table role from '%s.%s.%s': %s", project, schema, table, restErr.ErrorMessage.Message)
 		}
 		return fmt.Errorf("fail to revoke table role from '%s.%s.%s': %w", project, schema, table, err)
