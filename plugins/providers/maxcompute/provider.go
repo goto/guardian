@@ -113,9 +113,9 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 		var errW error
 		var w = pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
 		defer w.Shutdown()
-		for i := range schemas {
+		for i, schema := range schemas {
 			i := i
-			schema := schemas[i]
+			schema := schema
 			w.Do(func() error {
 				tables, err := p.getTablesFromSchema(ctx, pc, "", accountId, project, schema)
 				if err != nil {
