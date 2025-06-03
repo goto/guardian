@@ -2,7 +2,6 @@ package maxcompute
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"sync"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/goto/guardian/pkg/alicatalogapis"
 	"github.com/goto/guardian/pkg/aliclientmanager"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/goto/guardian/pkg/slices"
 	"golang.org/x/net/context"
 )
 
@@ -86,34 +86,28 @@ func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
 
 func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
 	var resources = make([]*domain.Resource, 0)
-
 	var availableResourceTypes = pc.GetResourceTypes()
-	var retrieveSchemas = slices.Contains(availableResourceTypes, resourceTypeSchema) || slices.Contains(availableResourceTypes, resourceTypeTable)
-	var retrieveProject = retrieveSchemas || slices.Contains(availableResourceTypes, resourceTypeProject)
+	if !slices.GenericsSliceContainsOne(availableResourceTypes, resourceTypeProject, resourceTypeSchema, resourceTypeTable) {
+		return resources, nil
+	}
 
-	var project *domain.Resource
-	var accountId string
-	var err error
-	if retrieveProject {
-		project, accountId, err = p.getProject(ctx, pc)
+	project, accountId, err := p.getProject(ctx, pc)
+	if err != nil {
+		return nil, err
+	}
+
+	if slices.GenericsSliceContainsOne(availableResourceTypes, resourceTypeSchema, resourceTypeTable) {
+		project.Children, err = p.getSchemasFromProject(ctx, pc, "", accountId, project)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	var schemas = make([]*domain.Resource, 0)
-	if retrieveSchemas {
-		schemas, err = p.getSchemasFromProject(ctx, pc, "", accountId, project)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if slices.Contains(availableResourceTypes, resourceTypeTable) {
+	if slices.GenericsSliceContainsOne(availableResourceTypes, resourceTypeTable) {
 		var errW error
 		var w = pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
 		defer w.Shutdown()
-		for i, schema := range schemas {
+		for i, schema := range project.Children {
 			i := i
 			schema := schema
 			w.Do(func() error {
@@ -122,8 +116,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 					return err
 				}
 				p.mu.Lock()
-				schemas[i].Children = tables
-				resources = append(resources, tables...)
+				project.Children[i].Children = tables
 				p.mu.Unlock()
 				return nil
 			})
@@ -134,21 +127,34 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 		}
 	}
 
-	if slices.Contains(availableResourceTypes, resourceTypeSchema) {
-		project.Children = schemas
-		resources = append(resources, schemas...)
-	}
-
-	if slices.Contains(availableResourceTypes, resourceTypeProject) {
+	// perform resources mapping (in-order)
+	if slices.GenericsSliceContainsAll(availableResourceTypes, resourceTypeProject, resourceTypeSchema, resourceTypeTable) {
 		resources = append(resources, project)
+	} else if slices.GenericsSliceContainsAll(availableResourceTypes, resourceTypeProject, resourceTypeSchema) {
+		resources = append(resources, project)
+	} else if slices.GenericsSliceContainsAll(availableResourceTypes, resourceTypeProject, resourceTypeTable) {
+		for _, schema := range project.Children {
+			resources = append(resources, schema.Children...) // add tables individually
+		}
+		project.Children = nil // remove schemas from project children
+		resources = append(resources, project)
+	} else if slices.GenericsSliceContainsAll(availableResourceTypes, resourceTypeSchema, resourceTypeTable) {
+		resources = append(resources, project.Children...)
+	} else if slices.GenericsSliceContainsOne(availableResourceTypes, resourceTypeProject) {
+		resources = append(resources, project)
+	} else if slices.GenericsSliceContainsOne(availableResourceTypes, resourceTypeSchema) {
+		resources = append(resources, project.Children...)
+	} else if slices.GenericsSliceContainsOne(availableResourceTypes, resourceTypeTable) {
+		for _, schema := range project.Children {
+			resources = append(resources, schema.Children...) // add tables individually
+		}
 	}
-
 	return resources, nil
 }
 
 func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
 	var overrideRAMRole string
-	if slices.Contains(pc.GetParameterKeys(), parameterRAMRoleKey) {
+	if slices.GenericsSliceContainsOne(pc.GetParameterKeys(), parameterRAMRoleKey) {
 		r, _, err := getParametersFromGrant[string](g, parameterRAMRoleKey)
 		if err != nil {
 			return fmt.Errorf("failed to get %q parameter value from grant: %w", parameterRAMRoleKey, err)
@@ -237,7 +243,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 
 func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
 	var overrideRAMRole string
-	if slices.Contains(pc.GetParameterKeys(), parameterRAMRoleKey) {
+	if slices.GenericsSliceContainsOne(pc.GetParameterKeys(), parameterRAMRoleKey) {
 		r, _, err := getParametersFromGrant[string](g, parameterRAMRoleKey)
 		if err != nil {
 			return fmt.Errorf("failed to get %q parameter value from grant: %w", parameterRAMRoleKey, err)
@@ -317,7 +323,7 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 	var projectName string
 	switch g.Resource.Type {
 	case resourceTypeProject:
-		if !slices.Contains(g.Permissions, projectPermissionMember) {
+		if !slices.GenericsSliceContainsOne(g.Permissions, projectPermissionMember) {
 			projectName = g.Resource.URN
 		}
 	case resourceTypeSchema:

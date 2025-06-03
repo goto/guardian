@@ -334,3 +334,215 @@ func TestGenericsStandardizeSlice(t *testing.T) {
 		})
 	}
 }
+
+func TestGenericsSliceContainsAll(t *testing.T) {
+	type args[T constraints.Ordered] struct {
+		list []T
+		in   []T
+	}
+	type testCase[T constraints.Ordered] struct {
+		name string
+		args args[T]
+		want bool
+	}
+	testsString := []testCase[string]{
+		{
+			name: "type string nil",
+			args: args[string]{nil, nil},
+			want: false,
+		},
+		{
+			name: "type string empty params",
+			args: args[string]{[]string{"apple", "banana", "apple", "cherry"}, []string{}},
+			want: false,
+		},
+		{
+			name: "type string contain",
+			args: args[string]{[]string{"apple", "banana", "apple", "cherry"}, []string{"cherry"}},
+			want: true,
+		},
+		{
+			name: "type string contains",
+			args: args[string]{[]string{"apple", "banana", "apple", "cherry"}, []string{"cherry", "apple"}},
+			want: true,
+		},
+		{
+			name: "type string not contain",
+			args: args[string]{[]string{"apple", "banana", "apple", "cherry"}, []string{"invalid"}},
+			want: false,
+		},
+		{
+			name: "type string not contains",
+			args: args[string]{[]string{"apple", "banana", "apple", "cherry"}, []string{"invalid-1", "invalid-2"}},
+			want: false,
+		},
+		{
+			name: "type string contains & not contain",
+			args: args[string]{[]string{"apple", "banana", "apple", "cherry"}, []string{"cherry", "apple", "invalid"}},
+			want: false,
+		},
+		{
+			name: "type string contains & not contains",
+			args: args[string]{[]string{"apple", "banana", "apple", "cherry"}, []string{"cherry", "apple", "invalid-1", "invalid-2"}},
+			want: false,
+		},
+	}
+	for _, tt := range testsString {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, slices.GenericsSliceContainsAll(tt.args.list, tt.args.in...), "GenericsSliceContainsAll(%v, %v)", tt.args.list, tt.args.in)
+		})
+	}
+	testsInt := []testCase[int]{
+		{
+			name: "type int nil",
+			args: args[int]{nil, nil},
+			want: false,
+		},
+		{
+			name: "type int empty params",
+			args: args[int]{[]int{1, 2, 3, 0}, []int{}},
+			want: false,
+		},
+		{
+			name: "type int contain",
+			args: args[int]{[]int{1, 2, 3, 0}, []int{3}},
+			want: true,
+		},
+		{
+			name: "type int contains",
+			args: args[int]{[]int{1, 2, 3, 0}, []int{3, 0}},
+			want: true,
+		},
+		{
+			name: "type int not contain",
+			args: args[int]{[]int{1, 2, 3, 0}, []int{9}},
+			want: false,
+		},
+		{
+			name: "type int not contains",
+			args: args[int]{[]int{1, 2, 3, 0}, []int{9, 10}},
+			want: false,
+		},
+		{
+			name: "type int contains & not contain",
+			args: args[int]{[]int{1, 2, 3, 0}, []int{3, 0, 9}},
+			want: false,
+		},
+		{
+			name: "type int contains & not contains",
+			args: args[int]{[]int{1, 2, 3, 0}, []int{3, 0, 9, 10}},
+			want: false,
+		},
+	}
+	for _, tt := range testsInt {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, slices.GenericsSliceContainsAll(tt.args.list, tt.args.in...), "GenericsSliceContainsAll(%v, %v)", tt.args.list, tt.args.in)
+		})
+	}
+}
+
+func TestGenericsSliceContainsOne(t *testing.T) {
+	type args[T constraints.Ordered] struct {
+		list []T
+		in   []T
+	}
+	type testCase[T constraints.Ordered] struct {
+		name string
+		args args[T]
+		want bool
+	}
+	testsString := []testCase[string]{
+		{
+			name: "type string nil",
+			args: args[string]{nil, nil},
+			want: false,
+		},
+		{
+			name: "type string empty params",
+			args: args[string]{[]string{"apple", "banana", "apple", "cherry"}, []string{}},
+			want: false,
+		},
+		{
+			name: "type string contain",
+			args: args[string]{[]string{"apple", "banana", "apple", "cherry"}, []string{"cherry"}},
+			want: true,
+		},
+		{
+			name: "type string contains",
+			args: args[string]{[]string{"apple", "banana", "apple", "cherry"}, []string{"cherry", "apple"}},
+			want: true,
+		},
+		{
+			name: "type string not contain",
+			args: args[string]{[]string{"apple", "banana", "apple", "cherry"}, []string{"invalid"}},
+			want: false,
+		},
+		{
+			name: "type string not contains",
+			args: args[string]{[]string{"apple", "banana", "apple", "cherry"}, []string{"invalid-1", "invalid-2"}},
+			want: false,
+		},
+		{
+			name: "type string contains & not contain",
+			args: args[string]{[]string{"apple", "banana", "apple", "cherry"}, []string{"cherry", "apple", "invalid"}},
+			want: true,
+		},
+		{
+			name: "type string contains & not contains",
+			args: args[string]{[]string{"apple", "banana", "apple", "cherry"}, []string{"cherry", "apple", "invalid-1", "invalid-2"}},
+			want: true,
+		},
+	}
+	for _, tt := range testsString {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, slices.GenericsSliceContainsOne(tt.args.list, tt.args.in...), "GenericsSliceContainsOne(%v, %v)", tt.args.list, tt.args.in)
+		})
+	}
+	testsInt := []testCase[int]{
+		{
+			name: "type int nil",
+			args: args[int]{nil, nil},
+			want: false,
+		},
+		{
+			name: "type int empty params",
+			args: args[int]{[]int{1, 2, 3, 0}, []int{}},
+			want: false,
+		},
+		{
+			name: "type int contain",
+			args: args[int]{[]int{1, 2, 3, 0}, []int{3}},
+			want: true,
+		},
+		{
+			name: "type int contains",
+			args: args[int]{[]int{1, 2, 3, 0}, []int{3, 0}},
+			want: true,
+		},
+		{
+			name: "type int not contain",
+			args: args[int]{[]int{1, 2, 3, 0}, []int{9}},
+			want: false,
+		},
+		{
+			name: "type int not contains",
+			args: args[int]{[]int{1, 2, 3, 0}, []int{9, 10}},
+			want: false,
+		},
+		{
+			name: "type int contains & not contain",
+			args: args[int]{[]int{1, 2, 3, 0}, []int{3, 0, 9}},
+			want: true,
+		},
+		{
+			name: "type int contains & not contains",
+			args: args[int]{[]int{1, 2, 3, 0}, []int{3, 0, 9, 10}},
+			want: true,
+		},
+	}
+	for _, tt := range testsInt {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, slices.GenericsSliceContainsOne(tt.args.list, tt.args.in...), "GenericsSliceContainsOne(%v, %v)", tt.args.list, tt.args.in)
+		})
+	}
+}

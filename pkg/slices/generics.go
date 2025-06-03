@@ -4,6 +4,7 @@ import (
 	originSlices "slices"
 
 	"golang.org/x/exp/constraints"
+	"golang.org/x/exp/slices"
 )
 
 func GenericsFilterSliceEmptyValues[T comparable](list []T) []T {
@@ -57,4 +58,28 @@ func GenericsStandardizeSlice[T constraints.Ordered](list []T) []T {
 	result = GenericsUniqueSliceValues(result)
 	originSlices.Sort(result)
 	return result
+}
+
+func GenericsSliceContainsAll[T constraints.Ordered](list []T, in ...T) bool {
+	if len(list) == 0 || len(in) == 0 {
+		return false
+	}
+	for _, v := range in {
+		if !slices.Contains(list, v) {
+			return false
+		}
+	}
+	return true
+}
+
+func GenericsSliceContainsOne[T constraints.Ordered](list []T, in ...T) bool {
+	if len(list) == 0 || len(in) == 0 {
+		return false
+	}
+	for _, v := range in {
+		if slices.Contains(list, v) {
+			return true
+		}
+	}
+	return false
 }
