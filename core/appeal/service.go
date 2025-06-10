@@ -1676,17 +1676,18 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 				}
 
 				res, err := metadataCl.MakeRequest(egctx)
-				if err != nil || (res.StatusCode < 200 && res.StatusCode > 300) {
-					if !cfg.AllowFailed {
-						return fmt.Errorf("error fetching resource: %w", err)
+				if err != nil || (res.StatusCode < 200 || res.StatusCode > 300) {
+					if cfg.AllowFailed {
+						return nil
 					}
+					return fmt.Errorf("error fetching resource: %w", err)
 				}
 
 				body, err := io.ReadAll(res.Body)
 				if err != nil {
 					return fmt.Errorf("error reading response body: %w", err)
 				}
-				res.Body.Close()
+				defer res.Body.Close()
 				var jsonBody interface{}
 				err = json.Unmarshal(body, &jsonBody)
 				if err != nil {
