@@ -2024,16 +2024,13 @@ func (s *ServiceTestSuite) TestCreate() {
 	s.Run("should return appeals on success with metadata sources", func() {
 		h := newServiceTestHelper()
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == "GET" && r.URL.RawQuery == "/?user=addOnBehalfApprovedNotification-user" {
+			if r.Method == "GET" && r.URL.RawQuery == "user=addOnBehalfApprovedNotification-user" {
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte(`{"message": "success"}`))
-			} else {
-				w.WriteHeader(http.StatusBadRequest)
+				return
 			}
+			w.WriteHeader(http.StatusBadRequest)
 
-			// Here you can specify what the server should return when it receives a request
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"message": "success"}`))
 		}))
 		url := fmt.Sprintf("'%s?user=' + $appeal.account_id", server.URL)
 		expDate := timeNow.Add(23 * time.Hour)
