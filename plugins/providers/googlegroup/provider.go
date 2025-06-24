@@ -248,9 +248,9 @@ func (p *Provider) GetAdminServiceClient(ctx context.Context, pc domain.Provider
 		return nil, fmt.Errorf("unable to decrypt credentials: %w", err)
 	}
 
-	saKey, err := convertBase64ToJSON(creds.ServiceAccountKey)
+	saKey, err := base64.StdEncoding.DecodeString(creds.ServiceAccountKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert service account key: %w", err)
+		return nil, fmt.Errorf("failed to decode service account base64 string: %w", err)
 	}
 
 	svc, err := newAdminService(ctx, saKey, creds.ImpersonateUserEmail)
@@ -262,15 +262,6 @@ func (p *Provider) GetAdminServiceClient(ctx context.Context, pc domain.Provider
 	defer p.mu.Unlock()
 	p.Clients[pc.URN] = svc
 	return svc, nil
-}
-
-func convertBase64ToJSON(base64String string) ([]byte, error) {
-	decodedData, err := base64.StdEncoding.DecodeString(base64String)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode base64 string: %w", err)
-	}
-
-	return decodedData, nil
 }
 
 func (p *Provider) validateEmailForAccountType(accountType, email string) error {

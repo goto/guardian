@@ -9,7 +9,7 @@ import (
 )
 
 type Credentials struct {
-	ServiceAccountKey    string `mapstructure:"service_account_key" yaml:"service_account_key" json:"service_account_key" validate:"required,base64"`
+	ServiceAccountKey    string `mapstructure:"service_account_key_base64" yaml:"service_account_key_base64" json:"service_account_key_base64" validate:"required,base64"`
 	ImpersonateUserEmail string `mapstructure:"impersonate_user_email" yaml:"impersonate_user_email" json:"impersonate_user_email" validate:"required,email"`
 }
 

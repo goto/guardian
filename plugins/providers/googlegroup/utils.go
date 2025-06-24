@@ -23,9 +23,9 @@ const (
 // errors
 var (
 	ErrInvalidResourceType              = errors.New("invalid resource type")
-	ErrMissingServiceAccountKey         = errors.New("service_account_key is required")
+	ErrMissingServiceAccountKey         = errors.New("service_account_key_base64 is required")
 	ErrMissingImpersonateUserEmail      = errors.New("impersonate_user_email is required")
-	ErrInvalidBase64                    = errors.New("service_account_key must be a valid base64 encoded string")
+	ErrInvalidBase64                    = errors.New("service_account_key_base64 must be a valid base64 encoded string")
 	ErrInvalidEmailFormat               = errors.New("impersonate_user_email must be a valid email address")
 	ErrUnableToEncryptNilCredentials    = errors.New("unable to encrypt nil credentials")
 	ErrUnableToDecryptNilCredentials    = errors.New("unable to decrypt nil credentials")

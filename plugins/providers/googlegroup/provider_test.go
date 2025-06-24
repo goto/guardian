@@ -67,8 +67,8 @@ func TestGetRoles(t *testing.T) {
 		Type: domain.ProviderTypeGoogleGroup,
 		URN:  "test-google-group-provider",
 		Credentials: map[string]any{
-			"service_account_key":    base64EncodedKey,
-			"impersonate_user_email": "test@gojek.com",
+			"service_account_key_base64": base64EncodedKey,
+			"impersonate_user_email":     "test@gojek.com",
 		},
 		Resources: []*domain.ResourceConfig{resourceConfig},
 	}
@@ -114,7 +114,7 @@ func TestCreateConfig(t *testing.T) {
 				},
 			})
 			assert.Error(t, err)
-			assert.Equal(t, "config validation failed: invalid credentials: service_account_key is required", err.Error())
+			assert.Equal(t, "config validation failed: invalid credentials: service_account_key_base64 is required", err.Error())
 		})
 
 		t.Run("should not create config when impersonate user email is missing", func(t *testing.T) {
@@ -124,7 +124,7 @@ func TestCreateConfig(t *testing.T) {
 			err := provider.CreateConfig(&domain.ProviderConfig{
 				Type: domain.ProviderTypeGoogleGroup,
 				Credentials: map[string]interface{}{
-					"service_account_key": "valid_base64_encoded_string",
+					"service_account_key_base64": "valid_base64_encoded_string",
 				},
 			})
 			assert.Error(t, err)
@@ -138,12 +138,12 @@ func TestCreateConfig(t *testing.T) {
 			err := provider.CreateConfig(&domain.ProviderConfig{
 				Type: domain.ProviderTypeGoogleGroup,
 				Credentials: map[string]interface{}{
-					"service_account_key":    "invalid_base64_string",
-					"impersonate_user_email": "test@gojek.com",
+					"service_account_key_base64": "invalid_base64_string",
+					"impersonate_user_email":     "test@gojek.com",
 				},
 			})
 			assert.Error(t, err)
-			assert.ErrorContains(t, err, "service_account_key must be a valid base64 encoded string")
+			assert.ErrorContains(t, err, "service_account_key_base64 must be a valid base64 encoded string")
 		})
 
 		t.Run("should not create config when impersonate user email is invalid", func(t *testing.T) {
@@ -153,8 +153,8 @@ func TestCreateConfig(t *testing.T) {
 			err := provider.CreateConfig(&domain.ProviderConfig{
 				Type: domain.ProviderTypeGoogleGroup,
 				Credentials: map[string]interface{}{
-					"service_account_key":    base64EncodedKey,
-					"impersonate_user_email": "invalid_email_format",
+					"service_account_key_base64": base64EncodedKey,
+					"impersonate_user_email":     "invalid_email_format",
 				},
 			})
 			assert.Error(t, err)
@@ -179,8 +179,8 @@ func TestCreateConfig(t *testing.T) {
 			err := provider.CreateConfig(&domain.ProviderConfig{
 				Type: domain.ProviderTypeGoogleGroup,
 				Credentials: map[string]interface{}{
-					"service_account_key":    base64EncodedKey,
-					"impersonate_user_email": "test@gojek.com",
+					"service_account_key_base64": base64EncodedKey,
+					"impersonate_user_email":     "test@gojek.com",
 				},
 				Resources: []*domain.ResourceConfig{invalidResourceConfig},
 			})
@@ -207,8 +207,8 @@ func TestCreateConfig(t *testing.T) {
 			err := provider.CreateConfig(&domain.ProviderConfig{
 				Type: domain.ProviderTypeGoogleGroup,
 				Credentials: map[string]interface{}{
-					"service_account_key":    base64EncodedKey,
-					"impersonate_user_email": "test@gojek.com",
+					"service_account_key_base64": base64EncodedKey,
+					"impersonate_user_email":     "test@gojek.com",
 				},
 				Resources: []*domain.ResourceConfig{invalidResourceConfig},
 			})
@@ -236,8 +236,8 @@ func TestCreateConfig(t *testing.T) {
 			err := provider.CreateConfig(&domain.ProviderConfig{
 				Type: domain.ProviderTypeGoogleGroup,
 				Credentials: map[string]interface{}{
-					"service_account_key":    base64EncodedKey,
-					"impersonate_user_email": "test@gojek.com",
+					"service_account_key_base64": base64EncodedKey,
+					"impersonate_user_email":     "test@gojek.com",
 				},
 				Resources: []*domain.ResourceConfig{invalidResourceConfig},
 			})
@@ -257,8 +257,8 @@ func TestCreateConfig(t *testing.T) {
 			err := provider.CreateConfig(&domain.ProviderConfig{
 				Type: domain.ProviderTypeGoogleGroup,
 				Credentials: map[string]interface{}{
-					"service_account_key":    base64EncodedKey,
-					"impersonate_user_email": "test@gojek.com",
+					"service_account_key_base64": base64EncodedKey,
+					"impersonate_user_email":     "test@gojek.com",
 				},
 				Resources: []*domain.ResourceConfig{resourceConfig},
 			})
@@ -279,8 +279,8 @@ func TestCreateConfig(t *testing.T) {
 		err := provider.CreateConfig(&domain.ProviderConfig{
 			Type: domain.ProviderTypeGoogleGroup,
 			Credentials: map[string]interface{}{
-				"service_account_key":    base64EncodedKey,
-				"impersonate_user_email": "test@gojek.com",
+				"service_account_key_base64": base64EncodedKey,
+				"impersonate_user_email":     "test@gojek.com",
 			},
 			Resources: []*domain.ResourceConfig{resourceConfig},
 		})
@@ -306,8 +306,8 @@ func TestGetResources(t *testing.T) {
 		Type: domain.ProviderTypeGoogleGroup,
 		URN:  "test-google-group-provider",
 		Credentials: map[string]any{
-			"service_account_key":    base64EncodedKey,
-			"impersonate_user_email": "test@gojek.com",
+			"service_account_key_base64": base64EncodedKey,
+			"impersonate_user_email":     "test@gojek.com",
 		},
 		Resources: []*domain.ResourceConfig{resourceConfig},
 	}
@@ -336,7 +336,7 @@ func TestGetResources(t *testing.T) {
 
 		_, err := provider.GetAdminServiceClient(context.Background(), providerConfig)
 		assert.Error(t, err)
-		assert.ErrorContains(t, err, "failed to decode base64 string")
+		assert.ErrorContains(t, err, "failed to decode service account base64 string")
 	})
 
 	t.Run("should not return resources if no groups are present", func(t *testing.T) {
@@ -445,8 +445,8 @@ func TestGrantAccess(t *testing.T) {
 		Type: domain.ProviderTypeGoogleGroup,
 		URN:  "test-google-group-provider",
 		Credentials: map[string]any{
-			"service_account_key":    base64EncodedKey,
-			"impersonate_user_email": "test@gojek.com",
+			"service_account_key_base64": base64EncodedKey,
+			"impersonate_user_email":     "test@gojek.com",
 		},
 		Resources: []*domain.ResourceConfig{resourceConfig},
 	}
@@ -679,8 +679,8 @@ func TestRevokeAccess(t *testing.T) {
 		Type: domain.ProviderTypeGoogleGroup,
 		URN:  "test-google-group-provider",
 		Credentials: map[string]any{
-			"service_account_key":    base64EncodedKey,
-			"impersonate_user_email": "test@gojek.com",
+			"service_account_key_base64": base64EncodedKey,
+			"impersonate_user_email":     "test@gojek.com",
 		},
 		Resources: []*domain.ResourceConfig{resourceConfig},
 	}
