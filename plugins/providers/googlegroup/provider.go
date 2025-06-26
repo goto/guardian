@@ -152,8 +152,6 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 }
 
 func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, grant domain.Grant) error {
-	p.logger.Info(ctx, fmt.Sprintf("Granting access for %s to %s with permissions %v",
-		grant.AccountID, grant.Resource.URN, grant.Permissions))
 
 	memberEmail := grant.AccountID
 
@@ -166,9 +164,6 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 	if err != nil {
 		return fmt.Errorf("failed to get admin service client: %w", err)
 	}
-
-	p.logger.Info(ctx, fmt.Sprintf("Adding %s to %s group with role %s",
-		memberEmail, grant.Resource.URN, strings.ToUpper(grant.Permissions[0])))
 
 	googleGroupEmail := grant.Resource.URN
 
@@ -189,9 +184,6 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		Role:  strings.ToUpper(grant.Permissions[0]),
 	}
 
-	p.logger.Info(ctx, fmt.Sprintf("Inserting member %s with role %s into group %s",
-		memberEmail, member.Role, googleGroupEmail))
-
 	_, err = client.InsertMember(ctx, googleGroupEmail, member)
 	if err != nil {
 		if strings.Contains(err.Error(), "Member already exists") {
@@ -202,24 +194,16 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		return fmt.Errorf("failed to add member: %w", err)
 	}
 
-	p.logger.Info(ctx, fmt.Sprintf("Successfully added %s to %s group with role %s",
-		memberEmail, googleGroupEmail, strings.ToUpper(grant.Permissions[0])))
-
 	p.logger.Debug(ctx, fmt.Sprintf("Successfully added %s to %s group", memberEmail, googleGroupEmail))
 	return nil
 }
 
 func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, grant domain.Grant) error {
-	p.logger.Info(ctx, fmt.Sprintf("Revoking access for %s to %s with permissions %v",
-		grant.AccountID, grant.Resource.URN, grant.Permissions))
 
 	client, err := p.GetAdminServiceClient(ctx, *pc)
 	if err != nil {
 		return fmt.Errorf("failed to get admin client: %w", err)
 	}
-
-	p.logger.Info(ctx, fmt.Sprintf("Revoking access for %s to %s with permissions %v",
-		grant.AccountID, grant.Resource.URN, grant.Permissions))
 
 	userEmail := grant.AccountID
 	googleGroupEmail := grant.Resource.URN
@@ -236,9 +220,6 @@ func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		return fmt.Errorf("invalid resource type: %q", grant.Resource.Type)
 	}
 
-	p.logger.Info(ctx, fmt.Sprintf("Removing member %s from group %s",
-		userEmail, googleGroupEmail))
-
 	err = client.RemoveMember(ctx, googleGroupEmail, userEmail)
 	if err != nil {
 		if strings.Contains(err.Error(), "Resource Not Found") {
@@ -248,19 +229,14 @@ func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		return fmt.Errorf("failed to remove member: %w", err)
 	}
 
-	p.logger.Info(ctx, fmt.Sprintf("Successfully removed %s from %s group",
-		userEmail, googleGroupEmail))
-
 	p.logger.Debug(ctx, fmt.Sprintf("Successfully removed %s from %s group", userEmail, googleGroupEmail))
 	return nil
 }
 
 func (p *Provider) GetAdminServiceClient(ctx context.Context, pc domain.ProviderConfig) (AdminService, error) {
-	p.mu.Lock()
 	if client, ok := p.Clients[pc.URN]; ok {
 		return client, nil
 	}
-	p.mu.Unlock()
 
 	cfg := &config{&pc}
 	creds, err := cfg.getCredentials()
