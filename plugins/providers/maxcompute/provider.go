@@ -14,6 +14,7 @@ import (
 	"github.com/goto/guardian/pkg/alicatalogapis"
 	"github.com/goto/guardian/pkg/aliclientmanager"
 	"github.com/goto/guardian/pkg/log"
+	sliceshelper "github.com/goto/guardian/pkg/slices"
 	"golang.org/x/net/context"
 )
 
@@ -86,34 +87,28 @@ func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
 
 func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
 	var resources = make([]*domain.Resource, 0)
-
 	var availableResourceTypes = pc.GetResourceTypes()
-	var retrieveSchemas = slices.Contains(availableResourceTypes, resourceTypeSchema) || slices.Contains(availableResourceTypes, resourceTypeTable)
-	var retrieveProject = retrieveSchemas || slices.Contains(availableResourceTypes, resourceTypeProject)
+	if !sliceshelper.GenericsSliceContainsOne(availableResourceTypes, resourceTypeProject, resourceTypeSchema, resourceTypeTable) {
+		return resources, nil
+	}
 
-	var project *domain.Resource
-	var accountId string
-	var err error
-	if retrieveProject {
-		project, accountId, err = p.getProject(ctx, pc)
+	project, accountId, err := p.getProject(ctx, pc)
+	if err != nil {
+		return nil, err
+	}
+
+	if sliceshelper.GenericsSliceContainsOne(availableResourceTypes, resourceTypeSchema, resourceTypeTable) {
+		project.Children, err = p.getSchemasFromProject(ctx, pc, "", accountId, project)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	var schemas = make([]*domain.Resource, 0)
-	if retrieveSchemas {
-		schemas, err = p.getSchemasFromProject(ctx, pc, "", accountId, project)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if slices.Contains(availableResourceTypes, resourceTypeTable) {
+	if sliceshelper.GenericsSliceContainsOne(availableResourceTypes, resourceTypeTable) {
 		var errW error
 		var w = pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
 		defer w.Shutdown()
-		for i, schema := range schemas {
+		for i, schema := range project.Children {
 			i := i
 			schema := schema
 			w.Do(func() error {
@@ -122,8 +117,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 					return err
 				}
 				p.mu.Lock()
-				schemas[i].Children = tables
-				resources = append(resources, tables...)
+				project.Children[i].Children = tables
 				p.mu.Unlock()
 				return nil
 			})
@@ -134,15 +128,33 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 		}
 	}
 
-	if slices.Contains(availableResourceTypes, resourceTypeSchema) {
-		project.Children = schemas
-		resources = append(resources, schemas...)
-	}
-
-	if slices.Contains(availableResourceTypes, resourceTypeProject) {
+	// perform resources mapping (in-order)
+	switch {
+	case sliceshelper.GenericsSliceContainsAll(availableResourceTypes, resourceTypeProject, resourceTypeSchema, resourceTypeTable) ||
+		sliceshelper.GenericsSliceContainsAll(availableResourceTypes, resourceTypeProject, resourceTypeSchema):
 		resources = append(resources, project)
-	}
 
+	case sliceshelper.GenericsSliceContainsAll(availableResourceTypes, resourceTypeProject, resourceTypeTable):
+		for _, schema := range project.Children {
+			resources = append(resources, schema.Children...) // add tables individually
+		}
+		project.Children = nil // remove schemas from project children
+		resources = append(resources, project)
+
+	case sliceshelper.GenericsSliceContainsAll(availableResourceTypes, resourceTypeSchema, resourceTypeTable):
+		resources = append(resources, project.Children...)
+
+	case slices.Contains(availableResourceTypes, resourceTypeProject):
+		resources = append(resources, project)
+
+	case slices.Contains(availableResourceTypes, resourceTypeSchema):
+		resources = append(resources, project.Children...)
+
+	case slices.Contains(availableResourceTypes, resourceTypeTable):
+		for _, schema := range project.Children {
+			resources = append(resources, schema.Children...) // add tables individually
+		}
+	}
 	return resources, nil
 }
 

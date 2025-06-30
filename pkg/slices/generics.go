@@ -58,3 +58,27 @@ func GenericsStandardizeSlice[T constraints.Ordered](list []T) []T {
 	originSlices.Sort(result)
 	return result
 }
+
+func GenericsSliceContainsAll[T constraints.Ordered](list []T, in ...T) bool {
+	if len(list) == 0 || len(in) == 0 {
+		return false
+	}
+	for _, v := range in {
+		if !originSlices.Contains(list, v) {
+			return false
+		}
+	}
+	return true
+}
+
+func GenericsSliceContainsOne[T constraints.Ordered](list []T, in ...T) bool {
+	if len(list) == 0 || len(in) == 0 {
+		return false
+	}
+	for _, v := range in {
+		if originSlices.Contains(list, v) {
+			return true
+		}
+	}
+	return false
+}
