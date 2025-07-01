@@ -29,6 +29,7 @@ import (
 	"github.com/goto/guardian/plugins/providers/gcloudiam"
 	"github.com/goto/guardian/plugins/providers/gcs"
 	"github.com/goto/guardian/plugins/providers/gitlab"
+	"github.com/goto/guardian/plugins/providers/googlegroup"
 	"github.com/goto/guardian/plugins/providers/grafana"
 	"github.com/goto/guardian/plugins/providers/maxcompute"
 	"github.com/goto/guardian/plugins/providers/metabase"
@@ -129,6 +130,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		gate.NewProvider(domain.ProviderTypeGate, deps.Crypto),
 		maxcompute.New(domain.ProviderTypeMaxCompute, deps.Crypto, deps.Logger),
 		oss.NewProvider(domain.ProviderTypeOss, deps.Crypto),
+		googlegroup.NewProvider(domain.ProviderTypeGoogleGroup, deps.Crypto, deps.Logger),
 	}
 
 	iamManager := identities.NewManager(deps.Crypto, deps.Validator)

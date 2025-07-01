@@ -21,6 +21,7 @@ const (
 	ProviderTypeGate        = "gate"
 	ProviderTypeMaxCompute  = "maxcompute"
 	ProviderTypeOss         = "oss"
+	ProviderTypeGoogleGroup = "google_group"
 )
 
 // Role is the configuration to define a role and mapping the permissions in the provider
