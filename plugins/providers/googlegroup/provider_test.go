@@ -311,6 +311,7 @@ func TestGetResources(t *testing.T) {
 		},
 		Resources: []*domain.ResourceConfig{resourceConfig},
 	}
+
 	t.Run("should return error on decrypting creds", func(t *testing.T) {
 		var encryptor = new(mocks.Encryptor)
 		var logger = log.NewNoop()
@@ -361,6 +362,59 @@ func TestGetResources(t *testing.T) {
 		assert.Empty(t, resources)
 	})
 
+	t.Run("should not return resources if filter is invalid", func(t *testing.T) {
+		var encryptor = new(mocks.Encryptor)
+		var adminProvider = new(mocks.AdminService)
+		var logger = log.NewNoop()
+
+		providerConfigWithInvalidFilter := domain.ProviderConfig{
+			Type: domain.ProviderTypeGoogleGroup,
+			URN:  "test-google-group-provider",
+			Credentials: map[string]any{
+				"service_account_key_base64": base64EncodedKey,
+				"impersonate_user_email":     "test@gojek.com",
+			},
+			Resources: []*domain.ResourceConfig{
+				{
+					Type: resourceType,
+					Roles: []*domain.Role{
+						memberRole,
+						managerRole,
+						ownerRole,
+					},
+					Filter: "$invalid filter",
+				},
+			},
+		}
+
+		provider := googlegroup.NewProvider(domain.ProviderTypeGoogleGroup, encryptor, logger)
+		provider.Clients = map[string]googlegroup.AdminService{
+			providerConfigWithInvalidFilter.URN: adminProvider,
+		}
+
+		mockResp := &admin.Groups{
+			Groups: []*admin.Group{
+				{
+					Id:    "group1",
+					Name:  "Test Group 2",
+					Email: "test-group-2@gojek.com",
+				},
+			},
+			NextPageToken: "",
+		}
+
+		adminProvider.On("ListGroups",
+			mock.Anything,
+			"my_customer",
+			"",
+		).Return(mockResp.Groups, mockResp.NextPageToken, nil).Once()
+		defer adminProvider.AssertExpectations(t)
+
+		resources, err := provider.GetResources(ctx, &providerConfigWithInvalidFilter)
+		assert.NoError(t, err)
+		assert.Empty(t, resources)
+	})
+
 	t.Run("should not return resources if filter doesn't match", func(t *testing.T) {
 		var encryptor = new(mocks.Encryptor)
 		var adminProvider = new(mocks.AdminService)
@@ -394,7 +448,7 @@ func TestGetResources(t *testing.T) {
 		assert.Empty(t, resources)
 	})
 
-	t.Run("should not return resources", func(t *testing.T) {
+	t.Run("should return resources", func(t *testing.T) {
 		var encryptor = new(mocks.Encryptor)
 		var adminProvider = new(mocks.AdminService)
 		var logger = log.NewNoop()
