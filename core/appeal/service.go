@@ -1470,6 +1470,8 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 
 					fmt.Println("Creating additional appeal for requirement", reqIndex, "for appeal:", a.ID, "with role:", aa.Role)
 					if err := s.Create(ctx, []*domain.Appeal{additionalAppeal}, CreateWithAdditionalAppeal()); err != nil {
+
+						fmt.Println("Error creating additional appeal for requirement", reqIndex, "for appeal:", a.ID, "with role:", aa.Role, "error:", err)
 						if errors.Is(err, ErrAppealDuplicate) {
 							s.logger.Warn(ctx, "creating additional appeals, duplicate appeal error log", "error", err)
 							return nil
