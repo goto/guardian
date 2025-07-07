@@ -945,7 +945,7 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			}
 		}
 
-		if err := s.GrantAccessToProvider(ctx, appeal, CreateWithAdditionalAppeal()); err != nil {
+		if err := s.GrantAccessToProvider(ctx, appeal); err != nil {
 			return nil, fmt.Errorf("granting access: %w", err)
 		}
 	}
@@ -1422,9 +1422,13 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 
 		for reqIndex, r := range p.Requirements {
 			isAppealMatchesRequirement, err := r.On.IsMatch(a)
+
+			fmt.Println("Checking requirement", reqIndex, "for appeal:", a.ID, "matches:", isAppealMatchesRequirement)
+
 			if err != nil {
 				return fmt.Errorf("evaluating requirements[%v]: %v", reqIndex, err)
 			}
+
 			if !isAppealMatchesRequirement {
 				continue
 			}
@@ -1452,6 +1456,8 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 						additionalAppeal.PolicyID = aa.Policy.ID
 						additionalAppeal.PolicyVersion = uint(aa.Policy.Version)
 					}
+
+					fmt.Println("Creating additional appeal for requirement", reqIndex, "for appeal:", a.ID, "with role:", aa.Role)
 					if err := s.Create(ctx, []*domain.Appeal{additionalAppeal}, CreateWithAdditionalAppeal()); err != nil {
 						if errors.Is(err, ErrAppealDuplicate) {
 							s.logger.Warn(ctx, "creating additional appeals, duplicate appeal error log", "error", err)
@@ -1459,6 +1465,7 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 						}
 						return fmt.Errorf("creating additional appeals: %w", err)
 					}
+					fmt.Println("Successfully created additional appeal for requirement", reqIndex, "for appeal:", a.ID, "with role:", aa.Role)
 					return nil
 				})
 			}
