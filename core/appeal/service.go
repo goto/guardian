@@ -945,7 +945,7 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			}
 		}
 
-		if err := s.GrantAccessToProvider(ctx, appeal); err != nil {
+		if err := s.GrantAccessToProvider(ctx, appeal, CreateWithAdditionalAppeal()); err != nil {
 			return nil, fmt.Errorf("granting access: %w", err)
 		}
 	}
@@ -1471,6 +1471,8 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 }
 
 func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, opts ...CreateAppealOption) error {
+
+	fmt.Println("GrantAccessToProvider called with appeal:", a.ID)
 	policy := a.Policy
 	if policy == nil {
 		p, err := s.policyService.GetOne(ctx, a.PolicyID, a.PolicyVersion)
@@ -1486,7 +1488,9 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 	}
 
 	isAdditionalAppealCreation := createAppealOpts.IsAdditionalAppeal
+	fmt.Println("Is additional appeal creation:", isAdditionalAppealCreation)
 	if !isAdditionalAppealCreation {
+		fmt.Println("Handling appeal requirements for appeal:", a.ID)
 		if err := s.handleAppealRequirements(ctx, a, policy); err != nil {
 			return fmt.Errorf("handling appeal requirements: %w", err)
 		}
