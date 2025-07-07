@@ -201,6 +201,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		opt(createAppealOpts)
 	}
 	isAdditionalAppealCreation := createAppealOpts.IsAdditionalAppeal
+	fmt.Println("Create called with isAdditionalAppealCreation:", isAdditionalAppealCreation)
 
 	resourceIDs := []string{}
 	accountIDs := []string{}
@@ -259,18 +260,24 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	if err := eg.Wait(); err != nil {
 		return err
 	}
+	fmt.Println("Resources, providers, policies, and pending appeals loaded successfully")
 
 	notifications := []domain.Notification{}
 
 	for _, appeal := range appeals {
+		fmt.Println("Processing appeal:", appeal.ID, "for account:", appeal.AccountID, "and resource:", appeal.ResourceID)
 		appeal.SetDefaults()
 
 		if err := validateAppeal(appeal, pendingAppeals); err != nil {
 			return err
 		}
+
+		//fmt.Println("Creating appeal:", appeal.ID, "for account:", appeal.AccountID, "and resource:", appeal.ResourceID)
 		if err := addResource(appeal, resources); err != nil {
 			return fmt.Errorf("couldn't find resource with id %q: %w", appeal.ResourceID, err)
 		}
+		fmt.Printf("Resource for appeal %s found: %s (%s)\n", appeal.ID, appeal.Resource.Name, appeal.Resource.URN)
+
 		provider, err := getProvider(appeal, providers)
 		if err != nil {
 			return err
@@ -336,6 +343,8 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		for _, approval := range appeal.Approvals {
 			// TODO: direcly check on appeal.Status==domain.AppealStatusApproved instead of manual looping through approvals
 			if approval.Index == len(appeal.Approvals)-1 && (approval.Status == domain.ApprovalStatusApproved || appeal.Status == domain.AppealStatusApproved) {
+
+				fmt.Println("Preparing grant for appeal:", appeal.ID, "with role:", appeal.Role)
 				newGrant, prevGrant, err := s.prepareGrant(ctx, appeal)
 				if err != nil {
 					return fmt.Errorf("preparing grant: %w", err)
@@ -351,9 +360,11 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 					}
 				}
 
+				fmt.Println("Grant prepared for appeal:", appeal.ID, "with role:", appeal.Role)
 				if err := s.GrantAccessToProvider(ctx, appeal, opts...); err != nil {
 					return fmt.Errorf("granting access: %w", err)
 				}
+				fmt.Println("Access granted for appeal:", appeal.ID, "with role:", appeal.Role)
 
 				notifications = append(notifications, domain.Notification{
 					User: appeal.CreatedBy,
