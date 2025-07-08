@@ -201,7 +201,6 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		opt(createAppealOpts)
 	}
 	isAdditionalAppealCreation := createAppealOpts.IsAdditionalAppeal
-	fmt.Println("Create called with isAdditionalAppealCreation:", isAdditionalAppealCreation)
 
 	resourceIDs := []string{}
 	accountIDs := []string{}
@@ -260,23 +259,19 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	if err := eg.Wait(); err != nil {
 		return err
 	}
-	fmt.Println("Resources, providers, policies, and pending appeals loaded successfully")
 
 	notifications := []domain.Notification{}
 
 	for _, appeal := range appeals {
-		fmt.Println("Processing appeal:", appeal.ID, "for account:", appeal.AccountID, "and resource:", appeal.ResourceID)
 		appeal.SetDefaults()
 
 		if err := validateAppeal(appeal, pendingAppeals); err != nil {
 			return err
 		}
 
-		//fmt.Println("Creating appeal:", appeal.ID, "for account:", appeal.AccountID, "and resource:", appeal.ResourceID)
 		if err := addResource(appeal, resources); err != nil {
 			return fmt.Errorf("couldn't find resource with id %q: %w", appeal.ResourceID, err)
 		}
-		fmt.Printf("Resource for appeal %s found: %s (%s)\n", appeal.ID, appeal.Resource.Name, appeal.Resource.URN)
 
 		provider, err := getProvider(appeal, providers)
 		if err != nil {
@@ -344,7 +339,6 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			// TODO: direcly check on appeal.Status==domain.AppealStatusApproved instead of manual looping through approvals
 			if approval.Index == len(appeal.Approvals)-1 && (approval.Status == domain.ApprovalStatusApproved || appeal.Status == domain.AppealStatusApproved) {
 
-				fmt.Println("Preparing grant for appeal:", appeal.ID, "with role:", appeal.Role)
 				newGrant, prevGrant, err := s.prepareGrant(ctx, appeal)
 				if err != nil {
 					return fmt.Errorf("preparing grant: %w", err)
@@ -360,11 +354,9 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 					}
 				}
 
-				fmt.Println("Grant prepared for appeal:", appeal.ID, "with role:", appeal.Role)
 				if err := s.GrantAccessToProvider(ctx, appeal, opts...); err != nil {
 					return fmt.Errorf("granting access: %w", err)
 				}
-				fmt.Println("Access granted for appeal:", appeal.ID, "with role:", appeal.Role)
 
 				notifications = append(notifications, domain.Notification{
 					User: appeal.CreatedBy,
@@ -1434,8 +1426,6 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 		for reqIndex, r := range p.Requirements {
 			isAppealMatchesRequirement, err := r.On.IsMatch(a)
 
-			fmt.Println("Checking requirement", reqIndex, "for appeal:", a.ID, "matches:", isAppealMatchesRequirement)
-
 			if err != nil {
 				return fmt.Errorf("evaluating requirements[%v]: %v", reqIndex, err)
 			}
@@ -1468,17 +1458,13 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 						additionalAppeal.PolicyVersion = uint(aa.Policy.Version)
 					}
 
-					fmt.Println("Creating additional appeal for requirement", reqIndex, "for appeal:", a.ID, "with role:", aa.Role)
 					if err := s.Create(ctx, []*domain.Appeal{additionalAppeal}, CreateWithAdditionalAppeal()); err != nil {
-
-						fmt.Println("Error creating additional appeal for requirement", reqIndex, "for appeal:", a.ID, "with role:", aa.Role, "error:", err)
 						if errors.Is(err, ErrAppealDuplicate) {
 							s.logger.Warn(ctx, "creating additional appeals, duplicate appeal error log", "error", err)
 							return nil
 						}
 						return fmt.Errorf("creating additional appeals: %w", err)
 					}
-					fmt.Println("Successfully created additional appeal for requirement", reqIndex, "for appeal:", a.ID, "with role:", aa.Role)
 					return nil
 				})
 			}
@@ -1492,7 +1478,6 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 
 func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, opts ...CreateAppealOption) error {
 
-	fmt.Println("GrantAccessToProvider called with appeal:", a.ID)
 	policy := a.Policy
 	if policy == nil {
 		p, err := s.policyService.GetOne(ctx, a.PolicyID, a.PolicyVersion)
@@ -1508,9 +1493,7 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 	}
 
 	isAdditionalAppealCreation := createAppealOpts.IsAdditionalAppeal
-	fmt.Println("Is additional appeal creation:", isAdditionalAppealCreation)
 	if !isAdditionalAppealCreation {
-		fmt.Println("Handling appeal requirements for appeal:", a.ID)
 		if err := s.handleAppealRequirements(ctx, a, policy); err != nil {
 			return fmt.Errorf("handling appeal requirements: %w", err)
 		}
