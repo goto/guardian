@@ -268,11 +268,9 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		if err := validateAppeal(appeal, pendingAppeals); err != nil {
 			return err
 		}
-
 		if err := addResource(appeal, resources); err != nil {
 			return fmt.Errorf("couldn't find resource with id %q: %w", appeal.ResourceID, err)
 		}
-
 		provider, err := getProvider(appeal, providers)
 		if err != nil {
 			return err
@@ -338,7 +336,6 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		for _, approval := range appeal.Approvals {
 			// TODO: direcly check on appeal.Status==domain.AppealStatusApproved instead of manual looping through approvals
 			if approval.Index == len(appeal.Approvals)-1 && (approval.Status == domain.ApprovalStatusApproved || appeal.Status == domain.AppealStatusApproved) {
-
 				newGrant, prevGrant, err := s.prepareGrant(ctx, appeal)
 				if err != nil {
 					return fmt.Errorf("preparing grant: %w", err)
@@ -1425,11 +1422,9 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 
 		for reqIndex, r := range p.Requirements {
 			isAppealMatchesRequirement, err := r.On.IsMatch(a)
-
 			if err != nil {
 				return fmt.Errorf("evaluating requirements[%v]: %v", reqIndex, err)
 			}
-
 			if !isAppealMatchesRequirement {
 				continue
 			}
@@ -1457,7 +1452,6 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 						additionalAppeal.PolicyID = aa.Policy.ID
 						additionalAppeal.PolicyVersion = uint(aa.Policy.Version)
 					}
-
 					if err := s.Create(ctx, []*domain.Appeal{additionalAppeal}, CreateWithAdditionalAppeal()); err != nil {
 						if errors.Is(err, ErrAppealDuplicate) {
 							s.logger.Warn(ctx, "creating additional appeals, duplicate appeal error log", "error", err)
@@ -1477,7 +1471,6 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 }
 
 func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, opts ...CreateAppealOption) error {
-
 	policy := a.Policy
 	if policy == nil {
 		p, err := s.policyService.GetOne(ctx, a.PolicyID, a.PolicyVersion)
