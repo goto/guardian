@@ -277,10 +277,11 @@ type ResourceIdentifier struct {
 }
 
 type AdditionalAppeal struct {
-	Resource *ResourceIdentifier `json:"resource" yaml:"resource"  validate:"required"`
-	Role     string              `json:"role" yaml:"role" validate:"required"`
-	Options  *AppealOptions      `json:"options" yaml:"options"`
-	Policy   *PolicyConfig       `json:"policy" yaml:"policy"`
+	Resource    *ResourceIdentifier `json:"resource" yaml:"resource"  validate:"required"`
+	Role        string              `json:"role" yaml:"role" validate:"required"`
+	Options     *AppealOptions      `json:"options" yaml:"options"`
+	Policy      *PolicyConfig       `json:"policy" yaml:"policy"`
+	AccountType string              `json:"account_type" yaml:"account_type"`
 }
 
 type Requirement struct {

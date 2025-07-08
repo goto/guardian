@@ -386,10 +386,11 @@ func (s *Service) validateRequirements(ctx context.Context, requirements []*doma
 			}
 
 			appeal := &domain.Appeal{
-				ResourceID: resource.ID,
-				Resource:   resource,
-				Role:       aa.Role,
-				Options:    aa.Options,
+				ResourceID:  resource.ID,
+				Resource:    resource,
+				Role:        aa.Role,
+				Options:     aa.Options,
+				AccountType: aa.AccountType,
 			}
 			appeal.SetDefaults()
 			if err := s.providerService.ValidateAppeal(ctx, appeal, provider, appeal.Policy); err != nil {

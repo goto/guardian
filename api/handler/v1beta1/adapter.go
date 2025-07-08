@@ -307,10 +307,11 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 					}
 
 					additionalAppeals = append(additionalAppeals, &domain.AdditionalAppeal{
-						Resource: resource,
-						Role:     aa.GetRole(),
-						Options:  a.fromAppealOptionsProto(aa.GetOptions()),
-						Policy:   a.fromPolicyConfigProto(aa.GetPolicy()),
+						Resource:    resource,
+						Role:        aa.GetRole(),
+						Options:     a.fromAppealOptionsProto(aa.GetOptions()),
+						Policy:      a.fromPolicyConfigProto(aa.GetPolicy()),
+						AccountType: aa.GetAccountType(),
 					})
 				}
 			}
