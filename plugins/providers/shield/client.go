@@ -108,6 +108,31 @@ func (c *client) GetAdminsOfGivenResourceType(ctx context.Context, id string, re
 	return userEmails, err
 }
 
+func (c *client) GetResources(ctx context.Context, namespace string) ([]*Resource, error) {
+	queryParams := url.Values{}
+	if namespace != "" {
+		queryParams.Set("namespace", namespace)
+	}
+	resourcesEndpoint := path.Join(resourcesEndpoint, "?"+queryParams.Encode())
+	req, err := c.newRequest(http.MethodGet, resourcesEndpoint, nil, "")
+	if err != nil {
+		return nil, err
+	}
+	var resources []*Resource
+	var response interface{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return nil, err
+	}
+	if v, ok := response.(map[string]interface{}); ok && v[resourcesConst] != nil {
+		err = mapstructure.Decode(v[resourcesConst], &resources)
+	}
+	if err != nil {
+		return nil, err
+	}
+	c.logger.Info(ctx, "Fetch resources from request", "total", len(resources), req.URL)
+	return resources, err
+}
+
 func (c *client) GetGroups(ctx context.Context) ([]*Group, error) {
 	req, err := c.newRequest(http.MethodGet, groupsEndpoint, nil, "")
 	if err != nil {
@@ -390,4 +415,16 @@ func (c *client) do(ctx context.Context, req *http.Request, v interface{}) (*htt
 	}
 
 	return resp, err
+}
+
+// dummy functions for shieldNewclient to implement the interface
+func (c *client) GrantResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error {
+	c.logger.Info(ctx, "Resource access created for user in new shield", userId)
+	return nil
+}
+
+// dummy functions for shieldNewclient to implement the interface
+func (c *client) RevokeResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error {
+	c.logger.Info(ctx, "Remove access of the user from resource in new shield,", "Users", userId, resource.ID)
+	return nil
 }

@@ -268,6 +268,31 @@ func (c *shieldNewclient) GetOrganizations(ctx context.Context) ([]*Organization
 	return organizations, err
 }
 
+func (c *shieldNewclient) GetResources(ctx context.Context, namespace string) ([]*Resource, error) {
+	queryParams := url.Values{}
+	if namespace != "" {
+		queryParams.Set("namespace", namespace)
+	}
+	resourcesEndpoint := path.Join(resourcesEndpoint, "?"+queryParams.Encode())
+	req, err := c.newRequest(http.MethodGet, resourcesEndpoint, nil, "")
+	if err != nil {
+		return nil, err
+	}
+	var resources []*Resource
+	var response interface{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return nil, err
+	}
+	if v, ok := response.(map[string]interface{}); ok && v[resourcesConst] != nil {
+		err = mapstructure.Decode(v[resourcesConst], &resources)
+	}
+	if err != nil {
+		return nil, err
+	}
+	c.logger.Info(ctx, "Fetch resources from request", "total", len(resources), req.URL)
+	return resources, err
+}
+
 func (c *shieldNewclient) GrantGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
 	err := c.CreateRelation(ctx, resource.ID, groupNamespaceConst, fmt.Sprintf("%s:%s", userNamespaceConst, userId), role)
 	if err != nil {
@@ -295,6 +320,15 @@ func (c *shieldNewclient) GrantOrganizationAccess(ctx context.Context, resource 
 	return nil
 }
 
+func (c *shieldNewclient) GrantResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error {
+	err := c.CreateRelation(ctx, resource.ID, resource.Namespace.Name, fmt.Sprintf("%s:%s", userNamespaceConst, userId), role)
+	if err != nil {
+		return err
+	}
+	c.logger.Info(ctx, "Resource access created for user in new shield", userId)
+	return nil
+}
+
 func (c *shieldNewclient) RevokeGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
 	err := c.DeleteRelation(ctx, resource.ID, userId, role)
 	if err != nil {
@@ -319,6 +353,15 @@ func (c *shieldNewclient) RevokeOrganizationAccess(ctx context.Context, resource
 		return err
 	}
 	c.logger.Info(ctx, "Remove access of the user from organization in new shield,", "Users", userId, resource.ID)
+	return nil
+}
+
+func (c *shieldNewclient) RevokeResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error {
+	err := c.DeleteRelation(ctx, resource.ID, userId, role)
+	if err != nil {
+		return err
+	}
+	c.logger.Info(ctx, "Remove access of the user from resource in new shield,", "Users", userId, resource.ID)
 	return nil
 }
 
