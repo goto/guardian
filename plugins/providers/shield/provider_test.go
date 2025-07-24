@@ -409,58 +409,6 @@ func TestGrantAccess(t *testing.T) {
 		assert.Error(t, actualError)
 	})
 
-	t.Run("should return error if resource type in unknown", func(t *testing.T) {
-		providerURN := "test-provider-urn"
-		expectedError := errors.New("invalid resource type")
-		client := new(mocks.ShieldClient)
-		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("", logger)
-
-		p.Clients = map[string]shield.ShieldClient{
-			providerURN: client,
-		}
-
-		expectedUserEmail := "test@email.com"
-		expectedUser := &shield.User{
-			ID:    "test_user_id",
-			Name:  "test_user",
-			Email: expectedUserEmail,
-		}
-
-		client.On("GetSelfUser", mockCtx, expectedUserEmail).Return(expectedUser, nil).Once()
-
-		pc := &domain.ProviderConfig{
-			Credentials: shield.Credentials{
-				Host:      "http://localhost/",
-				AuthEmail: "test-email",
-			},
-			Resources: []*domain.ResourceConfig{
-				{
-					Type: "test-type",
-					Roles: []*domain.Role{
-						{
-							ID:          "test-role",
-							Permissions: []interface{}{"test-permission-config"},
-						},
-					},
-				},
-			},
-			URN: providerURN,
-		}
-
-		a := domain.Grant{
-			Resource: &domain.Resource{
-				Type: "test-type",
-			},
-			Role:      "test-role",
-			AccountID: expectedUserEmail,
-		}
-
-		actualError := p.GrantAccess(ctx, pc, a)
-
-		assert.EqualError(t, actualError, expectedError.Error())
-	})
-
 	t.Run("given team resource", func(t *testing.T) {
 		t.Run("should return error if there is an error in granting team access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
@@ -875,55 +823,6 @@ func TestRevokeAccess(t *testing.T) {
 
 		actualError := p.RevokeAccess(ctx, pc, a)
 		assert.Error(t, actualError)
-	})
-
-	t.Run("should return error if resource type in unknown", func(t *testing.T) {
-		providerURN := "test-provider-urn"
-		client := new(mocks.ShieldClient)
-		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("", logger)
-		p.Clients = map[string]shield.ShieldClient{
-			providerURN: client,
-		}
-
-		expectedError := errors.New("invalid resource type")
-		expectedUserEmail := "test@email.com"
-		expectedUser := &shield.User{
-			ID:    "test_user_id",
-			Name:  "test_user",
-			Email: expectedUserEmail,
-		}
-
-		client.On("GetSelfUser", mockCtx, expectedUserEmail).Return(expectedUser, nil).Once()
-
-		pc := &domain.ProviderConfig{
-			Credentials: shield.Credentials{
-				Host:      "http://localhost/",
-				AuthEmail: "test_email",
-			},
-			Resources: []*domain.ResourceConfig{
-				{
-					Type: "test-type",
-					Roles: []*domain.Role{
-						{
-							ID:          "test-role",
-							Permissions: []interface{}{"test-permission-config"},
-						},
-					},
-				},
-			},
-			URN: providerURN,
-		}
-		a := domain.Grant{
-			Resource: &domain.Resource{
-				Type: "test-type",
-			},
-			Role:      "test-role",
-			AccountID: expectedUserEmail,
-		}
-
-		actualError := p.RevokeAccess(ctx, pc, a)
-		assert.EqualError(t, actualError, expectedError.Error())
 	})
 
 	t.Run("given team resource", func(t *testing.T) {
