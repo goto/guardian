@@ -88,7 +88,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 		resources = p.addOrganizations(pc, organizations, resources)
 	}
 
-	for resourceType, _ := range resourceTypes {
+	for resourceType := range resourceTypes {
 		var shieldResources []*Resource
 
 		if resourceType != ResourceTypeTeam &&
@@ -246,9 +246,8 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 				return err
 			}
 		}
+		return nil
 	}
-
-	return ErrInvalidResourceType
 }
 
 func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, a domain.Grant) error {
@@ -314,7 +313,6 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 				return err
 			}
 		}
+		return nil
 	}
-
-	return ErrInvalidResourceType
 }

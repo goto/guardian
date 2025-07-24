@@ -56,11 +56,11 @@ func (c *Config) parseAndValidate() error {
 		c.ProviderConfig.Credentials = credentials
 	}
 
-	for _, r := range c.ProviderConfig.Resources {
-		if err := c.validateResourceConfig(r); err != nil {
-			validationErrors = append(validationErrors, err)
-		}
-	}
+	// for _, r := range c.ProviderConfig.Resources {
+	// 	if err := c.validateResourceConfig(r); err != nil {
+	// 		validationErrors = append(validationErrors, err)
+	// 	}
+	// }
 
 	if len(validationErrors) > 0 {
 		errorStrings := []string{}

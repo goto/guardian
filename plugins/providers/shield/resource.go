@@ -43,7 +43,7 @@ const (
 	objectEndpoint       = "/admin/v1beta1/object"
 
 	groupsConst        = "groups"
-	resourcesConst     = "resource"
+	resourcesConst     = "resources"
 	projectsConst      = "projects"
 	organizationsConst = "organizations"
 	usersConst         = "users"
@@ -274,15 +274,18 @@ func (o *Organization) ToDomain() *domain.Resource {
 }
 
 func (sr *Resource) FromDomain(r *domain.Resource) error {
-	if r.Type != ResourceTypeResource {
-		return ErrInvalidResourceType
-	}
-
 	resourceDetails := r.Details
 	if id, ok := resourceDetails["id"].(string); ok {
 		sr.ID = id
 	}
-	if ns, ok := resourceDetails["namespace"].(Namespace); ok {
+	if nsMap, ok := resourceDetails["namespace"].(map[string]interface{}); ok {
+		ns := Namespace{}
+		if id, ok := nsMap["id"].(string); ok {
+			ns.ID = id
+		}
+		if name, ok := nsMap["name"].(string); ok {
+			ns.Name = name
+		}
 		sr.Namespace = ns
 	}
 	sr.Name = r.Name
@@ -291,7 +294,7 @@ func (sr *Resource) FromDomain(r *domain.Resource) error {
 
 func (r *Resource) ToDomain() *domain.Resource {
 	return &domain.Resource{
-		Type: resourcesConst,
+		Type: r.Namespace.ID,
 		Name: r.Name,
 		URN:  fmt.Sprintf("resource:%v", r.URN),
 		Details: map[string]interface{}{

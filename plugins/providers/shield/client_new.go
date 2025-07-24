@@ -269,28 +269,52 @@ func (c *shieldNewclient) GetOrganizations(ctx context.Context) ([]*Organization
 }
 
 func (c *shieldNewclient) GetResources(ctx context.Context, namespace string) ([]*Resource, error) {
-	queryParams := url.Values{}
-	if namespace != "" {
-		queryParams.Set("namespace", namespace)
+	var (
+		allResources []*Resource
+		pageSize     = 500
+		pageNum      = 1
+		totalFetched = 0
+	)
+
+	for {
+		queryParams := url.Values{}
+		if namespace != "" {
+			queryParams.Set("namespace_id", namespace)
+		}
+		queryParams.Set("page_size", fmt.Sprintf("%d", pageSize))
+		queryParams.Set("page_num", fmt.Sprintf("%d", pageNum))
+
+		endpoint := fmt.Sprintf("%s?%s", resourcesEndpoint, queryParams.Encode())
+		req, err := c.newRequest(http.MethodGet, endpoint, nil, "")
+		if err != nil {
+			return nil, err
+		}
+
+		var response map[string]interface{}
+		if _, err := c.do(ctx, req, &response); err != nil {
+			return nil, err
+		}
+
+		var resources []*Resource
+		if v, ok := response[resourcesConst]; ok && v != nil {
+			if err := mapstructure.Decode(v, &resources); err != nil {
+				return nil, err
+			}
+		}
+
+		allResources = append(allResources, resources...)
+		count := len(resources)
+		totalFetched += count
+
+		// If less than pageSize returned, we've reached the end
+		if count < pageSize {
+			break
+		}
+		pageNum++
 	}
-	resourcesEndpoint := path.Join(resourcesEndpoint, "?"+queryParams.Encode())
-	req, err := c.newRequest(http.MethodGet, resourcesEndpoint, nil, "")
-	if err != nil {
-		return nil, err
-	}
-	var resources []*Resource
-	var response interface{}
-	if _, err := c.do(ctx, req, &response); err != nil {
-		return nil, err
-	}
-	if v, ok := response.(map[string]interface{}); ok && v[resourcesConst] != nil {
-		err = mapstructure.Decode(v[resourcesConst], &resources)
-	}
-	if err != nil {
-		return nil, err
-	}
-	c.logger.Info(ctx, "Fetch resources from request", "total", len(resources), req.URL)
-	return resources, err
+
+	c.logger.Info(ctx, "Fetched resources from request", "total", len(allResources))
+	return allResources, nil
 }
 
 func (c *shieldNewclient) GrantGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
@@ -321,7 +345,7 @@ func (c *shieldNewclient) GrantOrganizationAccess(ctx context.Context, resource 
 }
 
 func (c *shieldNewclient) GrantResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error {
-	err := c.CreateRelation(ctx, resource.ID, resource.Namespace.Name, fmt.Sprintf("%s:%s", userNamespaceConst, userId), role)
+	err := c.CreateRelation(ctx, resource.ID, resource.Namespace.ID, fmt.Sprintf("%s:%s", userNamespaceConst, userId), role)
 	if err != nil {
 		return err
 	}
