@@ -668,7 +668,76 @@ func TestGrantAccess(t *testing.T) {
 			assert.Nil(t, actualError)
 		})
 	})
+	t.Run("given resource type", func(t *testing.T) {
+		providerURN := "test-provider-urn"
+		logger := log.NewCtxLogger("info", []string{"test"})
+		client := new(mocks.ShieldClient)
+		expectedResource := &shield.Resource{
+			Name: "test-resource",
+			ID:   "test_id",
+			Namespace: shield.Namespace{
+				Name: "test-namespace",
+				ID:   "test_namespace_id",
+			},
+		}
 
+		expectedUserEmail := "test@email.com"
+		expectedUser := &shield.User{
+			ID:    "test_user_id",
+			Name:  "test_user",
+			Email: expectedUserEmail,
+		}
+
+		expectedRole := "admins"
+		p := shield.NewProvider("", logger)
+		p.Clients = map[string]shield.ShieldClient{
+			providerURN: client,
+		}
+
+		client.On("GetSelfUser", mockCtx, expectedUserEmail).Return(expectedUser, nil).Once()
+		client.On("GrantResourceAccess", mockCtx, expectedResource, expectedUser.ID, expectedRole).Return(nil).Once()
+
+		pc := &domain.ProviderConfig{
+			Credentials: shield.Credentials{
+				Host:          "localhost",
+				AuthEmail:     "test_email",
+				ClientVersion: "new",
+			},
+			Resources: []*domain.ResourceConfig{
+				{
+					Type: "test-namespace",
+					Roles: []*domain.Role{
+						{
+							ID:          "admin",
+							Permissions: []interface{}{expectedRole},
+						},
+					},
+				},
+			},
+			URN: providerURN,
+		}
+		a := domain.Grant{
+			Resource: &domain.Resource{
+				Type: "test-type",
+				Name: "test-resource",
+				Details: map[string]interface{}{
+					"id": "test_id",
+					"namespace": map[string]interface{}{
+						"name": "test-namespace",
+						"id":   "test_namespace_id",
+					},
+				},
+			},
+			Role:       "admin",
+			AccountID:  expectedUserEmail,
+			ResourceID: "999",
+			ID:         "999",
+		}
+
+		actualError := p.GrantAccess(ctx, pc, a)
+
+		assert.Nil(t, actualError)
+	})
 	t.Run("given organization resource", func(t *testing.T) {
 		t.Run("should return error if there is an error in granting organization access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
@@ -823,6 +892,81 @@ func TestRevokeAccess(t *testing.T) {
 
 		actualError := p.RevokeAccess(ctx, pc, a)
 		assert.Error(t, actualError)
+	})
+
+	t.Run("given resource type", func(t *testing.T) {
+		expectedResource := &shield.Resource{
+			Name: "test-resource",
+			ID:   "test_id",
+			Namespace: shield.Namespace{
+				Name: "test-namespace",
+				ID:   "test_namespace_id",
+			},
+		}
+		providerURN := "test-provider-urn"
+		client := new(mocks.ShieldClient)
+		logger := log.NewCtxLogger("info", []string{"test"})
+
+		t.Run("should return nil error if revoking resource access is successful", func(t *testing.T) {
+			expectedRole := "admins"
+			p := shield.NewProvider("", logger)
+			p.Clients = map[string]shield.ShieldClient{
+				providerURN: client,
+			}
+
+			expectedUserEmail := "test@email.com"
+			expectedUser := &shield.User{
+				ID:    "test_user_id",
+				Name:  "test_user",
+				Email: expectedUserEmail,
+			}
+
+			client.On("GetSelfUser", mockCtx, expectedUserEmail).Return(expectedUser, nil).Once()
+			client.On("RevokeResourceAccess", mockCtx, expectedResource, expectedUser.ID, expectedRole).Return(nil).Once()
+
+			pc := &domain.ProviderConfig{
+				Credentials: shield.Credentials{
+					Host:          "http://localhost/",
+					AuthEmail:     "test_email",
+					ClientVersion: "new",
+				},
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: "test-type",
+						Roles: []*domain.Role{
+							{
+								ID:          "test-role",
+								Permissions: []interface{}{"test-permission-config"},
+							},
+						},
+					},
+				},
+				URN: providerURN,
+			}
+			a := domain.Grant{
+				Resource: &domain.Resource{
+					Type: "test-type",
+					Name: "test-resource",
+					Details: map[string]interface{}{
+						"id": "test_id",
+						"namespace": map[string]interface{}{
+							"name": "test-namespace",
+							"id":   "test_namespace_id",
+						},
+					},
+				},
+				Role:        "admin",
+				Permissions: []string{expectedRole},
+				AccountID:   expectedUserEmail,
+				ResourceID:  "999",
+				ID:          "999",
+			}
+
+			actualError := p.RevokeAccess(ctx, pc, a)
+
+			assert.Nil(t, actualError)
+			client.AssertExpectations(t)
+		})
 	})
 
 	t.Run("given team resource", func(t *testing.T) {

@@ -20,8 +20,8 @@ type ShieldClient interface {
 	RevokeProjectAccess(ctx context.Context, project *Project, userId string, role string) error
 	GrantOrganizationAccess(ctx context.Context, organization *Organization, userId string, role string) error
 	RevokeOrganizationAccess(ctx context.Context, organization *Organization, userId string, role string) error
-	GrantResourceAccess(ctx context.Context, project *Resource, userId string, role string) error
-	RevokeResourceAccess(ctx context.Context, project *Resource, userId string, role string) error
+	GrantResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error
+	RevokeResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error
 	GetSelfUser(ctx context.Context, email string) (*User, error)
 }
 
