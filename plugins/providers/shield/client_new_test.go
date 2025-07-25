@@ -72,7 +72,108 @@ type ShieldNewClientTestSuite struct {
 func TestShieldNewClient(t *testing.T) {
 	suite.Run(t, new(ShieldNewClientTestSuite))
 }
+func (s *ShieldNewClientTestSuite) TestShieldNewGetResources() {
+	s.Run("should get all resources with pagination and nil error on success", func() {
+		s.setup()
+		namespace := "test-namespace"
+		pageSize := 500
 
+		// First page returns 500 resources
+		var resourcesPage1 []map[string]interface{}
+		for i := 0; i < pageSize; i++ {
+			resourcesPage1 = append(resourcesPage1, map[string]interface{}{
+				"id":   fmt.Sprintf("resource_id_%d", i),
+				"name": fmt.Sprintf("resource_%d", i),
+				"namespace": map[string]interface{}{
+					"id": namespace,
+				},
+			})
+		}
+		page1ResponseJSON, err := json.Marshal(map[string]interface{}{
+			"resources": resourcesPage1,
+		})
+		s.Require().NoError(err)
+
+		req1, err := s.getTestRequest(http.MethodGet, fmt.Sprintf("/admin/v1beta1/resources?namespace_id=%s&page_num=1&page_size=%d", namespace, pageSize), nil, "")
+		s.Require().NoError(err)
+		resp1 := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(page1ResponseJSON))}
+		s.mockHttpClient.On("Do", req1).Return(&resp1, nil).Once()
+
+		// Second page returns 2 resources (less than pageSize, so loop ends)
+		resourcesPage2 := []map[string]interface{}{
+			{
+				"id":   "resource_id_500",
+				"name": "resource_500",
+				"namespace": map[string]interface{}{
+					"id": namespace,
+				},
+			},
+			{
+				"id":   "resource_id_501",
+				"name": "resource_501",
+				"namespace": map[string]interface{}{
+					"id": namespace,
+				},
+			},
+		}
+		page2ResponseJSON, err := json.Marshal(map[string]interface{}{
+			"resources": resourcesPage2,
+		})
+		s.Require().NoError(err)
+
+		req2, err := s.getTestRequest(http.MethodGet, fmt.Sprintf("/admin/v1beta1/resources?namespace_id=%s&page_num=2&page_size=%d", namespace, pageSize), nil, "")
+		s.Require().NoError(err)
+		resp2 := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(page2ResponseJSON))}
+		s.mockHttpClient.On("Do", req2).Return(&resp2, nil).Once()
+
+		resources, err := s.client.GetResources(context.Background(), namespace)
+		s.Nil(err)
+		s.Equal(pageSize+2, len(resources))
+		s.Equal("resource_id_0", resources[0].ID)
+		s.Equal("resource_id_500", resources[500].ID)
+		s.Equal("resource_id_501", resources[501].ID)
+	})
+
+	s.Run("should return error if http client returns error", func() {
+		s.setup()
+		namespace := "test-namespace"
+		req, err := s.getTestRequest(http.MethodGet, fmt.Sprintf("/admin/v1beta1/resources?namespace_id=%s&page_num=1&page_size=500", namespace), nil, "")
+		s.Require().NoError(err)
+		s.mockHttpClient.On("Do", req).Return(nil, fmt.Errorf("network error")).Once()
+
+		resources, err := s.client.GetResources(context.Background(), namespace)
+		s.Nil(resources)
+		s.Error(err)
+	})
+
+	s.Run("should return error if response cannot be decoded", func() {
+		s.setup()
+		namespace := "test-namespace"
+		req, err := s.getTestRequest(http.MethodGet, fmt.Sprintf("/admin/v1beta1/resources?namespace_id=%s&page_num=1&page_size=500", namespace), nil, "")
+		s.Require().NoError(err)
+		invalidJSON := []byte(`{invalid json}`)
+		resp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(invalidJSON))}
+		s.mockHttpClient.On("Do", req).Return(&resp, nil).Once()
+
+		resources, err := s.client.GetResources(context.Background(), namespace)
+		s.Nil(resources)
+		s.Error(err)
+	})
+
+	s.Run("should return empty slice and nil error if no resources found", func() {
+		s.setup()
+		namespace := "test-namespace"
+		emptyResponseJSON := []byte(`{"resources":[]}`)
+		req, err := s.getTestRequest(http.MethodGet, fmt.Sprintf("/admin/v1beta1/resources?namespace_id=%s&page_num=1&page_size=500", namespace), nil, "")
+		s.Require().NoError(err)
+		resp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(emptyResponseJSON))}
+		s.mockHttpClient.On("Do", req).Return(&resp, nil).Once()
+
+		resources, err := s.client.GetResources(context.Background(), namespace)
+		s.Nil(err)
+		s.Equal(0, len(resources))
+	})
+}
 func (s *ShieldNewClientTestSuite) setup() {
 	logger := log.NewNoop()
 	s.mockHttpClient = new(mocks.HTTPClient)
@@ -353,6 +454,66 @@ func (s *ShieldNewClientTestSuite) TestShieldNewGetOrganizations() {
 		}
 		s.Nil(err1)
 		s.ElementsMatch(expectedOrganizations, orgs)
+	})
+}
+
+func (s *ShieldNewClientTestSuite) TestShieldNewGrantResourceAccess() {
+	s.Run("should grant access to resource and nil error on success", func() {
+		s.setup()
+
+		testUserId := "test_user_id"
+
+		body := make(map[string][]string)
+		body["userIds"] = append(body["userIds"], testUserId)
+
+		teamObj := new(shield.Group)
+		teamObj.ID = "test_resource_id"
+
+		role := "member"
+
+		responseJson := `{
+			"relation": {
+				"id": "test_relation_id",
+				"objectId": "test_resource_id",
+				"objectNamespace": "shield/resource",
+				"subject": "shield/user:test_user_id",
+				"roleName": "shield/resource:member",
+				"createdAt": null,
+				"updatedAt": null
+			}
+		}`
+
+		responseUsers := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&responseUsers, nil).Once()
+
+		actualError := s.client.GrantGroupAccess(context.Background(), teamObj, testUserId, role)
+		s.Nil(actualError)
+	})
+}
+
+func (s *ShieldNewClientTestSuite) TestShieldNewRevokeResourceAccess() {
+	s.Run("should revoke access to resource and nil error on success", func() {
+		s.setup()
+
+		testUserId := "test_user_id"
+
+		body := make(map[string][]string)
+		body["userIds"] = append(body["userIds"], testUserId)
+
+		resourceObj := new(shield.Project)
+		resourceObj.ID = "test_resource_id"
+
+		role := "admins"
+
+		responseJson := `{
+			"message": "Removed User from resource"
+		}`
+
+		responseUsers := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&responseUsers, nil).Once()
+
+		actualError := s.client.RevokeProjectAccess(context.Background(), resourceObj, testUserId, role)
+		s.Nil(actualError)
 	})
 }
 
