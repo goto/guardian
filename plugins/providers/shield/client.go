@@ -391,3 +391,23 @@ func (c *client) do(ctx context.Context, req *http.Request, v interface{}) (*htt
 
 	return resp, err
 }
+
+// dummy functions for shieldNewclient to implement the interface
+func (c *client) GetResources(ctx context.Context, namespace string) ([]*Resource, error) {
+	var resources []*Resource
+	var err error
+	c.logger.Info(ctx, "Fetch resources from request", "namespace", namespace, "total", len(resources))
+	return resources, err
+}
+
+// dummy functions for shieldNewclient to implement the interface
+func (c *client) GrantResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error {
+	c.logger.Info(ctx, "Resource access created for user in new shield", userId)
+	return nil
+}
+
+// dummy functions for shieldNewclient to implement the interface
+func (c *client) RevokeResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error {
+	c.logger.Info(ctx, "Remove access of the user from resource in new shield,", "Users", userId)
+	return nil
+}
