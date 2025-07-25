@@ -269,6 +269,33 @@ func TestGetResources(t *testing.T) {
 		assert.EqualError(t, actualError, expectedError.Error())
 	})
 
+	t.Run("should return error if got any on getting dynamic resources", func(t *testing.T) {
+		providerURN := "test-provider-urn"
+		client := new(mocks.ShieldClient)
+		logger := log.NewCtxLogger("info", []string{"test"})
+		p := shield.NewProvider("", logger)
+		p.Clients = map[string]shield.ShieldClient{
+			providerURN: client,
+		}
+
+		pc := &domain.ProviderConfig{
+			URN:         providerURN,
+			Credentials: map[string]interface{}{},
+			Resources: []*domain.ResourceConfig{
+				{
+					Type: "dynamic_resource_type",
+				},
+			},
+		}
+		expectedError := errors.New("client error")
+		client.On("GetResources", mock.Anything, "dynamic_resource_type").Return(nil, expectedError).Once()
+
+		actualResources, actualError := p.GetResources(ctx, pc)
+
+		assert.Nil(t, actualResources)
+		assert.EqualError(t, actualError, expectedError.Error())
+	})
+
 	t.Run("should return list of resources and nil error on success", func(t *testing.T) {
 		providerURN := "test-provider-urn"
 		client := new(mocks.ShieldClient)
@@ -290,6 +317,9 @@ func TestGetResources(t *testing.T) {
 				},
 				{
 					Type: shield.ResourceTypeOrganization,
+				},
+				{
+					Type: "dynamic_resource_type",
 				},
 			},
 		}
@@ -327,6 +357,20 @@ func TestGetResources(t *testing.T) {
 		}
 
 		client.On("GetOrganizations", mock.Anything).Return(expectedOrganizations, nil).Once()
+
+		expectedDynamicResources := []*shield.Resource{
+			{
+				ID:   "dynamic_resource_id",
+				Name: "dynamic_resource_1",
+				URN:  "dynamic_resource:dynamic_resource_1",
+				Namespace: shield.Namespace{
+					ID:   "dynamic_resource_type",
+					Name: "Dynamic Namespace",
+				},
+			},
+		}
+
+		client.On("GetResources", mock.Anything, "dynamic_resource_type").Return(expectedDynamicResources, nil).Once()
 
 		expectedResources := []*domain.Resource{
 			{
@@ -367,6 +411,20 @@ func TestGetResources(t *testing.T) {
 					"admins": []string{"testOrganizationAdmin@gmail.com"},
 				},
 				GlobalURN: "urn:shield:test-provider-urn:organization:org_id",
+			},
+			{
+				Type:        "dynamic_resource_type",
+				URN:         "resource:dynamic_resource:dynamic_resource_1",
+				ProviderURN: providerURN,
+				Name:        "dynamic_resource_1",
+				Details: map[string]interface{}{
+					"id": "dynamic_resource_id",
+					"namespace": shield.Namespace{
+						ID:   "dynamic_resource_type",
+						Name: "Dynamic Namespace",
+					},
+				},
+				GlobalURN: "urn:shield:test-provider-urn:resource:dynamic_resource_id",
 			},
 		}
 
