@@ -408,6 +408,6 @@ func (c *client) GrantResourceAccess(ctx context.Context, resource *Resource, us
 
 // dummy functions for shieldNewclient to implement the interface
 func (c *client) RevokeResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error {
-	c.logger.Info(ctx, "Remove access of the user from resource in new shield,", "Users", userId, resource.ID)
+	c.logger.Info(ctx, "Remove access of the user from resource in new shield,", "Users", userId)
 	return nil
 }
