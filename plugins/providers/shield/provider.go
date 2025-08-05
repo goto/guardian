@@ -39,7 +39,28 @@ func (p *provider) GetType() string {
 
 func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
 	c := NewConfig(pc)
-	return c.ParseAndValidate()
+	var creds Credentials
+	if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
+		return err
+	}
+
+	client, err := p.GetClient(pc.URN, creds)
+	if err != nil {
+		return err
+	}
+
+	var listOfDynamicResourceType []string
+
+	namespaces, err := client.GetNamespaces(context.Background())
+	if err != nil {
+		return err
+	}
+
+	for _, namespace := range namespaces {
+		listOfDynamicResourceType = append(listOfDynamicResourceType, namespace.Name)
+	}
+
+	return c.ParseAndValidate(listOfDynamicResourceType)
 }
 
 func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {

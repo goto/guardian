@@ -604,33 +604,38 @@ func (s *ClientTestSuite) TestGetSelfUser() {
 		s.Nil(actualError)
 	})
 }
-
 func (s *ClientTestSuite) TestRevokeResourceAccess() {
-	s.Run("should log info and return nil error", func() {
+	s.Run("should return error and log info", func() {
 		s.setup()
-		// Since RevokeResourceAccess is a dummy function that only logs and returns nil,
-		// we just need to call it and check that it returns nil.
 		err := s.client.RevokeResourceAccess(context.Background(), nil, "test_user_id", "test_role")
-		s.Nil(err)
+		s.NotNil(err)
+		s.EqualError(err, "RevokeResourceAccess not implemented yet")
 	})
 }
 
 func (s *ClientTestSuite) TestGrantResourceAccess() {
-	s.Run("should log info and return nil error", func() {
+	s.Run("should return error and log info", func() {
 		s.setup()
-		// Since GrantResourceAccess is a dummy function that only logs and returns nil,
-		// we just need to call it and check that it returns nil.
 		err := s.client.GrantResourceAccess(context.Background(), nil, "test_user_id", "test_role")
-		s.Nil(err)
+		s.NotNil(err)
+		s.EqualError(err, "GrantResourceAccess not implemented yet")
 	})
 }
 
 func (s *ClientTestSuite) TestGetResources() {
-	s.Run("should log info and return nil error", func() {
+	s.Run("should return error and log info", func() {
 		s.setup()
-		// Since GetResources is a dummy function that only logs and returns nil,
-		// we just need to call it and check that it returns nil.
 		_, err := s.client.GetResources(context.Background(), "")
-		s.Nil(err)
+		s.NotNil(err)
+		s.EqualError(err, "GetResources not implemented yet")
+	})
+}
+
+func (s *ClientTestSuite) TestGetNamespaces() {
+	s.Run("should return error and log info", func() {
+		s.setup()
+		_, err := s.client.GetNamespaces(context.Background())
+		s.NotNil(err)
+		s.EqualError(err, "GetNamespaces not implemented yet")
 	})
 }

@@ -80,6 +80,64 @@ func (_c *ShieldClient_GetGroups_Call) RunAndReturn(run func(context.Context) ([
 	return _c
 }
 
+// GetNamespaces provides a mock function with given fields: ctx
+func (_m *ShieldClient) GetNamespaces(ctx context.Context) ([]*shield.Namespace, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetNamespaces")
+	}
+
+	var r0 []*shield.Namespace
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]*shield.Namespace, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []*shield.Namespace); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*shield.Namespace)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ShieldClient_GetNamespaces_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNamespaces'
+type ShieldClient_GetNamespaces_Call struct {
+	*mock.Call
+}
+
+// GetNamespaces is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *ShieldClient_Expecter) GetNamespaces(ctx interface{}) *ShieldClient_GetNamespaces_Call {
+	return &ShieldClient_GetNamespaces_Call{Call: _e.mock.On("GetNamespaces", ctx)}
+}
+
+func (_c *ShieldClient_GetNamespaces_Call) Run(run func(ctx context.Context)) *ShieldClient_GetNamespaces_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *ShieldClient_GetNamespaces_Call) Return(_a0 []*shield.Namespace, _a1 error) *ShieldClient_GetNamespaces_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *ShieldClient_GetNamespaces_Call) RunAndReturn(run func(context.Context) ([]*shield.Namespace, error)) *ShieldClient_GetNamespaces_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetOrganizations provides a mock function with given fields: ctx
 func (_m *ShieldClient) GetOrganizations(ctx context.Context) ([]*shield.Organization, error) {
 	ret := _m.Called(ctx)
@@ -461,9 +519,9 @@ func (_c *ShieldClient_GrantProjectAccess_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
-// GrantResourceAccess provides a mock function with given fields: ctx, project, userId, role
-func (_m *ShieldClient) GrantResourceAccess(ctx context.Context, project *shield.Resource, userId string, role string) error {
-	ret := _m.Called(ctx, project, userId, role)
+// GrantResourceAccess provides a mock function with given fields: ctx, resource, userId, role
+func (_m *ShieldClient) GrantResourceAccess(ctx context.Context, resource *shield.Resource, userId string, role string) error {
+	ret := _m.Called(ctx, resource, userId, role)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GrantResourceAccess")
@@ -471,7 +529,7 @@ func (_m *ShieldClient) GrantResourceAccess(ctx context.Context, project *shield
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, *shield.Resource, string, string) error); ok {
-		r0 = rf(ctx, project, userId, role)
+		r0 = rf(ctx, resource, userId, role)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -486,14 +544,14 @@ type ShieldClient_GrantResourceAccess_Call struct {
 
 // GrantResourceAccess is a helper method to define mock.On call
 //   - ctx context.Context
-//   - project *shield.Resource
+//   - resource *shield.Resource
 //   - userId string
 //   - role string
-func (_e *ShieldClient_Expecter) GrantResourceAccess(ctx interface{}, project interface{}, userId interface{}, role interface{}) *ShieldClient_GrantResourceAccess_Call {
-	return &ShieldClient_GrantResourceAccess_Call{Call: _e.mock.On("GrantResourceAccess", ctx, project, userId, role)}
+func (_e *ShieldClient_Expecter) GrantResourceAccess(ctx interface{}, resource interface{}, userId interface{}, role interface{}) *ShieldClient_GrantResourceAccess_Call {
+	return &ShieldClient_GrantResourceAccess_Call{Call: _e.mock.On("GrantResourceAccess", ctx, resource, userId, role)}
 }
 
-func (_c *ShieldClient_GrantResourceAccess_Call) Run(run func(ctx context.Context, project *shield.Resource, userId string, role string)) *ShieldClient_GrantResourceAccess_Call {
+func (_c *ShieldClient_GrantResourceAccess_Call) Run(run func(ctx context.Context, resource *shield.Resource, userId string, role string)) *ShieldClient_GrantResourceAccess_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(*shield.Resource), args[2].(string), args[3].(string))
 	})
@@ -657,9 +715,9 @@ func (_c *ShieldClient_RevokeProjectAccess_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
-// RevokeResourceAccess provides a mock function with given fields: ctx, project, userId, role
-func (_m *ShieldClient) RevokeResourceAccess(ctx context.Context, project *shield.Resource, userId string, role string) error {
-	ret := _m.Called(ctx, project, userId, role)
+// RevokeResourceAccess provides a mock function with given fields: ctx, resource, userId, role
+func (_m *ShieldClient) RevokeResourceAccess(ctx context.Context, resource *shield.Resource, userId string, role string) error {
+	ret := _m.Called(ctx, resource, userId, role)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RevokeResourceAccess")
@@ -667,7 +725,7 @@ func (_m *ShieldClient) RevokeResourceAccess(ctx context.Context, project *shiel
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, *shield.Resource, string, string) error); ok {
-		r0 = rf(ctx, project, userId, role)
+		r0 = rf(ctx, resource, userId, role)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -682,14 +740,14 @@ type ShieldClient_RevokeResourceAccess_Call struct {
 
 // RevokeResourceAccess is a helper method to define mock.On call
 //   - ctx context.Context
-//   - project *shield.Resource
+//   - resource *shield.Resource
 //   - userId string
 //   - role string
-func (_e *ShieldClient_Expecter) RevokeResourceAccess(ctx interface{}, project interface{}, userId interface{}, role interface{}) *ShieldClient_RevokeResourceAccess_Call {
-	return &ShieldClient_RevokeResourceAccess_Call{Call: _e.mock.On("RevokeResourceAccess", ctx, project, userId, role)}
+func (_e *ShieldClient_Expecter) RevokeResourceAccess(ctx interface{}, resource interface{}, userId interface{}, role interface{}) *ShieldClient_RevokeResourceAccess_Call {
+	return &ShieldClient_RevokeResourceAccess_Call{Call: _e.mock.On("RevokeResourceAccess", ctx, resource, userId, role)}
 }
 
-func (_c *ShieldClient_RevokeResourceAccess_Call) Run(run func(ctx context.Context, project *shield.Resource, userId string, role string)) *ShieldClient_RevokeResourceAccess_Call {
+func (_c *ShieldClient_RevokeResourceAccess_Call) Run(run func(ctx context.Context, resource *shield.Resource, userId string, role string)) *ShieldClient_RevokeResourceAccess_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(*shield.Resource), args[2].(string), args[3].(string))
 	})

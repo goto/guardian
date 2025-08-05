@@ -14,6 +14,7 @@ type ShieldClient interface {
 	GetResources(ctx context.Context, namespace string) ([]*Resource, error)
 	GetProjects(ctx context.Context) ([]*Project, error)
 	GetOrganizations(ctx context.Context) ([]*Organization, error)
+	GetNamespaces(ctx context.Context) ([]*Namespace, error)
 	GrantGroupAccess(ctx context.Context, team *Group, userId string, role string) error
 	RevokeGroupAccess(ctx context.Context, team *Group, userId string, role string) error
 	GrantProjectAccess(ctx context.Context, project *Project, userId string, role string) error
@@ -29,7 +30,6 @@ const (
 	ResourceTypeTeam         = "team"
 	ResourceTypeProject      = "project"
 	ResourceTypeOrganization = "organization"
-	ResourceTypeRole         = "role"
 	ResourceTypeResource     = "resource"
 )
 
@@ -38,6 +38,7 @@ const (
 	resourcesEndpoint    = "/admin/v1beta1/resources"
 	projectsEndpoint     = "/admin/v1beta1/projects"
 	organizationEndpoint = "/admin/v1beta1/organizations"
+	namespacesEndpoint   = "/admin/v1beta1/namespaces"
 	selfUserEndpoint     = "admin/v1beta1/users/self"
 	relationsEndpoint    = "/admin/v1beta1/relations"
 	objectEndpoint       = "/admin/v1beta1/object"
@@ -47,6 +48,7 @@ const (
 	projectsConst      = "projects"
 	organizationsConst = "organizations"
 	usersConst         = "users"
+	namespacesConst    = "namespaces"
 	userConst          = "user"
 	relationsConst     = "relations"
 	relationConst      = "relation"

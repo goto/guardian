@@ -165,6 +165,21 @@ func TestCreateConfig(t *testing.T) {
 			},
 		}
 
+		client.On("GetNamespaces", mock.Anything).Return([]*shield.Namespace{
+			{
+				ID:   "team",
+				Name: "Team",
+			},
+			{
+				ID:   "project",
+				Name: "Project",
+			},
+			{
+				ID:   "organization",
+				Name: "Organization",
+			},
+		}, nil)
+
 		for _, tc := range testcases {
 			actualError := p.CreateConfig(tc.pc)
 			assert.Equal(t, tc.expectedError, actualError)
@@ -1052,7 +1067,6 @@ func TestRevokeAccess(t *testing.T) {
 			ID:          "999",
 		}
 		t.Run("should return nil error if revoking resource access is successful", func(t *testing.T) {
-
 			client.On("GetSelfUser", mockCtx, expectedUserEmail).Return(expectedUser, nil).Once()
 			client.On("RevokeResourceAccess", mockCtx, expectedResource, expectedUser.ID, expectedRole).Return(nil).Once()
 

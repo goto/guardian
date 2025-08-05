@@ -317,6 +317,27 @@ func (c *shieldNewclient) GetResources(ctx context.Context, namespace string) ([
 	return allResources, nil
 }
 
+func (c *shieldNewclient) GetNamespaces(ctx context.Context) ([]*Namespace, error) {
+	req, err := c.newRequest(http.MethodGet, namespacesEndpoint, nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var namespaces []*Namespace
+	var response interface{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return nil, err
+	}
+
+	if v, ok := response.(map[string]interface{}); ok && v[namespacesConst] != nil {
+		err = mapstructure.Decode(v[namespacesConst], &namespaces)
+	}
+
+	c.logger.Info(ctx, fmt.Sprintf("Fetch namespaces from new shield request total=%d with request %s", len(namespaces), req.URL))
+
+	return namespaces, err
+}
+
 func (c *shieldNewclient) GrantGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
 	err := c.CreateRelation(ctx, resource.ID, groupNamespaceConst, fmt.Sprintf("%s:%s", userNamespaceConst, userId), role)
 	if err != nil {

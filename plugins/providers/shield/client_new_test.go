@@ -72,6 +72,7 @@ type ShieldNewClientTestSuite struct {
 func TestShieldNewClient(t *testing.T) {
 	suite.Run(t, new(ShieldNewClientTestSuite))
 }
+
 func (s *ShieldNewClientTestSuite) TestShieldNewGetResources() {
 	s.Run("should get all resources with pagination and nil error on success", func() {
 		s.setup()
@@ -174,6 +175,91 @@ func (s *ShieldNewClientTestSuite) TestShieldNewGetResources() {
 		s.Equal(0, len(resources))
 	})
 }
+
+func (s *ShieldNewClientTestSuite) TestShieldNewGetNamespaces() {
+	s.Run("should get namespaces and nil error on success", func() {
+		s.setup()
+
+		testRequest, err := s.getTestRequest(http.MethodGet, "/admin/v1beta1/namespaces", nil, "")
+		s.Require().NoError(err)
+
+		namespacesResponseJSON := `{
+				"namespaces": [
+					{
+						"id": "namespace_id_1",
+						"name": "namespace_1",
+						"createdAt": "2022-03-17T06:19:47.176089Z",
+						"updatedAt": "2022-03-17T06:19:47.176089Z"
+					},
+					{
+						"id": "namespace_id_2",
+						"name": "namespace_2",
+						"createdAt": "2022-03-18T06:19:47.176089Z",
+						"updatedAt": "2022-03-18T06:19:47.176089Z"
+					}
+				]
+			}`
+		namespacesResponse := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(namespacesResponseJSON)))}
+		s.mockHttpClient.On("Do", testRequest).Return(&namespacesResponse, nil).Once()
+
+		expectedNamespaces := []*shield.Namespace{
+			{
+				ID:   "namespace_id_1",
+				Name: "namespace_1",
+			},
+			{
+				ID:   "namespace_id_2",
+				Name: "namespace_2",
+			},
+		}
+
+		namespaces, err := s.client.GetNamespaces(context.Background())
+		s.Nil(err)
+		s.Equal(len(expectedNamespaces), len(namespaces))
+		for i, ns := range namespaces {
+			s.Equal(expectedNamespaces[i].ID, ns.ID)
+			s.Equal(expectedNamespaces[i].Name, ns.Name)
+		}
+	})
+
+	s.Run("should return error if http client returns error", func() {
+		s.setup()
+		testRequest, err := s.getTestRequest(http.MethodGet, "/admin/v1beta1/namespaces", nil, "")
+		s.Require().NoError(err)
+		s.mockHttpClient.On("Do", testRequest).Return(nil, fmt.Errorf("network error")).Once()
+
+		namespaces, err := s.client.GetNamespaces(context.Background())
+		s.Nil(namespaces)
+		s.Error(err)
+	})
+
+	s.Run("should return error if response cannot be decoded", func() {
+		s.setup()
+		testRequest, err := s.getTestRequest(http.MethodGet, "/admin/v1beta1/namespaces", nil, "")
+		s.Require().NoError(err)
+		invalidJSON := []byte(`{invalid json}`)
+		resp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(invalidJSON))}
+		s.mockHttpClient.On("Do", testRequest).Return(&resp, nil).Once()
+
+		namespaces, err := s.client.GetNamespaces(context.Background())
+		s.Nil(namespaces)
+		s.Error(err)
+	})
+
+	s.Run("should return empty slice and nil error if no namespaces found", func() {
+		s.setup()
+		emptyResponseJSON := []byte(`{"namespaces":[]}`)
+		testRequest, err := s.getTestRequest(http.MethodGet, "/admin/v1beta1/namespaces", nil, "")
+		s.Require().NoError(err)
+		resp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(emptyResponseJSON))}
+		s.mockHttpClient.On("Do", testRequest).Return(&resp, nil).Once()
+
+		namespaces, err := s.client.GetNamespaces(context.Background())
+		s.Nil(err)
+		s.Equal(0, len(namespaces))
+	})
+}
+
 func (s *ShieldNewClientTestSuite) setup() {
 	logger := log.NewNoop()
 	s.mockHttpClient = new(mocks.HTTPClient)

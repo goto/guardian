@@ -2,6 +2,7 @@ package shield
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -38,11 +39,11 @@ func NewConfig(pc *domain.ProviderConfig) *Config {
 	}
 }
 
-func (c *Config) ParseAndValidate() error {
-	return c.parseAndValidate()
+func (c *Config) ParseAndValidate(dynamicResourceTypes []string) error {
+	return c.parseAndValidate(dynamicResourceTypes)
 }
 
-func (c *Config) parseAndValidate() error {
+func (c *Config) parseAndValidate(listOfDynamicResourceType []string) error {
 	if c.valid {
 		return nil
 	}
@@ -55,11 +56,11 @@ func (c *Config) parseAndValidate() error {
 		c.ProviderConfig.Credentials = credentials
 	}
 
-	// for _, r := range c.ProviderConfig.Resources {
-	// 	if err := c.validateResourceConfig(r); err != nil {
-	// 		validationErrors = append(validationErrors, err)
-	// 	}
-	// }
+	for _, r := range c.ProviderConfig.Resources {
+		if err := c.validateResourceConfig(r, listOfDynamicResourceType); err != nil {
+			validationErrors = append(validationErrors, err)
+		}
+	}
 
 	if len(validationErrors) > 0 {
 		errorStrings := []string{}
@@ -86,48 +87,49 @@ func (c *Config) validateCredentials(value interface{}) (*Credentials, error) {
 	return &credentials, nil
 }
 
-// func (c *Config) validateResourceConfig(resource *domain.ResourceConfig) error {
-// 	resourceTypeValidation := fmt.Sprintf("oneof=%s %s %s", ResourceTypeTeam, ResourceTypeProject, ResourceTypeOrganization)
-// 	if err := c.validator.Var(resource.Type, resourceTypeValidation); err != nil {
-// 		return err
-// 	}
+func (c *Config) validateResourceConfig(resource *domain.ResourceConfig, dynamicResourceTypes []string) error {
+	resourceTypes := append([]string{ResourceTypeTeam, ResourceTypeProject, ResourceTypeOrganization}, dynamicResourceTypes...)
+	resourceTypeValidation := fmt.Sprintf("oneof=%s", strings.Join(resourceTypes, " "))
+	if err := c.validator.Var(resource.Type, resourceTypeValidation); err != nil {
+		return err
+	}
 
-// 	for _, role := range resource.Roles {
-// 		for i, permission := range role.Permissions {
-// 			if permissionConfig, err := c.validatePermission(resource.Type, permission); err != nil {
-// 				return err
-// 			} else {
-// 				role.Permissions[i] = permissionConfig
-// 			}
-// 		}
-// 	}
+	for _, role := range resource.Roles {
+		for i, permission := range role.Permissions {
+			if permissionConfig, err := c.validatePermission(resource.Type, permission); err != nil {
+				return err
+			} else {
+				role.Permissions[i] = permissionConfig
+			}
+		}
+	}
 
-// 	return nil
-// }
+	return nil
+}
 
-// func (c *Config) validatePermission(resourceType string, value interface{}) (*Permission, error) {
-// 	permissionConfig, ok := value.(string)
-// 	if !ok {
-// 		return nil, ErrInvalidPermissionConfig
-// 	}
+func (c *Config) validatePermission(resourceType string, value interface{}) (*Permission, error) {
+	permissionConfig, ok := value.(string)
+	if !ok {
+		return nil, ErrInvalidPermissionConfig
+	}
 
-// 	var pc Permission
-// 	if err := mapstructure.Decode(permissionConfig, &pc); err != nil {
-// 		return nil, err
-// 	}
+	var pc Permission
+	if err := mapstructure.Decode(permissionConfig, &pc); err != nil {
+		return nil, err
+	}
 
-// 	var nameValidation string
-// 	if resourceType == ResourceTypeTeam {
-// 		nameValidation = "oneof=users admins member manager"
-// 	} else if resourceType == ResourceTypeProject {
-// 		nameValidation = "oneof=admins owner"
-// 	} else if resourceType == ResourceTypeOrganization {
-// 		nameValidation = "oneof=admins owner"
-// 	}
+	var nameValidation string
+	if resourceType == ResourceTypeTeam {
+		nameValidation = "oneof=users admins member manager"
+	} else if resourceType == ResourceTypeProject {
+		nameValidation = "oneof=admins owner"
+	} else if resourceType == ResourceTypeOrganization {
+		nameValidation = "oneof=admins owner"
+	}
 
-// 	if err := c.validator.Var(pc, nameValidation); err != nil {
-// 		return nil, err
-// 	}
+	if err := c.validator.Var(pc, nameValidation); err != nil {
+		return nil, err
+	}
 
-// 	return &pc, nil
-// }
+	return &pc, nil
+}
