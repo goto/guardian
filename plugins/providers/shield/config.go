@@ -39,11 +39,11 @@ func NewConfig(pc *domain.ProviderConfig) *Config {
 	}
 }
 
-func (c *Config) ParseAndValidate(dynamicResourceTypes []string) error {
-	return c.parseAndValidate(dynamicResourceTypes)
+func (c *Config) ParseAndValidate(validResourceTypes []string) error {
+	return c.parseAndValidate(validResourceTypes)
 }
 
-func (c *Config) parseAndValidate(listOfDynamicResourceType []string) error {
+func (c *Config) parseAndValidate(validResourceTypes []string) error {
 	if c.valid {
 		return nil
 	}
@@ -57,7 +57,7 @@ func (c *Config) parseAndValidate(listOfDynamicResourceType []string) error {
 	}
 
 	for _, r := range c.ProviderConfig.Resources {
-		if err := c.validateResourceConfig(r, listOfDynamicResourceType); err != nil {
+		if err := c.validateResourceConfig(r, validResourceTypes); err != nil {
 			validationErrors = append(validationErrors, err)
 		}
 	}

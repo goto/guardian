@@ -49,7 +49,7 @@ func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
 		return err
 	}
 
-	var listOfDynamicResourceType []string
+	var validResourceTypes []string
 
 	namespaces, err := client.GetNamespaces(context.Background())
 	if err != nil {
@@ -57,10 +57,10 @@ func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
 	}
 
 	for _, namespace := range namespaces {
-		listOfDynamicResourceType = append(listOfDynamicResourceType, namespace.Name)
+		validResourceTypes = append(validResourceTypes, namespace.Name)
 	}
 
-	return c.ParseAndValidate(listOfDynamicResourceType)
+	return c.ParseAndValidate(validResourceTypes)
 }
 
 func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
