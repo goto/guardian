@@ -268,6 +268,76 @@ func (c *shieldNewclient) GetOrganizations(ctx context.Context) ([]*Organization
 	return organizations, err
 }
 
+func (c *shieldNewclient) GetResources(ctx context.Context, namespace string) ([]*Resource, error) {
+	var (
+		allResources []*Resource
+		pageSize     = 500
+		pageNum      = 1
+		totalFetched = 0
+	)
+
+	for {
+		queryParams := url.Values{}
+		if namespace != "" {
+			queryParams.Set("namespace_id", namespace)
+		}
+		queryParams.Set("page_size", fmt.Sprintf("%d", pageSize))
+		queryParams.Set("page_num", fmt.Sprintf("%d", pageNum))
+
+		endpoint := fmt.Sprintf("%s?%s", resourcesEndpoint, queryParams.Encode())
+		req, err := c.newRequest(http.MethodGet, endpoint, nil, "")
+		if err != nil {
+			return nil, err
+		}
+
+		var response map[string]interface{}
+		if _, err := c.do(ctx, req, &response); err != nil {
+			return nil, err
+		}
+
+		var resources []*Resource
+		if v, ok := response[resourcesConst]; ok && v != nil {
+			if err := mapstructure.Decode(v, &resources); err != nil {
+				return nil, err
+			}
+		}
+
+		allResources = append(allResources, resources...)
+		count := len(resources)
+		totalFetched += count
+
+		// If less than pageSize returned, we've reached the end
+		if count < pageSize {
+			break
+		}
+		pageNum++
+	}
+
+	c.logger.Info(ctx, "Fetched resources from request", "total", len(allResources))
+	return allResources, nil
+}
+
+func (c *shieldNewclient) GetNamespaces(ctx context.Context) ([]*Namespace, error) {
+	req, err := c.newRequest(http.MethodGet, namespacesEndpoint, nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var namespaces []*Namespace
+	var response interface{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return nil, err
+	}
+
+	if v, ok := response.(map[string]interface{}); ok && v[namespacesConst] != nil {
+		err = mapstructure.Decode(v[namespacesConst], &namespaces)
+	}
+
+	c.logger.Info(ctx, fmt.Sprintf("Fetch namespaces from new shield request total=%d with request %s", len(namespaces), req.URL))
+
+	return namespaces, err
+}
+
 func (c *shieldNewclient) GrantGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
 	err := c.CreateRelation(ctx, resource.ID, groupNamespaceConst, fmt.Sprintf("%s:%s", userNamespaceConst, userId), role)
 	if err != nil {
@@ -295,6 +365,15 @@ func (c *shieldNewclient) GrantOrganizationAccess(ctx context.Context, resource 
 	return nil
 }
 
+func (c *shieldNewclient) GrantResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error {
+	err := c.CreateRelation(ctx, resource.ID, resource.Namespace.ID, fmt.Sprintf("%s:%s", userNamespaceConst, userId), role)
+	if err != nil {
+		return err
+	}
+	c.logger.Info(ctx, "Resource access created for user in new shield", userId)
+	return nil
+}
+
 func (c *shieldNewclient) RevokeGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
 	err := c.DeleteRelation(ctx, resource.ID, userId, role)
 	if err != nil {
@@ -319,6 +398,15 @@ func (c *shieldNewclient) RevokeOrganizationAccess(ctx context.Context, resource
 		return err
 	}
 	c.logger.Info(ctx, "Remove access of the user from organization in new shield,", "Users", userId, resource.ID)
+	return nil
+}
+
+func (c *shieldNewclient) RevokeResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error {
+	err := c.DeleteRelation(ctx, resource.ID, userId, role)
+	if err != nil {
+		return err
+	}
+	c.logger.Info(ctx, "Remove access of the user from resource in new shield,", "Users", userId, resource.ID)
 	return nil
 }
 

@@ -391,3 +391,24 @@ func (c *client) do(ctx context.Context, req *http.Request, v interface{}) (*htt
 
 	return resp, err
 }
+
+// dummy functions for shieldNewclient to implement the interface
+func (c *client) GetResources(ctx context.Context, namespace string) ([]*Resource, error) {
+	c.logger.Info(ctx, "GetResources not implemented yet", "namespace", namespace)
+	return nil, errors.New("GetResources not implemented yet")
+}
+
+func (c *client) GrantResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error {
+	c.logger.Info(ctx, "GrantResourceAccess not implemented yet", "userId", userId)
+	return errors.New("GrantResourceAccess not implemented yet")
+}
+
+func (c *client) RevokeResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error {
+	c.logger.Info(ctx, "RevokeResourceAccess not implemented yet", "userId", userId)
+	return errors.New("RevokeResourceAccess not implemented yet")
+}
+
+func (c *client) GetNamespaces(ctx context.Context) ([]*Namespace, error) {
+	c.logger.Info(ctx, "GetNamespaces not implemented yet")
+	return nil, errors.New("GetNamespaces not implemented yet")
+}

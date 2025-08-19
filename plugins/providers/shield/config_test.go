@@ -115,7 +115,7 @@ func TestValidate(t *testing.T) {
 					Credentials: tc.credentials,
 					Resources:   tc.resourceConfig,
 				}
-				err := shield.NewConfig(pc).ParseAndValidate()
+				err := shield.NewConfig(pc).ParseAndValidate([]string{"dynamicResourceTypes"})
 				assert.Error(t, err)
 			})
 		}

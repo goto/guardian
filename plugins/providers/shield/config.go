@@ -39,11 +39,11 @@ func NewConfig(pc *domain.ProviderConfig) *Config {
 	}
 }
 
-func (c *Config) ParseAndValidate() error {
-	return c.parseAndValidate()
+func (c *Config) ParseAndValidate(validResourceTypes []string) error {
+	return c.parseAndValidate(validResourceTypes)
 }
 
-func (c *Config) parseAndValidate() error {
+func (c *Config) parseAndValidate(validResourceTypes []string) error {
 	if c.valid {
 		return nil
 	}
@@ -57,7 +57,7 @@ func (c *Config) parseAndValidate() error {
 	}
 
 	for _, r := range c.ProviderConfig.Resources {
-		if err := c.validateResourceConfig(r); err != nil {
+		if err := c.validateResourceConfig(r, validResourceTypes); err != nil {
 			validationErrors = append(validationErrors, err)
 		}
 	}
@@ -87,8 +87,9 @@ func (c *Config) validateCredentials(value interface{}) (*Credentials, error) {
 	return &credentials, nil
 }
 
-func (c *Config) validateResourceConfig(resource *domain.ResourceConfig) error {
-	resourceTypeValidation := fmt.Sprintf("oneof=%s %s %s", ResourceTypeTeam, ResourceTypeProject, ResourceTypeOrganization)
+func (c *Config) validateResourceConfig(resource *domain.ResourceConfig, dynamicResourceTypes []string) error {
+	resourceTypes := append([]string{ResourceTypeTeam, ResourceTypeProject, ResourceTypeOrganization}, dynamicResourceTypes...)
+	resourceTypeValidation := fmt.Sprintf("oneof=%s", strings.Join(resourceTypes, " "))
 	if err := c.validator.Var(resource.Type, resourceTypeValidation); err != nil {
 		return err
 	}

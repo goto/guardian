@@ -8,16 +8,21 @@ import (
 	"github.com/goto/guardian/domain"
 )
 
+//go:generate mockery --name=ShieldClient --exported --with-expecter
 type ShieldClient interface {
 	GetGroups(ctx context.Context) ([]*Group, error)
+	GetResources(ctx context.Context, namespace string) ([]*Resource, error)
 	GetProjects(ctx context.Context) ([]*Project, error)
 	GetOrganizations(ctx context.Context) ([]*Organization, error)
+	GetNamespaces(ctx context.Context) ([]*Namespace, error)
 	GrantGroupAccess(ctx context.Context, team *Group, userId string, role string) error
 	RevokeGroupAccess(ctx context.Context, team *Group, userId string, role string) error
 	GrantProjectAccess(ctx context.Context, project *Project, userId string, role string) error
 	RevokeProjectAccess(ctx context.Context, project *Project, userId string, role string) error
 	GrantOrganizationAccess(ctx context.Context, organization *Organization, userId string, role string) error
 	RevokeOrganizationAccess(ctx context.Context, organization *Organization, userId string, role string) error
+	GrantResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error
+	RevokeResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error
 	GetSelfUser(ctx context.Context, email string) (*User, error)
 }
 
@@ -25,20 +30,25 @@ const (
 	ResourceTypeTeam         = "team"
 	ResourceTypeProject      = "project"
 	ResourceTypeOrganization = "organization"
+	ResourceTypeResource     = "resource"
 )
 
 const (
 	groupsEndpoint       = "/admin/v1beta1/groups"
+	resourcesEndpoint    = "/admin/v1beta1/resources"
 	projectsEndpoint     = "/admin/v1beta1/projects"
 	organizationEndpoint = "/admin/v1beta1/organizations"
+	namespacesEndpoint   = "/admin/v1beta1/namespaces"
 	selfUserEndpoint     = "admin/v1beta1/users/self"
 	relationsEndpoint    = "/admin/v1beta1/relations"
 	objectEndpoint       = "/admin/v1beta1/object"
 
 	groupsConst        = "groups"
+	resourcesConst     = "resources"
 	projectsConst      = "projects"
 	organizationsConst = "organizations"
 	usersConst         = "users"
+	namespacesConst    = "namespaces"
 	userConst          = "user"
 	relationsConst     = "relations"
 	relationConst      = "relation"
@@ -67,6 +77,11 @@ type Metadata struct {
 	Slack   string `json:"slack" mapstructure:"slack"`
 }
 
+type Namespace struct {
+	ID   string `json:"id" mapstructure:"id"`
+	Name string `json:"name" mapstructure:"name"`
+}
+
 type User struct {
 	ID    string `json:"id" mapstructure:"id"`
 	Name  string `json:"name" mapstructure:"name"`
@@ -80,6 +95,24 @@ type Group struct {
 	OrgId    string   `json:"orgId" mapstructure:"orgId"`
 	Metadata Metadata `json:"metadata" mapstructure:"metadata"`
 	Admins   []string `json:"admins" mapstructure:"admins"`
+}
+
+type Resource struct {
+	ID           string       `json:"id" mapstructure:"id"`
+	Name         string       `json:"name" mapstructure:"name"`
+	URN          string       `json:"urn" mapstructure:"urn"`
+	Project      Project      `json:"project" mapstructure:"project"`
+	Namespace    Namespace    `json:"namespace" mapstructure:"namespace"`
+	User         User         `json:"user" mapstructure:"user"`
+	Organization Organization `json:"organization" mapstructure:"organization"`
+}
+type Role struct {
+	ID          string                 `json:"id" mapstructure:"id"`
+	Name        string                 `json:"name" mapstructure:"name"`
+	Types       []string               `json:"types" mapstructure:"types"`
+	Namespace   *string                `json:"namespace" mapstructure:"namespace"`
+	Metadata    map[string]interface{} `json:"metadata" mapstructure:"metadata"`
+	NamespaceId string                 `json:"namespaceId" mapstructure:"namespaceId"`
 }
 
 type GroupRelation struct {
@@ -238,6 +271,37 @@ func (o *Organization) ToDomain() *domain.Resource {
 		Details: map[string]interface{}{
 			"id":     o.ID,
 			"admins": o.Admins,
+		},
+	}
+}
+
+func (sr *Resource) FromDomain(r *domain.Resource) error {
+	resourceDetails := r.Details
+	if id, ok := resourceDetails["id"].(string); ok {
+		sr.ID = id
+	}
+	if nsMap, ok := resourceDetails["namespace"].(map[string]interface{}); ok {
+		ns := Namespace{}
+		if id, ok := nsMap["id"].(string); ok {
+			ns.ID = id
+		}
+		if name, ok := nsMap["name"].(string); ok {
+			ns.Name = name
+		}
+		sr.Namespace = ns
+	}
+	sr.Name = r.Name
+	return nil
+}
+
+func (r *Resource) ToDomain() *domain.Resource {
+	return &domain.Resource{
+		Type: r.Namespace.ID,
+		Name: r.Name,
+		URN:  fmt.Sprintf("resource:%v", r.URN),
+		Details: map[string]interface{}{
+			"id":        r.ID,
+			"namespace": r.Namespace,
 		},
 	}
 }

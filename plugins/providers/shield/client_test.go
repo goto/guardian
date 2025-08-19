@@ -604,3 +604,38 @@ func (s *ClientTestSuite) TestGetSelfUser() {
 		s.Nil(actualError)
 	})
 }
+func (s *ClientTestSuite) TestRevokeResourceAccess() {
+	s.Run("should return error and log info", func() {
+		s.setup()
+		err := s.client.RevokeResourceAccess(context.Background(), nil, "test_user_id", "test_role")
+		s.NotNil(err)
+		s.EqualError(err, "RevokeResourceAccess not implemented yet")
+	})
+}
+
+func (s *ClientTestSuite) TestGrantResourceAccess() {
+	s.Run("should return error and log info", func() {
+		s.setup()
+		err := s.client.GrantResourceAccess(context.Background(), nil, "test_user_id", "test_role")
+		s.NotNil(err)
+		s.EqualError(err, "GrantResourceAccess not implemented yet")
+	})
+}
+
+func (s *ClientTestSuite) TestGetResources() {
+	s.Run("should return error and log info", func() {
+		s.setup()
+		_, err := s.client.GetResources(context.Background(), "")
+		s.NotNil(err)
+		s.EqualError(err, "GetResources not implemented yet")
+	})
+}
+
+func (s *ClientTestSuite) TestGetNamespaces() {
+	s.Run("should return error and log info", func() {
+		s.setup()
+		_, err := s.client.GetNamespaces(context.Background())
+		s.NotNil(err)
+		s.EqualError(err, "GetNamespaces not implemented yet")
+	})
+}
