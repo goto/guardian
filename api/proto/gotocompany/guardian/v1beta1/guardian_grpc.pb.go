@@ -52,8 +52,8 @@ type GuardianServiceClient interface {
 	ListAppealActivities(ctx context.Context, in *ListAppealActivitiesRequest, opts ...grpc.CallOption) (*ListAppealActivitiesResponse, error)
 	ListUserApprovals(ctx context.Context, in *ListUserApprovalsRequest, opts ...grpc.CallOption) (*ListUserApprovalsResponse, error)
 	ListApprovals(ctx context.Context, in *ListApprovalsRequest, opts ...grpc.CallOption) (*ListApprovalsResponse, error)
-	GenerateUserApprovalsSummaries(ctx context.Context, in *GenerateUserApprovalsSummariesRequest, opts ...grpc.CallOption) (*GenerateUserApprovalsSummariesResponse, error)
-	GenerateApprovalsSummaries(ctx context.Context, in *GenerateApprovalsSummariesRequest, opts ...grpc.CallOption) (*GenerateApprovalsSummariesResponse, error)
+	GenerateListUserApprovalsSummaries(ctx context.Context, in *GenerateListUserApprovalsSummariesRequest, opts ...grpc.CallOption) (*GenerateListUserApprovalsSummariesResponse, error)
+	GenerateListApprovalsSummaries(ctx context.Context, in *GenerateListApprovalsSummariesRequest, opts ...grpc.CallOption) (*GenerateListApprovalsSummariesResponse, error)
 	UpdateApproval(ctx context.Context, in *UpdateApprovalRequest, opts ...grpc.CallOption) (*UpdateApprovalResponse, error)
 	AddApprover(ctx context.Context, in *AddApproverRequest, opts ...grpc.CallOption) (*AddApproverResponse, error)
 	DeleteApprover(ctx context.Context, in *DeleteApproverRequest, opts ...grpc.CallOption) (*DeleteApproverResponse, error)
@@ -346,18 +346,18 @@ func (c *guardianServiceClient) ListApprovals(ctx context.Context, in *ListAppro
 	return out, nil
 }
 
-func (c *guardianServiceClient) GenerateUserApprovalsSummaries(ctx context.Context, in *GenerateUserApprovalsSummariesRequest, opts ...grpc.CallOption) (*GenerateUserApprovalsSummariesResponse, error) {
-	out := new(GenerateUserApprovalsSummariesResponse)
-	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/GenerateUserApprovalsSummaries", in, out, opts...)
+func (c *guardianServiceClient) GenerateListUserApprovalsSummaries(ctx context.Context, in *GenerateListUserApprovalsSummariesRequest, opts ...grpc.CallOption) (*GenerateListUserApprovalsSummariesResponse, error) {
+	out := new(GenerateListUserApprovalsSummariesResponse)
+	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/GenerateListUserApprovalsSummaries", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *guardianServiceClient) GenerateApprovalsSummaries(ctx context.Context, in *GenerateApprovalsSummariesRequest, opts ...grpc.CallOption) (*GenerateApprovalsSummariesResponse, error) {
-	out := new(GenerateApprovalsSummariesResponse)
-	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/GenerateApprovalsSummaries", in, out, opts...)
+func (c *guardianServiceClient) GenerateListApprovalsSummaries(ctx context.Context, in *GenerateListApprovalsSummariesRequest, opts ...grpc.CallOption) (*GenerateListApprovalsSummariesResponse, error) {
+	out := new(GenerateListApprovalsSummariesResponse)
+	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/GenerateListApprovalsSummaries", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -506,8 +506,8 @@ type GuardianServiceServer interface {
 	ListAppealActivities(context.Context, *ListAppealActivitiesRequest) (*ListAppealActivitiesResponse, error)
 	ListUserApprovals(context.Context, *ListUserApprovalsRequest) (*ListUserApprovalsResponse, error)
 	ListApprovals(context.Context, *ListApprovalsRequest) (*ListApprovalsResponse, error)
-	GenerateUserApprovalsSummaries(context.Context, *GenerateUserApprovalsSummariesRequest) (*GenerateUserApprovalsSummariesResponse, error)
-	GenerateApprovalsSummaries(context.Context, *GenerateApprovalsSummariesRequest) (*GenerateApprovalsSummariesResponse, error)
+	GenerateListUserApprovalsSummaries(context.Context, *GenerateListUserApprovalsSummariesRequest) (*GenerateListUserApprovalsSummariesResponse, error)
+	GenerateListApprovalsSummaries(context.Context, *GenerateListApprovalsSummariesRequest) (*GenerateListApprovalsSummariesResponse, error)
 	UpdateApproval(context.Context, *UpdateApprovalRequest) (*UpdateApprovalResponse, error)
 	AddApprover(context.Context, *AddApproverRequest) (*AddApproverResponse, error)
 	DeleteApprover(context.Context, *DeleteApproverRequest) (*DeleteApproverResponse, error)
@@ -617,11 +617,11 @@ func (UnimplementedGuardianServiceServer) ListUserApprovals(context.Context, *Li
 func (UnimplementedGuardianServiceServer) ListApprovals(context.Context, *ListApprovalsRequest) (*ListApprovalsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListApprovals not implemented")
 }
-func (UnimplementedGuardianServiceServer) GenerateUserApprovalsSummaries(context.Context, *GenerateUserApprovalsSummariesRequest) (*GenerateUserApprovalsSummariesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GenerateUserApprovalsSummaries not implemented")
+func (UnimplementedGuardianServiceServer) GenerateListUserApprovalsSummaries(context.Context, *GenerateListUserApprovalsSummariesRequest) (*GenerateListUserApprovalsSummariesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateListUserApprovalsSummaries not implemented")
 }
-func (UnimplementedGuardianServiceServer) GenerateApprovalsSummaries(context.Context, *GenerateApprovalsSummariesRequest) (*GenerateApprovalsSummariesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GenerateApprovalsSummaries not implemented")
+func (UnimplementedGuardianServiceServer) GenerateListApprovalsSummaries(context.Context, *GenerateListApprovalsSummariesRequest) (*GenerateListApprovalsSummariesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateListApprovalsSummaries not implemented")
 }
 func (UnimplementedGuardianServiceServer) UpdateApproval(context.Context, *UpdateApprovalRequest) (*UpdateApprovalResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateApproval not implemented")
@@ -1212,38 +1212,38 @@ func _GuardianService_ListApprovals_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GuardianService_GenerateUserApprovalsSummaries_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GenerateUserApprovalsSummariesRequest)
+func _GuardianService_GenerateListUserApprovalsSummaries_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateListUserApprovalsSummariesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GuardianServiceServer).GenerateUserApprovalsSummaries(ctx, in)
+		return srv.(GuardianServiceServer).GenerateListUserApprovalsSummaries(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/gotocompany.guardian.v1beta1.GuardianService/GenerateUserApprovalsSummaries",
+		FullMethod: "/gotocompany.guardian.v1beta1.GuardianService/GenerateListUserApprovalsSummaries",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GuardianServiceServer).GenerateUserApprovalsSummaries(ctx, req.(*GenerateUserApprovalsSummariesRequest))
+		return srv.(GuardianServiceServer).GenerateListUserApprovalsSummaries(ctx, req.(*GenerateListUserApprovalsSummariesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GuardianService_GenerateApprovalsSummaries_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GenerateApprovalsSummariesRequest)
+func _GuardianService_GenerateListApprovalsSummaries_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateListApprovalsSummariesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GuardianServiceServer).GenerateApprovalsSummaries(ctx, in)
+		return srv.(GuardianServiceServer).GenerateListApprovalsSummaries(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/gotocompany.guardian.v1beta1.GuardianService/GenerateApprovalsSummaries",
+		FullMethod: "/gotocompany.guardian.v1beta1.GuardianService/GenerateListApprovalsSummaries",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GuardianServiceServer).GenerateApprovalsSummaries(ctx, req.(*GenerateApprovalsSummariesRequest))
+		return srv.(GuardianServiceServer).GenerateListApprovalsSummaries(ctx, req.(*GenerateListApprovalsSummariesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1592,12 +1592,12 @@ var GuardianService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GuardianService_ListApprovals_Handler,
 		},
 		{
-			MethodName: "GenerateUserApprovalsSummaries",
-			Handler:    _GuardianService_GenerateUserApprovalsSummaries_Handler,
+			MethodName: "GenerateListUserApprovalsSummaries",
+			Handler:    _GuardianService_GenerateListUserApprovalsSummaries_Handler,
 		},
 		{
-			MethodName: "GenerateApprovalsSummaries",
-			Handler:    _GuardianService_GenerateApprovalsSummaries_Handler,
+			MethodName: "GenerateListApprovalsSummaries",
+			Handler:    _GuardianService_GenerateListApprovalsSummaries_Handler,
 		},
 		{
 			MethodName: "UpdateApproval",

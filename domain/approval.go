@@ -61,19 +61,19 @@ func (a *Approval) IsExistingApprover(approver string) bool {
 }
 
 type ListApprovalsFilter struct {
-	Q                 string   `mapstructure:"q" validate:"omitempty"`
-	AccountID         string   `mapstructure:"account_id" validate:"omitempty,required"`
-	AccountTypes      []string `mapstructure:"account_types" validate:"omitempty,min=1"`
-	ResourceTypes     []string `mapstructure:"resource_types" validate:"omitempty,min=1"`
-	CreatedBy         string   `mapstructure:"created_by" validate:"omitempty,required"`
-	Statuses          []string `mapstructure:"statuses" validate:"omitempty,min=1"`
-	OrderBy           []string `mapstructure:"order_by" validate:"omitempty,min=1"`
-	Size              int      `mapstructure:"size" validate:"omitempty"`
-	Offset            int      `mapstructure:"offset" validate:"omitempty"`
-	AppealStatuses    []string `mapstructure:"appeal_statuses" validate:"omitempty,min=1"`
-	Stale             bool     `mapstructure:"stale" validate:"omitempty"`
-	RoleStartsWith    []string `mapstructure:"role_starts_with" validate:"omitempty,min=1"`
-	RoleEndsWith      []string `mapstructure:"role_ends_with" validate:"omitempty,min=1"`
-	RoleContains      []string `mapstructure:"role_contains" validate:"omitempty,min=1"`
-	ApproverStepNames []string `mapstructure:"approver_step_names" validate:"omitempty,min=1"`
+	Q              string   `mapstructure:"q" validate:"omitempty"`
+	AccountID      string   `mapstructure:"account_id" validate:"omitempty,required"`
+	AccountTypes   []string `mapstructure:"account_types" validate:"omitempty,min=1"`
+	ResourceTypes  []string `mapstructure:"resource_types" validate:"omitempty,min=1"`
+	CreatedBy      string   `mapstructure:"created_by" validate:"omitempty,required"`
+	Statuses       []string `mapstructure:"statuses" validate:"omitempty,min=1"`
+	OrderBy        []string `mapstructure:"order_by" validate:"omitempty,min=1"`
+	Size           int      `mapstructure:"size" validate:"omitempty"`
+	Offset         int      `mapstructure:"offset" validate:"omitempty"`
+	AppealStatuses []string `mapstructure:"appeal_statuses" validate:"omitempty,min=1"`
+	Stale          bool     `mapstructure:"stale" validate:"omitempty"`
+	RoleStartsWith []string `mapstructure:"role_starts_with" validate:"omitempty,min=1"`
+	RoleEndsWith   []string `mapstructure:"role_ends_with" validate:"omitempty,min=1"`
+	RoleContains   []string `mapstructure:"role_contains" validate:"omitempty,min=1"`
+	StepNames      []string `mapstructure:"step_names" validate:"omitempty,min=1"`
 }

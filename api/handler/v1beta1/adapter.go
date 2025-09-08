@@ -3,11 +3,12 @@ package v1beta1
 import (
 	"fmt"
 
-	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
-	"github.com/goto/guardian/domain"
 	"github.com/mitchellh/mapstructure"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
+	"github.com/goto/guardian/domain"
 )
 
 type adapter struct{}
@@ -1050,6 +1051,25 @@ func (a *adapter) ToAppealActivityProto(e *domain.Event) (*guardianv1beta1.Appea
 		activityProto.Data = data
 	}
 	return activityProto, nil
+}
+
+func (a *adapter) ToSummaryProto(s *domain.Summary) (*guardianv1beta1.Summary, error) {
+	if s == nil {
+		return nil, nil
+	}
+
+	summaryProto := &guardianv1beta1.Summary{
+		SummaryGroups: make([]*guardianv1beta1.Summary_SummaryGroup, len(s.SummaryGroups)),
+		Total:         s.Total,
+	}
+	for i, group := range s.SummaryGroups {
+		summaryProto.SummaryGroups[i] = &guardianv1beta1.Summary_SummaryGroup{
+			Groups: group.Groups,
+			Total:  group.Total,
+		}
+	}
+	
+	return summaryProto, nil
 }
 
 func (a *adapter) toConditionProto(c *domain.Condition) (*guardianv1beta1.Condition, error) {

@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/lib/pq"
@@ -86,6 +87,98 @@ func (r *ApprovalRepository) GetApprovalsTotalCount(ctx context.Context, filter 
 	}
 
 	return count, nil
+}
+
+func (r *ApprovalRepository) GenerateListApprovalsSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.Summary, error) {
+	if err := utils.ValidateStruct(filter); err != nil {
+		return nil, err
+	}
+
+	db := r.db.WithContext(ctx)
+	var err error
+	db, err = applyFilterForSummary(db, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build SELECT clause with alias = original groupBy
+	var selectCols []string
+	for _, col := range groupBys {
+		selectCols = append(selectCols, fmt.Sprintf(`%s AS "%s"`, col, col))
+	}
+	selectCols = append(selectCols, "COUNT(1) AS total")
+
+	db = db.Table("approvals").Select(strings.Join(selectCols, ", "))
+	if len(groupBys) > 0 {
+		db = db.Group(strings.Join(groupBys, ", "))
+	}
+
+	// Execute query
+	rows, err := db.Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := &domain.Summary{
+		SummaryGroups: []*domain.SummaryGroup{},
+		Total:         0,
+	}
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		// Prepare scan destination
+		values := make([]interface{}, len(cols))
+		valuePtrs := make([]interface{}, len(cols))
+		for i := range cols {
+			valuePtrs[i] = &values[i]
+		}
+
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, err
+		}
+
+		group := make(map[string]string)
+		var total int64
+
+		for i, col := range cols {
+			val := values[i]
+			switch col {
+			case "total":
+				switch v := val.(type) {
+				case int64:
+					total = v
+				case int32:
+					total = int64(v)
+				case int:
+					total = int64(v)
+				case []byte:
+					parsed, _ := strconv.ParseInt(string(v), 10, 64)
+					total = parsed
+				}
+			default:
+				// preserve original groupBy key
+				switch v := val.(type) {
+				case string:
+					group[col] = v
+				case []byte:
+					group[col] = string(v)
+				}
+			}
+		}
+
+		result.SummaryGroups = append(result.SummaryGroups, &domain.SummaryGroup{
+			Groups: group,
+			Total:  total,
+		})
+		result.Total += total
+	}
+
+	return result, nil
 }
 
 func (r *ApprovalRepository) BulkInsert(ctx context.Context, approvals []*domain.Approval) error {
@@ -227,19 +320,79 @@ func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, err
 		db = db.Where(`"Appeal"."role" ILIKE ANY (?)`, pq.Array(patterns))
 	}
 
-	if len(filter.ApproverStepNames) > 0 {
-		if filter.CreatedBy != "" {
-			db = db.Where(`EXISTS (
-            SELECT 1
-            FROM approvals ar
-            JOIN approvers av ON ar.id = av.approval_id
-            WHERE ar.appeal_id = "Appeal".id
-              AND ar.name IN ?
-              AND LOWER(av.email) = ?
-        )`, filter.ApproverStepNames, filter.CreatedBy)
-		} else {
-			db = db.Where(`"approvals"."name" IN ?`, filter.ApproverStepNames)
-		}
+	if len(filter.StepNames) > 0 {
+		db = db.Where(`"approvals"."name" IN ?`, filter.StepNames)
 	}
+	return db, nil
+}
+
+func applyFilterForSummary(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, error) {
+	// Explicit joins, no GORM associations
+	db = db.Joins(`JOIN appeals ON approvals.appeal_id = appeals.id`).
+		Joins(`JOIN resources ON appeals.resource_id = resources.id`).
+		Joins(`JOIN approvers ON approvals.id = approvers.approval_id`)
+
+	if filter.Q != "" {
+		db = db.Where(db.
+			Where(`appeals.account_id LIKE ?`, "%"+filter.Q+"%").
+			Or(`appeals.role LIKE ?`, "%"+filter.Q+"%").
+			Or(`resources.urn LIKE ?`, "%"+filter.Q+"%").
+			Or(`resources.name LIKE ?`, "%"+filter.Q+"%"),
+		)
+	}
+	if filter.CreatedBy != "" {
+		db = db.Where(`LOWER(approvers.email) = ?`, strings.ToLower(filter.CreatedBy))
+	}
+	if len(filter.Statuses) > 0 {
+		db = db.Where(`approvals.status IN ?`, filter.Statuses)
+	}
+	if filter.AccountID != "" {
+		db = db.Where(`LOWER(appeals.account_id) = ?`, strings.ToLower(filter.AccountID))
+	}
+	if len(filter.AccountTypes) > 0 {
+		db = db.Where(`appeals.account_type IN ?`, filter.AccountTypes)
+	}
+	if len(filter.ResourceTypes) > 0 {
+		db = db.Where(`resources.type IN ?`, filter.ResourceTypes)
+	}
+
+	if len(filter.AppealStatuses) == 0 {
+		db = db.Where(`appeals.status != ?`, domain.AppealStatusCanceled)
+	} else {
+		db = db.Where(`appeals.status IN ?`, filter.AppealStatuses)
+	}
+
+	if !filter.Stale {
+		db = db.Where(`approvals.is_stale = ?`, filter.Stale)
+	}
+
+	if len(filter.RoleStartsWith) > 0 {
+		patterns := make([]string, len(filter.RoleStartsWith))
+		for i, p := range filter.RoleStartsWith {
+			patterns[i] = p + "%"
+		}
+		db = db.Where(`appeals.role ILIKE ANY (?)`, pq.Array(patterns))
+	}
+
+	if len(filter.RoleEndsWith) > 0 {
+		patterns := make([]string, len(filter.RoleEndsWith))
+		for i, p := range filter.RoleEndsWith {
+			patterns[i] = "%" + p
+		}
+		db = db.Where(`appeals.role ILIKE ANY (?)`, pq.Array(patterns))
+	}
+
+	if len(filter.RoleContains) > 0 {
+		patterns := make([]string, len(filter.RoleContains))
+		for i, p := range filter.RoleContains {
+			patterns[i] = "%" + p + "%"
+		}
+		db = db.Where(`appeals.role ILIKE ANY (?)`, pq.Array(patterns))
+	}
+
+	if len(filter.StepNames) > 0 {
+		db = db.Where(`approvals.name IN ?`, filter.StepNames)
+	}
+
 	return db, nil
 }

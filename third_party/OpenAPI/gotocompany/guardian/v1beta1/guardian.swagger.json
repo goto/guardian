@@ -823,7 +823,7 @@
             "collectionFormat": "multi"
           },
           {
-            "name": "approverStepNames",
+            "name": "stepNames",
             "in": "query",
             "required": false,
             "type": "array",
@@ -840,12 +840,12 @@
     },
     "/v1beta1/approvals/summaries": {
       "post": {
-        "operationId": "GuardianService_GenerateApprovalsSummaries",
+        "operationId": "GuardianService_GenerateListApprovalsSummaries",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1beta1GenerateApprovalsSummariesResponse"
+              "$ref": "#/definitions/v1beta1GenerateListApprovalsSummariesResponse"
             }
           },
           "default": {
@@ -861,7 +861,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1beta1GenerateApprovalsSummariesRequest"
+              "$ref": "#/definitions/v1beta1GenerateListApprovalsSummariesRequest"
             }
           }
         ],
@@ -1511,7 +1511,7 @@
             "collectionFormat": "multi"
           },
           {
-            "name": "approverStepNames",
+            "name": "stepNames",
             "in": "query",
             "required": false,
             "type": "array",
@@ -1528,12 +1528,12 @@
     },
     "/v1beta1/me/approvals/summaries": {
       "post": {
-        "operationId": "GuardianService_GenerateUserApprovalsSummaries",
+        "operationId": "GuardianService_GenerateListUserApprovalsSummaries",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1beta1GenerateUserApprovalsSummariesResponse"
+              "$ref": "#/definitions/v1beta1GenerateListUserApprovalsSummariesResponse"
             }
           },
           "default": {
@@ -1549,7 +1549,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1beta1GenerateUserApprovalsSummariesRequest"
+              "$ref": "#/definitions/v1beta1GenerateListUserApprovalsSummariesRequest"
             }
           }
         ],
@@ -2641,16 +2641,70 @@
         }
       }
     },
-    "ResponseGroupCount": {
+    "SummaryFilterAppealSummaryFilter": {
       "type": "object",
       "properties": {
-        "group": {
+        "statuses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "roleStartsWith": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "roleEndsWith": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "roleContains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "SummaryFilterApprovalSummaryFilter": {
+      "type": "object",
+      "properties": {
+        "statuses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "stepNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "SummaryFilterApproverSummaryFilter": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        }
+      }
+    },
+    "SummarySummaryGroup": {
+      "type": "object",
+      "properties": {
+        "groups": {
           "type": "object",
           "additionalProperties": {
             "type": "string"
           }
         },
-        "count": {
+        "total": {
           "type": "string",
           "format": "int64"
         }
@@ -3072,41 +3126,55 @@
     "v1beta1DeleteResourceResponse": {
       "type": "object"
     },
-    "v1beta1GenerateApprovalsSummariesRequest": {
+    "v1beta1GenerateListApprovalsSummariesRequest": {
       "type": "object",
       "properties": {
-        "summaryItems": {
+        "requests": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/definitions/v1beta1SummaryItemRequest"
+            "$ref": "#/definitions/v1beta1SummaryRequest"
           }
         }
       }
     },
-    "v1beta1GenerateApprovalsSummariesResponse": {
+    "v1beta1GenerateListApprovalsSummariesResponse": {
       "type": "object",
       "properties": {
         "summaries": {
-          "$ref": "#/definitions/v1beta1Summaries"
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1beta1Summary"
+          }
+        },
+        "total": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
-    "v1beta1GenerateUserApprovalsSummariesRequest": {
+    "v1beta1GenerateListUserApprovalsSummariesRequest": {
       "type": "object",
       "properties": {
-        "summaryItems": {
+        "requests": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/definitions/v1beta1SummaryItemRequest"
+            "$ref": "#/definitions/v1beta1SummaryRequest"
           }
         }
       }
     },
-    "v1beta1GenerateUserApprovalsSummariesResponse": {
+    "v1beta1GenerateListUserApprovalsSummariesResponse": {
       "type": "object",
       "properties": {
         "summaries": {
-          "$ref": "#/definitions/v1beta1Summaries"
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1beta1Summary"
+          }
+        },
+        "total": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
@@ -3887,26 +3955,11 @@
         }
       }
     },
-    "v1beta1Summaries": {
+    "v1beta1Summary": {
       "type": "object",
       "properties": {
-        "summaryItems": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/v1beta1SummariesResponse"
-          }
-        },
-        "total": {
-          "type": "string",
-          "format": "int64"
-        }
-      }
-    },
-    "v1beta1SummariesResponse": {
-      "type": "object",
-      "properties": {
-        "filters": {
-          "$ref": "#/definitions/v1beta1SummaryFilters"
+        "filter": {
+          "$ref": "#/definitions/v1beta1SummaryFilter"
         },
         "groupBys": {
           "type": "array",
@@ -3914,59 +3967,39 @@
             "type": "string"
           }
         },
-        "groups": {
+        "summaryGroups": {
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/ResponseGroupCount"
+            "$ref": "#/definitions/SummarySummaryGroup"
           }
         },
-        "count": {
+        "total": {
           "type": "string",
           "format": "int64"
         }
-      }
+      },
+      "title": "Summary is global interface to summarize the implementor"
     },
-    "v1beta1SummaryFilters": {
+    "v1beta1SummaryFilter": {
       "type": "object",
       "properties": {
-        "statuses": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+        "appealFilter": {
+          "$ref": "#/definitions/SummaryFilterAppealSummaryFilter"
         },
-        "roleStartsWith": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+        "approvalFilter": {
+          "$ref": "#/definitions/SummaryFilterApprovalSummaryFilter"
         },
-        "roleEndsWith": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "roleContains": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "approverStepNames": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+        "approverFilter": {
+          "$ref": "#/definitions/SummaryFilterApproverSummaryFilter"
         }
       }
     },
-    "v1beta1SummaryItemRequest": {
+    "v1beta1SummaryRequest": {
       "type": "object",
       "properties": {
-        "filters": {
-          "$ref": "#/definitions/v1beta1SummaryFilters"
+        "filter": {
+          "$ref": "#/definitions/v1beta1SummaryFilter"
         },
         "groupBys": {
           "type": "array",

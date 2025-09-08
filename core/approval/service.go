@@ -13,6 +13,7 @@ type repository interface {
 	ListApprovals(context.Context, *domain.ListApprovalsFilter) ([]*domain.Approval, error)
 	AddApprover(context.Context, *domain.Approver) error
 	DeleteApprover(ctx context.Context, approvalID, email string) error
+	GenerateListApprovalsSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.Summary, error)
 }
 
 //go:generate mockery --name=policyService --exported --with-expecter
@@ -42,6 +43,10 @@ func (s *Service) ListApprovals(ctx context.Context, filters *domain.ListApprova
 
 func (s *Service) GetApprovalsTotalCount(ctx context.Context, filters *domain.ListApprovalsFilter) (int64, error) {
 	return s.repo.GetApprovalsTotalCount(ctx, filters)
+}
+
+func (s *Service) GenerateListApprovalsSummary(ctx context.Context, filters *domain.ListApprovalsFilter, groupBys []string) (*domain.Summary, error) {
+	return s.repo.GenerateListApprovalsSummary(ctx, filters, groupBys)
 }
 
 func (s *Service) BulkInsert(ctx context.Context, approvals []*domain.Approval) error {

@@ -10,10 +10,11 @@ import (
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/core/grant"
 
-	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
-	"github.com/goto/guardian/domain"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
+	"github.com/goto/guardian/domain"
 )
 
 type ProtoAdapter interface {
@@ -45,6 +46,8 @@ type ProtoAdapter interface {
 
 	ToCommentProto(*domain.Comment) *guardianv1beta1.AppealComment
 	ToAppealActivityProto(e *domain.Event) (*guardianv1beta1.AppealActivity, error)
+
+	ToSummaryProto(summary *domain.Summary) (*guardianv1beta1.Summary, error)
 	// TODO: remove interface
 }
 
@@ -111,6 +114,7 @@ type appealService interface {
 type approvalService interface {
 	ListApprovals(context.Context, *domain.ListApprovalsFilter) ([]*domain.Approval, error)
 	GetApprovalsTotalCount(context.Context, *domain.ListApprovalsFilter) (int64, error)
+	GenerateListApprovalsSummary(context.Context, *domain.ListApprovalsFilter, []string) (*domain.Summary, error)
 	BulkInsert(context.Context, []*domain.Approval) error
 }
 
