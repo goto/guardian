@@ -791,6 +791,78 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "roleStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "roleEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "roleContains",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "approverStepNames",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
+      }
+    },
+    "/v1beta1/approvals/summaries": {
+      "post": {
+        "operationId": "GuardianService_GenerateApprovalsSummaries",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1GenerateApprovalsSummariesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1beta1GenerateApprovalsSummariesRequest"
+            }
           }
         ],
         "tags": [
@@ -1407,6 +1479,78 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "roleStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "roleEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "roleContains",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "approverStepNames",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
+      }
+    },
+    "/v1beta1/me/approvals/summaries": {
+      "post": {
+        "operationId": "GuardianService_GenerateUserApprovalsSummaries",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1GenerateUserApprovalsSummariesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1beta1GenerateUserApprovalsSummariesRequest"
+            }
           }
         ],
         "tags": [
@@ -2497,6 +2641,21 @@
         }
       }
     },
+    "ResponseGroupCount": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "count": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
     "UpdateApprovalRequestAction": {
       "type": "object",
       "properties": {
@@ -2580,7 +2739,7 @@
         "NULL_VALUE"
       ],
       "default": "NULL_VALUE",
-      "description": "`NullValue` is a singleton enumeration to represent the null value for the\n`Value` type union.\n\n The JSON representation for `NullValue` is JSON `null`.\n\n - NULL_VALUE: Null value."
+      "description": "`NullValue` is a singleton enumeration to represent the null value for the\n`Value` type union.\n\nThe JSON representation for `NullValue` is JSON `null`.\n\n - NULL_VALUE: Null value."
     },
     "rpcStatus": {
       "type": "object",
@@ -2912,6 +3071,44 @@
     },
     "v1beta1DeleteResourceResponse": {
       "type": "object"
+    },
+    "v1beta1GenerateApprovalsSummariesRequest": {
+      "type": "object",
+      "properties": {
+        "summaryItems": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1beta1SummaryItemRequest"
+          }
+        }
+      }
+    },
+    "v1beta1GenerateApprovalsSummariesResponse": {
+      "type": "object",
+      "properties": {
+        "summaries": {
+          "$ref": "#/definitions/v1beta1Summaries"
+        }
+      }
+    },
+    "v1beta1GenerateUserApprovalsSummariesRequest": {
+      "type": "object",
+      "properties": {
+        "summaryItems": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1beta1SummaryItemRequest"
+          }
+        }
+      }
+    },
+    "v1beta1GenerateUserApprovalsSummariesResponse": {
+      "type": "object",
+      "properties": {
+        "summaries": {
+          "$ref": "#/definitions/v1beta1Summaries"
+        }
+      }
     },
     "v1beta1GetActivityResponse": {
       "type": "object",
@@ -3687,6 +3884,95 @@
         },
         "type": {
           "type": "string"
+        }
+      }
+    },
+    "v1beta1Summaries": {
+      "type": "object",
+      "properties": {
+        "summaryItems": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1beta1SummariesResponse"
+          }
+        },
+        "total": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "v1beta1SummariesResponse": {
+      "type": "object",
+      "properties": {
+        "filters": {
+          "$ref": "#/definitions/v1beta1SummaryFilters"
+        },
+        "groupBys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/ResponseGroupCount"
+          }
+        },
+        "count": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "v1beta1SummaryFilters": {
+      "type": "object",
+      "properties": {
+        "statuses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "roleStartsWith": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "roleEndsWith": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "roleContains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "approverStepNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1beta1SummaryItemRequest": {
+      "type": "object",
+      "properties": {
+        "filters": {
+          "$ref": "#/definitions/v1beta1SummaryFilters"
+        },
+        "groupBys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

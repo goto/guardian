@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 
-	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
-	"github.com/goto/guardian/core/appeal"
-	"github.com/goto/guardian/domain"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
+	"github.com/goto/guardian/core/appeal"
+	"github.com/goto/guardian/domain"
 )
 
 func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1.ListUserApprovalsRequest) (*guardianv1beta1.ListUserApprovalsResponse, error) {
@@ -19,17 +20,21 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 	}
 
 	approvals, total, err := s.listApprovals(ctx, &domain.ListApprovalsFilter{
-		Q:              req.GetQ(),
-		AccountID:      req.GetAccountId(),
-		AccountTypes:   req.GetAccountTypes(),
-		ResourceTypes:  req.GetResourceTypes(),
-		CreatedBy:      user,
-		Statuses:       req.GetStatuses(),
-		OrderBy:        req.GetOrderBy(),
-		Size:           int(req.GetSize()),
-		Offset:         int(req.GetOffset()),
-		AppealStatuses: req.GetAppealStatuses(),
-		Stale:          req.GetStale(),
+		Q:                 req.GetQ(),
+		AccountID:         req.GetAccountId(),
+		AccountTypes:      req.GetAccountTypes(),
+		ResourceTypes:     req.GetResourceTypes(),
+		CreatedBy:         user,
+		Statuses:          req.GetStatuses(),
+		OrderBy:           req.GetOrderBy(),
+		Size:              int(req.GetSize()),
+		Offset:            int(req.GetOffset()),
+		AppealStatuses:    req.GetAppealStatuses(),
+		Stale:             req.GetStale(),
+		RoleStartsWith:    req.GetRoleStartsWith(),
+		RoleEndsWith:      req.GetRoleEndsWith(),
+		RoleContains:      req.GetRoleContains(),
+		ApproverStepNames: req.GetApproverStepNames(),
 	})
 	if err != nil {
 		return nil, err
@@ -43,17 +48,21 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 
 func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.ListApprovalsRequest) (*guardianv1beta1.ListApprovalsResponse, error) {
 	approvals, total, err := s.listApprovals(ctx, &domain.ListApprovalsFilter{
-		Q:              req.GetQ(),
-		AccountID:      req.GetAccountId(),
-		AccountTypes:   req.GetAccountTypes(),
-		ResourceTypes:  req.GetResourceTypes(),
-		CreatedBy:      req.GetCreatedBy(),
-		Statuses:       req.GetStatuses(),
-		OrderBy:        req.GetOrderBy(),
-		Size:           int(req.GetSize()),
-		Offset:         int(req.GetOffset()),
-		AppealStatuses: req.GetAppealStatuses(),
-		Stale:          req.GetStale(),
+		Q:                 req.GetQ(),
+		AccountID:         req.GetAccountId(),
+		AccountTypes:      req.GetAccountTypes(),
+		ResourceTypes:     req.GetResourceTypes(),
+		CreatedBy:         req.GetCreatedBy(),
+		Statuses:          req.GetStatuses(),
+		OrderBy:           req.GetOrderBy(),
+		Size:              int(req.GetSize()),
+		Offset:            int(req.GetOffset()),
+		AppealStatuses:    req.GetAppealStatuses(),
+		Stale:             req.GetStale(),
+		RoleStartsWith:    req.GetRoleStartsWith(),
+		RoleEndsWith:      req.GetRoleEndsWith(),
+		RoleContains:      req.GetRoleContains(),
+		ApproverStepNames: req.GetApproverStepNames(),
 	})
 	if err != nil {
 		return nil, err

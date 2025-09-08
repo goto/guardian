@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lib/pq"
+	"gorm.io/gorm"
+
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres/model"
 	"github.com/goto/guardian/utils"
-	"gorm.io/gorm"
 )
 
 var (
@@ -201,5 +203,43 @@ func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, err
 		db = db.Where(`"approvals"."is_stale" = ?`, filter.Stale)
 	}
 
+	if len(filter.RoleStartsWith) != 0 {
+		patterns := make([]string, len(filter.RoleStartsWith))
+		for i, p := range filter.RoleStartsWith {
+			patterns[i] = p + "%"
+		}
+		db = db.Where(`"Appeal"."role" ILIKE ANY (?)`, pq.Array(patterns))
+	}
+
+	if len(filter.RoleEndsWith) != 0 {
+		patterns := make([]string, len(filter.RoleEndsWith))
+		for i, p := range filter.RoleEndsWith {
+			patterns[i] = "%" + p
+		}
+		db = db.Where(`"Appeal"."role" ILIKE ANY (?)`, pq.Array(patterns))
+	}
+
+	if len(filter.RoleContains) != 0 {
+		patterns := make([]string, len(filter.RoleContains))
+		for i, p := range filter.RoleContains {
+			patterns[i] = "%" + p + "%"
+		}
+		db = db.Where(`"Appeal"."role" ILIKE ANY (?)`, pq.Array(patterns))
+	}
+
+	if len(filter.ApproverStepNames) > 0 {
+		if filter.CreatedBy != "" {
+			db = db.Where(`EXISTS (
+            SELECT 1
+            FROM approvals ar
+            JOIN approvers av ON ar.id = av.approval_id
+            WHERE ar.appeal_id = "Appeal".id
+              AND ar.name IN ?
+              AND LOWER(av.email) = ?
+        )`, filter.ApproverStepNames, filter.CreatedBy)
+		} else {
+			db = db.Where(`"approvals"."name" IN ?`, filter.ApproverStepNames)
+		}
+	}
 	return db, nil
 }
