@@ -161,22 +161,23 @@ func (r *ApprovalRepository) GenerateListApprovalsSummary(ctx context.Context, f
 					total = parsed
 				}
 			default:
-				if len(groupBys) != 0 {
-					// preserve original groupBy key
-					switch v := val.(type) {
-					case string:
-						group[col] = v
-					case []byte:
-						group[col] = string(v)
-					}
+				// preserve original groupBy key
+				switch v := val.(type) {
+				case string:
+					group[col] = v
+				case []byte:
+					group[col] = string(v)
 				}
 			}
 		}
 
-		result.SummaryGroups = append(result.SummaryGroups, &domain.SummaryGroup{
-			Groups: group,
-			Total:  total,
-		})
+		if len(groupBys) > 0 {
+			result.SummaryGroups = append(result.SummaryGroups, &domain.SummaryGroup{
+				Groups: group,
+				Total:  total,
+			})
+		}
+		
 		result.Total += total
 	}
 
