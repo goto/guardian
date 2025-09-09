@@ -96,7 +96,7 @@ func (r *ApprovalRepository) GenerateListApprovalsSummary(ctx context.Context, f
 
 	db := r.db.WithContext(ctx)
 	var err error
-	db, err = applyFilterForSummary(db, filter)
+	db, err = applyListApprovalsSummaryFilter(db, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -161,12 +161,14 @@ func (r *ApprovalRepository) GenerateListApprovalsSummary(ctx context.Context, f
 					total = parsed
 				}
 			default:
-				// preserve original groupBy key
-				switch v := val.(type) {
-				case string:
-					group[col] = v
-				case []byte:
-					group[col] = string(v)
+				if len(groupBys) != 0 {
+					// preserve original groupBy key
+					switch v := val.(type) {
+					case string:
+						group[col] = v
+					case []byte:
+						group[col] = string(v)
+					}
 				}
 			}
 		}
@@ -326,7 +328,7 @@ func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, err
 	return db, nil
 }
 
-func applyFilterForSummary(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, error) {
+func applyListApprovalsSummaryFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, error) {
 	// Explicit joins, no GORM associations
 	db = db.Joins(`JOIN appeals ON approvals.appeal_id = appeals.id`).
 		Joins(`JOIN resources ON appeals.resource_id = resources.id`).
