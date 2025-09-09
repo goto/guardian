@@ -168,7 +168,7 @@ func (s *GRPCServer) GenerateListUserApprovalsSummaries(ctx context.Context, req
 
 	return &guardianv1beta1.GenerateListUserApprovalsSummariesResponse{
 		Summaries: summaries,
-		Total:     int64(len(summaries)),
+		Total:     int32(len(summaries)),
 	}, nil
 }
 

@@ -174,11 +174,11 @@ func (r *ApprovalRepository) GenerateListApprovalsSummary(ctx context.Context, f
 		if len(groupBys) > 0 {
 			result.SummaryGroups = append(result.SummaryGroups, &domain.SummaryGroup{
 				Groups: group,
-				Total:  total,
+				Total:  int32(total),
 			})
 		}
-		
-		result.Total += total
+
+		result.Total += int32(total)
 	}
 
 	return result, nil

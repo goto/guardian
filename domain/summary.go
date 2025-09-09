@@ -2,12 +2,12 @@ package domain
 
 type Summary struct {
 	SummaryGroups []*SummaryGroup `json:"summary_groups,omitempty"`
-	Total         int64           `json:"total"`
+	Total         int32           `json:"total"`
 }
 
 type SummaryGroup struct {
 	Groups map[string]string `json:"groups,omitempty"`
-	Total  int64             `json:"total"`
+	Total  int32             `json:"total"`
 }
 
 type SummaryFilter struct {
