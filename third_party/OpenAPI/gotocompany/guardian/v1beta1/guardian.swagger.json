@@ -2667,6 +2667,12 @@
           "items": {
             "type": "string"
           }
+        },
+        "accountTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
