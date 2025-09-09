@@ -11,23 +11,23 @@ type SummaryGroup struct {
 }
 
 type SummaryFilter struct {
-	AppealFilter   *AppealSummaryFilter   `mapstructure:"appeal_filter" validate:"omitempty,dive"`
-	ApprovalFilter *ApprovalSummaryFilter `mapstructure:"approval_filter" validate:"omitempty,dive"`
-	ApproverFilter *ApproverSummaryFilter `mapstructure:"approver_filter" validate:"omitempty,dive"`
+	AppealsFilter   *AppealsSummaryFilter   `mapstructure:"appeals_filter" validate:"omitempty,dive"`
+	ApprovalsFilter *ApprovalsSummaryFilter `mapstructure:"approvals_filter" validate:"omitempty,dive"`
+	ApproversFilter *ApproversSummaryFilter `mapstructure:"approvers_filter" validate:"omitempty,dive"`
 }
 
-type AppealSummaryFilter struct {
+type AppealsSummaryFilter struct {
 	Statuses       []string `mapstructure:"statuses" validate:"omitempty,min=1"`
 	RoleStartsWith []string `mapstructure:"role_starts_with" validate:"omitempty,min=1"`
 	RoleEndsWith   []string `mapstructure:"role_ends_with" validate:"omitempty,min=1"`
 	RoleContains   []string `mapstructure:"role_contains" validate:"omitempty,min=1"`
 }
 
-type ApprovalSummaryFilter struct {
+type ApprovalsSummaryFilter struct {
 	Statuses  []string `mapstructure:"statuses" validate:"omitempty,min=1"`
 	StepNames []string `mapstructure:"step_names" validate:"omitempty,min=1"`
 }
 
-type ApproverSummaryFilter struct {
+type ApproversSummaryFilter struct {
 	Emails []string `mapstructure:"emails" validate:"omitempty,min=1"`
 }

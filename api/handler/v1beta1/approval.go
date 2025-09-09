@@ -138,18 +138,18 @@ func (s *GRPCServer) GenerateListUserApprovalsSummaries(ctx context.Context, req
 		}
 
 		if summaryFilter != nil {
-			appealFilter := summaryFilter.GetAppealFilter()
-			if appealFilter != nil {
-				listApprovalsFilter.AppealStatuses = appealFilter.GetStatuses()
-				listApprovalsFilter.RoleStartsWith = appealFilter.GetRoleStartsWith()
-				listApprovalsFilter.RoleEndsWith = appealFilter.GetRoleEndsWith()
-				listApprovalsFilter.RoleContains = appealFilter.GetRoleContains()
+			appealsFilter := summaryFilter.GetAppealsFilter()
+			if appealsFilter != nil {
+				listApprovalsFilter.AppealStatuses = appealsFilter.GetStatuses()
+				listApprovalsFilter.RoleStartsWith = appealsFilter.GetRoleStartsWith()
+				listApprovalsFilter.RoleEndsWith = appealsFilter.GetRoleEndsWith()
+				listApprovalsFilter.RoleContains = appealsFilter.GetRoleContains()
 			}
 
-			approvalFilter := summaryFilter.GetApprovalFilter()
-			if approvalFilter != nil {
-				listApprovalsFilter.Statuses = approvalFilter.GetStatuses()
-				listApprovalsFilter.StepNames = approvalFilter.GetStepNames()
+			approvalsFilter := summaryFilter.GetApprovalsFilter()
+			if approvalsFilter != nil {
+				listApprovalsFilter.Statuses = approvalsFilter.GetStatuses()
+				listApprovalsFilter.StepNames = approvalsFilter.GetStepNames()
 			}
 		}
 		listApprovalsSummary, err := s.approvalService.GenerateListApprovalsSummary(ctx, listApprovalsFilter, groupBys)
@@ -183,23 +183,23 @@ func (s *GRPCServer) GenerateListApprovalsSummaries(ctx context.Context, req *gu
 		listApprovalsFilter := &domain.ListApprovalsFilter{}
 
 		if summaryFilter != nil {
-			appealFilter := summaryFilter.GetAppealFilter()
-			if appealFilter != nil {
-				listApprovalsFilter.AppealStatuses = appealFilter.GetStatuses()
-				listApprovalsFilter.RoleStartsWith = appealFilter.GetRoleStartsWith()
-				listApprovalsFilter.RoleEndsWith = appealFilter.GetRoleEndsWith()
-				listApprovalsFilter.RoleContains = appealFilter.GetRoleContains()
+			appealsFilter := summaryFilter.GetAppealsFilter()
+			if appealsFilter != nil {
+				listApprovalsFilter.AppealStatuses = appealsFilter.GetStatuses()
+				listApprovalsFilter.RoleStartsWith = appealsFilter.GetRoleStartsWith()
+				listApprovalsFilter.RoleEndsWith = appealsFilter.GetRoleEndsWith()
+				listApprovalsFilter.RoleContains = appealsFilter.GetRoleContains()
 			}
 
-			approvalFilter := summaryFilter.GetApprovalFilter()
-			if approvalFilter != nil {
-				listApprovalsFilter.Statuses = approvalFilter.GetStatuses()
-				listApprovalsFilter.StepNames = approvalFilter.GetStepNames()
+			approvalsFilter := summaryFilter.GetApprovalsFilter()
+			if approvalsFilter != nil {
+				listApprovalsFilter.Statuses = approvalsFilter.GetStatuses()
+				listApprovalsFilter.StepNames = approvalsFilter.GetStepNames()
 			}
 
-			approverFilter := summaryFilter.GetApproverFilter()
-			if approverFilter != nil {
-				listApprovalsFilter.CreatedBy = approverFilter.Email
+			approversFilter := summaryFilter.GetApproversFilter()
+			if approversFilter != nil {
+				listApprovalsFilter.CreatedBy = approversFilter.Email
 			}
 		}
 		listApprovalsSummary, err := s.approvalService.GenerateListApprovalsSummary(ctx, listApprovalsFilter, groupBys)

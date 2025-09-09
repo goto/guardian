@@ -2641,7 +2641,7 @@
         }
       }
     },
-    "SummaryFilterAppealSummaryFilter": {
+    "SummaryFilterAppealsSummaryFilter": {
       "type": "object",
       "properties": {
         "statuses": {
@@ -2670,7 +2670,7 @@
         }
       }
     },
-    "SummaryFilterApprovalSummaryFilter": {
+    "SummaryFilterApprovalsSummaryFilter": {
       "type": "object",
       "properties": {
         "statuses": {
@@ -2687,7 +2687,7 @@
         }
       }
     },
-    "SummaryFilterApproverSummaryFilter": {
+    "SummaryFilterApproversSummaryFilter": {
       "type": "object",
       "properties": {
         "email": {
@@ -3984,14 +3984,14 @@
     "v1beta1SummaryFilter": {
       "type": "object",
       "properties": {
-        "appealFilter": {
-          "$ref": "#/definitions/SummaryFilterAppealSummaryFilter"
+        "appealsFilter": {
+          "$ref": "#/definitions/SummaryFilterAppealsSummaryFilter"
         },
-        "approvalFilter": {
-          "$ref": "#/definitions/SummaryFilterApprovalSummaryFilter"
+        "approvalsFilter": {
+          "$ref": "#/definitions/SummaryFilterApprovalsSummaryFilter"
         },
-        "approverFilter": {
-          "$ref": "#/definitions/SummaryFilterApproverSummaryFilter"
+        "approversFilter": {
+          "$ref": "#/definitions/SummaryFilterApproversSummaryFilter"
         }
       }
     },
