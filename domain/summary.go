@@ -27,6 +27,7 @@ type AppealsSummaryFilter struct {
 type ApprovalsSummaryFilter struct {
 	Statuses  []string `mapstructure:"statuses" validate:"omitempty,min=1"`
 	StepNames []string `mapstructure:"step_names" validate:"omitempty,min=1"`
+	Stale     bool     `mapstructure:"stale"`
 }
 
 type ApproversSummaryFilter struct {

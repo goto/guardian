@@ -270,6 +270,7 @@ func (s *GRPCServer) listApprovalsSummaries(ctx context.Context, me bool, reques
 			if approvalsFilter != nil {
 				listApprovalsFilter.Statuses = approvalsFilter.GetStatuses()
 				listApprovalsFilter.StepNames = approvalsFilter.GetStepNames()
+				listApprovalsFilter.Stale = approvalsFilter.GetStale()
 			}
 
 			approversFilter := summaryFilter.GetApproversFilter()

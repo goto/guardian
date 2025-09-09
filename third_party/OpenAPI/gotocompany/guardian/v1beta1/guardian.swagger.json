@@ -2690,6 +2690,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "stale": {
+          "type": "boolean"
         }
       }
     },
