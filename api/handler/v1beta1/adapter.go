@@ -1068,7 +1068,7 @@ func (a *adapter) ToSummaryProto(s *domain.Summary) (*guardianv1beta1.Summary, e
 			Total:  group.Total,
 		}
 	}
-	
+
 	return summaryProto, nil
 }
 

@@ -152,6 +152,62 @@ func (_c *Repository_DeleteApprover_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
+// GenerateListApprovalsSummary provides a mock function with given fields: ctx, filter, groupBys
+func (_m *Repository) GenerateListApprovalsSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.Summary, error) {
+	ret := _m.Called(ctx, filter, groupBys)
+
+	var r0 *domain.Summary
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.ListApprovalsFilter, []string) (*domain.Summary, error)); ok {
+		return rf(ctx, filter, groupBys)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.ListApprovalsFilter, []string) *domain.Summary); ok {
+		r0 = rf(ctx, filter, groupBys)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Summary)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *domain.ListApprovalsFilter, []string) error); ok {
+		r1 = rf(ctx, filter, groupBys)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Repository_GenerateListApprovalsSummary_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GenerateListApprovalsSummary'
+type Repository_GenerateListApprovalsSummary_Call struct {
+	*mock.Call
+}
+
+// GenerateListApprovalsSummary is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter *domain.ListApprovalsFilter
+//   - groupBys []string
+func (_e *Repository_Expecter) GenerateListApprovalsSummary(ctx interface{}, filter interface{}, groupBys interface{}) *Repository_GenerateListApprovalsSummary_Call {
+	return &Repository_GenerateListApprovalsSummary_Call{Call: _e.mock.On("GenerateListApprovalsSummary", ctx, filter, groupBys)}
+}
+
+func (_c *Repository_GenerateListApprovalsSummary_Call) Run(run func(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string)) *Repository_GenerateListApprovalsSummary_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*domain.ListApprovalsFilter), args[2].([]string))
+	})
+	return _c
+}
+
+func (_c *Repository_GenerateListApprovalsSummary_Call) Return(_a0 *domain.Summary, _a1 error) *Repository_GenerateListApprovalsSummary_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Repository_GenerateListApprovalsSummary_Call) RunAndReturn(run func(context.Context, *domain.ListApprovalsFilter, []string) (*domain.Summary, error)) *Repository_GenerateListApprovalsSummary_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetApprovalsTotalCount provides a mock function with given fields: _a0, _a1
 func (_m *Repository) GetApprovalsTotalCount(_a0 context.Context, _a1 *domain.ListApprovalsFilter) (int64, error) {
 	ret := _m.Called(_a0, _a1)
