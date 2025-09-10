@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/goto/guardian/core/appeal"
@@ -89,14 +88,14 @@ func (r *ApprovalRepository) GetApprovalsTotalCount(ctx context.Context, filter 
 	return count, nil
 }
 
-func (r *ApprovalRepository) GenerateListApprovalsSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.Summary, error) {
+func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.SummaryResult, error) {
 	if err := utils.ValidateStruct(filter); err != nil {
 		return nil, err
 	}
 
 	db := r.db.WithContext(ctx)
 	var err error
-	db, err = applyListApprovalsSummaryFilter(db, filter)
+	db, err = applyFilter(db, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +119,7 @@ func (r *ApprovalRepository) GenerateListApprovalsSummary(ctx context.Context, f
 	}
 	defer rows.Close()
 
-	result := &domain.Summary{
+	result := &domain.SummaryResult{
 		SummaryGroups: []*domain.SummaryGroup{},
 		Total:         0,
 	}
@@ -142,43 +141,29 @@ func (r *ApprovalRepository) GenerateListApprovalsSummary(ctx context.Context, f
 			return nil, err
 		}
 
-		group := make(map[string]string)
-		var total int64
-
+		groupFields := make(map[string]any)
+		var total int32
 		for i, col := range cols {
+			groupValues := values[:i]
 			val := values[i]
 			switch col {
 			case "total":
-				switch v := val.(type) {
-				case int64:
-					total = v
-				case int32:
-					total = int64(v)
-				case int:
-					total = int64(v)
-				case []byte:
-					parsed, _ := strconv.ParseInt(string(v), 10, 64)
-					total = parsed
+				intValue, err := strconv.Atoi(fmt.Sprint(val))
+				if err == nil {
+					return nil, fmt.Errorf("invalid count value (%T) for group values: %v", val, groupValues)
 				}
+				total = int32(intValue)
 			default:
-				// preserve original groupBy key
-				switch v := val.(type) {
-				case string:
-					group[col] = v
-				case []byte:
-					group[col] = string(v)
-				}
+				groupFields[col] = val
 			}
 		}
-
 		if len(groupBys) > 0 {
 			result.SummaryGroups = append(result.SummaryGroups, &domain.SummaryGroup{
-				Groups: group,
-				Total:  int32(total),
+				GroupFields: groupFields,
+				Total:       total,
 			})
 		}
-
-		result.Total += int32(total)
+		result.Total += total
 	}
 
 	return result, nil
@@ -299,103 +284,24 @@ func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, err
 		db = db.Where(`"approvals"."is_stale" = ?`, filter.Stale)
 	}
 
-	if len(filter.RoleStartsWith) != 0 {
-		patterns := make([]string, len(filter.RoleStartsWith))
-		for i, p := range filter.RoleStartsWith {
-			patterns[i] = p + "%"
-		}
-		db = db.Where(`"Appeal"."role" ILIKE ANY (?)`, pq.Array(patterns))
+	// TODO: validate that contains should not be used together with startswith or endswith
+	if filter.RoleStartsWith != "" {
+		pattern := "%" + filter.RoleStartsWith
+		db = db.Where(`"Appeal"."role" LIKE ?`, pattern)
 	}
 
-	if len(filter.RoleEndsWith) != 0 {
-		patterns := make([]string, len(filter.RoleEndsWith))
-		for i, p := range filter.RoleEndsWith {
-			patterns[i] = "%" + p
-		}
-		db = db.Where(`"Appeal"."role" ILIKE ANY (?)`, pq.Array(patterns))
+	if filter.RoleEndsWith != "" {
+		pattern := filter.RoleEndsWith + "%"
+		db = db.Where(`"Appeal"."role" LIKE ?`, pattern)
 	}
 
-	if len(filter.RoleContains) != 0 {
-		patterns := make([]string, len(filter.RoleContains))
-		for i, p := range filter.RoleContains {
-			patterns[i] = "%" + p + "%"
-		}
-		db = db.Where(`"Appeal"."role" ILIKE ANY (?)`, pq.Array(patterns))
+	if filter.RoleContains != "" {
+		pattern := "%" + filter.RoleContains + "%"
+		db = db.Where(`"Appeal"."role" LIKE ?`, pattern)
 	}
 
 	if len(filter.StepNames) > 0 {
 		db = db.Where(`"approvals"."name" IN ?`, filter.StepNames)
 	}
-	return db, nil
-}
-
-func applyListApprovalsSummaryFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, error) {
-	// Explicit joins, no GORM associations
-	db = db.Joins(`JOIN appeals ON approvals.appeal_id = appeals.id`).
-		Joins(`JOIN resources ON appeals.resource_id = resources.id`).
-		Joins(`JOIN approvers ON approvals.id = approvers.approval_id`)
-
-	if filter.Q != "" {
-		db = db.Where(db.
-			Where(`appeals.account_id LIKE ?`, "%"+filter.Q+"%").
-			Or(`appeals.role LIKE ?`, "%"+filter.Q+"%").
-			Or(`resources.urn LIKE ?`, "%"+filter.Q+"%").
-			Or(`resources.name LIKE ?`, "%"+filter.Q+"%"),
-		)
-	}
-	if filter.CreatedBy != "" {
-		db = db.Where(`LOWER(approvers.email) = ?`, strings.ToLower(filter.CreatedBy))
-	}
-	if len(filter.Statuses) > 0 {
-		db = db.Where(`approvals.status IN ?`, filter.Statuses)
-	}
-	if filter.AccountID != "" {
-		db = db.Where(`LOWER(appeals.account_id) = ?`, strings.ToLower(filter.AccountID))
-	}
-	if len(filter.AccountTypes) > 0 {
-		db = db.Where(`appeals.account_type IN ?`, filter.AccountTypes)
-	}
-	if len(filter.ResourceTypes) > 0 {
-		db = db.Where(`resources.type IN ?`, filter.ResourceTypes)
-	}
-
-	if len(filter.AppealStatuses) == 0 {
-		db = db.Where(`appeals.status != ?`, domain.AppealStatusCanceled)
-	} else {
-		db = db.Where(`appeals.status IN ?`, filter.AppealStatuses)
-	}
-
-	if !filter.Stale {
-		db = db.Where(`approvals.is_stale = ?`, filter.Stale)
-	}
-
-	if len(filter.RoleStartsWith) > 0 {
-		patterns := make([]string, len(filter.RoleStartsWith))
-		for i, p := range filter.RoleStartsWith {
-			patterns[i] = p + "%"
-		}
-		db = db.Where(`appeals.role ILIKE ANY (?)`, pq.Array(patterns))
-	}
-
-	if len(filter.RoleEndsWith) > 0 {
-		patterns := make([]string, len(filter.RoleEndsWith))
-		for i, p := range filter.RoleEndsWith {
-			patterns[i] = "%" + p
-		}
-		db = db.Where(`appeals.role ILIKE ANY (?)`, pq.Array(patterns))
-	}
-
-	if len(filter.RoleContains) > 0 {
-		patterns := make([]string, len(filter.RoleContains))
-		for i, p := range filter.RoleContains {
-			patterns[i] = "%" + p + "%"
-		}
-		db = db.Where(`appeals.role ILIKE ANY (?)`, pq.Array(patterns))
-	}
-
-	if len(filter.StepNames) > 0 {
-		db = db.Where(`approvals.name IN ?`, filter.StepNames)
-	}
-
 	return db, nil
 }

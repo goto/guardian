@@ -72,8 +72,8 @@ type ListApprovalsFilter struct {
 	Offset         int      `mapstructure:"offset" validate:"omitempty"`
 	AppealStatuses []string `mapstructure:"appeal_statuses" validate:"omitempty,min=1"`
 	Stale          bool     `mapstructure:"stale" validate:"omitempty"`
-	RoleStartsWith []string `mapstructure:"role_starts_with" validate:"omitempty,min=1"`
-	RoleEndsWith   []string `mapstructure:"role_ends_with" validate:"omitempty,min=1"`
-	RoleContains   []string `mapstructure:"role_contains" validate:"omitempty,min=1"`
+	RoleStartsWith string   `mapstructure:"role_starts_with" validate:"omitempty"`
+	RoleEndsWith   string   `mapstructure:"role_ends_with" validate:"omitempty"`
+	RoleContains   string   `mapstructure:"role_contains" validate:"omitempty"`
 	StepNames      []string `mapstructure:"step_names" validate:"omitempty,min=1"`
 }

@@ -11,6 +11,7 @@ import (
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/domain"
+	"github.com/mitchellh/mapstructure"
 )
 
 func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1.ListUserApprovalsRequest) (*guardianv1beta1.ListUserApprovalsResponse, error) {
@@ -122,27 +123,32 @@ func (s *GRPCServer) UpdateApproval(ctx context.Context, req *guardianv1beta1.Up
 	}, nil
 }
 
-func (s *GRPCServer) GenerateListUserApprovalsSummaries(ctx context.Context, req *guardianv1beta1.GenerateListUserApprovalsSummariesRequest) (*guardianv1beta1.GenerateListUserApprovalsSummariesResponse, error) {
-	summaries, total, err := s.listApprovalsSummaries(ctx, true, req.GetRequests())
+func (s *GRPCServer) GenerateUserApprovalSummaries(ctx context.Context, req *guardianv1beta1.GenerateUserApprovalSummariesRequest) (*guardianv1beta1.GenerateUserApprovalSummariesResponse, error) {
+	user, err := s.getUser(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+
+	items, total, err := s.listApprovalsSummaries(ctx, user, req.GetSummaryItems())
 	if err != nil {
 		return nil, err
 	}
 
-	return &guardianv1beta1.GenerateListUserApprovalsSummariesResponse{
-		Summaries: summaries,
-		Total:     total,
+	return &guardianv1beta1.GenerateUserApprovalSummariesResponse{
+		SummaryItems: items,
+		Total:        total,
 	}, nil
 }
 
-func (s *GRPCServer) GenerateListApprovalsSummaries(ctx context.Context, req *guardianv1beta1.GenerateListApprovalsSummariesRequest) (*guardianv1beta1.GenerateListApprovalsSummariesResponse, error) {
-	summaries, total, err := s.listApprovalsSummaries(ctx, false, req.GetRequests())
+func (s *GRPCServer) GenerateApprovalSummaries(ctx context.Context, req *guardianv1beta1.GenerateApprovalSummariesRequest) (*guardianv1beta1.GenerateApprovalSummariesResponse, error) {
+	items, total, err := s.listApprovalsSummaries(ctx, "", req.GetSummaryItems())
 	if err != nil {
 		return nil, err
 	}
 
-	return &guardianv1beta1.GenerateListApprovalsSummariesResponse{
-		Summaries: summaries,
-		Total:     total,
+	return &guardianv1beta1.GenerateApprovalSummariesResponse{
+		SummaryItems: items,
+		Total:        total,
 	}, nil
 }
 
@@ -235,65 +241,35 @@ func (s *GRPCServer) listApprovals(ctx context.Context, filters *domain.ListAppr
 	return approvalProtos, total, nil
 }
 
-func (s *GRPCServer) listApprovalsSummaries(ctx context.Context, me bool, requests map[string]*guardianv1beta1.SummaryRequest) (map[string]*guardianv1beta1.Summary, int32, error) {
-	var actor string
-	if me {
-		u, err := s.getUser(ctx)
-		if err != nil {
-			return nil, 0, status.Error(codes.Unauthenticated, err.Error())
+func (s *GRPCServer) listApprovalsSummaries(ctx context.Context, actor string, items map[string]*guardianv1beta1.SummaryParameters) (map[string]*guardianv1beta1.SummaryResult, int32, error) {
+
+	summaryItems := make(map[string]*guardianv1beta1.SummaryResult, len(items))
+
+	for key, parameters := range items {
+		var listApprovalsFilter *domain.ListApprovalsFilter
+		if err := mapstructure.Decode(toGoMap(parameters.GetFilters()), &listApprovalsFilter); err != nil {
+			return nil, 0, s.invalidArgument(ctx, "failed to decode filters: %v", err)
 		}
-		actor = u
-	}
-
-	summaries := make(map[string]*guardianv1beta1.Summary, len(requests))
-	for requestKey, request := range requests {
-		summaryFilter := request.GetFilter()
-		groupBys := request.GetGroupBys()
-
-		listApprovalsFilter := &domain.ListApprovalsFilter{}
-
-		if me {
+		if actor != "" {
+			if listApprovalsFilter == nil {
+				listApprovalsFilter = &domain.ListApprovalsFilter{}
+			}
 			listApprovalsFilter.CreatedBy = actor
 		}
 
-		if summaryFilter != nil {
-			appealsFilter := summaryFilter.GetAppealsFilter()
-			if appealsFilter != nil {
-				listApprovalsFilter.AppealStatuses = appealsFilter.GetStatuses()
-				listApprovalsFilter.RoleStartsWith = appealsFilter.GetRoleStartsWith()
-				listApprovalsFilter.RoleEndsWith = appealsFilter.GetRoleEndsWith()
-				listApprovalsFilter.RoleContains = appealsFilter.GetRoleContains()
-				listApprovalsFilter.AccountTypes = appealsFilter.GetAccountTypes()
-			}
+		groupBys := parameters.GetGroupBys()
 
-			approvalsFilter := summaryFilter.GetApprovalsFilter()
-			if approvalsFilter != nil {
-				listApprovalsFilter.Statuses = approvalsFilter.GetStatuses()
-				listApprovalsFilter.StepNames = approvalsFilter.GetStepNames()
-				listApprovalsFilter.Stale = approvalsFilter.GetStale()
-			}
-
-			approversFilter := summaryFilter.GetApproversFilter()
-			if approversFilter != nil {
-				if !me {
-					listApprovalsFilter.CreatedBy = approversFilter.Email
-				}
-			}
-		}
-		listApprovalsSummary, err := s.approvalService.GenerateListApprovalsSummary(ctx, listApprovalsFilter, groupBys)
+		summary, err := s.approvalService.GenerateApprovalSummary(ctx, listApprovalsFilter, groupBys)
 		if err != nil {
 			return nil, 0, s.internalError(ctx, "failed to generate list approvals summary: %s", err)
 		}
 
-		listApprovalsSummaryProto, err := s.adapter.ToSummaryProto(listApprovalsSummary)
+		summaryProto, err := s.adapter.ToSummaryProto(summary)
 		if err != nil {
 			return nil, 0, s.internalError(ctx, "failed to parse summary: %v", err)
 		}
-
-		listApprovalsSummaryProto.Filter = summaryFilter
-		listApprovalsSummaryProto.GroupBys = groupBys
-		summaries[requestKey] = listApprovalsSummaryProto
+		summaryItems[key] = summaryProto
 	}
 
-	return summaries, int32(len(summaries)), nil
+	return summaryItems, int32(len(summaryItems)), nil
 }

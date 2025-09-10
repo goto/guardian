@@ -1053,19 +1053,39 @@ func (a *adapter) ToAppealActivityProto(e *domain.Event) (*guardianv1beta1.Appea
 	return activityProto, nil
 }
 
-func (a *adapter) ToSummaryProto(s *domain.Summary) (*guardianv1beta1.Summary, error) {
+func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.SummaryResult, error) {
 	if s == nil {
 		return nil, nil
 	}
 
-	summaryProto := &guardianv1beta1.Summary{
-		SummaryGroups: make([]*guardianv1beta1.Summary_SummaryGroup, len(s.SummaryGroups)),
-		Total:         s.Total,
+	var appliedParameters *guardianv1beta1.SummaryParameters
+	if s.AppliedParameters != nil {
+		filters, err := toProtoMap(s.AppliedParameters.Filters)
+		if err != nil {
+			return nil, fmt.Errorf("parsing filters: %w", err)
+		}
+
+		appliedParameters = &guardianv1beta1.SummaryParameters{
+			GroupBys: s.AppliedParameters.GroupBys,
+			Filters:  filters,
+		}
 	}
+
+	summaryProto := &guardianv1beta1.SummaryResult{
+		AppliedParameters: appliedParameters,
+		Groups:            make([]*guardianv1beta1.SummaryResult_Group, len(s.SummaryGroups)),
+		Total:             s.Total,
+	}
+
 	for i, group := range s.SummaryGroups {
-		summaryProto.SummaryGroups[i] = &guardianv1beta1.Summary_SummaryGroup{
-			Groups: group.Groups,
-			Total:  group.Total,
+		groupFields, err := toProtoMap(group.GroupFields)
+		if err != nil {
+			return nil, fmt.Errorf("parsing group fields: %w", err)
+		}
+
+		summaryProto.Groups[i] = &guardianv1beta1.SummaryResult_Group{
+			GroupFields: groupFields,
+			Total:       group.Total,
 		}
 	}
 
@@ -1148,4 +1168,24 @@ func (a *adapter) toPolicyConfigProto(c *domain.PolicyConfig) *guardianv1beta1.P
 		Id:      c.ID,
 		Version: int32(c.Version),
 	}
+}
+
+func toGoMap(in map[string]*structpb.Value) map[string]any {
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		out[k] = v.AsInterface()
+	}
+	return out
+}
+
+func toProtoMap(in map[string]any) (map[string]*structpb.Value, error) {
+	out := make(map[string]*structpb.Value, len(in))
+	for k, v := range in {
+		val, err := structpb.NewValue(v)
+		if err != nil {
+			return nil, err
+		}
+		out[k] = val
+	}
+	return out, nil
 }

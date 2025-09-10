@@ -152,20 +152,20 @@ func (_c *Repository_DeleteApprover_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
-// GenerateListApprovalsSummary provides a mock function with given fields: ctx, filter, groupBys
-func (_m *Repository) GenerateListApprovalsSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.Summary, error) {
+// GenerateApprovalSummary provides a mock function with given fields: ctx, filter, groupBys
+func (_m *Repository) GenerateApprovalSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.SummaryResult, error) {
 	ret := _m.Called(ctx, filter, groupBys)
 
-	var r0 *domain.Summary
+	var r0 *domain.SummaryResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *domain.ListApprovalsFilter, []string) (*domain.Summary, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.ListApprovalsFilter, []string) (*domain.SummaryResult, error)); ok {
 		return rf(ctx, filter, groupBys)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *domain.ListApprovalsFilter, []string) *domain.Summary); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.ListApprovalsFilter, []string) *domain.SummaryResult); ok {
 		r0 = rf(ctx, filter, groupBys)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.Summary)
+			r0 = ret.Get(0).(*domain.SummaryResult)
 		}
 	}
 
@@ -178,32 +178,32 @@ func (_m *Repository) GenerateListApprovalsSummary(ctx context.Context, filter *
 	return r0, r1
 }
 
-// Repository_GenerateListApprovalsSummary_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GenerateListApprovalsSummary'
-type Repository_GenerateListApprovalsSummary_Call struct {
+// Repository_GenerateApprovalSummary_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GenerateApprovalSummary'
+type Repository_GenerateApprovalSummary_Call struct {
 	*mock.Call
 }
 
-// GenerateListApprovalsSummary is a helper method to define mock.On call
+// GenerateApprovalSummary is a helper method to define mock.On call
 //   - ctx context.Context
 //   - filter *domain.ListApprovalsFilter
 //   - groupBys []string
-func (_e *Repository_Expecter) GenerateListApprovalsSummary(ctx interface{}, filter interface{}, groupBys interface{}) *Repository_GenerateListApprovalsSummary_Call {
-	return &Repository_GenerateListApprovalsSummary_Call{Call: _e.mock.On("GenerateListApprovalsSummary", ctx, filter, groupBys)}
+func (_e *Repository_Expecter) GenerateApprovalSummary(ctx interface{}, filter interface{}, groupBys interface{}) *Repository_GenerateApprovalSummary_Call {
+	return &Repository_GenerateApprovalSummary_Call{Call: _e.mock.On("GenerateApprovalSummary", ctx, filter, groupBys)}
 }
 
-func (_c *Repository_GenerateListApprovalsSummary_Call) Run(run func(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string)) *Repository_GenerateListApprovalsSummary_Call {
+func (_c *Repository_GenerateApprovalSummary_Call) Run(run func(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string)) *Repository_GenerateApprovalSummary_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(*domain.ListApprovalsFilter), args[2].([]string))
 	})
 	return _c
 }
 
-func (_c *Repository_GenerateListApprovalsSummary_Call) Return(_a0 *domain.Summary, _a1 error) *Repository_GenerateListApprovalsSummary_Call {
+func (_c *Repository_GenerateApprovalSummary_Call) Return(_a0 *domain.SummaryResult, _a1 error) *Repository_GenerateApprovalSummary_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *Repository_GenerateListApprovalsSummary_Call) RunAndReturn(run func(context.Context, *domain.ListApprovalsFilter, []string) (*domain.Summary, error)) *Repository_GenerateListApprovalsSummary_Call {
+func (_c *Repository_GenerateApprovalSummary_Call) RunAndReturn(run func(context.Context, *domain.ListApprovalsFilter, []string) (*domain.SummaryResult, error)) *Repository_GenerateApprovalSummary_Call {
 	_c.Call.Return(run)
 	return _c
 }

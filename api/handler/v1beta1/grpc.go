@@ -47,7 +47,7 @@ type ProtoAdapter interface {
 	ToCommentProto(*domain.Comment) *guardianv1beta1.AppealComment
 	ToAppealActivityProto(e *domain.Event) (*guardianv1beta1.AppealActivity, error)
 
-	ToSummaryProto(summary *domain.Summary) (*guardianv1beta1.Summary, error)
+	ToSummaryProto(summary *domain.SummaryResult) (*guardianv1beta1.SummaryResult, error)
 	// TODO: remove interface
 }
 
@@ -114,7 +114,7 @@ type appealService interface {
 type approvalService interface {
 	ListApprovals(context.Context, *domain.ListApprovalsFilter) ([]*domain.Approval, error)
 	GetApprovalsTotalCount(context.Context, *domain.ListApprovalsFilter) (int64, error)
-	GenerateListApprovalsSummary(context.Context, *domain.ListApprovalsFilter, []string) (*domain.Summary, error)
+	GenerateApprovalSummary(context.Context, *domain.ListApprovalsFilter, []string) (*domain.SummaryResult, error)
 	BulkInsert(context.Context, []*domain.Approval) error
 }
 
