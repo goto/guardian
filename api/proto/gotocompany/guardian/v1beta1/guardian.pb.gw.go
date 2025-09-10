@@ -1657,8 +1657,8 @@ func local_request_GuardianService_ListApprovals_0(ctx context.Context, marshale
 
 }
 
-func request_GuardianService_GenerateListUserApprovalsSummaries_0(ctx context.Context, marshaler runtime.Marshaler, client GuardianServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GenerateListUserApprovalsSummariesRequest
+func request_GuardianService_GenerateUserApprovalSummaries_0(ctx context.Context, marshaler runtime.Marshaler, client GuardianServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GenerateUserApprovalSummariesRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -1669,13 +1669,13 @@ func request_GuardianService_GenerateListUserApprovalsSummaries_0(ctx context.Co
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.GenerateListUserApprovalsSummaries(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GenerateUserApprovalSummaries(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_GuardianService_GenerateListUserApprovalsSummaries_0(ctx context.Context, marshaler runtime.Marshaler, server GuardianServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GenerateListUserApprovalsSummariesRequest
+func local_request_GuardianService_GenerateUserApprovalSummaries_0(ctx context.Context, marshaler runtime.Marshaler, server GuardianServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GenerateUserApprovalSummariesRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -1686,13 +1686,13 @@ func local_request_GuardianService_GenerateListUserApprovalsSummaries_0(ctx cont
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := server.GenerateListUserApprovalsSummaries(ctx, &protoReq)
+	msg, err := server.GenerateUserApprovalSummaries(ctx, &protoReq)
 	return msg, metadata, err
 
 }
 
-func request_GuardianService_GenerateListApprovalsSummaries_0(ctx context.Context, marshaler runtime.Marshaler, client GuardianServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GenerateListApprovalsSummariesRequest
+func request_GuardianService_GenerateApprovalSummaries_0(ctx context.Context, marshaler runtime.Marshaler, client GuardianServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GenerateApprovalSummariesRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -1703,13 +1703,13 @@ func request_GuardianService_GenerateListApprovalsSummaries_0(ctx context.Contex
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.GenerateListApprovalsSummaries(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GenerateApprovalSummaries(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_GuardianService_GenerateListApprovalsSummaries_0(ctx context.Context, marshaler runtime.Marshaler, server GuardianServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GenerateListApprovalsSummariesRequest
+func local_request_GuardianService_GenerateApprovalSummaries_0(ctx context.Context, marshaler runtime.Marshaler, server GuardianServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GenerateApprovalSummariesRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -1720,7 +1720,7 @@ func local_request_GuardianService_GenerateListApprovalsSummaries_0(ctx context.
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := server.GenerateListApprovalsSummaries(ctx, &protoReq)
+	msg, err := server.GenerateApprovalSummaries(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -3188,7 +3188,7 @@ func RegisterGuardianServiceHandlerServer(ctx context.Context, mux *runtime.Serv
 
 	})
 
-	mux.Handle("POST", pattern_GuardianService_GenerateListUserApprovalsSummaries_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_GuardianService_GenerateUserApprovalSummaries_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -3196,12 +3196,12 @@ func RegisterGuardianServiceHandlerServer(ctx context.Context, mux *runtime.Serv
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/gotocompany.guardian.v1beta1.GuardianService/GenerateListUserApprovalsSummaries", runtime.WithHTTPPathPattern("/v1beta1/me/approvals/summaries"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/gotocompany.guardian.v1beta1.GuardianService/GenerateUserApprovalSummaries", runtime.WithHTTPPathPattern("/v1beta1/me/approvals/summaries"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_GuardianService_GenerateListUserApprovalsSummaries_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_GuardianService_GenerateUserApprovalSummaries_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
@@ -3209,11 +3209,11 @@ func RegisterGuardianServiceHandlerServer(ctx context.Context, mux *runtime.Serv
 			return
 		}
 
-		forward_GuardianService_GenerateListUserApprovalsSummaries_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GuardianService_GenerateUserApprovalSummaries_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_GuardianService_GenerateListApprovalsSummaries_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_GuardianService_GenerateApprovalSummaries_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -3221,12 +3221,12 @@ func RegisterGuardianServiceHandlerServer(ctx context.Context, mux *runtime.Serv
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/gotocompany.guardian.v1beta1.GuardianService/GenerateListApprovalsSummaries", runtime.WithHTTPPathPattern("/v1beta1/approvals/summaries"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/gotocompany.guardian.v1beta1.GuardianService/GenerateApprovalSummaries", runtime.WithHTTPPathPattern("/v1beta1/approvals/summaries"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_GuardianService_GenerateListApprovalsSummaries_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_GuardianService_GenerateApprovalSummaries_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
@@ -3234,7 +3234,7 @@ func RegisterGuardianServiceHandlerServer(ctx context.Context, mux *runtime.Serv
 			return
 		}
 
-		forward_GuardianService_GenerateListApprovalsSummaries_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GuardianService_GenerateApprovalSummaries_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -4261,47 +4261,47 @@ func RegisterGuardianServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 
 	})
 
-	mux.Handle("POST", pattern_GuardianService_GenerateListUserApprovalsSummaries_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_GuardianService_GenerateUserApprovalSummaries_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/gotocompany.guardian.v1beta1.GuardianService/GenerateListUserApprovalsSummaries", runtime.WithHTTPPathPattern("/v1beta1/me/approvals/summaries"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/gotocompany.guardian.v1beta1.GuardianService/GenerateUserApprovalSummaries", runtime.WithHTTPPathPattern("/v1beta1/me/approvals/summaries"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_GuardianService_GenerateListUserApprovalsSummaries_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_GuardianService_GenerateUserApprovalSummaries_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_GuardianService_GenerateListUserApprovalsSummaries_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GuardianService_GenerateUserApprovalSummaries_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_GuardianService_GenerateListApprovalsSummaries_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_GuardianService_GenerateApprovalSummaries_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/gotocompany.guardian.v1beta1.GuardianService/GenerateListApprovalsSummaries", runtime.WithHTTPPathPattern("/v1beta1/approvals/summaries"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/gotocompany.guardian.v1beta1.GuardianService/GenerateApprovalSummaries", runtime.WithHTTPPathPattern("/v1beta1/approvals/summaries"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_GuardianService_GenerateListApprovalsSummaries_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_GuardianService_GenerateApprovalSummaries_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_GuardianService_GenerateListApprovalsSummaries_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GuardianService_GenerateApprovalSummaries_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -4635,9 +4635,9 @@ var (
 
 	pattern_GuardianService_ListApprovals_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1beta1", "approvals"}, ""))
 
-	pattern_GuardianService_GenerateListUserApprovalsSummaries_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v1beta1", "me", "approvals", "summaries"}, ""))
+	pattern_GuardianService_GenerateUserApprovalSummaries_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v1beta1", "me", "approvals", "summaries"}, ""))
 
-	pattern_GuardianService_GenerateListApprovalsSummaries_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1beta1", "approvals", "summaries"}, ""))
+	pattern_GuardianService_GenerateApprovalSummaries_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1beta1", "approvals", "summaries"}, ""))
 
 	pattern_GuardianService_UpdateApproval_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "appeals", "id", "approvals", "approval_name"}, ""))
 
@@ -4727,9 +4727,9 @@ var (
 
 	forward_GuardianService_ListApprovals_0 = runtime.ForwardResponseMessage
 
-	forward_GuardianService_GenerateListUserApprovalsSummaries_0 = runtime.ForwardResponseMessage
+	forward_GuardianService_GenerateUserApprovalSummaries_0 = runtime.ForwardResponseMessage
 
-	forward_GuardianService_GenerateListApprovalsSummaries_0 = runtime.ForwardResponseMessage
+	forward_GuardianService_GenerateApprovalSummaries_0 = runtime.ForwardResponseMessage
 
 	forward_GuardianService_UpdateApproval_0 = runtime.ForwardResponseMessage
 
