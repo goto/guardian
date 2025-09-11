@@ -322,10 +322,10 @@ func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, err
 	}
 	var patterns []string
 	if filter.RoleStartsWith != "" {
-		patterns = append(patterns, "%"+filter.RoleStartsWith)
+		patterns = append(patterns, filter.RoleStartsWith+"%")
 	}
 	if filter.RoleEndsWith != "" {
-		patterns = append(patterns, filter.RoleEndsWith+"%")
+		patterns = append(patterns, "%"+filter.RoleEndsWith)
 	}
 	if filter.RoleContains != "" {
 		patterns = append(patterns, "%"+filter.RoleContains+"%")
