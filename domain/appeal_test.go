@@ -1188,15 +1188,15 @@ func TestApprovalAction_Validate(t *testing.T) {
 
 func TestAppeal_GroupFields(t *testing.T) {
 	t.Run("should include group fields in ToGrant conversion", func(t *testing.T) {
-		appeal := Appeal{
+		appeal := domain.Appeal{
 			ID:          "appeal-1",
-			AccountID:   "user@example.com", 
+			AccountID:   "user@example.com",
 			AccountType: "user",
 			GroupID:     "group-123",
 			GroupType:   "department",
-			ResourceID:  "resource-1", 
+			ResourceID:  "resource-1",
 			Role:        "viewer",
-			Options: &AppealOptions{
+			Options: &domain.AppealOptions{
 				Duration: "0h",
 			},
 		}
@@ -1210,19 +1210,19 @@ func TestAppeal_GroupFields(t *testing.T) {
 	})
 
 	t.Run("should work with empty group fields", func(t *testing.T) {
-		appeal := Appeal{
+		appeal := domain.Appeal{
 			ID:          "appeal-1",
 			AccountID:   "user@example.com",
-			AccountType: "user", 
+			AccountType: "user",
 			ResourceID:  "resource-1",
 			Role:        "viewer",
-			Options: &AppealOptions{
+			Options: &domain.AppealOptions{
 				Duration: "24h",
 			},
 		}
 
 		grant, err := appeal.ToGrant()
-		assert.NoError(t, err) 
+		assert.NoError(t, err)
 		assert.NotNil(t, grant)
 		assert.Equal(t, "user@example.com", grant.AccountID)
 		assert.Equal(t, "appeal-1", grant.AppealID)
