@@ -3,6 +3,7 @@ package v1beta1
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
@@ -240,34 +241,50 @@ func (s *GRPCServer) listApprovals(ctx context.Context, filters *domain.ListAppr
 }
 
 func (s *GRPCServer) listApprovalsSummaries(ctx context.Context, actor string, items map[string]*guardianv1beta1.SummaryParameters) (map[string]*guardianv1beta1.SummaryResult, error) {
-
 	summaryItems := make(map[string]*guardianv1beta1.SummaryResult, len(items))
+	mu := sync.Mutex{}
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.SetLimit(3)
 
 	for key, parameters := range items {
-		var listApprovalsFilter *domain.ListApprovalsFilter
-		if err := mapstructure.Decode(toGoMap(parameters.GetFilters()), &listApprovalsFilter); err != nil {
-			return nil, s.invalidArgument(ctx, "failed to decode filters: %v", err)
-		}
-		if actor != "" {
-			if listApprovalsFilter == nil {
-				listApprovalsFilter = &domain.ListApprovalsFilter{}
+		key := key
+		parameters := parameters
+		eg.Go(func() error {
+			var listApprovalsFilter *domain.ListApprovalsFilter
+			if err := mapstructure.Decode(toGoMap(parameters.GetFilters()), &listApprovalsFilter); err != nil {
+				return s.invalidArgument(egCtx, "failed to decode filters for %q: %s", key, err)
 			}
-			listApprovalsFilter.CreatedBy = actor
-		}
+			if actor != "" {
+				if listApprovalsFilter == nil {
+					listApprovalsFilter = &domain.ListApprovalsFilter{}
+				}
+				listApprovalsFilter.CreatedBy = actor
+			}
 
-		groupBys := parameters.GetGroupBys()
+			summary, err := s.approvalService.GenerateApprovalSummary(egCtx, listApprovalsFilter, parameters.GetGroupBys())
+			if err != nil {
+				switch {
+				case errors.Is(err, domain.ErrInvalidGroupByField):
+					return s.invalidArgument(egCtx, "invalid argument for %q: %s", key, err)
+				default:
+					return s.internalError(egCtx, "failed to generate approval summary for %q: %s", key, err)
+				}
+			}
 
-		summary, err := s.approvalService.GenerateApprovalSummary(ctx, listApprovalsFilter, groupBys)
-		if err != nil {
-			return nil, s.internalError(ctx, "failed to generate list approvals summary: %s", err)
-		}
+			summaryProto, err := s.adapter.ToSummaryProto(summary)
+			if err != nil {
+				return s.internalError(egCtx, "failed to parse summary result for %q: %s", key, err)
+			}
+			mu.Lock()
+			summaryItems[key] = summaryProto
+			mu.Unlock()
 
-		summaryProto, err := s.adapter.ToSummaryProto(summary)
-		if err != nil {
-			return nil, s.internalError(ctx, "failed to parse summary: %v", err)
-		}
-		summaryItems[key] = summaryProto
+			return nil
+		})
 	}
 
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
 	return summaryItems, nil
 }

@@ -119,7 +119,7 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 			if i == 0 {
 				tableName, ok := entityGroupKeyMapping[field]
 				if !ok {
-					return nil, fmt.Errorf("invalid group by field: %s", field)
+					return nil, fmt.Errorf("%w %q", domain.ErrInvalidGroupByField, field)
 				}
 				column = fmt.Sprintf("%q", tableName)
 				continue
