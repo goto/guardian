@@ -202,6 +202,8 @@ type ListGrantsFilter struct {
 	Statuses                  []string
 	AccountIDs                []string
 	AccountTypes              []string
+	GroupIDs                  []string
+	GroupTypes                []string
 	ResourceIDs               []string
 	Roles                     []string
 	Permissions               []string

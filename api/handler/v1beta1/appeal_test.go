@@ -364,6 +364,100 @@ func (s *GrpcHandlersSuite) TestListAppeals() {
 		s.Nil(res)
 		s.appealService.AssertExpectations(s.T())
 	})
+
+	s.Run("should return list of appeals filtered by group_id and group_type on success", func() {
+		s.setup()
+		timeNow := time.Now()
+
+		expectedUser := "user@example.com"
+		expectedFilters := &domain.ListAppealsFilter{
+			AccountID:  expectedUser,
+			GroupIDs:   []string{"test-group-id"},
+			GroupTypes: []string{"test-group-type"},
+		}
+		expectedAppeals := []*domain.Appeal{
+			{
+				ID:         "test-id",
+				ResourceID: "test-resource-id",
+				Resource: &domain.Resource{
+					ID: "test-resource-id",
+				},
+				PolicyID:      "test-policy-id",
+				PolicyVersion: 1,
+				Status:        "active",
+				AccountID:     expectedUser,
+				AccountType:   "test-account-type",
+				CreatedBy:     expectedUser,
+				Creator: map[string]interface{}{
+					"foo": "bar",
+				},
+				Role:      "test-role",
+				GroupID:   "test-group-id",
+				GroupType: "test-group-type",
+				Options: &domain.AppealOptions{
+					Duration:       "24h",
+					ExpirationDate: &timeNow,
+				},
+				Details: map[string]interface{}{
+					"foo": "bar",
+				},
+				CreatedAt: timeNow,
+				UpdatedAt: timeNow,
+			},
+		}
+		expectedCreator, err := structpb.NewValue(map[string]interface{}{
+			"foo": "bar",
+		})
+		s.Require().NoError(err)
+		expectedDetails, err := structpb.NewStruct(map[string]interface{}{
+			"foo": "bar",
+		})
+		s.Require().NoError(err)
+		expectedResponse := &guardianv1beta1.ListAppealsResponse{
+			Appeals: []*guardianv1beta1.Appeal{
+				{
+					Id:         "test-id",
+					ResourceId: "test-resource-id",
+					Resource: &guardianv1beta1.Resource{
+						Id: "test-resource-id",
+					},
+					PolicyId:      "test-policy-id",
+					PolicyVersion: 1,
+					Status:        "active",
+					AccountId:     expectedUser,
+					AccountType:   "test-account-type",
+					CreatedBy:     expectedUser,
+					Creator:       expectedCreator,
+					Role:          "test-role",
+					GroupId:       "test-group-id",
+					GroupType:     "test-group-type",
+					Options: &guardianv1beta1.AppealOptions{
+						Duration:       "24h",
+						ExpirationDate: timestamppb.New(timeNow),
+					},
+					Details:   expectedDetails,
+					CreatedAt: timestamppb.New(timeNow),
+					UpdatedAt: timestamppb.New(timeNow),
+				},
+			},
+			Total: 1,
+		}
+		s.appealService.EXPECT().Find(mock.AnythingOfType("*context.cancelCtx"), expectedFilters).
+			Return(expectedAppeals, nil).Once()
+		s.appealService.EXPECT().GetAppealsTotalCount(mock.AnythingOfType("*context.cancelCtx"), expectedFilters).
+			Return(int64(1), nil).Once()
+
+		req := &guardianv1beta1.ListAppealsRequest{
+			AccountId:  expectedUser,
+			GroupIds:   []string{"test-group-id"},
+			GroupTypes: []string{"test-group-type"},
+		}
+		res, err := s.grpcServer.ListAppeals(context.Background(), req)
+
+		s.NoError(err)
+		s.Equal(expectedResponse, res)
+		s.appealService.AssertExpectations(s.T())
+	})
 }
 
 func (s *GrpcHandlersSuite) TestCreateAppeal() {
@@ -493,6 +587,147 @@ func (s *GrpcHandlersSuite) TestCreateAppeal() {
 				},
 			},
 			Description: "The answer is 42",
+		}
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, expectedUser)
+		res, err := s.grpcServer.CreateAppeal(ctx, req)
+
+		s.NoError(err)
+		s.Equal(expectedResponse, res)
+		s.appealService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return appeal with group fields on success", func() {
+		s.setup()
+		timeNow := time.Now()
+
+		expectedUser := "user@example.com"
+		expectedResource := &domain.Resource{
+			ID:           "test-resource-id",
+			ProviderType: "test-provider-type",
+			ProviderURN:  "test-provider-urn",
+			Type:         "test-resource-type",
+			URN:          "test-resource-urn",
+			Name:         "test-name",
+		}
+		expectedApproval := &domain.Approval{
+			ID:            "test-approval-id",
+			Name:          "test-approval-step",
+			Status:        "pending",
+			AppealID:      "test-id",
+			PolicyID:      "test-policy-id",
+			PolicyVersion: 1,
+			Approvers:     []string{"approver@example.com"},
+			CreatedAt:     timeNow,
+			UpdatedAt:     timeNow,
+		}
+		expectedOptions := &domain.AppealOptions{
+			ExpirationDate: &timeNow,
+			Duration:       "24h",
+		}
+		expectedAppeals := []*domain.Appeal{
+			{
+				AccountID:   expectedUser,
+				AccountType: "user",
+				CreatedBy:   expectedUser,
+				ResourceID:  "test-resource-id",
+				Role:        "test-role",
+				GroupID:     "test-group-id",
+				GroupType:   "test-group-type",
+				Options: &domain.AppealOptions{
+					Duration: "24h",
+				},
+				Details: map[string]interface{}{
+					"foo": "bar",
+				},
+				Description: "Test appeal with group fields",
+			},
+		}
+		expectedDetails, err := structpb.NewStruct(map[string]interface{}{
+			"foo": "bar",
+		})
+		s.Require().NoError(err)
+		expectedResponse := &guardianv1beta1.CreateAppealResponse{
+			Appeals: []*guardianv1beta1.Appeal{
+				{
+					Id:            "test-id",
+					ResourceId:    "test-resource-id",
+					AccountId:     expectedUser,
+					AccountType:   "user",
+					CreatedBy:     expectedUser,
+					Role:          "test-role",
+					GroupId:       "test-group-id",
+					GroupType:     "test-group-type",
+					PolicyId:      "test-policy-id",
+					PolicyVersion: 1,
+					Status:        "pending",
+					Resource: &guardianv1beta1.Resource{
+						Id:           "test-resource-id",
+						ProviderType: "test-provider-type",
+						ProviderUrn:  "test-provider-urn",
+						Type:         "test-resource-type",
+						Urn:          "test-resource-urn",
+						Name:         "test-name",
+					},
+					Approvals: []*guardianv1beta1.Approval{
+						{
+							Id:            "test-approval-id",
+							Name:          "test-approval-step",
+							Status:        "pending",
+							AppealId:      "test-id",
+							PolicyId:      "test-policy-id",
+							PolicyVersion: 1,
+							Approvers:     []string{"approver@example.com"},
+							CreatedAt:     timestamppb.New(timeNow),
+							UpdatedAt:     timestamppb.New(timeNow),
+						},
+					},
+					Options: &guardianv1beta1.AppealOptions{
+						ExpirationDate: timestamppb.New(timeNow),
+						Duration:       "24h",
+					},
+					Details:     expectedDetails,
+					Description: "Test appeal with group fields",
+					CreatedAt:   timestamppb.New(timeNow),
+					UpdatedAt:   timestamppb.New(timeNow),
+				},
+			},
+		}
+		s.appealService.EXPECT().Create(mock.AnythingOfType("*context.valueCtx"), expectedAppeals).
+			Run(func(_a0 context.Context, _a1 []*domain.Appeal, _a2 ...appeal.CreateAppealOption) {
+				for _, a := range _a1 {
+					a.ID = "test-id"
+					a.Resource = expectedResource
+					a.PolicyID = "test-policy-id"
+					a.PolicyVersion = 1
+					a.Status = "pending"
+					a.Approvals = []*domain.Approval{expectedApproval}
+					a.CreatedAt = timeNow
+					a.UpdatedAt = timeNow
+					a.Options = expectedOptions
+					a.Description = "Test appeal with group fields"
+				}
+			}).
+			Return(nil).Once()
+
+		reqOptions, err := structpb.NewStruct(map[string]interface{}{
+			"duration": "24h",
+		})
+		s.Require().NoError(err)
+
+		req := &guardianv1beta1.CreateAppealRequest{
+			AccountId:   expectedUser,
+			AccountType: "user",
+			GroupId:     "test-group-id",
+			GroupType:   "test-group-type",
+			Resources: []*guardianv1beta1.CreateAppealRequest_Resource{
+				{
+					Id:      "test-resource-id",
+					Role:    "test-role",
+					Options: reqOptions,
+					Details: expectedDetails,
+				},
+			},
+			Description: "Test appeal with group fields",
 		}
 		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, expectedUser)
 		res, err := s.grpcServer.CreateAppeal(ctx, req)

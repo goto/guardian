@@ -69,6 +69,8 @@ func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListA
 		Q:             req.GetQ(),
 		AccountTypes:  req.GetAccountTypes(),
 		AccountID:     req.GetAccountId(),
+		GroupIDs:      req.GetGroupIds(),
+		GroupTypes:    req.GetGroupTypes(),
 		Statuses:      req.GetStatuses(),
 		Role:          req.GetRole(),
 		ProviderTypes: req.GetProviderTypes(),

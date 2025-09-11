@@ -94,6 +94,79 @@ func (s *GrpcHandlersSuite) TestListGrants() {
 		s.grantService.AssertExpectations(s.T())
 	})
 
+	s.Run("should return list of grants filtered by group_id and group_type on success", func() {
+		s.setup()
+		timeNow := time.Now()
+
+		dummyGrants := []domain.Grant{
+			{
+				ID:             "test-id",
+				Status:         "active",
+				AccountID:      "test-account-id",
+				AccountType:    "user",
+				ResourceID:     "test-resource-id",
+				Permissions:    []string{"read", "write"},
+				ExpirationDate: &timeNow,
+				AppealID:       "test-appeal-id",
+				CreatedAt:      timeNow,
+				UpdatedAt:      timeNow,
+				Resource: &domain.Resource{
+					ID: "test-resource-id",
+				},
+				Appeal: &domain.Appeal{
+					ID:        "test-appeal-id",
+					GroupID:   "test-group-id",
+					GroupType: "test-group-type",
+				},
+			},
+		}
+		expectedResponse := &guardianv1beta1.ListGrantsResponse{
+			Grants: []*guardianv1beta1.Grant{
+				{
+					Id:             "test-id",
+					Status:         "active",
+					AccountId:      "test-account-id",
+					AccountType:    "user",
+					ResourceId:     "test-resource-id",
+					Permissions:    []string{"read", "write"},
+					ExpirationDate: timestamppb.New(timeNow),
+					AppealId:       "test-appeal-id",
+					CreatedAt:      timestamppb.New(timeNow),
+					UpdatedAt:      timestamppb.New(timeNow),
+					Resource: &guardianv1beta1.Resource{
+						Id: "test-resource-id",
+					},
+					Appeal: &guardianv1beta1.Appeal{
+						Id:        "test-appeal-id",
+						GroupId:   "test-group-id",
+						GroupType: "test-group-type",
+					},
+				},
+			},
+			Total: 1,
+		}
+		expectedFilter := domain.ListGrantsFilter{
+			GroupIDs:   []string{"test-group-id"},
+			GroupTypes: []string{"test-group-type"},
+		}
+		s.grantService.EXPECT().
+			List(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
+			Return(dummyGrants, nil).Once()
+		s.grantService.EXPECT().
+			GetGrantsTotalCount(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
+			Return(int64(1), nil).Once()
+
+		req := &guardianv1beta1.ListGrantsRequest{
+			GroupIds:   []string{"test-group-id"},
+			GroupTypes: []string{"test-group-type"},
+		}
+		res, err := s.grpcServer.ListGrants(context.Background(), req)
+
+		s.NoError(err)
+		s.Equal(expectedResponse, res)
+		s.grantService.AssertExpectations(s.T())
+	})
+
 	s.Run("should return error if service returns an error", func() {
 		s.setup()
 

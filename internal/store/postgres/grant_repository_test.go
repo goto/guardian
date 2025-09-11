@@ -291,6 +291,95 @@ func (s *GrantRepositoryTestSuite) TestList() {
 		s.NoError(err)
 		s.Len(grants, 0)
 	})
+
+	s.Run("should filter grants by group_id and group_type", func() {
+		ctx := context.Background()
+
+		groupAppeal := &domain.Appeal{
+			ResourceID:    s.dummyResource.ID,
+			PolicyID:      s.dummyPolicy.ID,
+			PolicyVersion: s.dummyPolicy.Version,
+			AccountID:     "groupuser@example.com",
+			AccountType:   domain.DefaultAppealAccountType,
+			Role:          "test-role",
+			Status:        domain.AppealStatusApproved,
+			Permissions:   []string{"test-permission"},
+			CreatedBy:     "groupuser@example.com",
+			GroupID:       "test-group-id",
+			GroupType:     "test-group-type",
+		}
+
+		appealRepository := postgres.NewAppealRepository(s.store.DB())
+		err := appealRepository.BulkUpsert(ctx, []*domain.Appeal{groupAppeal})
+		s.Require().NoError(err)
+
+		expDate := time.Now()
+		groupGrant := &domain.Grant{
+			Status:         domain.GrantStatusActive,
+			AppealID:       groupAppeal.ID,
+			AccountID:      groupAppeal.AccountID,
+			AccountType:    groupAppeal.AccountType,
+			ResourceID:     groupAppeal.ResourceID,
+			Role:           groupAppeal.Role,
+			Permissions:    groupAppeal.Permissions,
+			CreatedBy:      groupAppeal.CreatedBy,
+			ExpirationDate: &expDate,
+			Source:         domain.GrantSourceImport,
+		}
+
+		err = s.repository.BulkInsert(ctx, []*domain.Grant{groupGrant})
+		s.Require().NoError(err)
+
+		testCases := []struct {
+			name        string
+			filters     domain.ListGrantsFilter
+			expectCount int
+		}{
+			{
+				name: "filter by group_id",
+				filters: domain.ListGrantsFilter{
+					GroupIDs: []string{"test-group-id"},
+				},
+				expectCount: 1,
+			},
+			{
+				name: "filter by group_type",
+				filters: domain.ListGrantsFilter{
+					GroupTypes: []string{"test-group-type"},
+				},
+				expectCount: 1,
+			},
+			{
+				name: "filter by both group_id and group_type",
+				filters: domain.ListGrantsFilter{
+					GroupIDs:   []string{"test-group-id"},
+					GroupTypes: []string{"test-group-type"},
+				},
+				expectCount: 1,
+			},
+			{
+				name: "filter by non-existent group_id",
+				filters: domain.ListGrantsFilter{
+					GroupIDs: []string{"non-existent-group"},
+				},
+				expectCount: 0,
+			},
+		}
+
+		for _, tc := range testCases {
+			s.Run(tc.name, func() {
+				grants, err := s.repository.List(ctx, tc.filters)
+				s.NoError(err)
+				s.Len(grants, tc.expectCount)
+
+				if tc.expectCount > 0 {
+					s.Equal(groupGrant.AppealID, grants[0].AppealID)
+					s.Equal("test-group-id", grants[0].Appeal.GroupID)
+					s.Equal("test-group-type", grants[0].Appeal.GroupType)
+				}
+			})
+		}
+	})
 	s.Run("Should check accessing resource table", func() {
 		grants, err := s.repository.List(context.Background(), domain.ListGrantsFilter{
 			ProviderTypes: []string{"x"},
