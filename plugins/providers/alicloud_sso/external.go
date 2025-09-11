@@ -54,7 +54,7 @@ func (p *provider) getGroups(ctx context.Context, pc *domain.ProviderConfig) ([]
 			return nil, fmt.Errorf("fail to retrieve groups: %w", err)
 		}
 		groups = append(groups, res.Body.Groups...)
-		if bptr.ToStringSafe(res.Body.NextToken) == "" {
+		if res.Body.NextToken == nil {
 			break
 		}
 		nextToken = res.Body.NextToken
@@ -62,14 +62,15 @@ func (p *provider) getGroups(ctx context.Context, pc *domain.ProviderConfig) ([]
 
 	resources := make([]*domain.Resource, len(groups))
 	for i, group := range groups {
+		groupID := bptr.ToStringSafe(group.GroupId)
 		groupName := bptr.ToStringSafe(group.GroupName)
 		resources[i] = &domain.Resource{
 			ProviderType: pc.Type,
 			ProviderURN:  pc.URN,
 			Type:         resourceTypeGroup,
-			URN:          groupName,
+			URN:          groupID,
 			Name:         groupName,
-			GlobalURN:    utils.GetGlobalURN(sourceName, accountId, resourceTypeGroup, groupName),
+			GlobalURN:    utils.GetGlobalURN(sourceName, accountId, resourceTypeGroup, groupID),
 		}
 	}
 
