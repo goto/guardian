@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/goto/guardian/core/appeal"
@@ -51,6 +52,9 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 	records := []*domain.Approval{}
 
 	db := r.db.WithContext(ctx)
+	db = db.Joins("Appeal").
+		Joins("Appeal.Resource").
+		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
 	var err error
 	db, err = applyFilter(db, filter)
 	if err != nil {
@@ -86,6 +90,9 @@ func (r *ApprovalRepository) GetApprovalsTotalCount(ctx context.Context, filter 
 	f := *filter
 	f.Size = 0
 	f.Offset = 0
+	db = db.Joins("Appeal").
+		Joins("Appeal.Resource").
+		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
 	var err error
 	db, err = applyFilter(db, &f)
 	if err != nil {
@@ -105,12 +112,16 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 	}
 
 	db := r.db.WithContext(ctx)
+	db = db.Joins(`LEFT JOIN "appeals" "Appeal" ON "approvals"."appeal_id" = "Appeal"."id"
+  AND "Appeal"."deleted_at" IS NULL`).
+		Joins(`LEFT JOIN "resources" "Appeal__Resource" ON "Appeal"."resource_id" = "Appeal__Resource"."id"
+  AND "Appeal__Resource"."deleted_at" IS NULL`).
+		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
 	var err error
 	db, err = applyFilter(db, filter)
 	if err != nil {
 		return nil, err
 	}
-
 	var selectCols []string
 	var groupCols []string
 	for _, groupKey := range groupBys {
@@ -257,12 +268,6 @@ func (r *ApprovalRepository) DeleteApprover(ctx context.Context, approvalID, ema
 }
 
 func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, error) {
-	db = db.Joins(`LEFT JOIN "appeals" "Appeal" ON "approvals"."appeal_id" = "Appeal"."id"
-  AND "Appeal"."deleted_at" IS NULL`).
-		Joins(`LEFT JOIN "resources" "Appeal__Resource" ON "Appeal"."resource_id" = "Appeal__Resource"."id"
-  AND "Appeal__Resource"."deleted_at" IS NULL`).
-		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
-
 	if filter.Q != "" {
 		// NOTE: avoid adding conditions before this grouped where clause.
 		// Otherwise, it will be wrapped in parentheses and the query will be invalid.
@@ -312,20 +317,21 @@ func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, err
 		db = db.Where(`"approvals"."is_stale" = ?`, filter.Stale)
 	}
 
-	// TODO: validate that contains should not be used together with startswith or endswith
+	if (filter.RoleStartsWith != "" || filter.RoleEndsWith != "") && filter.RoleContains != "" {
+		return nil, fmt.Errorf("invalid filter: role_contains cannot be used together with role_starts_with or role_ends_with")
+	}
+	var patterns []string
 	if filter.RoleStartsWith != "" {
-		pattern := "%" + filter.RoleStartsWith
-		db = db.Where(`"Appeal"."role" LIKE ?`, pattern)
+		patterns = append(patterns, "%"+filter.RoleStartsWith)
 	}
-
 	if filter.RoleEndsWith != "" {
-		pattern := filter.RoleEndsWith + "%"
-		db = db.Where(`"Appeal"."role" LIKE ?`, pattern)
+		patterns = append(patterns, filter.RoleEndsWith+"%")
 	}
-
 	if filter.RoleContains != "" {
-		pattern := "%" + filter.RoleContains + "%"
-		db = db.Where(`"Appeal"."role" LIKE ?`, pattern)
+		patterns = append(patterns, "%"+filter.RoleContains+"%")
+	}
+	if len(patterns) > 0 {
+		db = db.Where(`"Appeal"."role" LIKE ANY (?)`, pq.Array(patterns))
 	}
 
 	if len(filter.StepNames) > 0 {
