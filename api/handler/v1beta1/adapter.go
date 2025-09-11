@@ -1074,7 +1074,7 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 	summaryProto := &guardianv1beta1.SummaryResult{
 		AppliedParameters: appliedParameters,
 		Groups:            make([]*guardianv1beta1.SummaryResult_Group, len(s.SummaryGroups)),
-		Total:             s.Total,
+		Count:             s.Count,
 	}
 
 	for i, group := range s.SummaryGroups {
@@ -1085,7 +1085,7 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 
 		summaryProto.Groups[i] = &guardianv1beta1.SummaryResult_Group{
 			GroupFields: groupFields,
-			Total:       group.Total,
+			Count:       group.Count,
 		}
 	}
 

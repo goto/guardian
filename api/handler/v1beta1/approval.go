@@ -129,26 +129,24 @@ func (s *GRPCServer) GenerateUserApprovalSummaries(ctx context.Context, req *gua
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
 
-	items, total, err := s.listApprovalsSummaries(ctx, user, req.GetSummaryItems())
+	items, err := s.listApprovalsSummaries(ctx, user, req.GetSummaryItems())
 	if err != nil {
 		return nil, err
 	}
 
 	return &guardianv1beta1.GenerateUserApprovalSummariesResponse{
 		SummaryItems: items,
-		Total:        total,
 	}, nil
 }
 
 func (s *GRPCServer) GenerateApprovalSummaries(ctx context.Context, req *guardianv1beta1.GenerateApprovalSummariesRequest) (*guardianv1beta1.GenerateApprovalSummariesResponse, error) {
-	items, total, err := s.listApprovalsSummaries(ctx, "", req.GetSummaryItems())
+	items, err := s.listApprovalsSummaries(ctx, "", req.GetSummaryItems())
 	if err != nil {
 		return nil, err
 	}
 
 	return &guardianv1beta1.GenerateApprovalSummariesResponse{
 		SummaryItems: items,
-		Total:        total,
 	}, nil
 }
 
@@ -241,14 +239,14 @@ func (s *GRPCServer) listApprovals(ctx context.Context, filters *domain.ListAppr
 	return approvalProtos, total, nil
 }
 
-func (s *GRPCServer) listApprovalsSummaries(ctx context.Context, actor string, items map[string]*guardianv1beta1.SummaryParameters) (map[string]*guardianv1beta1.SummaryResult, int32, error) {
+func (s *GRPCServer) listApprovalsSummaries(ctx context.Context, actor string, items map[string]*guardianv1beta1.SummaryParameters) (map[string]*guardianv1beta1.SummaryResult, error) {
 
 	summaryItems := make(map[string]*guardianv1beta1.SummaryResult, len(items))
 
 	for key, parameters := range items {
 		var listApprovalsFilter *domain.ListApprovalsFilter
 		if err := mapstructure.Decode(toGoMap(parameters.GetFilters()), &listApprovalsFilter); err != nil {
-			return nil, 0, s.invalidArgument(ctx, "failed to decode filters: %v", err)
+			return nil, s.invalidArgument(ctx, "failed to decode filters: %v", err)
 		}
 		if actor != "" {
 			if listApprovalsFilter == nil {
@@ -261,15 +259,15 @@ func (s *GRPCServer) listApprovalsSummaries(ctx context.Context, actor string, i
 
 		summary, err := s.approvalService.GenerateApprovalSummary(ctx, listApprovalsFilter, groupBys)
 		if err != nil {
-			return nil, 0, s.internalError(ctx, "failed to generate list approvals summary: %s", err)
+			return nil, s.internalError(ctx, "failed to generate list approvals summary: %s", err)
 		}
 
 		summaryProto, err := s.adapter.ToSummaryProto(summary)
 		if err != nil {
-			return nil, 0, s.internalError(ctx, "failed to parse summary: %v", err)
+			return nil, s.internalError(ctx, "failed to parse summary: %v", err)
 		}
 		summaryItems[key] = summaryProto
 	}
 
-	return summaryItems, int32(len(summaryItems)), nil
+	return summaryItems, nil
 }

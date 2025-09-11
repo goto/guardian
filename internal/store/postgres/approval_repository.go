@@ -14,6 +14,10 @@ import (
 	"github.com/goto/guardian/utils"
 )
 
+const (
+	countColumnAlias = "count"
+)
+
 var (
 	ApprovalStatusDefaultSort = []string{
 		domain.ApprovalStatusPending,
@@ -21,6 +25,13 @@ var (
 		domain.ApprovalStatusRejected,
 		domain.ApprovalStatusBlocked,
 		domain.ApprovalStatusSkipped,
+	}
+
+	entityGroupKeyMapping = map[string]string{
+		"resource": "Appeal__Resource",
+		"appeal":   "Appeal",
+		"approver": "approvers",
+		"approval": "approvals",
 	}
 )
 
@@ -88,13 +99,6 @@ func (r *ApprovalRepository) GetApprovalsTotalCount(ctx context.Context, filter 
 	return count, nil
 }
 
-var entityGroupKeyMapping = map[string]string{
-	"resource": "Appeal__Resource",
-	"appeal":   "Appeal",
-	"approver": "approvers",
-	"approval": "approvals",
-}
-
 func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.SummaryResult, error) {
 	if err := utils.ValidateStruct(filter); err != nil {
 		return nil, err
@@ -127,7 +131,7 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 		selectCols = append(selectCols, fmt.Sprintf(`%s AS %q`, column, groupKey))
 		groupCols = append(groupCols, fmt.Sprintf("%q", groupKey))
 	}
-	selectCols = append(selectCols, "COUNT(1) AS total")
+	selectCols = append(selectCols, fmt.Sprintf("COUNT(1) AS %s", countColumnAlias))
 
 	db = db.Table("approvals").Select(strings.Join(selectCols, ", "))
 	if len(groupBys) > 0 {
@@ -143,7 +147,7 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 
 	result := &domain.SummaryResult{
 		SummaryGroups: []*domain.SummaryGroup{},
-		Total:         0,
+		Count:         0,
 	}
 
 	cols, err := rows.Columns()
@@ -164,17 +168,17 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 		}
 
 		groupFields := make(map[string]any)
-		var total int32
+		var count int32
 		for i, col := range cols {
 			groupValues := values[:i]
 			val := values[i]
 			switch col {
-			case "total":
+			case countColumnAlias:
 				intValue, err := strconv.Atoi(fmt.Sprint(val))
 				if err != nil {
 					return nil, fmt.Errorf("invalid count value (%T) for group values: %v", val, groupValues)
 				}
-				total = int32(intValue)
+				count = int32(intValue)
 			default:
 				groupFields[col] = val
 			}
@@ -182,10 +186,10 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 		if len(groupBys) > 0 {
 			result.SummaryGroups = append(result.SummaryGroups, &domain.SummaryGroup{
 				GroupFields: groupFields,
-				Total:       total,
+				Count:       count,
 			})
 		}
-		result.Total += total
+		result.Count += count
 	}
 
 	return result, nil

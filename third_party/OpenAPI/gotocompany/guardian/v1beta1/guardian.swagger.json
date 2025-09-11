@@ -2624,7 +2624,7 @@
           "type": "object",
           "additionalProperties": {}
         },
-        "total": {
+        "count": {
           "type": "integer",
           "format": "int32"
         }
@@ -3065,10 +3065,6 @@
           "additionalProperties": {
             "$ref": "#/definitions/v1beta1SummaryResult"
           }
-        },
-        "total": {
-          "type": "integer",
-          "format": "int32"
         }
       }
     },
@@ -3091,10 +3087,6 @@
           "additionalProperties": {
             "$ref": "#/definitions/v1beta1SummaryResult"
           }
-        },
-        "total": {
-          "type": "integer",
-          "format": "int32"
         }
       }
     },
@@ -3904,7 +3896,7 @@
             "$ref": "#/definitions/SummaryResultGroup"
           }
         },
-        "total": {
+        "count": {
           "type": "integer",
           "format": "int32"
         }

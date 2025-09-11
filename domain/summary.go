@@ -8,10 +8,10 @@ type SummaryParameters struct { // dipake di request & response
 type SummaryResult struct {
 	AppliedParameters *SummaryParameters `json:"applied_parameters,omitempty"`
 	SummaryGroups     []*SummaryGroup    `json:"summary_groups,omitempty"`
-	Total             int32              `json:"total"`
+	Count             int32              `json:"count"`
 }
 
 type SummaryGroup struct {
 	GroupFields map[string]any `json:"group_fields,omitempty"`
-	Total       int32          `json:"total"`
+	Count       int32          `json:"count"`
 }
