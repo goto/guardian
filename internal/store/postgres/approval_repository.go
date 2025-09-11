@@ -88,6 +88,13 @@ func (r *ApprovalRepository) GetApprovalsTotalCount(ctx context.Context, filter 
 	return count, nil
 }
 
+var entityGroupKeyMapping = map[string]string{
+	"resource": "Appeal__Resource",
+	"appeal":   "Appeal",
+	"approver": "approvers",
+	"approval": "approvals",
+}
+
 func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.SummaryResult, error) {
 	if err := utils.ValidateStruct(filter); err != nil {
 		return nil, err
@@ -100,16 +107,31 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 		return nil, err
 	}
 
-	// Build SELECT clause with alias = original groupBy
 	var selectCols []string
-	for _, col := range groupBys {
-		selectCols = append(selectCols, fmt.Sprintf(`%s AS "%s"`, col, col))
+	var groupCols []string
+	for _, groupKey := range groupBys {
+		var column string
+		for i, field := range strings.Split(groupKey, ".") {
+			if i == 0 {
+				tableName, ok := entityGroupKeyMapping[field]
+				if !ok {
+					return nil, fmt.Errorf("invalid group by field: %s", field)
+				}
+				column = fmt.Sprintf("%q", tableName)
+				continue
+			}
+
+			column += "." + fmt.Sprintf("%q", field)
+		}
+
+		selectCols = append(selectCols, fmt.Sprintf(`%s AS %q`, column, groupKey))
+		groupCols = append(groupCols, fmt.Sprintf("%q", groupKey))
 	}
 	selectCols = append(selectCols, "COUNT(1) AS total")
 
 	db = db.Table("approvals").Select(strings.Join(selectCols, ", "))
 	if len(groupBys) > 0 {
-		db = db.Group(strings.Join(groupBys, ", "))
+		db = db.Group(strings.Join(groupCols, ", "))
 	}
 
 	// Execute query
@@ -149,7 +171,7 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 			switch col {
 			case "total":
 				intValue, err := strconv.Atoi(fmt.Sprint(val))
-				if err == nil {
+				if err != nil {
 					return nil, fmt.Errorf("invalid count value (%T) for group values: %v", val, groupValues)
 				}
 				total = int32(intValue)
@@ -231,8 +253,10 @@ func (r *ApprovalRepository) DeleteApprover(ctx context.Context, approvalID, ema
 }
 
 func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, error) {
-	db = db.Joins("Appeal").
-		Joins("Appeal.Resource").
+	db = db.Joins(`LEFT JOIN "appeals" "Appeal" ON "approvals"."appeal_id" = "Appeal"."id"
+  AND "Appeal"."deleted_at" IS NULL`).
+		Joins(`LEFT JOIN "resources" "Appeal__Resource" ON "Appeal"."resource_id" = "Appeal__Resource"."id"
+  AND "Appeal__Resource"."deleted_at" IS NULL`).
 		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
 
 	if filter.Q != "" {

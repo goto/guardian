@@ -48,8 +48,6 @@ func (s *Service) GetApprovalsTotalCount(ctx context.Context, filters *domain.Li
 
 func (s *Service) GenerateApprovalSummary(ctx context.Context, filters *domain.ListApprovalsFilter, groupBys []string) (*domain.SummaryResult, error) {
 	// remove non-filter fields
-	filters.Q = ""
-	filters.OrderBy = nil
 	filters.Size = 0
 	filters.Offset = 0
 
