@@ -202,6 +202,99 @@ func (s *GrpcHandlersSuite) TestListUserAppeals() {
 		s.Nil(res)
 		s.appealService.AssertExpectations(s.T())
 	})
+
+	s.Run("should return list of user appeals filtered by group_id and group_type on success", func() {
+		s.setup()
+		timeNow := time.Now()
+
+		expectedUser := "test-user"
+		expectedFilters := &domain.ListAppealsFilter{
+			CreatedBy:  expectedUser,
+			GroupIDs:   []string{"test-group-id"},
+			GroupTypes: []string{"test-group-type"},
+		}
+		expectedAppeals := []*domain.Appeal{
+			{
+				ID:         "test-id",
+				ResourceID: "test-resource-id",
+				Resource: &domain.Resource{
+					ID: "test-resource-id",
+				},
+				PolicyID:      "test-policy-id",
+				PolicyVersion: 1,
+				Status:        "active",
+				AccountID:     "test-account-id",
+				AccountType:   "test-account-type",
+				GroupID:       "test-group-id",
+				GroupType:     "test-group-type",
+				CreatedBy:     expectedUser,
+				Creator: map[string]interface{}{
+					"foo": "bar",
+				},
+				Role: "test-role",
+				Options: &domain.AppealOptions{
+					Duration:       "24h",
+					ExpirationDate: &timeNow,
+				},
+				Details: map[string]interface{}{
+					"foo": "bar",
+				},
+				CreatedAt: timeNow,
+				UpdatedAt: timeNow,
+			},
+		}
+		s.appealService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedFilters).Return(expectedAppeals, nil).Once()
+		s.appealService.EXPECT().GetAppealsTotalCount(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedFilters).Return(int64(1), nil).Once()
+
+		expectedCreator, err := structpb.NewValue(map[string]interface{}{
+			"foo": "bar",
+		})
+		s.Require().NoError(err)
+		expectedDetails, err := structpb.NewStruct(map[string]interface{}{
+			"foo": "bar",
+		})
+		s.Require().NoError(err)
+		expectedResponse := &guardianv1beta1.ListUserAppealsResponse{
+			Appeals: []*guardianv1beta1.Appeal{
+				{
+					Id:         "test-id",
+					ResourceId: "test-resource-id",
+					Resource: &guardianv1beta1.Resource{
+						Id: "test-resource-id",
+					},
+					PolicyId:      "test-policy-id",
+					PolicyVersion: 1,
+					Status:        "active",
+					AccountId:     "test-account-id",
+					AccountType:   "test-account-type",
+					GroupId:       "test-group-id",
+					GroupType:     "test-group-type",
+					CreatedBy:     expectedUser,
+					Creator:       expectedCreator,
+					Role:          "test-role",
+					Options: &guardianv1beta1.AppealOptions{
+						Duration:       "24h",
+						ExpirationDate: timestamppb.New(timeNow),
+					},
+					Details:   expectedDetails,
+					CreatedAt: timestamppb.New(timeNow),
+					UpdatedAt: timestamppb.New(timeNow),
+				},
+			},
+			Total: 1,
+		}
+
+		req := &guardianv1beta1.ListUserAppealsRequest{
+			GroupIds:   []string{"test-group-id"},
+			GroupTypes: []string{"test-group-type"},
+		}
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, expectedUser)
+		res, err := s.grpcServer.ListUserAppeals(ctx, req)
+
+		s.NoError(err)
+		s.Equal(expectedResponse, res)
+		s.appealService.AssertExpectations(s.T())
+	})
 }
 
 func (s *GrpcHandlersSuite) TestListAppeals() {

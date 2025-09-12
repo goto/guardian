@@ -294,6 +294,7 @@ func (s *GrantRepositoryTestSuite) TestList() {
 
 	s.Run("should filter grants by group_id and group_type", func() {
 		ctx := context.Background()
+		testGroupID := uuid.New().String()
 
 		groupAppeal := &domain.Appeal{
 			ResourceID:    s.dummyResource.ID,
@@ -305,7 +306,7 @@ func (s *GrantRepositoryTestSuite) TestList() {
 			Status:        domain.AppealStatusApproved,
 			Permissions:   []string{"test-permission"},
 			CreatedBy:     "groupuser@example.com",
-			GroupID:       "test-group-id",
+			GroupID:       testGroupID,
 			GroupType:     "test-group-type",
 		}
 
@@ -338,7 +339,7 @@ func (s *GrantRepositoryTestSuite) TestList() {
 			{
 				name: "filter by group_id",
 				filters: domain.ListGrantsFilter{
-					GroupIDs: []string{"test-group-id"},
+					GroupIDs: []string{testGroupID},
 				},
 				expectCount: 1,
 			},
@@ -352,7 +353,7 @@ func (s *GrantRepositoryTestSuite) TestList() {
 			{
 				name: "filter by both group_id and group_type",
 				filters: domain.ListGrantsFilter{
-					GroupIDs:   []string{"test-group-id"},
+					GroupIDs:   []string{testGroupID},
 					GroupTypes: []string{"test-group-type"},
 				},
 				expectCount: 1,
@@ -360,7 +361,7 @@ func (s *GrantRepositoryTestSuite) TestList() {
 			{
 				name: "filter by non-existent group_id",
 				filters: domain.ListGrantsFilter{
-					GroupIDs: []string{"non-existent-group"},
+					GroupIDs: []string{uuid.New().String()},
 				},
 				expectCount: 0,
 			},
@@ -374,7 +375,7 @@ func (s *GrantRepositoryTestSuite) TestList() {
 
 				if tc.expectCount > 0 {
 					s.Equal(groupGrant.AppealID, grants[0].AppealID)
-					s.Equal("test-group-id", grants[0].Appeal.GroupID)
+					s.Equal(testGroupID, grants[0].Appeal.GroupID)
 					s.Equal("test-group-type", grants[0].Appeal.GroupType)
 				}
 			})

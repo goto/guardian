@@ -298,6 +298,9 @@ func (s *AppealRepositoryTestSuite) TestFind() {
 	})
 
 	s.Run("should run query with group filters", func() {
+		testGroupID1 := uuid.New().String()
+		testGroupID2 := uuid.New().String()
+		
 		groupAppeals := []*domain.Appeal{
 			{
 				ResourceID:    s.dummyResource.ID,
@@ -309,7 +312,7 @@ func (s *AppealRepositoryTestSuite) TestFind() {
 				Status:        domain.AppealStatusApproved,
 				Permissions:   []string{"test-permission"},
 				CreatedBy:     "groupuser@example.com",
-				GroupID:       "test-group-id",
+				GroupID:       testGroupID1,
 				GroupType:     "test-group-type",
 			},
 			{
@@ -322,7 +325,7 @@ func (s *AppealRepositoryTestSuite) TestFind() {
 				Status:        domain.AppealStatusPending,
 				Permissions:   []string{"test-permission"},
 				CreatedBy:     "groupuser2@example.com",
-				GroupID:       "another-group-id",
+				GroupID:       testGroupID2,
 				GroupType:     "another-group-type",
 			},
 		}
@@ -339,7 +342,7 @@ func (s *AppealRepositoryTestSuite) TestFind() {
 			{
 				name: "filter by single group_id",
 				filters: &domain.ListAppealsFilter{
-					GroupIDs: []string{"test-group-id"},
+					GroupIDs: []string{testGroupID1},
 				},
 				expectedCount: 1,
 				expectedIDs:   []string{groupAppeals[0].ID},
@@ -347,7 +350,7 @@ func (s *AppealRepositoryTestSuite) TestFind() {
 			{
 				name: "filter by multiple group_ids",
 				filters: &domain.ListAppealsFilter{
-					GroupIDs: []string{"test-group-id", "another-group-id"},
+					GroupIDs: []string{testGroupID1, testGroupID2},
 				},
 				expectedCount: 2,
 				expectedIDs:   []string{groupAppeals[0].ID, groupAppeals[1].ID},
@@ -363,7 +366,7 @@ func (s *AppealRepositoryTestSuite) TestFind() {
 			{
 				name: "filter by group_id and group_type",
 				filters: &domain.ListAppealsFilter{
-					GroupIDs:   []string{"test-group-id"},
+					GroupIDs:   []string{testGroupID1},
 					GroupTypes: []string{"test-group-type"},
 				},
 				expectedCount: 1,

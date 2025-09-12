@@ -44,6 +44,12 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 	if req.GetResourceUrns() != nil {
 		filters.ResourceURNs = req.GetResourceUrns()
 	}
+	if req.GetGroupIds() != nil {
+		filters.GroupIDs = req.GetGroupIds()
+	}
+	if req.GetGroupTypes() != nil {
+		filters.GroupTypes = req.GetGroupTypes()
+	}
 	if req.GetOrderBy() != nil {
 		filters.OrderBy = req.GetOrderBy()
 	}
