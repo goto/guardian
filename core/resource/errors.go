@@ -7,4 +7,6 @@ var (
 	ErrEmptyIDParam = errors.New("id can't be empty")
 	// ErrRecordNotFound is the error value if the designated record id is not exists
 	ErrRecordNotFound = errors.New("record not found")
+
+	ErrInvalidResource = errors.New("invalid resource")
 )

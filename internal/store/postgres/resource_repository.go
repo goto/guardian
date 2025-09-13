@@ -180,6 +180,28 @@ func (r *ResourceRepository) GetOne(ctx context.Context, id string) (*domain.Res
 	return res, nil
 }
 
+func (r *ResourceRepository) Create(ctx context.Context, resource *domain.Resource) error {
+	m := new(model.Resource)
+	if err := m.FromDomain(resource); err != nil {
+		return fmt.Errorf("failed to convert to db model: %w", err)
+	}
+
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if result := tx.Create(m); result.Error != nil {
+			return result.Error
+		}
+
+		newResource, err := m.ToDomain()
+		if err != nil {
+			return err
+		}
+
+		*resource = *newResource
+
+		return nil
+	})
+}
+
 // BulkUpsert inserts records if the records are not exist, or updates the records if they are already exist
 func (r *ResourceRepository) BulkUpsert(ctx context.Context, resources []*domain.Resource) error {
 	var models []*model.Resource

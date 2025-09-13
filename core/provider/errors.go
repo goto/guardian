@@ -29,4 +29,6 @@ var (
 	ErrAppealValidationMissingRequiredQuestion  = errors.New("missing required question")
 
 	ErrGrantAlreadyExists = errors.New("grant already exists")
+
+	ErrInvalidResource = errors.New("invalid resource")
 )

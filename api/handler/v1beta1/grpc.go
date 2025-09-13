@@ -76,6 +76,7 @@ type providerService interface {
 	GetOne(ctx context.Context, pType, urn string) (*domain.Provider, error)
 	Update(context.Context, *domain.Provider) error
 	FetchResources(context.Context) error
+	CreateResource(context.Context, *domain.Resource) error
 	GetRoles(ctx context.Context, id, resourceType string) ([]*domain.Role, error)
 	ValidateAppeal(context.Context, *domain.Appeal, *domain.Provider, *domain.Policy) error
 	GrantAccess(context.Context, domain.Grant) error

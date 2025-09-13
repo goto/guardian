@@ -2,6 +2,7 @@ package resource
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
@@ -21,6 +22,7 @@ const (
 type repository interface {
 	Find(context.Context, domain.ListResourcesFilter) ([]*domain.Resource, error)
 	GetOne(ctx context.Context, id string) (*domain.Resource, error)
+	Create(context.Context, *domain.Resource) error
 	BulkUpsert(context.Context, []*domain.Resource) error
 	Update(context.Context, *domain.Resource) error
 	Delete(ctx context.Context, id string) error
@@ -70,6 +72,13 @@ func (s *Service) GetOne(ctx context.Context, id string) (*domain.Resource, erro
 	}
 
 	return r, nil
+}
+
+func (s *Service) Create(ctx context.Context, r *domain.Resource) error {
+	if err := r.Validate(); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidResource, err)
+	}
+	return s.repo.Create(ctx, r)
 }
 
 // BulkUpsert inserts or updates records

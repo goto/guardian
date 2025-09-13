@@ -37,6 +37,7 @@ type GuardianServiceClient interface {
 	CreatePolicy(ctx context.Context, in *CreatePolicyRequest, opts ...grpc.CallOption) (*CreatePolicyResponse, error)
 	UpdatePolicy(ctx context.Context, in *UpdatePolicyRequest, opts ...grpc.CallOption) (*UpdatePolicyResponse, error)
 	GetPolicyPreferences(ctx context.Context, in *GetPolicyPreferencesRequest, opts ...grpc.CallOption) (*GetPolicyPreferencesResponse, error)
+	CreateResource(ctx context.Context, in *CreateResourceRequest, opts ...grpc.CallOption) (*CreateResourceResponse, error)
 	ListResources(ctx context.Context, in *ListResourcesRequest, opts ...grpc.CallOption) (*ListResourcesResponse, error)
 	GetResource(ctx context.Context, in *GetResourceRequest, opts ...grpc.CallOption) (*GetResourceResponse, error)
 	UpdateResource(ctx context.Context, in *UpdateResourceRequest, opts ...grpc.CallOption) (*UpdateResourceResponse, error)
@@ -52,6 +53,8 @@ type GuardianServiceClient interface {
 	ListAppealActivities(ctx context.Context, in *ListAppealActivitiesRequest, opts ...grpc.CallOption) (*ListAppealActivitiesResponse, error)
 	ListUserApprovals(ctx context.Context, in *ListUserApprovalsRequest, opts ...grpc.CallOption) (*ListUserApprovalsResponse, error)
 	ListApprovals(ctx context.Context, in *ListApprovalsRequest, opts ...grpc.CallOption) (*ListApprovalsResponse, error)
+	GenerateUserApprovalSummaries(ctx context.Context, in *GenerateUserApprovalSummariesRequest, opts ...grpc.CallOption) (*GenerateUserApprovalSummariesResponse, error)
+	GenerateApprovalSummaries(ctx context.Context, in *GenerateApprovalSummariesRequest, opts ...grpc.CallOption) (*GenerateApprovalSummariesResponse, error)
 	UpdateApproval(ctx context.Context, in *UpdateApprovalRequest, opts ...grpc.CallOption) (*UpdateApprovalResponse, error)
 	AddApprover(ctx context.Context, in *AddApproverRequest, opts ...grpc.CallOption) (*AddApproverResponse, error)
 	DeleteApprover(ctx context.Context, in *DeleteApproverRequest, opts ...grpc.CallOption) (*DeleteApproverResponse, error)
@@ -209,6 +212,15 @@ func (c *guardianServiceClient) GetPolicyPreferences(ctx context.Context, in *Ge
 	return out, nil
 }
 
+func (c *guardianServiceClient) CreateResource(ctx context.Context, in *CreateResourceRequest, opts ...grpc.CallOption) (*CreateResourceResponse, error) {
+	out := new(CreateResourceResponse)
+	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/CreateResource", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *guardianServiceClient) ListResources(ctx context.Context, in *ListResourcesRequest, opts ...grpc.CallOption) (*ListResourcesResponse, error) {
 	out := new(ListResourcesResponse)
 	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/ListResources", in, out, opts...)
@@ -344,6 +356,24 @@ func (c *guardianServiceClient) ListApprovals(ctx context.Context, in *ListAppro
 	return out, nil
 }
 
+func (c *guardianServiceClient) GenerateUserApprovalSummaries(ctx context.Context, in *GenerateUserApprovalSummariesRequest, opts ...grpc.CallOption) (*GenerateUserApprovalSummariesResponse, error) {
+	out := new(GenerateUserApprovalSummariesResponse)
+	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/GenerateUserApprovalSummaries", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *guardianServiceClient) GenerateApprovalSummaries(ctx context.Context, in *GenerateApprovalSummariesRequest, opts ...grpc.CallOption) (*GenerateApprovalSummariesResponse, error) {
+	out := new(GenerateApprovalSummariesResponse)
+	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/GenerateApprovalSummaries", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *guardianServiceClient) UpdateApproval(ctx context.Context, in *UpdateApprovalRequest, opts ...grpc.CallOption) (*UpdateApprovalResponse, error) {
 	out := new(UpdateApprovalResponse)
 	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/UpdateApproval", in, out, opts...)
@@ -471,6 +501,7 @@ type GuardianServiceServer interface {
 	CreatePolicy(context.Context, *CreatePolicyRequest) (*CreatePolicyResponse, error)
 	UpdatePolicy(context.Context, *UpdatePolicyRequest) (*UpdatePolicyResponse, error)
 	GetPolicyPreferences(context.Context, *GetPolicyPreferencesRequest) (*GetPolicyPreferencesResponse, error)
+	CreateResource(context.Context, *CreateResourceRequest) (*CreateResourceResponse, error)
 	ListResources(context.Context, *ListResourcesRequest) (*ListResourcesResponse, error)
 	GetResource(context.Context, *GetResourceRequest) (*GetResourceResponse, error)
 	UpdateResource(context.Context, *UpdateResourceRequest) (*UpdateResourceResponse, error)
@@ -486,6 +517,8 @@ type GuardianServiceServer interface {
 	ListAppealActivities(context.Context, *ListAppealActivitiesRequest) (*ListAppealActivitiesResponse, error)
 	ListUserApprovals(context.Context, *ListUserApprovalsRequest) (*ListUserApprovalsResponse, error)
 	ListApprovals(context.Context, *ListApprovalsRequest) (*ListApprovalsResponse, error)
+	GenerateUserApprovalSummaries(context.Context, *GenerateUserApprovalSummariesRequest) (*GenerateUserApprovalSummariesResponse, error)
+	GenerateApprovalSummaries(context.Context, *GenerateApprovalSummariesRequest) (*GenerateApprovalSummariesResponse, error)
 	UpdateApproval(context.Context, *UpdateApprovalRequest) (*UpdateApprovalResponse, error)
 	AddApprover(context.Context, *AddApproverRequest) (*AddApproverResponse, error)
 	DeleteApprover(context.Context, *DeleteApproverRequest) (*DeleteApproverResponse, error)
@@ -550,6 +583,9 @@ func (UnimplementedGuardianServiceServer) UpdatePolicy(context.Context, *UpdateP
 func (UnimplementedGuardianServiceServer) GetPolicyPreferences(context.Context, *GetPolicyPreferencesRequest) (*GetPolicyPreferencesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPolicyPreferences not implemented")
 }
+func (UnimplementedGuardianServiceServer) CreateResource(context.Context, *CreateResourceRequest) (*CreateResourceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateResource not implemented")
+}
 func (UnimplementedGuardianServiceServer) ListResources(context.Context, *ListResourcesRequest) (*ListResourcesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListResources not implemented")
 }
@@ -594,6 +630,12 @@ func (UnimplementedGuardianServiceServer) ListUserApprovals(context.Context, *Li
 }
 func (UnimplementedGuardianServiceServer) ListApprovals(context.Context, *ListApprovalsRequest) (*ListApprovalsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListApprovals not implemented")
+}
+func (UnimplementedGuardianServiceServer) GenerateUserApprovalSummaries(context.Context, *GenerateUserApprovalSummariesRequest) (*GenerateUserApprovalSummariesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateUserApprovalSummaries not implemented")
+}
+func (UnimplementedGuardianServiceServer) GenerateApprovalSummaries(context.Context, *GenerateApprovalSummariesRequest) (*GenerateApprovalSummariesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateApprovalSummaries not implemented")
 }
 func (UnimplementedGuardianServiceServer) UpdateApproval(context.Context, *UpdateApprovalRequest) (*UpdateApprovalResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateApproval not implemented")
@@ -914,6 +956,24 @@ func _GuardianService_GetPolicyPreferences_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GuardianService_CreateResource_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateResourceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuardianServiceServer).CreateResource(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gotocompany.guardian.v1beta1.GuardianService/CreateResource",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuardianServiceServer).CreateResource(ctx, req.(*CreateResourceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _GuardianService_ListResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListResourcesRequest)
 	if err := dec(in); err != nil {
@@ -1180,6 +1240,42 @@ func _GuardianService_ListApprovals_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GuardianServiceServer).ListApprovals(ctx, req.(*ListApprovalsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GuardianService_GenerateUserApprovalSummaries_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateUserApprovalSummariesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuardianServiceServer).GenerateUserApprovalSummaries(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gotocompany.guardian.v1beta1.GuardianService/GenerateUserApprovalSummaries",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuardianServiceServer).GenerateUserApprovalSummaries(ctx, req.(*GenerateUserApprovalSummariesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GuardianService_GenerateApprovalSummaries_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateApprovalSummariesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuardianServiceServer).GenerateApprovalSummaries(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gotocompany.guardian.v1beta1.GuardianService/GenerateApprovalSummaries",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuardianServiceServer).GenerateApprovalSummaries(ctx, req.(*GenerateApprovalSummariesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1468,6 +1564,10 @@ var GuardianService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GuardianService_GetPolicyPreferences_Handler,
 		},
 		{
+			MethodName: "CreateResource",
+			Handler:    _GuardianService_CreateResource_Handler,
+		},
+		{
 			MethodName: "ListResources",
 			Handler:    _GuardianService_ListResources_Handler,
 		},
@@ -1526,6 +1626,14 @@ var GuardianService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListApprovals",
 			Handler:    _GuardianService_ListApprovals_Handler,
+		},
+		{
+			MethodName: "GenerateUserApprovalSummaries",
+			Handler:    _GuardianService_GenerateUserApprovalSummaries_Handler,
+		},
+		{
+			MethodName: "GenerateApprovalSummaries",
+			Handler:    _GuardianService_GenerateApprovalSummaries_Handler,
 		},
 		{
 			MethodName: "UpdateApproval",
