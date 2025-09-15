@@ -2,7 +2,6 @@ package alicloud_sso
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -17,8 +16,6 @@ const (
 	accountTypeSSOUser = "sso_user"
 
 	resourceTypeGroup = "group"
-
-	parameterRAMRoleKey = "ram_role"
 )
 
 var (
@@ -80,13 +77,6 @@ func (c *config) validate() error {
 					}
 				}
 			}
-		}
-	}
-
-	// validate parameters
-	for _, param := range c.Parameters {
-		if !slices.Contains([]string{parameterRAMRoleKey}, param.Key) {
-			return fmt.Errorf("parameter key %q is not supported", param.Key)
 		}
 	}
 

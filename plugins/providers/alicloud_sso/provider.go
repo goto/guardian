@@ -3,7 +3,6 @@ package alicloud_sso
 import (
 	"context"
 	"fmt"
-	"slices"
 	"sync"
 
 	sso "github.com/alibabacloud-go/cloudsso-20210515/client"
@@ -94,18 +93,9 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 }
 
 func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
-	var overrideRAMRole string
-	if slices.Contains(pc.GetParameterKeys(), parameterRAMRoleKey) {
-		r, _, err := getParametersFromGrant[string](g, parameterRAMRoleKey)
-		if err != nil {
-			return fmt.Errorf("failed to get %q parameter value from grant: %w", parameterRAMRoleKey, err)
-		}
-		overrideRAMRole = r
-	}
-
 	switch g.Resource.Type {
 	case resourceTypeGroup:
-		if err := p.grantMemberToGroup(ctx, pc, overrideRAMRole, g.AccountID); err != nil {
+		if err := p.grantMemberToGroup(ctx, pc, g); err != nil {
 			return err
 		}
 
@@ -117,18 +107,9 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 }
 
 func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
-	var overrideRAMRole string
-	if slices.Contains(pc.GetParameterKeys(), parameterRAMRoleKey) {
-		r, _, err := getParametersFromGrant[string](g, parameterRAMRoleKey)
-		if err != nil {
-			return fmt.Errorf("failed to get %q parameter value from grant: %w", parameterRAMRoleKey, err)
-		}
-		overrideRAMRole = r
-	}
-
 	switch g.Resource.Type {
 	case resourceTypeGroup:
-		if err := p.revokeMemberFromGroup(ctx, pc, overrideRAMRole, g.AccountID); err != nil {
+		if err := p.revokeMemberFromGroup(ctx, pc, g); err != nil {
 			return err
 		}
 
@@ -149,18 +130,4 @@ func (p *provider) getCreds(pc *domain.ProviderConfig) (*credentials, error) {
 		return nil, fmt.Errorf("failed to decrypt credentials: %w", err)
 	}
 	return creds, nil
-}
-
-func getParametersFromGrant[T any](g domain.Grant, key string) (T, bool, error) {
-	var value T
-	if g.Appeal == nil {
-		return value, false, fmt.Errorf("appeal is missing in grant")
-	}
-	appealParams, _ := g.Appeal.Details[domain.ReservedDetailsKeyProviderParameters].(map[string]any)
-	if appealParams == nil {
-		return value, false, nil
-	}
-
-	value, ok := appealParams[key].(T)
-	return value, ok, nil
 }

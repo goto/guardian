@@ -37,7 +37,7 @@ func (p *provider) getGroups(ctx context.Context, pc *domain.ProviderConfig) ([]
 	}
 	accountId := bptr.ToStringSafe(credentialsIdentity.AccountId)
 
-	client, err := p.getSSOClient(pc, "")
+	client, err := p.getSSOClient(pc)
 	if err != nil {
 		return nil, fmt.Errorf("fail to initialize sso client when retrieving groups: %w", err)
 	}
@@ -80,53 +80,69 @@ func (p *provider) getGroups(ctx context.Context, pc *domain.ProviderConfig) ([]
 // ---------------------------------------------------------------------------------------------------------------------
 // Group Level Access
 // ---------------------------------------------------------------------------------------------------------------------
-func (p *provider) grantMemberToGroup(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, userID string) error {
+func (p *provider) grantMemberToGroup(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("fail to add member to group: %w", err)
 	}
+
+	if g.Resource == nil {
+		return fmt.Errorf("fail to add member to group: resource is nil")
+	}
+
+	groupID := g.Resource.URN
+	userID := g.AccountID
 
 	creds, err := p.getCreds(pc)
 	if err != nil {
 		return fmt.Errorf("fail to read credentials when adding member to group: %w", err)
 	}
 
-	ssoClient, err := p.getSSOClient(pc, overrideRAMRole)
+	ssoClient, err := p.getSSOClient(pc)
 	if err != nil {
 		return fmt.Errorf("fail to initialize sso client when adding member to group: %w", err)
 	}
 
 	if _, err = ssoClient.AddUserToGroup(&sso.AddUserToGroupRequest{
 		DirectoryId: bptr.FromStringNilAble(creds.DirectoryID),
-		GroupId:     bptr.FromStringNilAble(creds.GroupID),
+		GroupId:     bptr.FromStringNilAble(groupID),
 		UserId:      bptr.FromStringNilAble(userID),
 	}); err != nil {
 		return fmt.Errorf("fail to add member to group: %w", err)
 	}
+
 	return nil
 }
 
-func (p *provider) revokeMemberFromGroup(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, userID string) error {
+func (p *provider) revokeMemberFromGroup(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("fail to remove member from group: %w", err)
 	}
+
+	if g.Resource == nil {
+		return fmt.Errorf("fail to add member to group: resource is nil")
+	}
+
+	groupID := g.Resource.URN
+	userID := g.AccountID
 
 	creds, err := p.getCreds(pc)
 	if err != nil {
 		return fmt.Errorf("fail to read credentials when removing member from group: %w", err)
 	}
 
-	ssoClient, err := p.getSSOClient(pc, overrideRAMRole)
+	ssoClient, err := p.getSSOClient(pc)
 	if err != nil {
 		return fmt.Errorf("fail to initialize sso client when removing member from group: %w", err)
 	}
 
 	if _, err = ssoClient.RemoveUserFromGroup(&sso.RemoveUserFromGroupRequest{
 		DirectoryId: bptr.FromStringNilAble(creds.DirectoryID),
-		GroupId:     bptr.FromStringNilAble(creds.GroupID),
+		GroupId:     bptr.FromStringNilAble(groupID),
 		UserId:      bptr.FromStringNilAble(userID),
 	}); err != nil {
 		return fmt.Errorf("fail to remove member from group: %w", err)
 	}
+
 	return nil
 }
 
@@ -134,27 +150,25 @@ func (p *provider) revokeMemberFromGroup(ctx context.Context, pc *domain.Provide
 // External Client
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (p *provider) getClientCredentials(pc *domain.ProviderConfig, overrideRamRole string) (string, aliclientmanager.Credentials, error) {
+func (p *provider) getClientCredentials(pc *domain.ProviderConfig) (string, aliclientmanager.Credentials, error) {
 	creds, err := p.getCreds(pc)
 	if err != nil {
 		return "", aliclientmanager.Credentials{}, err
 	}
-	ramRole := overrideRamRole
-	if creds.RAMRole != "" {
-		ramRole = creds.RAMRole
-	}
-	cacheKeyFrags := fmt.Sprintf("%s:%s:%s", creds.AccessKeyID, creds.RegionID, ramRole)
+
+	cacheKeyFrags := fmt.Sprintf("%s:%s:%s", creds.AccessKeyID, creds.RegionID, creds.RAMRole)
 	manCreds := aliclientmanager.Credentials{
 		AccessKeyId:     creds.AccessKeyID,
 		AccessKeySecret: creds.AccessKeySecret,
 		RegionId:        creds.RegionID,
-		RAMRoleARN:      ramRole,
+		RAMRoleARN:      creds.RAMRole,
 	}
+
 	return cacheKeyFrags, manCreds, nil
 }
 
-func (p *provider) getSSOClient(pc *domain.ProviderConfig, overrideRamRole string) (*sso.Client, error) {
-	cacheKeyFrags, manCreds, err := p.getClientCredentials(pc, overrideRamRole)
+func (p *provider) getSSOClient(pc *domain.ProviderConfig) (*sso.Client, error) {
+	cacheKeyFrags, manCreds, err := p.getClientCredentials(pc)
 	if err != nil {
 		return nil, err
 	}

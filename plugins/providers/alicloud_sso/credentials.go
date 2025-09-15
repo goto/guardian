@@ -12,7 +12,7 @@ type credentials struct {
 	RAMRole         string `mapstructure:"ram_role" json:"ram_role"`
 	RegionID        string `mapstructure:"region_id" json:"region_id"`
 	DirectoryID     string `mapstructure:"directory_id" json:"directory_id"`
-	GroupID         string `mapstructure:"group_id" json:"group_id"`
+	MainAccountID   string `mapstructure:"main_account_id" json:"main_account_id" validate:"required"`
 }
 
 func (c *credentials) validate() error {
@@ -27,9 +27,6 @@ func (c *credentials) validate() error {
 	}
 	if c.DirectoryID == "" {
 		return errors.New("directory_id is required")
-	}
-	if c.GroupID == "" {
-		return errors.New("group_id is required")
 	}
 	return nil
 }
