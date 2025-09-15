@@ -73,6 +73,10 @@ func (_c *ApprovalService_BulkInsert_Call) RunAndReturn(run func(context.Context
 func (_m *ApprovalService) GenerateApprovalSummary(_a0 context.Context, _a1 *domain.ListApprovalsFilter, _a2 []string) (*domain.SummaryResult, error) {
 	ret := _m.Called(_a0, _a1, _a2)
 
+	if len(ret) == 0 {
+		panic("no return value specified for GenerateApprovalSummary")
+	}
+
 	var r0 *domain.SummaryResult
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *domain.ListApprovalsFilter, []string) (*domain.SummaryResult, error)); ok {

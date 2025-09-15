@@ -168,6 +168,10 @@ func (_c *Repository_DeleteApprover_Call) RunAndReturn(run func(context.Context,
 func (_m *Repository) GenerateApprovalSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.SummaryResult, error) {
 	ret := _m.Called(ctx, filter, groupBys)
 
+	if len(ret) == 0 {
+		panic("no return value specified for GenerateApprovalSummary")
+	}
+
 	var r0 *domain.SummaryResult
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *domain.ListApprovalsFilter, []string) (*domain.SummaryResult, error)); ok {
