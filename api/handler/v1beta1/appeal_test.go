@@ -810,14 +810,14 @@ func (s *GrpcHandlersSuite) TestCreateAppeal() {
 		req := &guardianv1beta1.CreateAppealRequest{
 			AccountId:   expectedUser,
 			AccountType: "user",
-			GroupId:     "test-group-id",
-			GroupType:   "test-group-type",
 			Resources: []*guardianv1beta1.CreateAppealRequest_Resource{
 				{
-					Id:      "test-resource-id",
-					Role:    "test-role",
-					Options: reqOptions,
-					Details: expectedDetails,
+					Id:        "test-resource-id",
+					Role:      "test-role",
+					Options:   reqOptions,
+					Details:   expectedDetails,
+					GroupId:   "test-group-id",
+					GroupType: "test-group-type",
 				},
 			},
 			Description: "Test appeal with group fields",

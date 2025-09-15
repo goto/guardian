@@ -17,6 +17,8 @@ type Grant struct {
 	StatusInProvider        string
 	AccountID               string
 	AccountType             string
+	GroupID                 sql.NullString
+	GroupType               sql.NullString
 	ResourceID              string
 	Role                    string
 	Permissions             pq.StringArray `gorm:"type:text[]"`
@@ -109,6 +111,14 @@ func (m *Grant) FromDomain(g domain.Grant) error {
 	m.StatusInProvider = string(g.StatusInProvider)
 	m.AccountID = g.AccountID
 	m.AccountType = g.AccountType
+	m.GroupID = sql.NullString{
+		String: g.GroupID,
+		Valid:  g.GroupID != "",
+	}
+	m.GroupType = sql.NullString{
+		String: g.GroupType,
+		Valid:  g.GroupType != "",
+	}
 	m.ResourceID = g.ResourceID
 	m.Role = g.Role
 	m.Permissions = pq.StringArray(g.Permissions)
@@ -132,6 +142,8 @@ func (m Grant) ToDomain() (*domain.Grant, error) {
 		StatusInProvider: domain.GrantStatus(m.StatusInProvider),
 		AccountID:        m.AccountID,
 		AccountType:      m.AccountType,
+		GroupID:          m.GroupID.String,
+		GroupType:        m.GroupType.String,
 		ResourceID:       m.ResourceID,
 		Role:             m.Role,
 		Permissions:      []string(m.Permissions),

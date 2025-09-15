@@ -168,6 +168,8 @@ func (a Appeal) ToGrant() (*Grant, error) {
 		Status:      GrantStatusActive,
 		AccountID:   a.AccountID,
 		AccountType: a.AccountType,
+		GroupID:     a.GroupID,
+		GroupType:   a.GroupType,
 		ResourceID:  a.ResourceID,
 		Role:        a.Role,
 		Permissions: a.Permissions,
@@ -398,7 +400,6 @@ type ListAppealsFilter struct {
 	CreatedBy                 string    `mapstructure:"created_by" validate:"omitempty,required"`
 	AccountID                 string    `mapstructure:"account_id" validate:"omitempty,required"`
 	AccountIDs                []string  `mapstructure:"account_ids" validate:"omitempty,required"`
-	GroupID                   string    `mapstructure:"group_id" validate:"omitempty,required"`
 	GroupIDs                  []string  `mapstructure:"group_ids" validate:"omitempty,required"`
 	GroupTypes                []string  `mapstructure:"group_types" validate:"omitempty,min=1"`
 	ResourceID                string    `mapstructure:"resource_id" validate:"omitempty,required"`

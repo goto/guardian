@@ -36,6 +36,8 @@ type Grant struct {
 	StatusInProvider        GrantStatus `json:"status_in_provider" yaml:"status_in_provider"`
 	AccountID               string      `json:"account_id" yaml:"account_id"`
 	AccountType             string      `json:"account_type" yaml:"account_type"`
+	GroupID                 string      `json:"group_id,omitempty" yaml:"group_id,omitempty"`
+	GroupType               string      `json:"group_type,omitempty" yaml:"group_type,omitempty"`
 	ResourceID              string      `json:"resource_id" yaml:"resource_id"`
 	Role                    string      `json:"role" yaml:"role"`
 	Permissions             []string    `json:"permissions" yaml:"permissions"`
