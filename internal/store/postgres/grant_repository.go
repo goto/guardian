@@ -304,18 +304,13 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, er
 	if filter.AccountTypes != nil {
 		db = db.Where(`"grants"."account_type" IN ?`, filter.AccountTypes)
 	}
+	
+	if len(filter.GroupIDs) > 0 {
+		db = db.Where(`"grants"."group_id" IN ?`, filter.GroupIDs)
+	}
 
-	// Group filters - join with appeals table if needed
-	if len(filter.GroupIDs) > 0 || len(filter.GroupTypes) > 0 {
-		db = db.Joins("LEFT JOIN appeals ON grants.appeal_id = appeals.id")
-
-		if len(filter.GroupIDs) > 0 {
-			db = db.Where(`"appeals"."group_id" IN ?`, filter.GroupIDs)
-		}
-
-		if len(filter.GroupTypes) > 0 {
-			db = db.Where(`"appeals"."group_type" IN ?`, filter.GroupTypes)
-		}
+	if len(filter.GroupTypes) > 0 {
+		db = db.Where(`"grants"."group_type" IN ?`, filter.GroupTypes)
 	}
 
 	if filter.ResourceIDs != nil {

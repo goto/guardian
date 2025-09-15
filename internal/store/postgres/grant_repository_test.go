@@ -320,6 +320,8 @@ func (s *GrantRepositoryTestSuite) TestList() {
 			AppealID:       groupAppeal.ID,
 			AccountID:      groupAppeal.AccountID,
 			AccountType:    groupAppeal.AccountType,
+			GroupID:        groupAppeal.GroupID,
+			GroupType:      groupAppeal.GroupType,
 			ResourceID:     groupAppeal.ResourceID,
 			Role:           groupAppeal.Role,
 			Permissions:    groupAppeal.Permissions,

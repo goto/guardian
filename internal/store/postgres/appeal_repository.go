@@ -248,15 +248,8 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.DB
 		db = db.Where(`LOWER("appeals"."account_id") IN ?`, accounts)
 	}
 
-	// Group filters
-	groups := make([]string, 0)
 	if filters.GroupIDs != nil {
-		for _, group := range filters.GroupIDs {
-			groups = append(groups, group)
-		}
-	}
-	if len(groups) > 0 {
-		db = db.Where(`"appeals"."group_id" IN ?`, groups)
+		db = db.Where(`"appeals"."group_id" IN ?`, filters.GroupIDs)
 	}
 	if filters.GroupTypes != nil {
 		db = db.Where(`"appeals"."group_type" IN ?`, filters.GroupTypes)
