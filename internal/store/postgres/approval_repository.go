@@ -124,6 +124,8 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 	}
 	var selectCols []string
 	var groupCols []string
+	// TODO | https://github.com/goto/guardian/pull/218#discussion_r2336292684
+	// Add validation for group bys. e,g. filter to group by 'created_at' since it not make sense.
 	for _, groupKey := range groupBys {
 		var column string
 		for i, field := range strings.Split(groupKey, ".") {
