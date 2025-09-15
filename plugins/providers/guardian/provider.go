@@ -45,11 +45,11 @@ func (p *provider) GetType() string {
 }
 
 func (p *provider) GetAccountTypes() []string {
-	return []string{}
+	return []string{"user"}
 }
 
 func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*domain.Role, error) {
-	return nil, nil
+	return pv.GetRoles(pc, resourceType)
 }
 
 func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
