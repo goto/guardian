@@ -3,13 +3,16 @@ package v1beta1
 import (
 	"context"
 	"errors"
+	"sync"
+
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/domain"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/mitchellh/mapstructure"
 )
 
 func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1.ListUserApprovalsRequest) (*guardianv1beta1.ListUserApprovalsResponse, error) {
@@ -30,6 +33,10 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		Offset:         int(req.GetOffset()),
 		AppealStatuses: req.GetAppealStatuses(),
 		Stale:          req.GetStale(),
+		RoleStartsWith: req.GetRoleStartsWith(),
+		RoleEndsWith:   req.GetRoleEndsWith(),
+		RoleContains:   req.GetRoleContains(),
+		StepNames:      req.GetStepNames(),
 	})
 	if err != nil {
 		return nil, err
@@ -54,6 +61,10 @@ func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.Lis
 		Offset:         int(req.GetOffset()),
 		AppealStatuses: req.GetAppealStatuses(),
 		Stale:          req.GetStale(),
+		RoleStartsWith: req.GetRoleStartsWith(),
+		RoleEndsWith:   req.GetRoleEndsWith(),
+		RoleContains:   req.GetRoleContains(),
+		StepNames:      req.GetStepNames(),
 	})
 	if err != nil {
 		return nil, err
@@ -110,6 +121,33 @@ func (s *GRPCServer) UpdateApproval(ctx context.Context, req *guardianv1beta1.Up
 
 	return &guardianv1beta1.UpdateApprovalResponse{
 		Appeal: appealProto,
+	}, nil
+}
+
+func (s *GRPCServer) GenerateUserApprovalSummaries(ctx context.Context, req *guardianv1beta1.GenerateUserApprovalSummariesRequest) (*guardianv1beta1.GenerateUserApprovalSummariesResponse, error) {
+	user, err := s.getUser(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+
+	items, err := s.listApprovalsSummaries(ctx, user, req.GetSummaryItems())
+	if err != nil {
+		return nil, err
+	}
+
+	return &guardianv1beta1.GenerateUserApprovalSummariesResponse{
+		SummaryItems: items,
+	}, nil
+}
+
+func (s *GRPCServer) GenerateApprovalSummaries(ctx context.Context, req *guardianv1beta1.GenerateApprovalSummariesRequest) (*guardianv1beta1.GenerateApprovalSummariesResponse, error) {
+	items, err := s.listApprovalsSummaries(ctx, "", req.GetSummaryItems())
+	if err != nil {
+		return nil, err
+	}
+
+	return &guardianv1beta1.GenerateApprovalSummariesResponse{
+		SummaryItems: items,
 	}, nil
 }
 
@@ -200,4 +238,53 @@ func (s *GRPCServer) listApprovals(ctx context.Context, filters *domain.ListAppr
 	}
 
 	return approvalProtos, total, nil
+}
+
+func (s *GRPCServer) listApprovalsSummaries(ctx context.Context, actor string, items map[string]*guardianv1beta1.SummaryParameters) (map[string]*guardianv1beta1.SummaryResult, error) {
+	summaryItems := make(map[string]*guardianv1beta1.SummaryResult, len(items))
+	mu := sync.Mutex{}
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.SetLimit(3)
+
+	for key, parameters := range items {
+		key := key
+		parameters := parameters
+		eg.Go(func() error {
+			var listApprovalsFilter *domain.ListApprovalsFilter
+			if err := mapstructure.Decode(toGoMap(parameters.GetFilters()), &listApprovalsFilter); err != nil {
+				return s.invalidArgument(egCtx, "failed to decode filters for %q: %s", key, err)
+			}
+			if actor != "" {
+				if listApprovalsFilter == nil {
+					listApprovalsFilter = &domain.ListApprovalsFilter{}
+				}
+				listApprovalsFilter.CreatedBy = actor
+			}
+
+			summary, err := s.approvalService.GenerateApprovalSummary(egCtx, listApprovalsFilter, parameters.GetGroupBys())
+			if err != nil {
+				switch {
+				case errors.Is(err, domain.ErrInvalidGroupByField):
+					return s.invalidArgument(egCtx, "invalid argument for %q: %s", key, err)
+				default:
+					return s.internalError(egCtx, "failed to generate approval summary for %q: %s", key, err)
+				}
+			}
+
+			summaryProto, err := s.adapter.ToSummaryProto(summary)
+			if err != nil {
+				return s.internalError(egCtx, "failed to parse summary result for %q: %s", key, err)
+			}
+			mu.Lock()
+			summaryItems[key] = summaryProto
+			mu.Unlock()
+
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
+	return summaryItems, nil
 }

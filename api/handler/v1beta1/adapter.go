@@ -3,11 +3,12 @@ package v1beta1
 import (
 	"fmt"
 
-	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
-	"github.com/goto/guardian/domain"
 	"github.com/mitchellh/mapstructure"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
+	"github.com/goto/guardian/domain"
 )
 
 type adapter struct{}
@@ -1052,6 +1053,45 @@ func (a *adapter) ToAppealActivityProto(e *domain.Event) (*guardianv1beta1.Appea
 	return activityProto, nil
 }
 
+func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.SummaryResult, error) {
+	if s == nil {
+		return nil, nil
+	}
+
+	var appliedParameters *guardianv1beta1.SummaryParameters
+	if s.AppliedParameters != nil {
+		filters, err := toProtoMap(s.AppliedParameters.Filters)
+		if err != nil {
+			return nil, fmt.Errorf("parsing filters: %w", err)
+		}
+
+		appliedParameters = &guardianv1beta1.SummaryParameters{
+			GroupBys: s.AppliedParameters.GroupBys,
+			Filters:  filters,
+		}
+	}
+
+	summaryProto := &guardianv1beta1.SummaryResult{
+		AppliedParameters: appliedParameters,
+		Groups:            make([]*guardianv1beta1.SummaryResult_Group, len(s.SummaryGroups)),
+		Count:             s.Count,
+	}
+
+	for i, group := range s.SummaryGroups {
+		groupFields, err := toProtoMap(group.GroupFields)
+		if err != nil {
+			return nil, fmt.Errorf("parsing group fields: %w", err)
+		}
+
+		summaryProto.Groups[i] = &guardianv1beta1.SummaryResult_Group{
+			GroupFields: groupFields,
+			Count:       group.Count,
+		}
+	}
+
+	return summaryProto, nil
+}
+
 func (a *adapter) toConditionProto(c *domain.Condition) (*guardianv1beta1.Condition, error) {
 	if c == nil {
 		return nil, nil
@@ -1128,4 +1168,24 @@ func (a *adapter) toPolicyConfigProto(c *domain.PolicyConfig) *guardianv1beta1.P
 		Id:      c.ID,
 		Version: int32(c.Version),
 	}
+}
+
+func toGoMap(in map[string]*structpb.Value) map[string]any {
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		out[k] = v.AsInterface()
+	}
+	return out
+}
+
+func toProtoMap(in map[string]any) (map[string]*structpb.Value, error) {
+	out := make(map[string]*structpb.Value, len(in))
+	for k, v := range in {
+		val, err := structpb.NewValue(v)
+		if err != nil {
+			return nil, err
+		}
+		out[k] = val
+	}
+	return out, nil
 }
