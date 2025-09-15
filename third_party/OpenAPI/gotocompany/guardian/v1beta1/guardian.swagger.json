@@ -3100,12 +3100,6 @@
         },
         "description": {
           "type": "string"
-        },
-        "groupId": {
-          "type": "string"
-        },
-        "groupType": {
-          "type": "string"
         }
       }
     },
@@ -3123,6 +3117,12 @@
         },
         "details": {
           "type": "object"
+        },
+        "groupId": {
+          "type": "string"
+        },
+        "groupType": {
+          "type": "string"
         }
       }
     },
@@ -3373,6 +3373,12 @@
         "restoredAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "groupId": {
+          "type": "string"
+        },
+        "groupType": {
+          "type": "string"
         }
       }
     },
