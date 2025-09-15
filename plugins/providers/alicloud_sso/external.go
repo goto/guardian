@@ -80,9 +80,9 @@ func (p *provider) getGroups(ctx context.Context, pc *domain.ProviderConfig) ([]
 // ---------------------------------------------------------------------------------------------------------------------
 // Group Level Access
 // ---------------------------------------------------------------------------------------------------------------------
-func (p *provider) grantMemberToGroup(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
+func (p *provider) addMemberToGroup(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("fail to add member to group: %w", err)
+		return fmt.Errorf("fail to add member to group. context error: %w", err)
 	}
 
 	if g.Resource == nil {
@@ -107,15 +107,15 @@ func (p *provider) grantMemberToGroup(ctx context.Context, pc *domain.ProviderCo
 		GroupId:     bptr.FromStringNilAble(groupID),
 		UserId:      bptr.FromStringNilAble(userID),
 	}); err != nil {
-		return fmt.Errorf("fail to add member to group: %w", err)
+		return fmt.Errorf("fail to add member to group. client error: %w", err)
 	}
 
 	return nil
 }
 
-func (p *provider) revokeMemberFromGroup(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
+func (p *provider) removeMemberFromGroup(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("fail to remove member from group: %w", err)
+		return fmt.Errorf("fail to remove member from group. context error: %w", err)
 	}
 
 	if g.Resource == nil {
@@ -140,7 +140,7 @@ func (p *provider) revokeMemberFromGroup(ctx context.Context, pc *domain.Provide
 		GroupId:     bptr.FromStringNilAble(groupID),
 		UserId:      bptr.FromStringNilAble(userID),
 	}); err != nil {
-		return fmt.Errorf("fail to remove member from group: %w", err)
+		return fmt.Errorf("fail to remove member from group. client error: %w", err)
 	}
 
 	return nil

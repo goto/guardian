@@ -1,34 +1,16 @@
 package alicloud_sso
 
 import (
-	"errors"
-
 	"github.com/goto/guardian/domain"
 )
 
 type credentials struct {
-	AccessKeyID     string `mapstructure:"access_key_id" json:"access_key_id"`
-	AccessKeySecret string `mapstructure:"access_key_secret" json:"access_key_secret"`
-	RAMRole         string `mapstructure:"ram_role" json:"ram_role"`
-	RegionID        string `mapstructure:"region_id" json:"region_id"`
-	DirectoryID     string `mapstructure:"directory_id" json:"directory_id"`
+	AccessKeyID     string `mapstructure:"access_key_id" json:"access_key_id" validate:"required"`
+	AccessKeySecret string `mapstructure:"access_key_secret" json:"access_key_secret" validate:"required"`
+	RAMRole         string `mapstructure:"ram_role" json:"ram_role" validate:"required"`
+	RegionID        string `mapstructure:"region_id" json:"region_id" validate:"required"`
+	DirectoryID     string `mapstructure:"directory_id" json:"directory_id" validate:"required"`
 	MainAccountID   string `mapstructure:"main_account_id" json:"main_account_id" validate:"required"`
-}
-
-func (c *credentials) validate() error {
-	if c.AccessKeyID == "" {
-		return errors.New("access_key_id is required")
-	}
-	if c.AccessKeySecret == "" {
-		return errors.New("access_key_secret is required")
-	}
-	if c.RegionID == "" {
-		return errors.New("region_id is required")
-	}
-	if c.DirectoryID == "" {
-		return errors.New("directory_id is required")
-	}
-	return nil
 }
 
 func (c *credentials) encrypt(encryptor domain.Encryptor) error {

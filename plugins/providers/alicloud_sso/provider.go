@@ -58,7 +58,7 @@ func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*
 func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
 	cfg := &config{pc}
 	if err := cfg.validate(); err != nil {
-		return fmt.Errorf("invalid maxcompute config: %w", err)
+		return fmt.Errorf("invalid config: %w", err)
 	}
 
 	// encrypt sensitive config
@@ -95,7 +95,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
 	switch g.Resource.Type {
 	case resourceTypeGroup:
-		if err := p.grantMemberToGroup(ctx, pc, g); err != nil {
+		if err := p.addMemberToGroup(ctx, pc, g); err != nil {
 			return err
 		}
 
@@ -109,7 +109,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
 	switch g.Resource.Type {
 	case resourceTypeGroup:
-		if err := p.revokeMemberFromGroup(ctx, pc, g); err != nil {
+		if err := p.removeMemberFromGroup(ctx, pc, g); err != nil {
 			return err
 		}
 

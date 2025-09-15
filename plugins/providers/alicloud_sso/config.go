@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/goto/guardian/domain"
@@ -50,8 +51,9 @@ func (c *config) validate() error {
 	if err != nil {
 		return err
 	}
-	if err := creds.validate(); err != nil {
-		return fmt.Errorf("invalid credentials: %w", err)
+
+	if err = validator.New().Struct(creds); err != nil {
+		return fmt.Errorf("fields validation failed: %w", err)
 	}
 
 	// validate resource config
