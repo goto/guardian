@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/utils"
 )
 
 //go:generate mockery --name=repository --exported --with-expecter
@@ -13,6 +14,7 @@ type repository interface {
 	ListApprovals(context.Context, *domain.ListApprovalsFilter) ([]*domain.Approval, error)
 	AddApprover(context.Context, *domain.Approver) error
 	DeleteApprover(ctx context.Context, approvalID, email string) error
+	GenerateApprovalSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.SummaryResult, error)
 }
 
 //go:generate mockery --name=policyService --exported --with-expecter
@@ -42,6 +44,30 @@ func (s *Service) ListApprovals(ctx context.Context, filters *domain.ListApprova
 
 func (s *Service) GetApprovalsTotalCount(ctx context.Context, filters *domain.ListApprovalsFilter) (int64, error) {
 	return s.repo.GetApprovalsTotalCount(ctx, filters)
+}
+
+func (s *Service) GenerateApprovalSummary(ctx context.Context, filters *domain.ListApprovalsFilter, groupBys []string) (*domain.SummaryResult, error) {
+	// remove non-filter fields
+	filters.Size = 0
+	filters.Offset = 0
+
+	result, err := s.repo.GenerateApprovalSummary(ctx, filters, groupBys)
+	if err != nil {
+		return nil, err
+	}
+
+	filtersMap, err := utils.StructToMap(filters)
+	if err != nil {
+		return nil, err
+	}
+
+	appliedParameters := &domain.SummaryParameters{
+		Filters:  filtersMap,
+		GroupBys: groupBys,
+	}
+	result.AppliedParameters = appliedParameters
+
+	return result, nil
 }
 
 func (s *Service) BulkInsert(ctx context.Context, approvals []*domain.Approval) error {

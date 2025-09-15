@@ -791,6 +791,66 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "roleStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "roleEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "roleContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "stepNames",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
+      }
+    },
+    "/v1beta1/approvals/summaries": {
+      "post": {
+        "operationId": "GuardianService_GenerateApprovalSummaries",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1GenerateApprovalSummariesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1beta1GenerateApprovalSummariesRequest"
+            }
           }
         ],
         "tags": [
@@ -1407,6 +1467,66 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "roleStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "roleEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "roleContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "stepNames",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
+      }
+    },
+    "/v1beta1/me/approvals/summaries": {
+      "post": {
+        "operationId": "GuardianService_GenerateUserApprovalSummaries",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1GenerateUserApprovalSummariesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1beta1GenerateUserApprovalSummariesRequest"
+            }
           }
         ],
         "tags": [
@@ -2497,6 +2617,19 @@
         }
       }
     },
+    "SummaryResultGroup": {
+      "type": "object",
+      "properties": {
+        "groupFields": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "UpdateApprovalRequestAction": {
       "type": "object",
       "properties": {
@@ -2580,7 +2713,7 @@
         "NULL_VALUE"
       ],
       "default": "NULL_VALUE",
-      "description": "`NullValue` is a singleton enumeration to represent the null value for the\n`Value` type union.\n\n The JSON representation for `NullValue` is JSON `null`.\n\n - NULL_VALUE: Null value."
+      "description": "`NullValue` is a singleton enumeration to represent the null value for the\n`Value` type union.\n\nThe JSON representation for `NullValue` is JSON `null`.\n\n - NULL_VALUE: Null value."
     },
     "rpcStatus": {
       "type": "object",
@@ -2912,6 +3045,50 @@
     },
     "v1beta1DeleteResourceResponse": {
       "type": "object"
+    },
+    "v1beta1GenerateApprovalSummariesRequest": {
+      "type": "object",
+      "properties": {
+        "summaryItems": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1beta1SummaryParameters"
+          }
+        }
+      }
+    },
+    "v1beta1GenerateApprovalSummariesResponse": {
+      "type": "object",
+      "properties": {
+        "summaryItems": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1beta1SummaryResult"
+          }
+        }
+      }
+    },
+    "v1beta1GenerateUserApprovalSummariesRequest": {
+      "type": "object",
+      "properties": {
+        "summaryItems": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1beta1SummaryParameters"
+          }
+        }
+      }
+    },
+    "v1beta1GenerateUserApprovalSummariesResponse": {
+      "type": "object",
+      "properties": {
+        "summaryItems": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1beta1SummaryResult"
+          }
+        }
+      }
     },
     "v1beta1GetActivityResponse": {
       "type": "object",
@@ -3687,6 +3864,41 @@
         },
         "type": {
           "type": "string"
+        }
+      }
+    },
+    "v1beta1SummaryParameters": {
+      "type": "object",
+      "properties": {
+        "filters": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "groupBys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Summary is global interface to summarize the implementor"
+    },
+    "v1beta1SummaryResult": {
+      "type": "object",
+      "properties": {
+        "appliedParameters": {
+          "$ref": "#/definitions/v1beta1SummaryParameters"
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/SummaryResultGroup"
+          }
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
