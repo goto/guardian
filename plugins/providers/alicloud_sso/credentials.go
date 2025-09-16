@@ -7,7 +7,7 @@ import (
 type credentials struct {
 	AccessKeyID     string `mapstructure:"access_key_id" json:"access_key_id" validate:"required"`
 	AccessKeySecret string `mapstructure:"access_key_secret" json:"access_key_secret" validate:"required"`
-	RAMRole         string `mapstructure:"ram_role" json:"ram_role" validate:"required"`
+	RAMRole         string `mapstructure:"ram_role" json:"ram_role"`
 	RegionID        string `mapstructure:"region_id" json:"region_id" validate:"required"`
 	DirectoryID     string `mapstructure:"directory_id" json:"directory_id" validate:"required"`
 	MainAccountID   string `mapstructure:"main_account_id" json:"main_account_id" validate:"required"`
