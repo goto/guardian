@@ -32,6 +32,12 @@ func (r *Resource) GetFlattened() []*Resource {
 }
 
 func (r *Resource) Validate() error {
+	if r.ProviderType == "" {
+		return errors.New("provider_type is required")
+	}
+	if r.ProviderURN == "" {
+		return errors.New("provider_urn is required")
+	}
 	if r.Type == "" {
 		return errors.New("type is required")
 	}
