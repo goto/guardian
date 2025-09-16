@@ -56,10 +56,6 @@ func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*
 	return pv.GetRoles(pc, resourceType)
 }
 
-func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
-	return nil, nil
-}
-
 func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, grant domain.Grant) error {
 	return nil
 }

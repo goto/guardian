@@ -20,14 +20,6 @@ type Resource struct {
 	GlobalURN    string                 `json:"global_urn" yaml:"global_urn"`
 }
 
-func (r *Resource) GetFlattened() []*Resource {
-	resources := []*Resource{r}
-	for _, child := range r.Children {
-		resources = append(resources, child.GetFlattened()...)
-	}
-	return resources
-}
-
 type ListResourcesFilter struct {
 	IDs           []string          `mapstructure:"ids" validate:"omitempty,min=1"`
 	IsDeleted     bool              `mapstructure:"is_deleted" validate:"omitempty"`
