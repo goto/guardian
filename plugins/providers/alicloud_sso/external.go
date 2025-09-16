@@ -26,10 +26,14 @@ func (p *provider) getGroups(ctx context.Context, pc *domain.ProviderConfig) ([]
 		return nil, fmt.Errorf("fail to get credentials when retrieving groups: %w", err)
 	}
 
+	regionID := creds.RegionID
+	if creds.STSRegionID != "" {
+		regionID = creds.STSRegionID
+	}
 	credentialsIdentity, err := aliclientmanager.GetCredentialsIdentity(aliclientmanager.Credentials{
 		AccessKeyId:     creds.AccessKeyID,
 		AccessKeySecret: creds.AccessKeySecret,
-		RegionId:        creds.RegionID,
+		RegionId:        regionID,
 		RAMRoleARN:      creds.RAMRole,
 	})
 	if err != nil {
@@ -150,10 +154,10 @@ func (p *provider) removeMemberFromGroup(ctx context.Context, pc *domain.Provide
 // External Client
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (p *provider) getClientCredentials(pc *domain.ProviderConfig) (string, aliclientmanager.Credentials, error) {
+func (p *provider) getSSOClient(pc *domain.ProviderConfig) (*sso.Client, error) {
 	creds, err := p.getCreds(pc)
 	if err != nil {
-		return "", aliclientmanager.Credentials{}, err
+		return nil, err
 	}
 
 	cacheKeyFrags := fmt.Sprintf("%s:%s:%s", creds.AccessKeyID, creds.RegionID, creds.RAMRole)
@@ -162,15 +166,6 @@ func (p *provider) getClientCredentials(pc *domain.ProviderConfig) (string, alic
 		AccessKeySecret: creds.AccessKeySecret,
 		RegionId:        creds.RegionID,
 		RAMRoleARN:      creds.RAMRole,
-	}
-
-	return cacheKeyFrags, manCreds, nil
-}
-
-func (p *provider) getSSOClient(pc *domain.ProviderConfig) (*sso.Client, error) {
-	cacheKeyFrags, manCreds, err := p.getClientCredentials(pc)
-	if err != nil {
-		return nil, err
 	}
 
 	if c, exists := p.ssoClientsCache[cacheKeyFrags]; exists {
@@ -195,7 +190,7 @@ func (p *provider) getSSOClient(pc *domain.ProviderConfig) (*sso.Client, error) 
 		return ssoClient, nil
 	}
 
-	manager, err := aliclientmanager.NewConfig[*sso.Client](manCreds, clientInitFunc)
+	manager, err := aliclientmanager.NewConfig[*sso.Client](manCreds, clientInitFunc, aliclientmanager.WithValidationRegionId[*sso.Client](creds.STSRegionID))
 	if err != nil {
 		return nil, err
 	}

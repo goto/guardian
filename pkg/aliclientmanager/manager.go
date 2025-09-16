@@ -20,9 +20,10 @@ const (
 )
 
 type Manager[T any] struct {
-	credentials *Credentials
-	mu          *sync.Mutex
-	initialized bool
+	credentials        *Credentials
+	validationRegionId string
+	mu                 *sync.Mutex
+	initialized        bool
 
 	clientCreatedAt   time.Time
 	clientCredentials *Credentials
@@ -30,7 +31,7 @@ type Manager[T any] struct {
 	client            T
 }
 
-func NewConfig[T any](credentials Credentials, clientInitFunc func(c Credentials) (T, error)) (*Manager[T], error) {
+func NewConfig[T any](credentials Credentials, clientInitFunc func(c Credentials) (T, error), opts ...Option[T]) (*Manager[T], error) {
 	if err := credentials.validate(); err != nil {
 		return nil, err
 	}
@@ -41,6 +42,12 @@ func NewConfig[T any](credentials Credentials, clientInitFunc func(c Credentials
 		credentials:    &credentials,
 		mu:             &sync.Mutex{},
 		clientInitFunc: clientInitFunc,
+	}
+	for _, opt := range opts {
+		if opt == nil {
+			return nil, fmt.Errorf("received nil option")
+		}
+		opt(man)
 	}
 	if err := man.invoke(); err != nil {
 		return nil, fmt.Errorf("fail to generate config: %w", err)
@@ -118,18 +125,25 @@ func (man *Manager[T]) invoke() error {
 		return fmt.Errorf("fail to generate openapi config: %w", err)
 	}
 	// for client, we give STS credentials if ram role arn is present instead of giving the raw one
+	validationRegionId := man.credentials.RegionId
+	if man.validationRegionId != "" {
+		validationRegionId = man.validationRegionId
+	}
 	var clientCredentials = Credentials{
 		AccessKeyId:     bptr.ToStringSafe(openAPIConfig.AccessKeyId),
 		AccessKeySecret: bptr.ToStringSafe(openAPIConfig.AccessKeySecret),
 		SecurityToken:   bptr.ToStringSafe(openAPIConfig.SecurityToken),
-		RegionId:        man.credentials.RegionId,
+		RegionId:        validationRegionId,
 		RAMRoleARN:      man.credentials.RAMRoleARN,
 	}
 	credentialsIdentity, err := GetCredentialsIdentity(clientCredentials)
 	if err != nil {
 		return fmt.Errorf("fail to get credentials identity: %w", err)
 	}
+	// set account id
 	clientCredentials.AccountId = bptr.ToStringSafe(credentialsIdentity.AccountId)
+	// set original region id (if changed)
+	clientCredentials.RegionId = man.credentials.RegionId
 	man.clientCredentials = &clientCredentials
 	// create a new credentials object to prevent values changes from outside
 	var c = *man.clientCredentials
