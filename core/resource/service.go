@@ -78,6 +78,19 @@ func (s *Service) Create(ctx context.Context, r *domain.Resource) error {
 	if err := r.Validate(); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidResource, err)
 	}
+
+	existingResource, err := s.Get(ctx, &domain.ResourceIdentifier{
+		ProviderType: r.ProviderType,
+		ProviderURN:  r.ProviderURN,
+		Type:         r.Type,
+		URN:          r.URN,
+	})
+	if err != nil && err != ErrRecordNotFound {
+		return fmt.Errorf("failed to check existing resource: %w", err)
+	} else if existingResource != nil {
+		return fmt.Errorf("%w: id=%q", ErrResourceAlreadyExists, existingResource.ID)
+	}
+
 	return s.repo.Create(ctx, r)
 }
 

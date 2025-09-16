@@ -28,6 +28,8 @@ func (s *GRPCServer) CreateResource(ctx context.Context, req *guardianv1beta1.Cr
 			errors.Is(err, provider.ErrInvalidResource),
 			errors.Is(err, resource.ErrInvalidResource):
 			return nil, status.Error(codes.InvalidArgument, err.Error())
+		case errors.Is(err, resource.ErrResourceAlreadyExists):
+			return nil, status.Error(codes.AlreadyExists, err.Error())
 		default:
 			return nil, s.internalError(ctx, err.Error())
 		}
