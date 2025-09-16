@@ -10,7 +10,6 @@ type credentials struct {
 	RAMRole         string `mapstructure:"ram_role" json:"ram_role"`
 	RegionID        string `mapstructure:"region_id" json:"region_id" validate:"required"`
 	DirectoryID     string `mapstructure:"directory_id" json:"directory_id" validate:"required"`
-	MainAccountID   string `mapstructure:"main_account_id" json:"main_account_id" validate:"required"`
 }
 
 func (c *credentials) encrypt(encryptor domain.Encryptor) error {
