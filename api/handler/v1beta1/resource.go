@@ -23,11 +23,13 @@ func (s *GRPCServer) CreateResource(ctx context.Context, req *guardianv1beta1.Cr
 	if err := s.providerService.CreateResource(ctx, r); err != nil {
 		switch {
 		case errors.Is(err, provider.ErrRecordNotFound):
-			return nil, status.Error(codes.NotFound, fmt.Sprintf("provider with type %q and urn %q does not exist", r.ProviderType, r.ProviderURN))
+			return nil, s.notFound(ctx, fmt.Sprintf("provider with type %q and urn %q does not exist", r.ProviderType, r.ProviderURN))
 		case errors.Is(err, provider.ErrInvalidResourceType),
 			errors.Is(err, provider.ErrInvalidResource),
 			errors.Is(err, resource.ErrInvalidResource):
-			return nil, status.Error(codes.InvalidArgument, err.Error())
+			return nil, s.invalidArgument(ctx, err.Error())
+		case errors.Is(err, provider.ErrCreateResourceNotSupported):
+			return nil, s.failedPrecondition(ctx, err.Error())
 		case errors.Is(err, resource.ErrResourceAlreadyExists):
 			return nil, status.Error(codes.AlreadyExists, err.Error())
 		default:

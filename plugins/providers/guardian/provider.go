@@ -56,6 +56,27 @@ func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*
 	return pv.GetRoles(pc, resourceType)
 }
 
+func (p *provider) ValidateResource(ctx context.Context, r *domain.Resource) error {
+	if r.Type != resourceTypePackage {
+		return fmt.Errorf("only resource type %q is supported for provider type %q", resourceTypePackage, providerType)
+	}
+	if r.URN == "" {
+		return fmt.Errorf("resource urn is required")
+	}
+
+	var packageInfo *PackageInfo
+	if err := mapstructure.Decode(r.Details, &packageInfo); err != nil {
+		return fmt.Errorf("failed to decode resource details: %w", err)
+	}
+	if err := packageInfo.Validate(); err != nil {
+		return fmt.Errorf("invalid resource details: %w", err)
+	}
+
+	r.GlobalURN = fmt.Sprintf("orn:%s:%s:%s:%s", r.ProviderType, r.ProviderURN, r.Type, r.URN)
+
+	return nil
+}
+
 func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, grant domain.Grant) error {
 	return nil
 }

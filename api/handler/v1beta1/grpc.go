@@ -187,6 +187,11 @@ func (s *GRPCServer) getUser(ctx context.Context) (string, error) {
 	return authenticatedEmail, nil
 }
 
+func (s *GRPCServer) notFound(ctx context.Context, format string, a ...interface{}) error {
+	s.logger.Error(ctx, fmt.Sprintf(format, a...))
+	return status.Errorf(codes.NotFound, format, a...)
+}
+
 func (s *GRPCServer) invalidArgument(ctx context.Context, format string, a ...interface{}) error {
 	s.logger.Error(ctx, fmt.Sprintf(format, a...))
 	return status.Errorf(codes.InvalidArgument, format, a...)

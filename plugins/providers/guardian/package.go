@@ -1,9 +1,42 @@
 package guardian
 
+import (
+	"errors"
+	"fmt"
+)
+
 type PackageInfo struct {
 	Owner       string            `json:"owner" mapstructure:"owner"`
 	Description string            `json:"description" mapstructure:"description"`
 	Accounts    []*PackageAccount `json:"accounts" mapstructure:"accounts"`
+}
+
+func (p *PackageInfo) Validate() error {
+	if p == nil {
+		return errors.New("package details is required")
+	}
+	if p.Owner == "" {
+		return errors.New("owner is required")
+	}
+
+	for i, a := range p.Accounts {
+		if a.ProviderType == "" {
+			return fmt.Errorf("provider_type is required for package account at index %d", i)
+		}
+		if a.Type == "" {
+			return fmt.Errorf("type is required for package account at index %d", i)
+		}
+		if a.ID == "" {
+			return fmt.Errorf("id is required for package account at index %d", i)
+		}
+		if a.GrantParameters != nil {
+			if a.GrantParameters.Role == "" {
+				return fmt.Errorf("role is required in grant parameters for package account at index %d", i)
+			}
+		}
+	}
+
+	return nil
 }
 
 type PackageGrantParameters struct {

@@ -31,5 +31,6 @@ var (
 
 	ErrGrantAlreadyExists = errors.New("grant already exists")
 
-	ErrInvalidResource = errors.New("invalid resource")
+	ErrInvalidResource            = errors.New("invalid resource")
+	ErrCreateResourceNotSupported = errors.New("create resource is not supported for this provider type")
 )

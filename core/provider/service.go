@@ -306,14 +306,16 @@ func (s *Service) CreateResource(ctx context.Context, r *domain.Resource) error 
 
 	c := s.getClient(r.ProviderType)
 
-	if !slices.Contains(p.Config.GetResourceTypes(), r.Type) {
-		return fmt.Errorf("%w: %q", ErrInvalidResourceType, r.Type)
+	v, ok := c.(resourceValidator)
+	if !ok {
+		return ErrCreateResourceNotSupported
+	}
+	if err := v.ValidateResource(ctx, r); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidResource, err)
 	}
 
-	if v, ok := c.(resourceValidator); ok {
-		if err := v.ValidateResource(ctx, r); err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidResource, err)
-		}
+	if !slices.Contains(p.Config.GetResourceTypes(), r.Type) {
+		return fmt.Errorf("%w: %q", ErrInvalidResourceType, r.Type)
 	}
 
 	return s.resourceService.Create(ctx, r)
