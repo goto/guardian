@@ -3,7 +3,7 @@ COMMIT := $(shell git rev-parse --short HEAD)
 TAG := "$(shell git rev-list --tags --max-count=1)"
 VERSION := "$(shell git describe --tags ${TAG})-next"
 BUILD_DIR=dist
-PROTON_COMMIT := "e33d291d36e620db20bf40b36a907e2696aa51dc"
+PROTON_COMMIT := "187f7f9b5fcd7ee8fa6da85f9946e78d5b9a1062"
 
 .PHONY: all build clean test tidy vet proto setup format generate
 
@@ -79,5 +79,5 @@ setup:
 	go get github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@v2.5.0
 	go get github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v2.5.0
 	go get github.com/bufbuild/buf/cmd/buf@v1.15.1
-	go get github.com/vektra/mockery/v2@v2.33.0
+	go get github.com/vektra/mockery/v2@v2.40.2
 	go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.59
