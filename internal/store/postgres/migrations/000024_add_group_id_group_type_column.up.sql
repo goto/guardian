@@ -2,7 +2,7 @@ BEGIN;
 
 ALTER TABLE
     "appeals"
-    ADD COLUMN IF NOT EXISTS "group_id" uuid;
+    ADD COLUMN IF NOT EXISTS "group_id" text;
 
 ALTER TABLE
     "appeals"
@@ -10,7 +10,7 @@ ALTER TABLE
 
 ALTER TABLE
     "grants"
-    ADD COLUMN IF NOT EXISTS "group_id" uuid;
+    ADD COLUMN IF NOT EXISTS "group_id" text;
 
 ALTER TABLE
     "grants"

@@ -294,7 +294,7 @@ func (s *GrantRepositoryTestSuite) TestList() {
 
 	s.Run("should filter grants by group_id and group_type", func() {
 		ctx := context.Background()
-		testGroupID := uuid.New().String()
+		testGroupID := "test-group-id"
 
 		groupAppeal := &domain.Appeal{
 			ResourceID:    s.dummyResource.ID,
@@ -363,7 +363,7 @@ func (s *GrantRepositoryTestSuite) TestList() {
 			{
 				name: "filter by non-existent group_id",
 				filters: domain.ListGrantsFilter{
-					GroupIDs: []string{uuid.New().String()},
+					GroupIDs: []string{"non-existent-group-id"},
 				},
 				expectCount: 0,
 			},

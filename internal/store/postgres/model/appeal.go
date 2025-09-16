@@ -21,7 +21,7 @@ type Appeal struct {
 	Status        string
 	AccountID     string
 	AccountType   string
-	GroupID       *uuid.UUID `gorm:"type:uuid"`
+	GroupID       string
 	GroupType     string
 	CreatedBy     string
 	Creator       datatypes.JSON
@@ -108,13 +108,7 @@ func (m *Appeal) FromDomain(a *domain.Appeal) error {
 	m.Status = a.Status
 	m.AccountID = a.AccountID
 	m.AccountType = a.AccountType
-	if a.GroupID != "" {
-		groupUUID, err := uuid.Parse(a.GroupID)
-		if err != nil {
-			return fmt.Errorf("parsing group uuid: %w", err)
-		}
-		m.GroupID = &groupUUID
-	}
+	m.GroupID = a.GroupID
 	m.GroupType = a.GroupType
 	m.CreatedBy = a.CreatedBy
 	m.Creator = datatypes.JSON(creator)
@@ -191,11 +185,6 @@ func (m *Appeal) ToDomain() (*domain.Appeal, error) {
 		grant = a
 	}
 
-	groupID := ""
-	if m.GroupID != nil {
-		groupID = m.GroupID.String()
-	}
-
 	return &domain.Appeal{
 		ID:            m.ID.String(),
 		ResourceID:    m.ResourceID,
@@ -204,7 +193,7 @@ func (m *Appeal) ToDomain() (*domain.Appeal, error) {
 		Status:        m.Status,
 		AccountID:     m.AccountID,
 		AccountType:   m.AccountType,
-		GroupID:       groupID,
+		GroupID:       m.GroupID,
 		GroupType:     m.GroupType,
 		CreatedBy:     m.CreatedBy,
 		Creator:       creator,

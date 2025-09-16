@@ -298,8 +298,8 @@ func (s *AppealRepositoryTestSuite) TestFind() {
 	})
 
 	s.Run("should run query with group filters", func() {
-		testGroupID1 := uuid.New().String()
-		testGroupID2 := uuid.New().String()
+		testGroupID1 := "test-group-id-1"
+		testGroupID2 := "test-group-id-2"
 		
 		groupAppeals := []*domain.Appeal{
 			{

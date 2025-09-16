@@ -515,6 +515,60 @@ func TestAppeal_ToGrant(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
+		{
+			name: "should include group fields in ToGrant conversion",
+			appeal: domain.Appeal{
+				ID:          "appeal-1",
+				AccountID:   "user@example.com",
+				AccountType: "user",
+				GroupID:     "group-123",
+				GroupType:   "department",
+				ResourceID:  "resource-1",
+				Role:        "viewer",
+				CreatedBy:   "user@example.com",
+				Options: &domain.AppealOptions{
+					Duration: "0h",
+				},
+			},
+			want: &domain.Grant{
+				Status:      domain.GrantStatusActive,
+				AccountID:   "user@example.com",
+				AccountType: "user",
+				GroupID:     "group-123",
+				GroupType:   "department",
+				ResourceID:  "resource-1",
+				Role:        "viewer",
+				AppealID:    "appeal-1",
+				CreatedBy:   "user@example.com",
+				IsPermanent: true,
+			},
+			wantErr: false,
+		},
+		{
+			name: "should work with empty group fields",
+			appeal: domain.Appeal{
+				ID:          "appeal-1",
+				AccountID:   "user@example.com",
+				AccountType: "user",
+				ResourceID:  "resource-1",
+				Role:        "viewer",
+				CreatedBy:   "user@example.com",
+				Options: &domain.AppealOptions{
+					Duration: "24h",
+				},
+			},
+			want: &domain.Grant{
+				Status:      domain.GrantStatusActive,
+				AccountID:   "user@example.com",
+				AccountType: "user",
+				ResourceID:  "resource-1",
+				Role:        "viewer",
+				AppealID:    "appeal-1",
+				CreatedBy:   "user@example.com",
+				IsPermanent: false,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1186,47 +1240,3 @@ func TestApprovalAction_Validate(t *testing.T) {
 	}
 }
 
-func TestAppeal_GroupFields(t *testing.T) {
-	t.Run("should include group fields in ToGrant conversion", func(t *testing.T) {
-		appeal := domain.Appeal{
-			ID:          "appeal-1",
-			AccountID:   "user@example.com",
-			AccountType: "user",
-			GroupID:     "group-123",
-			GroupType:   "department",
-			ResourceID:  "resource-1",
-			Role:        "viewer",
-			Options: &domain.AppealOptions{
-				Duration: "0h",
-			},
-		}
-
-		grant, err := appeal.ToGrant()
-		assert.NoError(t, err)
-		assert.NotNil(t, grant)
-		assert.Equal(t, "user@example.com", grant.AccountID)
-		assert.Equal(t, "appeal-1", grant.AppealID)
-		assert.True(t, grant.IsPermanent)
-	})
-
-	t.Run("should work with empty group fields", func(t *testing.T) {
-		appeal := domain.Appeal{
-			ID:          "appeal-1",
-			AccountID:   "user@example.com",
-			AccountType: "user",
-			ResourceID:  "resource-1",
-			Role:        "viewer",
-			Options: &domain.AppealOptions{
-				Duration: "24h",
-			},
-		}
-
-		grant, err := appeal.ToGrant()
-		assert.NoError(t, err)
-		assert.NotNil(t, grant)
-		assert.Equal(t, "user@example.com", grant.AccountID)
-		assert.Equal(t, "appeal-1", grant.AppealID)
-		assert.False(t, grant.IsPermanent)
-		assert.NotNil(t, grant.ExpirationDate)
-	})
-}
