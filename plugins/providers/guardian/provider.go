@@ -39,7 +39,7 @@ func NewProvider(
 func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
 	cfg := &config{pc}
 	if err := cfg.validate(); err != nil {
-		return fmt.Errorf("invalid config: %w", err)
+		return fmt.Errorf("%w: %v", pv.ErrInvalidProviderConfig, err)
 	}
 	return nil
 }

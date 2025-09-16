@@ -8,10 +8,12 @@ import (
 )
 
 const (
-	packagePermissionMember = "member"
-	packagePermissionAdmin  = "admin"
+	providerType = "guardian"
 
 	resourceTypePackage = "package"
+
+	packagePermissionMember = "member"
+	packagePermissionAdmin  = "admin"
 )
 
 var (
@@ -24,8 +26,11 @@ type config struct {
 
 func (c *config) validate() error {
 	resourceTypes := c.GetResourceTypes()
-	if len(resourceTypes) != 1 && resourceTypes[0] != resourceTypePackage {
-		return fmt.Errorf("only resource type %q is supported", resourceTypePackage)
+	if len(resourceTypes) != 1 {
+		return fmt.Errorf("exactly one resource type must be specified")
+	}
+	if resourceTypes[0] != resourceTypePackage {
+		return fmt.Errorf("only resource type %q is supported for provider type %q", resourceTypePackage, providerType)
 	}
 
 	rc := c.Resources[0]
