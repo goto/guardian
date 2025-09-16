@@ -188,7 +188,7 @@ func (r *ResourceRepository) Create(ctx context.Context, resource *domain.Resour
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if result := tx.Create(m); result.Error != nil {
-			return result.Error
+			return fmt.Errorf("failed to insert resource to db: %w", result.Error)
 		}
 
 		newResource, err := m.ToDomain()
