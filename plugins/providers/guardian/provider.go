@@ -105,20 +105,26 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 		}
 
 		for _, resource := range resources {
-			var grantParams *PackageGrantParameters
-			for _, account := range pkgInfo.Accounts {
-				if account.ProviderType == resource.ProviderType {
-					grantParams = account.GrantParameters
+			var accountConfig *PackageAccountConfig
+			for _, g := range pkgInfo.Accounts {
+				if g.ProviderType == resource.ProviderType {
+					accountConfig = g
 					break
 				}
 			}
+			if accountConfig == nil {
+				return nil, fmt.Errorf("unable to find account configuration for provider type %q", resource.ProviderType)
+			}
+
+			accountType := accountConfig.AccountType
 
 			grantDep := &domain.Grant{
-				AccountID:   g.AccountID,
-				AccountType: g.AccountType,
-				ResourceID:  resource.ID,
+				ResourceID: resource.ID,
 
-				Role: grantParams.Role,
+				AccountType: accountType,
+
+				AccountID: "", // TODO: resolve dynamically from appeal
+				Role:      accountConfig.GrantParameters.Role,
 
 				IsPermanent:          pkgGrant.IsPermanent,
 				ExpirationDate:       pkgGrant.ExpirationDate,
