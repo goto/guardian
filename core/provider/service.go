@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -34,10 +35,15 @@ type repository interface {
 	Delete(ctx context.Context, id string) error
 }
 
-//go:generate mockery --name=Client --exported --with-expecter
 type Client interface {
 	providers.PermissionManager
 	providers.Client
+}
+
+//go:generate mockery --name=CompleteClient --exported --with-expecter
+type CompleteClient interface {
+	Client
+	resourceFetcher
 }
 
 //go:generate mockery --name=activityManager --exported --with-expecter
@@ -60,8 +66,17 @@ type grantDependenciesResolver interface {
 	GetDependencyGrants(context.Context, domain.Provider, domain.Grant) ([]*domain.Grant, error)
 }
 
+type resourceFetcher interface {
+	GetResources(context.Context, *domain.ProviderConfig) ([]*domain.Resource, error)
+}
+
+type resourceValidator interface {
+	ValidateResource(ctx context.Context, r *domain.Resource) error
+}
+
 //go:generate mockery --name=resourceService --exported --with-expecter
 type resourceService interface {
+	Create(context.Context, *domain.Resource) error
 	Find(context.Context, domain.ListResourcesFilter) ([]*domain.Resource, error)
 	BulkUpsert(context.Context, []*domain.Resource) error
 	BatchDelete(context.Context, []string) error
@@ -154,20 +169,13 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 	}
 
 	go func() {
-		s.logger.Info(ctx, "provider create fetching resources", "provider_urn", p.URN)
+		s.logger.Info(ctx, "post-create resources sync", "provider_urn", p.URN)
 		ctx := audit.WithActor(context.Background(), domain.SystemActorName)
-		resources, _, err := s.fetchNewResources(ctx, p)
+		resources, fetchedCount, err := s.syncResources(ctx, p)
 		if err != nil {
-			s.logger.Error(ctx, "failed to fetch resources", "error", err)
+			s.logger.Error(ctx, "failed to sync resources", "error", err, "provider_urn", p.URN)
 		}
-		s.logger.Debug(ctx, "provider create fetched resources", "provider_urn", p.URN, "count", len(resources))
-		if !dryRun {
-			if err := s.resourceService.BulkUpsert(ctx, resources); err != nil {
-				s.logger.Error(ctx, "failed to insert resources to db", "error", err)
-			} else {
-				s.logger.Info(ctx, "resources added", "provider_urn", p.URN, "count", len(resources))
-			}
-		}
+		s.logger.Info(ctx, "post-create resources sync completed", "provider_urn", p.URN, "fetched_count", fetchedCount, "synced_count", getflattenedCount(resources))
 	}()
 
 	return nil
@@ -238,21 +246,13 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 	}
 
 	go func() {
-		s.logger.Info(ctx, "provider update fetching resources", "provider_urn", p.URN)
+		s.logger.Info(ctx, "post-update resources sync", "provider_urn", p.URN)
 		ctx := audit.WithActor(context.Background(), domain.SystemActorName)
-		resources, _, err := s.fetchNewResources(ctx, p)
+		resources, fetchedCount, err := s.syncResources(ctx, p)
 		if err != nil {
-			s.logger.Error(ctx, "failed to fetch resources", "error", err)
+			s.logger.Error(ctx, "failed to sync resources", "error", err, "provider_urn", p.URN)
 		}
-		s.logger.Debug(ctx, "provider create fetched resources", "provider_urn", p.URN, "count", len(resources))
-
-		if !dryRun {
-			if err := s.resourceService.BulkUpsert(ctx, resources); err != nil {
-				s.logger.Error(ctx, "failed to insert resources to db", "error", err)
-			} else {
-				s.logger.Info(ctx, "resources added", "provider_urn", p.URN, "count", len(resources))
-			}
-		}
+		s.logger.Info(ctx, "post-update resources sync completed", "provider_urn", p.URN, "fetched_count", fetchedCount, "synced_count", getflattenedCount(resources))
 	}()
 
 	return nil
@@ -265,30 +265,28 @@ func (s *Service) FetchResources(ctx context.Context) error {
 		return err
 	}
 	failedProviders := map[string]error{}
-	totalFetchedResourcesCount := 0
+	totalFetchedCount := 0
 	updatedResourcesCount := 0
 	for _, p := range providers {
 		startTime := time.Now()
-		s.logger.Info(ctx, "fetching resources", "provider_urn", p.URN)
-		resources, fetchedResourcesCount, err := s.fetchNewResources(ctx, p)
+		s.logger.Info(ctx, "syncing resources", "provider_urn", p.URN)
+		resources, fetchedCount, err := s.syncResources(ctx, p)
 		if err != nil {
-			s.logger.Error(ctx, "failed to get resources", "error", err)
+			failedProviders[p.URN] = err
+			s.logger.Error(ctx, "failed to sync resources", "error", err)
 			continue
 		}
-		totalFetchedResourcesCount += fetchedResourcesCount
-		updatedResourcesCount += len(resources)
+		totalFetchedCount += fetchedCount
+
 		if len(resources) == 0 {
 			s.logger.Info(ctx, "no changes in this provider", "provider_urn", p.URN)
 			continue
 		}
-		s.logger.Info(ctx, "resources added", "provider_urn", p.URN, "count", len(flattenResources(resources)))
-		if err := s.resourceService.BulkUpsert(ctx, resources); err != nil {
-			failedProviders[p.URN] = err
-			s.logger.Error(ctx, "failed to add resources", "provider_urn", p.URN, "error", err)
-		}
-		s.logger.Info(ctx, "fetching resources completed", "provider_urn", p.URN, "duration", time.Since(startTime))
+		updatedResourcesCount += len(resources)
+
+		s.logger.Info(ctx, "resources sync completed", "provider_urn", p.URN, "duration", time.Since(startTime), "fetched_count", fetchedCount, "synced_count", getflattenedCount(resources))
 	}
-	s.logger.Info(ctx, "resources", "count", totalFetchedResourcesCount, "upserted", updatedResourcesCount)
+	s.logger.Info(ctx, "resources", "count", totalFetchedCount, "upserted", updatedResourcesCount)
 	if len(failedProviders) > 0 {
 		var urns []string
 		for providerURN, err := range failedProviders {
@@ -298,6 +296,29 @@ func (s *Service) FetchResources(ctx context.Context) error {
 		return fmt.Errorf("failed to add resources for providers: %v", urns)
 	}
 	return nil
+}
+
+func (s *Service) CreateResource(ctx context.Context, r *domain.Resource) error {
+	p, err := s.repository.GetOne(ctx, r.ProviderType, r.ProviderURN)
+	if err != nil {
+		return err
+	}
+
+	c := s.getClient(r.ProviderType)
+
+	v, ok := c.(resourceValidator)
+	if !ok {
+		return ErrCreateResourceNotSupported
+	}
+	if err := v.ValidateResource(ctx, r); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidResource, err)
+	}
+
+	if !slices.Contains(p.Config.GetResourceTypes(), r.Type) {
+		return fmt.Errorf("%w: %q", ErrInvalidResourceType, r.Type)
+	}
+
+	return s.resourceService.Create(ctx, r)
 }
 
 func (s *Service) GetRoles(ctx context.Context, id string, resourceType string) ([]*domain.Role, error) {
@@ -616,7 +637,7 @@ func (s *Service) GetDependencyGrants(ctx context.Context, g domain.Grant) ([]*d
 	return dependencies, nil
 }
 
-func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]*domain.Resource, int, error) {
+func (s *Service) syncResources(ctx context.Context, p *domain.Provider) ([]*domain.Resource, int, error) {
 	c := s.getClient(p.Type)
 	if c == nil {
 		return nil, 0, fmt.Errorf("%w: %v", ErrInvalidProviderType, p.Type)
@@ -634,7 +655,12 @@ func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]
 		mapExistingResources[existing.GlobalURN] = existing
 	}
 
-	newResourcesWithChildren, err := c.GetResources(ctx, p.Config)
+	rf, ok := c.(resourceFetcher)
+	if !ok { // skip if provider plugin doesn't support resources sync
+		return nil, 0, nil
+	}
+
+	newResourcesWithChildren, err := rf.GetResources(ctx, p.Config)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error fetching resources for %v: %w", p.ID, err)
 	}
@@ -667,6 +693,14 @@ func (s *Service) fetchNewResources(ctx context.Context, p *domain.Provider) ([]
 		deletedResource.IsDeleted = true
 		newAndUpdatedResources = append(newAndUpdatedResources, deletedResource)
 		s.logger.Info(ctx, "resource deleted", "resource", deletedResource.GlobalURN)
+	}
+
+	dryRun := isDryRun(ctx)
+	if !dryRun {
+		if err := s.resourceService.BulkUpsert(ctx, newAndUpdatedResources); err != nil {
+			return nil, 0, fmt.Errorf("failed to upsert resources to db: %w", err)
+		}
+		s.logger.Info(ctx, "resources synced", "provider_urn", p.URN, "synced_count", len(newAndUpdatedResources))
 	}
 
 	return newAndUpdatedResources, len(newResourcesWithChildren), nil
@@ -775,12 +809,15 @@ func validateDuration(d string) error {
 	return err
 }
 
-func flattenResources(resources []*domain.Resource) []*domain.Resource {
-	flattenedResources := []*domain.Resource{}
+func getflattenedCount(resources []*domain.Resource) int {
+	count := 0
 	for _, r := range resources {
-		flattenedResources = append(flattenedResources, r.GetFlattened()...)
+		count++
+		if len(r.Children) > 0 {
+			count += getflattenedCount(r.Children)
+		}
 	}
-	return flattenedResources
+	return count
 }
 
 type isDryRunKey string

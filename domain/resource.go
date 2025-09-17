@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // Resource struct
 type Resource struct {
@@ -20,12 +23,23 @@ type Resource struct {
 	GlobalURN    string                 `json:"global_urn" yaml:"global_urn"`
 }
 
-func (r *Resource) GetFlattened() []*Resource {
-	resources := []*Resource{r}
-	for _, child := range r.Children {
-		resources = append(resources, child.GetFlattened()...)
+func (r *Resource) Validate() error {
+	if r.ProviderType == "" {
+		return errors.New("provider_type is required")
 	}
-	return resources
+	if r.ProviderURN == "" {
+		return errors.New("provider_urn is required")
+	}
+	if r.Type == "" {
+		return errors.New("type is required")
+	}
+	if r.URN == "" {
+		return errors.New("urn is required")
+	}
+	if r.Name == "" {
+		return errors.New("name is required")
+	}
+	return nil
 }
 
 type ListResourcesFilter struct {
