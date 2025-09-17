@@ -9,7 +9,8 @@ require (
 	cloud.google.com/go/storage v1.30.1
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/MakeNowJust/heredoc v1.0.0
-	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.10
+	github.com/alibabacloud-go/cloudsso-20210515 v1.6.2
+	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.11
 	github.com/alibabacloud-go/maxcompute-20220104 v1.4.1
 	github.com/alibabacloud-go/ram-20150501/v2 v2.1.0
 	github.com/alibabacloud-go/sts-20150401/v2 v2.0.3

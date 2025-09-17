@@ -5,6 +5,10 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/goto/salt/audit"
+	audit_repos "github.com/goto/salt/audit/repositories"
+	"google.golang.org/grpc/metadata"
+
 	"github.com/goto/guardian/core"
 	"github.com/goto/guardian/core/activity"
 	"github.com/goto/guardian/core/appeal"
@@ -23,6 +27,7 @@ import (
 	"github.com/goto/guardian/plugins/identities"
 	"github.com/goto/guardian/plugins/notifiers"
 	"github.com/goto/guardian/plugins/providers/alicloud_ram"
+	"github.com/goto/guardian/plugins/providers/alicloud_sso"
 	"github.com/goto/guardian/plugins/providers/bigquery"
 	"github.com/goto/guardian/plugins/providers/dataplex"
 	"github.com/goto/guardian/plugins/providers/gate"
@@ -37,9 +42,6 @@ import (
 	"github.com/goto/guardian/plugins/providers/oss"
 	"github.com/goto/guardian/plugins/providers/shield"
 	"github.com/goto/guardian/plugins/providers/tableau"
-	"github.com/goto/salt/audit"
-	audit_repos "github.com/goto/salt/audit/repositories"
-	"google.golang.org/grpc/metadata"
 )
 
 type Services struct {
@@ -117,6 +119,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 
 	providerClients := []provider.Client{
 		alicloud_ram.NewProvider(domain.ProviderTypeAliCloudRAM, deps.Crypto, deps.Logger),
+		alicloud_sso.NewProvider(domain.ProviderTypeAliCloudSSO, deps.Crypto, deps.Logger),
 		bigquery.NewProvider(domain.ProviderTypeBigQuery, deps.Crypto, deps.Logger),
 		metabase.NewProvider(domain.ProviderTypeMetabase, deps.Crypto, deps.Logger),
 		grafana.NewProvider(domain.ProviderTypeGrafana, deps.Crypto),
