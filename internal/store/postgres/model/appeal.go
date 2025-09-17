@@ -1,6 +1,7 @@
 package model
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -21,6 +22,8 @@ type Appeal struct {
 	Status        string
 	AccountID     string
 	AccountType   string
+	GroupID       sql.NullString
+	GroupType     sql.NullString
 	CreatedBy     string
 	Creator       datatypes.JSON
 	Role          string
@@ -106,6 +109,14 @@ func (m *Appeal) FromDomain(a *domain.Appeal) error {
 	m.Status = a.Status
 	m.AccountID = a.AccountID
 	m.AccountType = a.AccountType
+	m.GroupID = sql.NullString{
+		String: a.GroupID,
+		Valid:  a.GroupID != "",
+	}
+	m.GroupType = sql.NullString{
+		String: a.GroupType,
+		Valid:  a.GroupType != "",
+	}
 	m.CreatedBy = a.CreatedBy
 	m.Creator = datatypes.JSON(creator)
 	m.Role = a.Role
@@ -180,6 +191,14 @@ func (m *Appeal) ToDomain() (*domain.Appeal, error) {
 		}
 		grant = a
 	}
+	groupID := ""
+	if m.GroupID.Valid {
+		groupID = m.GroupID.String
+	}
+	groupType := ""
+	if m.GroupType.Valid {
+		groupType = m.GroupType.String
+	}
 
 	return &domain.Appeal{
 		ID:            m.ID.String(),
@@ -189,6 +208,8 @@ func (m *Appeal) ToDomain() (*domain.Appeal, error) {
 		Status:        m.Status,
 		AccountID:     m.AccountID,
 		AccountType:   m.AccountType,
+		GroupID:       groupID,
+		GroupType:     groupType,
 		CreatedBy:     m.CreatedBy,
 		Creator:       creator,
 		Role:          m.Role,

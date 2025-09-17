@@ -3668,8 +3668,8 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 
 	s.Nil(actualError)
 	s.Equal(expectedResult, appeals)
-	h.mockProviderService.AssertExpectations(s.T())
-	h.mockRepository.AssertExpectations(s.T())
+	time.Sleep(time.Millisecond)
+	h.assertExpectations(s.T())
 }
 
 func (s *ServiceTestSuite) TestPatch() {

@@ -56,6 +56,8 @@ type Appeal struct {
 	Status        string                 `json:"status" yaml:"status"`
 	AccountID     string                 `json:"account_id" yaml:"account_id"`
 	AccountType   string                 `json:"account_type" yaml:"account_type" default:"user"`
+	GroupID       string                 `json:"group_id,omitempty" yaml:"group_id,omitempty"`
+	GroupType     string                 `json:"group_type,omitempty" yaml:"group_type,omitempty"`
 	CreatedBy     string                 `json:"created_by" yaml:"created_by"`
 	Creator       interface{}            `json:"creator" yaml:"creator"`
 	Role          string                 `json:"role" yaml:"role"`
@@ -166,6 +168,8 @@ func (a Appeal) ToGrant() (*Grant, error) {
 		Status:      GrantStatusActive,
 		AccountID:   a.AccountID,
 		AccountType: a.AccountType,
+		GroupID:     a.GroupID,
+		GroupType:   a.GroupType,
 		ResourceID:  a.ResourceID,
 		Role:        a.Role,
 		Permissions: a.Permissions,
@@ -396,6 +400,8 @@ type ListAppealsFilter struct {
 	CreatedBy                 string    `mapstructure:"created_by" validate:"omitempty,required"`
 	AccountID                 string    `mapstructure:"account_id" validate:"omitempty,required"`
 	AccountIDs                []string  `mapstructure:"account_ids" validate:"omitempty,required"`
+	GroupIDs                  []string  `mapstructure:"group_ids" validate:"omitempty,required"`
+	GroupTypes                []string  `mapstructure:"group_types" validate:"omitempty,min=1"`
 	ResourceID                string    `mapstructure:"resource_id" validate:"omitempty,required"`
 	Role                      string    `mapstructure:"role" validate:"omitempty,required"`
 	Statuses                  []string  `mapstructure:"statuses" validate:"omitempty,min=1"`
