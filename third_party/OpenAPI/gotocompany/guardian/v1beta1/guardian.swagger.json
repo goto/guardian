@@ -284,6 +284,26 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "groupIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "groupTypes",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -819,6 +839,26 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "providerTypes",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "providerUrns",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -1007,6 +1047,26 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "groupIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "groupTypes",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -1361,6 +1421,26 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "groupIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "groupTypes",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -1488,6 +1568,26 @@
           },
           {
             "name": "stepNames",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "providerTypes",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "providerUrns",
             "in": "query",
             "required": false,
             "type": "array",
@@ -1671,6 +1771,26 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "groupIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "groupTypes",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -2285,6 +2405,36 @@
         "tags": [
           "GuardianService"
         ]
+      },
+      "post": {
+        "operationId": "GuardianService_CreateResource",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1CreateResourceResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/guardianv1beta1Resource"
+            }
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
       }
     },
     "/v1beta1/resources/{id}": {
@@ -2821,6 +2971,12 @@
         "revision": {
           "type": "integer",
           "format": "int64"
+        },
+        "groupId": {
+          "type": "string"
+        },
+        "groupType": {
+          "type": "string"
         }
       },
       "title": "Appeal is created by user to get access to one or more resources"
@@ -3001,6 +3157,12 @@
         },
         "details": {
           "type": "object"
+        },
+        "groupId": {
+          "type": "string"
+        },
+        "groupType": {
+          "type": "string"
         }
       }
     },
@@ -3029,6 +3191,14 @@
       "properties": {
         "provider": {
           "$ref": "#/definitions/v1beta1Provider"
+        }
+      }
+    },
+    "v1beta1CreateResourceResponse": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "$ref": "#/definitions/guardianv1beta1Resource"
         }
       }
     },
@@ -3243,6 +3413,12 @@
         "restoredAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "groupId": {
+          "type": "string"
+        },
+        "groupType": {
+          "type": "string"
         }
       }
     },

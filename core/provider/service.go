@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -69,8 +70,13 @@ type resourceFetcher interface {
 	GetResources(context.Context, *domain.ProviderConfig) ([]*domain.Resource, error)
 }
 
+type resourceValidator interface {
+	ValidateResource(ctx context.Context, r *domain.Resource) error
+}
+
 //go:generate mockery --name=resourceService --exported --with-expecter
 type resourceService interface {
+	Create(context.Context, *domain.Resource) error
 	Find(context.Context, domain.ListResourcesFilter) ([]*domain.Resource, error)
 	BulkUpsert(context.Context, []*domain.Resource) error
 	BatchDelete(context.Context, []string) error
@@ -290,6 +296,27 @@ func (s *Service) FetchResources(ctx context.Context) error {
 		return fmt.Errorf("failed to add resources for providers: %v", urns)
 	}
 	return nil
+}
+
+func (s *Service) CreateResource(ctx context.Context, r *domain.Resource) error {
+	p, err := s.repository.GetOne(ctx, r.ProviderType, r.ProviderURN)
+	if err != nil {
+		return err
+	}
+
+	c := s.getClient(r.ProviderType)
+
+	if !slices.Contains(p.Config.GetResourceTypes(), r.Type) {
+		return fmt.Errorf("%w: %q", ErrInvalidResourceType, r.Type)
+	}
+
+	if v, ok := c.(resourceValidator); ok {
+		if err := v.ValidateResource(ctx, r); err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidResource, err)
+		}
+	}
+
+	return s.resourceService.Create(ctx, r)
 }
 
 func (s *Service) GetRoles(ctx context.Context, id string, resourceType string) ([]*domain.Role, error) {

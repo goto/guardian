@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // Resource struct
 type Resource struct {
@@ -18,6 +21,25 @@ type Resource struct {
 	ParentID     *string                `json:"parent_id,omitempty" yaml:"parent_id,omitempty"`
 	Children     []*Resource            `json:"children,omitempty" yaml:"children,omitempty"`
 	GlobalURN    string                 `json:"global_urn" yaml:"global_urn"`
+}
+
+func (r *Resource) Validate() error {
+	if r.ProviderType == "" {
+		return errors.New("provider_type is required")
+	}
+	if r.ProviderURN == "" {
+		return errors.New("provider_urn is required")
+	}
+	if r.Type == "" {
+		return errors.New("type is required")
+	}
+	if r.URN == "" {
+		return errors.New("urn is required")
+	}
+	if r.Name == "" {
+		return errors.New("name is required")
+	}
+	return nil
 }
 
 type ListResourcesFilter struct {

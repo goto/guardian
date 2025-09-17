@@ -81,4 +81,6 @@ type ListApprovalsFilter struct {
 	RoleEndsWith   string   `mapstructure:"role_ends_with" json:"role_ends_with,omitempty" validate:"omitempty"`
 	RoleContains   string   `mapstructure:"role_contains" json:"role_contains,omitempty" validate:"omitempty"`
 	StepNames      []string `mapstructure:"step_names" json:"step_names,omitempty" validate:"omitempty,min=1"`
+	ProviderTypes  []string `mapstructure:"provider_types" json:"provider_types,omitempty" validate:"omitempty,min=1"`
+	ProviderURNs   []string `mapstructure:"provider_urns" json:"provider_urns,omitempty" validate:"omitempty,min=1"`
 }

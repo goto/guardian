@@ -3,17 +3,47 @@ package v1beta1
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"golang.org/x/sync/errgroup"
 
 	"github.com/google/uuid"
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
+	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/core/resource"
 	"github.com/goto/guardian/domain"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+func (s *GRPCServer) CreateResource(ctx context.Context, req *guardianv1beta1.CreateResourceRequest) (*guardianv1beta1.CreateResourceResponse, error) {
+	r := s.adapter.FromResourceProto(req.GetResource())
+
+	if err := s.providerService.CreateResource(ctx, r); err != nil {
+		switch {
+		case errors.Is(err, provider.ErrRecordNotFound):
+			return nil, status.Error(codes.NotFound, fmt.Sprintf("provider with type %q and urn %q does not exist", r.ProviderType, r.ProviderURN))
+		case errors.Is(err, provider.ErrInvalidResourceType),
+			errors.Is(err, provider.ErrInvalidResource),
+			errors.Is(err, resource.ErrInvalidResource):
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		case errors.Is(err, resource.ErrResourceAlreadyExists):
+			return nil, status.Error(codes.AlreadyExists, err.Error())
+		default:
+			return nil, s.internalError(ctx, err.Error())
+		}
+	}
+
+	resourceProto, err := s.adapter.ToResourceProto(r)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to convert to resource proto: %v", err)
+	}
+
+	return &guardianv1beta1.CreateResourceResponse{
+		Resource: resourceProto,
+	}, nil
+}
 
 func (s *GRPCServer) ListResources(ctx context.Context, req *guardianv1beta1.ListResourcesRequest) (*guardianv1beta1.ListResourcesResponse, error) {
 	var details map[string]string
