@@ -52,7 +52,7 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 	records := []*domain.Approval{}
 
 	db := r.db.WithContext(ctx)
-	db = applyApprovalsJoinFilter(db)
+	db = applyApprovalsJoins(db)
 	var err error
 	db, err = applyApprovalsFilter(db, filter)
 	if err != nil {
@@ -88,7 +88,7 @@ func (r *ApprovalRepository) GetApprovalsTotalCount(ctx context.Context, filter 
 	f := *filter
 	f.Size = 0
 	f.Offset = 0
-	db = applyApprovalsJoinFilter(db)
+	db = applyApprovalsJoins(db)
 	var err error
 	db, err = applyApprovalsFilter(db, &f)
 	if err != nil {
@@ -108,7 +108,7 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 	}
 
 	db := r.db.WithContext(ctx)
-	db = applyApprovalsSummariesJoinFilter(db)
+	db = applyApprovalsSummariesJoins(db)
 	var err error
 	db, err = applyApprovalsFilter(db, filter)
 	if err != nil {
@@ -267,7 +267,7 @@ func applyApprovalsJoins(db *gorm.DB) *gorm.DB {
 		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
 }
 
-func applyApprovalsSummariesJoinFilter(db *gorm.DB) *gorm.DB {
+func applyApprovalsSummariesJoins(db *gorm.DB) *gorm.DB {
 	return db.Joins(`LEFT JOIN "appeals" "Appeal" ON "approvals"."appeal_id" = "Appeal"."id"
   AND "Appeal"."deleted_at" IS NULL`).
 		Joins(`LEFT JOIN "resources" "Appeal__Resource" ON "Appeal"."resource_id" = "Appeal__Resource"."id"
