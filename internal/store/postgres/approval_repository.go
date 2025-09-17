@@ -52,11 +52,9 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 	records := []*domain.Approval{}
 
 	db := r.db.WithContext(ctx)
-	db = db.Joins("Appeal").
-		Joins("Appeal.Resource").
-		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
+	db = applyApprovalsJoinFilter(db)
 	var err error
-	db, err = applyFilter(db, filter)
+	db, err = applyApprovalsFilter(db, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -90,11 +88,9 @@ func (r *ApprovalRepository) GetApprovalsTotalCount(ctx context.Context, filter 
 	f := *filter
 	f.Size = 0
 	f.Offset = 0
-	db = db.Joins("Appeal").
-		Joins("Appeal.Resource").
-		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
+	db = applyApprovalsJoinFilter(db)
 	var err error
-	db, err = applyFilter(db, &f)
+	db, err = applyApprovalsFilter(db, &f)
 	if err != nil {
 		return 0, err
 	}
@@ -112,13 +108,9 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 	}
 
 	db := r.db.WithContext(ctx)
-	db = db.Joins(`LEFT JOIN "appeals" "Appeal" ON "approvals"."appeal_id" = "Appeal"."id"
-  AND "Appeal"."deleted_at" IS NULL`).
-		Joins(`LEFT JOIN "resources" "Appeal__Resource" ON "Appeal"."resource_id" = "Appeal__Resource"."id"
-  AND "Appeal__Resource"."deleted_at" IS NULL`).
-		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
+	db = applyApprovalsSummariesJoinFilter(db)
 	var err error
-	db, err = applyFilter(db, filter)
+	db, err = applyApprovalsFilter(db, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +261,21 @@ func (r *ApprovalRepository) DeleteApprover(ctx context.Context, approvalID, ema
 	return nil
 }
 
-func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, error) {
+func applyApprovalsJoinFilter(db *gorm.DB) *gorm.DB {
+	return db.Joins("Appeal").
+		Joins("Appeal.Resource").
+		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
+}
+
+func applyApprovalsSummariesJoinFilter(db *gorm.DB) *gorm.DB {
+	return db.Joins(`LEFT JOIN "appeals" "Appeal" ON "approvals"."appeal_id" = "Appeal"."id"
+  AND "Appeal"."deleted_at" IS NULL`).
+		Joins(`LEFT JOIN "resources" "Appeal__Resource" ON "Appeal"."resource_id" = "Appeal__Resource"."id"
+  AND "Appeal__Resource"."deleted_at" IS NULL`).
+		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
+}
+
+func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, error) {
 	if filter.Q != "" {
 		// NOTE: avoid adding conditions before this grouped where clause.
 		// Otherwise, it will be wrapped in parentheses and the query will be invalid.
@@ -291,6 +297,12 @@ func applyFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, err
 	}
 	if filter.AccountTypes != nil {
 		db = db.Where(`"Appeal"."account_type" IN ?`, filter.AccountTypes)
+	}
+	if filter.ProviderTypes != nil {
+		db = db.Where(`"Appeal__Resource"."provider_type" IN ?`, filter.ProviderTypes)
+	}
+	if filter.ProviderURNs != nil {
+		db = db.Where(`"Appeal__Resource"."provider_urn" IN ?`, filter.ProviderURNs)
 	}
 	if filter.ResourceTypes != nil {
 		db = db.Where(`"Appeal__Resource"."type" IN ?`, filter.ResourceTypes)

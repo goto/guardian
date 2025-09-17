@@ -9,10 +9,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/mitchellh/mapstructure"
+
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/domain"
-	"github.com/mitchellh/mapstructure"
 )
 
 func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1.ListUserApprovalsRequest) (*guardianv1beta1.ListUserApprovalsResponse, error) {
@@ -37,6 +38,8 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		RoleEndsWith:   req.GetRoleEndsWith(),
 		RoleContains:   req.GetRoleContains(),
 		StepNames:      req.GetStepNames(),
+		ProviderTypes:  req.GetProviderTypes(),
+		ProviderURNs:   req.GetProviderUrns(),
 	})
 	if err != nil {
 		return nil, err
@@ -65,6 +68,8 @@ func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.Lis
 		RoleEndsWith:   req.GetRoleEndsWith(),
 		RoleContains:   req.GetRoleContains(),
 		StepNames:      req.GetStepNames(),
+		ProviderTypes:  req.GetProviderTypes(),
+		ProviderURNs:   req.GetProviderUrns(),
 	})
 	if err != nil {
 		return nil, err
