@@ -261,7 +261,7 @@ func (r *ApprovalRepository) DeleteApprover(ctx context.Context, approvalID, ema
 	return nil
 }
 
-func applyApprovalsJoinFilter(db *gorm.DB) *gorm.DB {
+func applyApprovalsJoins(db *gorm.DB) *gorm.DB {
 	return db.Joins("Appeal").
 		Joins("Appeal.Resource").
 		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
