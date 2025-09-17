@@ -74,6 +74,10 @@ type resourceValidator interface {
 	ValidateResource(ctx context.Context, r *domain.Resource) error
 }
 
+type appealValidator interface {
+	ValidateAppeal(ctx context.Context, a *domain.Appeal) error
+}
+
 //go:generate mockery --name=resourceService --exported --with-expecter
 type resourceService interface {
 	Create(context.Context, *domain.Resource) error
@@ -395,6 +399,12 @@ func (s *Service) ValidateAppeal(ctx context.Context, a *domain.Appeal, p *domai
 
 	if err = s.validateQuestionsAndParameters(a, p, policy); err != nil {
 		return err
+	}
+
+	if validator, ok := c.(appealValidator); ok {
+		if err := validator.ValidateAppeal(ctx, a); err != nil {
+			return err
+		}
 	}
 
 	return nil

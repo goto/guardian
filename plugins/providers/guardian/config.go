@@ -14,6 +14,8 @@ const (
 
 	packagePermissionMember = "member"
 	packagePermissionAdmin  = "admin"
+
+	providerParameterKeyAccounts = "accounts"
 )
 
 var (
@@ -26,11 +28,8 @@ type config struct {
 
 func (c *config) validate() error {
 	resourceTypes := c.GetResourceTypes()
-	if len(resourceTypes) != 1 {
-		return fmt.Errorf("exactly one resource type must be specified")
-	}
-	if resourceTypes[0] != resourceTypePackage {
-		return fmt.Errorf("only resource type %q is supported for provider type %q", resourceTypePackage, providerType)
+	if len(resourceTypes) != 1 || resourceTypes[0] != resourceTypePackage {
+		return fmt.Errorf("resource type %q is required", resourceTypePackage)
 	}
 
 	rc := c.Resources[0]
@@ -47,6 +46,10 @@ func (c *config) validate() error {
 				return fmt.Errorf("invalid permission %q", permission)
 			}
 		}
+	}
+
+	if len(c.Parameters) != 1 || c.Parameters[0].Key != providerParameterKeyAccounts {
+		return fmt.Errorf("provider parameter %q is required", providerParameterKeyAccounts)
 	}
 
 	return nil

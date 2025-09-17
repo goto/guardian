@@ -48,3 +48,10 @@ type PackageAccountConfig struct {
 	// GrantParameters configures values that will be applied to the dependency grants when user's request to become package member is approved
 	GrantParameters *GrantParameters `json:"grant_parameters" mapstructure:"grant_parameters"`
 }
+
+type RequestorAccount struct {
+	ProviderType string `json:"provider_type" mapstructure:"provider_type"`
+	AccountType  string `json:"account_type" mapstructure:"account_type"`
+
+	AccountID string `json:"account_id" mapstructure:"account_id"`
+}

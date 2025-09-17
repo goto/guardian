@@ -56,6 +56,61 @@ func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*
 	return pv.GetRoles(pc, resourceType)
 }
 
+func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
+	packageID := a.ResourceID
+	if packageID == "" && a.Resource != nil {
+		packageID = a.Resource.ID
+	}
+
+	var err error
+	var resources []*domain.Resource
+	var pkgInfo *PackageInfo
+	var requestorAccounts []*RequestorAccount
+
+	resources, err = p.getGrantableResources(ctx, packageID)
+	if err != nil {
+		return fmt.Errorf("failed to get grantable resources: %w", err)
+	}
+	providerTypes := getUniqueProviderTypes(resources)
+
+	pkgInfo, err = getPackageInfo(a.Resource)
+	if err != nil {
+		return fmt.Errorf("unable to get package info: %w", err)
+	}
+
+	requestorAccounts, err = getRequestorAccounts(a)
+	if err != nil {
+		return fmt.Errorf("invalid appeal parameters: %w", err)
+	}
+
+	for _, requiredProviderType := range providerTypes {
+		var isAccountTypeFound bool
+		for _, accountConfig := range pkgInfo.Accounts {
+			if accountConfig.ProviderType != requiredProviderType {
+				continue
+			}
+			isAccountTypeFound = true
+
+			requiredAccountType := accountConfig.AccountType
+			var isAccountIDFound bool
+			for _, ra := range requestorAccounts {
+				if ra.ProviderType == requiredProviderType && ra.AccountType == requiredAccountType && ra.AccountID != "" {
+					isAccountIDFound = true
+					break
+				}
+			}
+			if !isAccountIDFound {
+				return fmt.Errorf("details.%s.%s.account_id is required", domain.ReservedDetailsKeyProviderParameters, providerParameterKeyAccounts)
+			}
+		}
+		if !isAccountTypeFound {
+			return fmt.Errorf("invalid package config: unable to find required account type for provider type %q", requiredProviderType)
+		}
+	}
+
+	return nil
+}
+
 func (p *provider) ValidateResource(ctx context.Context, r *domain.Resource) error {
 	if r.Type != resourceTypePackage {
 		return fmt.Errorf("only resource type %q is supported for provider type %q", resourceTypePackage, providerType)
@@ -97,34 +152,47 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 			return nil, fmt.Errorf("failed to get package info: %w", err)
 		}
 
-		resources, err := p.resourceService.Find(ctx, domain.ListResourcesFilter{
-			// PackageID: packageResource.ID, // TODO: implement package id filter
-		})
+		requestorAccounts, err := getRequestorAccounts(g.Appeal)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get requestor accounts: %w", err)
+		}
+
+		resources, err := p.getGrantableResources(ctx, pkgResource.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get grantable resources: %w", err)
 		}
 
 		for _, resource := range resources {
-			var accountConfig *PackageAccountConfig
-			for _, g := range pkgInfo.Accounts {
-				if g.ProviderType == resource.ProviderType {
-					accountConfig = g
+			var pkgAccountConfig *PackageAccountConfig
+			for _, a := range pkgInfo.Accounts {
+				if a.ProviderType == resource.ProviderType {
+					pkgAccountConfig = a
 					break
 				}
 			}
-			if accountConfig == nil {
+			if pkgAccountConfig == nil {
 				return nil, fmt.Errorf("unable to find account configuration for provider type %q", resource.ProviderType)
 			}
 
-			accountType := accountConfig.AccountType
+			var requestorAccount *RequestorAccount
+			for _, ra := range requestorAccounts {
+				if ra.ProviderType == resource.ProviderType && ra.AccountType == pkgAccountConfig.AccountType {
+					requestorAccount = ra
+					break
+				}
+			}
+			if requestorAccount == nil {
+				return nil, fmt.Errorf("unable to find requestor account for provider type %q and account type %q", resource.ProviderType, pkgAccountConfig.AccountType)
+			}
+
+			accountType := pkgAccountConfig.AccountType
+			accountID := requestorAccount.AccountID
 
 			grantDep := &domain.Grant{
-				ResourceID: resource.ID,
-
+				ResourceID:  resource.ID,
 				AccountType: accountType,
-
-				AccountID: "", // TODO: resolve dynamically from appeal
-				Role:      accountConfig.GrantParameters.Role,
+				AccountID:   accountID,
+				Role:        pkgAccountConfig.GrantParameters.Role,
 
 				IsPermanent:          pkgGrant.IsPermanent,
 				ExpirationDate:       pkgGrant.ExpirationDate,
@@ -138,7 +206,17 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 	return dependencies, nil
 }
 
+func (p *provider) getGrantableResources(ctx context.Context, packageID string) ([]*domain.Resource, error) {
+	return p.resourceService.Find(ctx, domain.ListResourcesFilter{
+		// PackageID: packageID, // TODO: implement package id filter
+	})
+}
+
 func getPackageInfo(r *domain.Resource) (*PackageInfo, error) {
+	if r == nil {
+		return nil, errors.New("resource can't be nil")
+	}
+
 	if r.Details == nil {
 		return nil, errors.New("empty package details")
 	}
@@ -149,4 +227,40 @@ func getPackageInfo(r *domain.Resource) (*PackageInfo, error) {
 	}
 
 	return &pi, nil
+}
+
+func getRequestorAccounts(a *domain.Appeal) ([]*RequestorAccount, error) {
+	if a == nil {
+		return nil, errors.New("appeal can't be nil")
+	}
+
+	appealParams, ok := a.Details[domain.ReservedDetailsKeyProviderParameters].(map[string]any)
+	if !ok || appealParams == nil {
+		return nil, errors.New("invalid appeal parameters value, expected: map[string]any")
+	}
+
+	key := providerParameterKeyAccounts
+	value, ok := appealParams[key]
+	if !ok {
+		return nil, fmt.Errorf("couldn't find %q in appeal parameters", key)
+	}
+	var requestorAccounts []*RequestorAccount
+	if err := mapstructure.Decode(value, &requestorAccounts); err != nil {
+		return nil, fmt.Errorf("failed to parse %q parameter: %w", key, err)
+	}
+
+	return requestorAccounts, nil
+}
+
+func getUniqueProviderTypes(resources []*domain.Resource) []string {
+	providerTypeSet := make(map[string]struct{})
+	for _, r := range resources {
+		providerTypeSet[r.ProviderType] = struct{}{}
+	}
+
+	providerTypes := make([]string, 0, len(providerTypeSet))
+	for pt := range providerTypeSet {
+		providerTypes = append(providerTypes, pt)
+	}
+	return providerTypes
 }
