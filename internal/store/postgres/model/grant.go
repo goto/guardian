@@ -17,8 +17,8 @@ type Grant struct {
 	StatusInProvider        string
 	AccountID               string
 	AccountType             string
-	GroupID                 string
-	GroupType               string
+	GroupID                 sql.NullString
+	GroupType               sql.NullString
 	ResourceID              string
 	Role                    string
 	Permissions             pq.StringArray `gorm:"type:text[]"`
@@ -111,8 +111,14 @@ func (m *Grant) FromDomain(g domain.Grant) error {
 	m.StatusInProvider = string(g.StatusInProvider)
 	m.AccountID = g.AccountID
 	m.AccountType = g.AccountType
-	m.GroupID = g.GroupID
-	m.GroupType = g.GroupType
+	m.GroupID = sql.NullString{
+		String: g.GroupID,
+		Valid:  g.GroupID != "",
+	}
+	m.GroupType = sql.NullString{
+		String: g.GroupType,
+		Valid:  g.GroupType != "",
+	}
 	m.ResourceID = g.ResourceID
 	m.Role = g.Role
 	m.Permissions = pq.StringArray(g.Permissions)
@@ -136,8 +142,6 @@ func (m Grant) ToDomain() (*domain.Grant, error) {
 		StatusInProvider: domain.GrantStatus(m.StatusInProvider),
 		AccountID:        m.AccountID,
 		AccountType:      m.AccountType,
-		GroupID:          m.GroupID,
-		GroupType:        m.GroupType,
 		ResourceID:       m.ResourceID,
 		Role:             m.Role,
 		Permissions:      []string(m.Permissions),
@@ -178,6 +182,13 @@ func (m Grant) ToDomain() (*domain.Grant, error) {
 	grant.ExpirationDateReason = m.ExpirationDateReason.String
 	if !m.RevokedAt.IsZero() {
 		grant.RevokedAt = &m.RevokedAt
+	}
+	grant.GroupID = m.GroupID.String
+	if m.GroupID.Valid {
+		grant.GroupID = m.GroupID.String
+	}
+	if m.GroupType.Valid {
+		grant.GroupType = m.GroupType.String
 	}
 	grant.RestoreReason = m.RestoreReason.String
 	grant.RestoredBy = m.RestoredBy.String
