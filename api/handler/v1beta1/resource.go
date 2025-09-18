@@ -31,7 +31,7 @@ func (s *GRPCServer) CreateResource(ctx context.Context, req *guardianv1beta1.Cr
 		case errors.Is(err, provider.ErrCreateResourceNotSupported):
 			return nil, s.failedPrecondition(ctx, err.Error())
 		case errors.Is(err, resource.ErrResourceAlreadyExists):
-			return nil, status.Error(codes.AlreadyExists, err.Error())
+			return nil, s.alreadyExists(ctx, err.Error())
 		default:
 			return nil, s.internalError(ctx, err.Error())
 		}
