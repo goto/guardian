@@ -3,7 +3,7 @@ COMMIT := $(shell git rev-parse --short HEAD)
 TAG := "$(shell git rev-list --tags --max-count=1)"
 VERSION := "$(shell git describe --tags ${TAG})-next"
 BUILD_DIR=dist
-PROTON_COMMIT := "f920ee242ece18bf036a40dfc3d7b8101c10f679"
+PROTON_COMMIT := "8cd1697161d0ae95f6793079d618e908b375af0d"
 
 .PHONY: all build clean test tidy vet proto setup format generate
 
@@ -44,6 +44,8 @@ build:
 	@echo "Building guardian version ${VERSION}..."
 	go build -ldflags "-X ${NAME}/core.Version=${VERSION} -X ${NAME}/core.BuildCommit=${COMMIT}" -o dist/guardian .
 	@echo "Build complete"
+	# tips: how to build from local .proto file
+	# buf generate path/to/file.proto --template buf.gen.yaml
 
 buildr: setup
 	goreleaser --snapshot --skip-publish --rm-dist

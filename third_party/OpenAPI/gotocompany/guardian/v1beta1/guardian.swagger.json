@@ -859,6 +859,16 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "actors",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -1588,6 +1598,16 @@
           },
           {
             "name": "providerUrns",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "actors",
             "in": "query",
             "required": false,
             "type": "array",
@@ -2405,6 +2425,36 @@
         "tags": [
           "GuardianService"
         ]
+      },
+      "post": {
+        "operationId": "GuardianService_CreateResource",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1CreateResourceResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/guardianv1beta1Resource"
+            }
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
       }
     },
     "/v1beta1/resources/{id}": {
@@ -3161,6 +3211,14 @@
       "properties": {
         "provider": {
           "$ref": "#/definitions/v1beta1Provider"
+        }
+      }
+    },
+    "v1beta1CreateResourceResponse": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "$ref": "#/definitions/guardianv1beta1Resource"
         }
       }
     },

@@ -351,5 +351,8 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	if len(filter.StepNames) > 0 {
 		db = db.Where(`"approvals"."name" IN ?`, filter.StepNames)
 	}
+	if len(filter.Actors) > 0 {
+		db = db.Where(`"approvals"."actor" IN ?`, filter.Actors)
+	}
 	return db, nil
 }
