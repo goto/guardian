@@ -56,7 +56,6 @@ type resourceService interface {
 	Find(context.Context, domain.ListResourcesFilter) ([]*domain.Resource, error)
 	GetOne(context.Context, string) (*domain.Resource, error)
 	BulkUpsert(context.Context, []*domain.Resource) error
-	Update(context.Context, *domain.Resource) error
 	Get(context.Context, *domain.ResourceIdentifier) (*domain.Resource, error)
 	Delete(context.Context, string) error
 	BatchDelete(context.Context, []string) error
@@ -73,6 +72,7 @@ type activityService interface {
 //go:generate mockery --name=providerService --exported --with-expecter
 type providerService interface {
 	Create(context.Context, *domain.Provider) error
+	PatchResource(context.Context, *domain.Resource) error
 	Find(context.Context) ([]*domain.Provider, error)
 	GetByID(context.Context, string) (*domain.Provider, error)
 	GetTypes(context.Context) ([]domain.ProviderType, error)
@@ -185,6 +185,16 @@ func (s *GRPCServer) getUser(ctx context.Context) (string, error) {
 	}
 
 	return authenticatedEmail, nil
+}
+
+func (s *GRPCServer) alreadyExists(ctx context.Context, format string, a ...interface{}) error {
+	s.logger.Error(ctx, fmt.Sprintf(format, a...))
+	return status.Errorf(codes.AlreadyExists, format, a...)
+}
+
+func (s *GRPCServer) notFound(ctx context.Context, format string, a ...interface{}) error {
+	s.logger.Error(ctx, fmt.Sprintf(format, a...))
+	return status.Errorf(codes.NotFound, format, a...)
 }
 
 func (s *GRPCServer) invalidArgument(ctx context.Context, format string, a ...interface{}) error {
