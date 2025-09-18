@@ -6,7 +6,7 @@ import (
 )
 
 type PackageInfo struct {
-	Owner       string                  `json:"owner" mapstructure:"owner"`
+	CreatedBy   string                  `json:"created_by" mapstructure:"created_by"`
 	Description string                  `json:"description" mapstructure:"description"`
 	Accounts    []*PackageAccountConfig `json:"accounts" mapstructure:"accounts"`
 }
@@ -15,8 +15,8 @@ func (p *PackageInfo) Validate() error {
 	if p == nil {
 		return errors.New("package details is required")
 	}
-	if p.Owner == "" {
-		return errors.New("owner is required")
+	if p.CreatedBy == "" {
+		return errors.New("created_by is required")
 	}
 
 	for i, a := range p.Accounts {
