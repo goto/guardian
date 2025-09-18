@@ -83,4 +83,5 @@ type ListApprovalsFilter struct {
 	StepNames      []string `mapstructure:"step_names" json:"step_names,omitempty" validate:"omitempty,min=1"`
 	ProviderTypes  []string `mapstructure:"provider_types" json:"provider_types,omitempty" validate:"omitempty,min=1"`
 	ProviderURNs   []string `mapstructure:"provider_urns" json:"provider_urns,omitempty" validate:"omitempty,min=1"`
+	Actors         []string `mapstructure:"actors" json:"actors,omitempty" validate:"omitempty,min=1"`
 }
