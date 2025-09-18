@@ -154,7 +154,7 @@ func (s *GRPCServer) UpdateResource(ctx context.Context, req *guardianv1beta1.Up
 		r.ID = req.GetId()
 	}
 
-	if err := s.resourceService.Update(ctx, r); err != nil {
+	if err := s.providerService.PatchResource(ctx, r); err != nil {
 		if errors.Is(err, resource.ErrRecordNotFound) {
 			return nil, status.Error(codes.NotFound, "resource not found")
 		}

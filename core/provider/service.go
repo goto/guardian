@@ -71,7 +71,8 @@ type resourceFetcher interface {
 }
 
 type resourceValidator interface {
-	ValidateResource(ctx context.Context, r *domain.Resource) error
+	ValidateResourceIdentifiers(context.Context, *domain.Resource) error
+	ValidateResourceDetails(context.Context, *domain.Resource) error
 }
 
 type appealValidator interface {
@@ -81,6 +82,8 @@ type appealValidator interface {
 //go:generate mockery --name=resourceService --exported --with-expecter
 type resourceService interface {
 	Create(context.Context, *domain.Resource) error
+	Update(context.Context, *domain.Resource) error
+	GetOne(context.Context, string) (*domain.Resource, error)
 	Find(context.Context, domain.ListResourcesFilter) ([]*domain.Resource, error)
 	BulkUpsert(context.Context, []*domain.Resource) error
 	BatchDelete(context.Context, []string) error
@@ -314,15 +317,37 @@ func (s *Service) CreateResource(ctx context.Context, r *domain.Resource) error 
 		return fmt.Errorf("%w: %q", ErrInvalidResourceType, r.Type)
 	}
 
-	v, ok := c.(resourceValidator)
+	validator, ok := c.(resourceValidator)
 	if !ok {
 		return ErrCreateResourceNotSupported
 	}
-	if err := v.ValidateResource(ctx, r); err != nil {
+	if err := validator.ValidateResourceIdentifiers(ctx, r); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidResource, err)
+	}
+	if err := validator.ValidateResourceDetails(ctx, r); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidResource, err)
 	}
 
 	return s.resourceService.Create(ctx, r)
+}
+
+func (s *Service) PatchResource(ctx context.Context, r *domain.Resource) error {
+	resourceDetails, err := s.resourceService.GetOne(ctx, r.ID)
+	if err != nil {
+		return fmt.Errorf("getting resource details: %w", err)
+	}
+
+	// TODO: move patch logic from resource service to here
+
+	c := s.getClient(resourceDetails.ProviderType)
+
+	if validator, ok := c.(resourceValidator); ok {
+		if err := validator.ValidateResourceDetails(ctx, r); err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidResource, err)
+		}
+	}
+
+	return s.resourceService.Update(ctx, r)
 }
 
 func (s *Service) GetRoles(ctx context.Context, id string, resourceType string) ([]*domain.Role, error) {
