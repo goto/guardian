@@ -21,6 +21,8 @@ type Resource struct {
 	ParentID     *string                `json:"parent_id,omitempty" yaml:"parent_id,omitempty"`
 	Children     []*Resource            `json:"children,omitempty" yaml:"children,omitempty"`
 	GlobalURN    string                 `json:"global_urn" yaml:"global_urn"`
+	GroupID      string                 `json:"group_id,omitempty" yaml:"group_id,omitempty"`
+	GroupType    string                 `json:"group_type,omitempty" yaml:"group_type,omitempty"`
 }
 
 func (r *Resource) Validate() error {
@@ -57,6 +59,8 @@ type ListResourcesFilter struct {
 	Offset        uint32            `mapstructure:"offset" validate:"omitempty"`
 	OrderBy       []string          `mapstructure:"order_by" validate:"omitempty"`
 	Q             string            `mapstructure:"q" validate:"omitempty"`
+	GroupIDs      []string          `mapstructure:"group_ids" validate:"omitempty"`
+	GroupTypes    []string          `mapstructure:"group_types" validate:"omitempty"`
 }
 
 type Resources []*Resource
