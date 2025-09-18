@@ -297,6 +297,98 @@ func (s *AppealRepositoryTestSuite) TestFind() {
 		s.EqualError(actualError, expectedError.Error())
 	})
 
+	s.Run("should run query with group filters", func() {
+		testGroupID1 := "test-group-id-1"
+		testGroupID2 := "test-group-id-2"
+		
+		groupAppeals := []*domain.Appeal{
+			{
+				ResourceID:    s.dummyResource.ID,
+				PolicyID:      s.dummyPolicy.ID,
+				PolicyVersion: s.dummyPolicy.Version,
+				AccountID:     "groupuser@example.com",
+				AccountType:   domain.DefaultAppealAccountType,
+				Role:          "test-role",
+				Status:        domain.AppealStatusApproved,
+				Permissions:   []string{"test-permission"},
+				CreatedBy:     "groupuser@example.com",
+				GroupID:       testGroupID1,
+				GroupType:     "test-group-type",
+			},
+			{
+				ResourceID:    s.dummyResource.ID,
+				PolicyID:      s.dummyPolicy.ID,
+				PolicyVersion: s.dummyPolicy.Version,
+				AccountID:     "groupuser2@example.com",
+				AccountType:   domain.DefaultAppealAccountType,
+				Role:          "test-role",
+				Status:        domain.AppealStatusPending,
+				Permissions:   []string{"test-permission"},
+				CreatedBy:     "groupuser2@example.com",
+				GroupID:       testGroupID2,
+				GroupType:     "another-group-type",
+			},
+		}
+
+		err := s.repository.BulkUpsert(context.Background(), groupAppeals)
+		s.Require().NoError(err)
+
+		testCases := []struct {
+			name           string
+			filters        *domain.ListAppealsFilter
+			expectedCount  int
+			expectedIDs    []string
+		}{
+			{
+				name: "filter by single group_id",
+				filters: &domain.ListAppealsFilter{
+					GroupIDs: []string{testGroupID1},
+				},
+				expectedCount: 1,
+				expectedIDs:   []string{groupAppeals[0].ID},
+			},
+			{
+				name: "filter by multiple group_ids",
+				filters: &domain.ListAppealsFilter{
+					GroupIDs: []string{testGroupID1, testGroupID2},
+				},
+				expectedCount: 2,
+				expectedIDs:   []string{groupAppeals[0].ID, groupAppeals[1].ID},
+			},
+			{
+				name: "filter by group_type",
+				filters: &domain.ListAppealsFilter{
+					GroupTypes: []string{"test-group-type"},
+				},
+				expectedCount: 1,
+				expectedIDs:   []string{groupAppeals[0].ID},
+			},
+			{
+				name: "filter by group_id and group_type",
+				filters: &domain.ListAppealsFilter{
+					GroupIDs:   []string{testGroupID1},
+					GroupTypes: []string{"test-group-type"},
+				},
+				expectedCount: 1,
+				expectedIDs:   []string{groupAppeals[0].ID},
+			},
+		}
+
+		for _, tc := range testCases {
+			s.Run(tc.name, func() {
+				actualAppeals, err := s.repository.Find(context.Background(), tc.filters)
+				s.Require().NoError(err)
+				s.Equal(tc.expectedCount, len(actualAppeals))
+
+				actualIDs := make([]string, len(actualAppeals))
+				for i, appeal := range actualAppeals {
+					actualIDs[i] = appeal.ID
+				}
+				s.ElementsMatch(tc.expectedIDs, actualIDs)
+			})
+		}
+	})
+
 	s.Run("should run query based on filters", func() {
 		timeNow := time.Now()
 		testCases := []struct {

@@ -68,7 +68,7 @@ func GetCredentialsIdentity(credentials Credentials) (*sts.GetCallerIdentityResp
 		if strings.Contains(err.Error(), "InvalidSecurityToken.Expired") {
 			return nil, fmt.Errorf("credentials config are not accepted by alicloud service: %w", err)
 		}
-		return nil, fmt.Errorf("credentials config are not accepted by alicloud service")
+		return nil, fmt.Errorf("credentials config are not accepted by alicloud service: %w", err)
 	}
 	return validationResp.Body, nil
 }
