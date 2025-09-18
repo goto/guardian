@@ -82,8 +82,13 @@ func (s *GRPCServer) CreateProvider(ctx context.Context, req *guardianv1beta1.Cr
 	}
 
 	if err := s.providerService.Create(ctx, p); err != nil {
-		s.logger.Error(ctx, "failed to create provider", "provider_urn", p.URN, "type", p.Type, "error", err)
-		return nil, s.internalError(ctx, "failed to create provider: %v", err)
+		switch {
+		case errors.Is(err, provider.ErrInvalidProviderConfig):
+			return nil, s.invalidArgument(ctx, err.Error())
+		default:
+			s.logger.Error(ctx, "failed to create provider", "provider_urn", p.URN, "type", p.Type, "error", err)
+			return nil, s.internalError(ctx, "failed to create provider: %v", err)
+		}
 	}
 
 	providerProto, err := s.adapter.ToProviderProto(p)

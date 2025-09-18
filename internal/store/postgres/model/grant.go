@@ -183,7 +183,6 @@ func (m Grant) ToDomain() (*domain.Grant, error) {
 	if !m.RevokedAt.IsZero() {
 		grant.RevokedAt = &m.RevokedAt
 	}
-	grant.GroupID = m.GroupID.String
 	if m.GroupID.Valid {
 		grant.GroupID = m.GroupID.String
 	}

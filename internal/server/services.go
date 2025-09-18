@@ -36,6 +36,7 @@ import (
 	"github.com/goto/guardian/plugins/providers/gitlab"
 	"github.com/goto/guardian/plugins/providers/googlegroup"
 	"github.com/goto/guardian/plugins/providers/grafana"
+	"github.com/goto/guardian/plugins/providers/guardian"
 	"github.com/goto/guardian/plugins/providers/maxcompute"
 	"github.com/goto/guardian/plugins/providers/metabase"
 	"github.com/goto/guardian/plugins/providers/noop"
@@ -117,6 +118,12 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 	auditLogRepository := postgres.NewAuditLogRepository(store.DB())
 	reportRepository := report.NewRepository(store.DB())
 
+	resourceService := resource.NewService(resource.ServiceDeps{
+		Repository:  resourceRepository,
+		Logger:      deps.Logger,
+		AuditLogger: auditLogger,
+	})
+
 	providerClients := []provider.Client{
 		alicloud_ram.NewProvider(domain.ProviderTypeAliCloudRAM, deps.Crypto, deps.Logger),
 		alicloud_sso.NewProvider(domain.ProviderTypeAliCloudSSO, deps.Crypto, deps.Logger),
@@ -134,15 +141,11 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		maxcompute.New(domain.ProviderTypeMaxCompute, deps.Crypto, deps.Logger),
 		oss.NewProvider(domain.ProviderTypeOss, deps.Crypto),
 		googlegroup.NewProvider(domain.ProviderTypeGoogleGroup, deps.Crypto, deps.Logger),
+		guardian.NewProvider(domain.ProviderTypeGuardian, resourceService, deps.Logger),
 	}
 
 	iamManager := identities.NewManager(deps.Crypto, deps.Validator)
 
-	resourceService := resource.NewService(resource.ServiceDeps{
-		Repository:  resourceRepository,
-		Logger:      deps.Logger,
-		AuditLogger: auditLogger,
-	})
 	providerService := provider.NewService(provider.ServiceDeps{
 		Repository:      providerRepository,
 		ResourceService: resourceService,

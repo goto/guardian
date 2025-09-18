@@ -1,6 +1,7 @@
 package model
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -24,6 +25,8 @@ type Resource struct {
 	Details      datatypes.JSON
 	Labels       datatypes.JSON
 	GlobalURN    *string `gorm:"uniqueIndex:resource_global_urn"`
+	GroupID      sql.NullString
+	GroupType    sql.NullString
 
 	Children []Resource `gorm:"ForeignKey:ParentID;References:ID"`
 	Provider Provider   `gorm:"ForeignKey:ProviderType,ProviderURN;References:Type,URN"`
@@ -86,6 +89,14 @@ func (m *Resource) FromDomain(r *domain.Resource) error {
 	if r.GlobalURN != "" {
 		m.GlobalURN = &r.GlobalURN
 	}
+	m.GroupID = sql.NullString{
+		String: r.GroupID,
+		Valid:  r.GroupID != "",
+	}
+	m.GroupType = sql.NullString{
+		String: r.GroupType,
+		Valid:  r.GroupType != "",
+	}
 
 	if r.Children != nil && len(r.Children) > 0 {
 		m.Children = make([]Resource, len(r.Children))
@@ -112,6 +123,8 @@ func (m *Resource) ToDomain() (*domain.Resource, error) {
 		CreatedAt:    m.CreatedAt,
 		UpdatedAt:    m.UpdatedAt,
 		IsDeleted:    m.IsDeleted,
+		GroupID:      m.GroupID.String,
+		GroupType:    m.GroupType.String,
 	}
 
 	if m.GlobalURN != nil {

@@ -22,7 +22,7 @@ tmp
 
 # guardian
 .guardian.yaml
-guardian
+api/proto/gotocompany/guardian/
 dist/
 
 # editor configurations

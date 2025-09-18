@@ -23,6 +23,7 @@ const (
 	ProviderTypeMaxCompute  = "maxcompute"
 	ProviderTypeOss         = "oss"
 	ProviderTypeGoogleGroup = "google_group"
+	ProviderTypeGuardian    = "guardian"
 )
 
 // Role is the configuration to define a role and mapping the permissions in the provider

@@ -27,7 +27,7 @@ type ServiceTestSuite struct {
 	suite.Suite
 	mockProviderRepository *providermocks.Repository
 	mockResourceService    *providermocks.ResourceService
-	mockProvider           *providermocks.Client
+	mockProvider           *providermocks.CompleteClient
 	mockAuditLogger        *providermocks.AuditLogger
 	service                *provider.Service
 }
@@ -37,7 +37,7 @@ func (s *ServiceTestSuite) SetupTest() {
 	validator := validator.New()
 	s.mockProviderRepository = new(providermocks.Repository)
 	s.mockResourceService = new(providermocks.ResourceService)
-	s.mockProvider = new(providermocks.Client)
+	s.mockProvider = new(providermocks.CompleteClient)
 	s.mockAuditLogger = new(providermocks.AuditLogger)
 	s.mockProvider.On("GetType").Return(mockProviderType).Once()
 

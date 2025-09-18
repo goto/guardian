@@ -75,6 +75,8 @@ func (s *Service) GetOne(ctx context.Context, id string) (*domain.Resource, erro
 }
 
 func (s *Service) Create(ctx context.Context, r *domain.Resource) error {
+	delete(r.Details, ReservedDetailsKeyMetadata)
+
 	if err := r.Validate(); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidResource, err)
 	}

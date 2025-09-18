@@ -9,7 +9,6 @@ import (
 type Client interface {
 	GetType() string
 	CreateConfig(*domain.ProviderConfig) error
-	GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error)
 	GrantAccess(context.Context, *domain.ProviderConfig, domain.Grant) error
 	RevokeAccess(context.Context, *domain.ProviderConfig, domain.Grant) error
 	GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*domain.Role, error)
