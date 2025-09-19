@@ -14,7 +14,6 @@ import (
 	"github.com/goto/guardian/internal/store/postgres"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/pkg/postgrestest"
-	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -390,6 +389,98 @@ func (s *GrantRepositoryTestSuite) TestList() {
 		})
 		s.NoError(err)
 		s.Len(grants, 0)
+	})
+
+	s.Run("should handle WithApprovals filter", func() {
+		ctx := context.Background()
+
+		// Create approvers
+		approver1 := &domain.Approver{
+			ID:       uuid.NewString(),
+			AppealID: s.dummyAppeal.ID,
+			Email:    "approver1@example.com",
+		}
+		approver2 := &domain.Approver{
+			ID:       uuid.NewString(),
+			AppealID: s.dummyAppeal.ID,
+			Email:    "approver2@example.com",
+		}
+
+		// Create approvals with approvers
+		approval1 := &domain.Approval{
+			ID:        uuid.NewString(),
+			Name:      "approval-step-1",
+			AppealID:  s.dummyAppeal.ID,
+			Status:    domain.ApprovalStatusApproved,
+			Index:     0,
+			Approvers: []string{"approver1@example.com"},
+		}
+		approval2 := &domain.Approval{
+			ID:        uuid.NewString(),
+			Name:      "approval-step-2",
+			AppealID:  s.dummyAppeal.ID,
+			Status:    domain.ApprovalStatusPending,
+			Index:     1,
+			Approvers: []string{"approver2@example.com"},
+		}
+
+		// Insert approvals
+		approvalRepository := postgres.NewApprovalRepository(s.store.DB())
+		err := approvalRepository.BulkInsert(ctx, []*domain.Approval{approval1, approval2})
+		s.Require().NoError(err)
+
+		// Test with WithApprovals = true
+		grants, err := s.repository.List(ctx, domain.ListGrantsFilter{
+			WithApprovals: true,
+		})
+
+		s.NoError(err)
+		s.Len(grants, 1)
+
+		// Verify appeal is loaded
+		s.NotNil(grants[0].Appeal)
+		s.Equal(s.dummyAppeal.ID, grants[0].Appeal.ID)
+
+		// Verify approvals are loaded and ordered by index
+		s.NotNil(grants[0].Appeal.Approvals)
+		s.Len(grants[0].Appeal.Approvals, 2)
+		s.Equal(approval1.ID, grants[0].Appeal.Approvals[0].ID)
+		s.Equal(0, grants[0].Appeal.Approvals[0].Index)
+		s.Equal(approval2.ID, grants[0].Appeal.Approvals[1].ID)
+		s.Equal(1, grants[0].Appeal.Approvals[1].Index)
+
+		// Verify approvers are loaded
+		s.NotNil(grants[0].Appeal.Approvals[0].Approvers)
+		s.Len(grants[0].Appeal.Approvals[0].Approvers, 1)
+		s.Equal(approver1.Email, grants[0].Appeal.Approvals[0].Approvers[0])
+
+		s.NotNil(grants[0].Appeal.Approvals[1].Approvers)
+		s.Len(grants[0].Appeal.Approvals[1].Approvers, 1)
+		s.Equal(approver2.Email, grants[0].Appeal.Approvals[1].Approvers[0])
+
+		// Test with WithApprovals = false
+		grants, err = s.repository.List(ctx, domain.ListGrantsFilter{
+			WithApprovals: false,
+		})
+
+		s.NoError(err)
+		s.Len(grants, 1)
+
+		// Verify appeal is loaded but approvals are not
+		s.NotNil(grants[0].Appeal)
+		s.Equal(s.dummyAppeal.ID, grants[0].Appeal.ID)
+		s.Empty(grants[0].Appeal.Approvals)
+
+		// Test when WithApprovals is not specified (default behavior)
+		grants, err = s.repository.List(ctx, domain.ListGrantsFilter{})
+
+		s.NoError(err)
+		s.Len(grants, 1)
+
+		// Verify appeal is loaded but approvals are not
+		s.NotNil(grants[0].Appeal)
+		s.Equal(s.dummyAppeal.ID, grants[0].Appeal.ID)
+		s.Empty(grants[0].Appeal.Approvals)
 	})
 }
 func (s *GrantRepositoryTestSuite) TestGetByID() {
