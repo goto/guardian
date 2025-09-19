@@ -1077,6 +1077,12 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "includeApprovalDetails",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -2590,6 +2596,18 @@
         }
       }
     },
+    "PolicyAppealConfigDynamicPolicySteps": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "config": {},
+        "stepData": {
+          "$ref": "#/definitions/PolicyAppealConfigStepData"
+        }
+      }
+    },
     "PolicyAppealConfigMetadataSource": {
       "type": "object",
       "properties": {
@@ -2621,6 +2639,51 @@
         "description": {
           "type": "string"
         }
+      }
+    },
+    "PolicyAppealConfigStep": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "allowFailed": {
+          "type": "boolean"
+        },
+        "when": {
+          "type": "string"
+        },
+        "strategy": {
+          "type": "string"
+        },
+        "approvers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "approveIf": {
+          "type": "boolean"
+        },
+        "dontAllowSelfApproval": {
+          "type": "boolean"
+        }
+      }
+    },
+    "PolicyAppealConfigStepData": {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/PolicyAppealConfigStep"
+          }
+        },
+        "metadata": {}
       }
     },
     "PolicyApprovalStep": {
@@ -3807,6 +3870,9 @@
           "additionalProperties": {
             "$ref": "#/definitions/PolicyAppealConfigMetadataSource"
           }
+        },
+        "dynamicPolicySteps": {
+          "$ref": "#/definitions/PolicyAppealConfigDynamicPolicySteps"
         }
       }
     },
