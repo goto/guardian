@@ -53,7 +53,7 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 	query := db.Preload("Resource").Preload("Appeal")
 
 	// Only preload appeal details if requested
-	if filter.IncludeApprovalDetails {
+	if filter.WithApprovals {
 		query = query.
 			Preload("Appeal.Approvals", func(db *gorm.DB) *gorm.DB {
 				return db.Order("index ASC")
