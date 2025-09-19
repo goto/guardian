@@ -17,6 +17,7 @@ import (
 
 func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGrantsRequest) (*guardianv1beta1.ListGrantsResponse, error) {
 	filter := domain.ListGrantsFilter{
+<<<<<<< HEAD
 		Q:                      req.GetQ(),
 		Statuses:               req.GetStatuses(),
 		AccountIDs:             req.GetAccountIds(),
@@ -45,6 +46,26 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		RoleContains:           req.GetRoleContains(),
 		StartTime:              s.adapter.FromTimeProto(req.GetStartTime()),
 		EndTime:                s.adapter.FromTimeProto(req.GetEndTime()),
+=======
+		Q:             req.GetQ(),
+		Statuses:      req.GetStatuses(),
+		AccountIDs:    req.GetAccountIds(),
+		AccountTypes:  req.GetAccountTypes(),
+		GroupIDs:      req.GetGroupIds(),
+		GroupTypes:    req.GetGroupTypes(),
+		ResourceIDs:   req.GetResourceIds(),
+		Roles:         req.GetRoles(),
+		ProviderTypes: req.GetProviderTypes(),
+		ProviderURNs:  req.GetProviderUrns(),
+		ResourceTypes: req.GetResourceTypes(),
+		ResourceURNs:  req.GetResourceUrns(),
+		CreatedBy:     req.GetCreatedBy(),
+		Owner:         req.GetOwner(),
+		OrderBy:       req.GetOrderBy(),
+		Size:          int(req.GetSize()),
+		Offset:        int(req.GetOffset()),
+		WithApprovals: req.WithApprovals,
+>>>>>>> 3aa27bcf (fix: lint issues)
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
