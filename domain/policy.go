@@ -400,6 +400,7 @@ type PolicyAppealConfig struct {
 	AllowCreatorDetailsFailure bool                             `json:"allow_creator_details_failure" yaml:"allow_creator_details_failure"`
 	MetadataSources            map[string]*AppealMetadataSource `json:"metadata_sources,omitempty" yaml:"metadata_sources,omitempty"`
 	TermsAndConditions         string                           `json:"terms_and_conditions,omitempty" yaml:"terms_and_conditions,omitempty"`
+	DynamicPolicySteps         *DynamicPolicySteps              `json:"dynamic_policy_steps,omitempty" yaml:"dynamic_policy_steps,omitempty"`
 }
 
 type Question struct {
@@ -425,4 +426,8 @@ func (p *Policy) HasIAMConfig() bool {
 
 func (p *Policy) HasAppealMetadataSources() bool {
 	return p.AppealConfig != nil && p.AppealConfig.MetadataSources != nil
+}
+
+func (p *Policy) HasDynamicPolicySteps() bool {
+	return p.AppealConfig != nil && p.AppealConfig.DynamicPolicySteps != nil
 }
