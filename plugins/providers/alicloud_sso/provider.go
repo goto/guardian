@@ -74,6 +74,21 @@ func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
 	return nil
 }
 
+func (p *provider) ValidateResourceIdentifiers(ctx context.Context, r *domain.Resource) error {
+	if r.Type != resourceTypeGroup {
+		return fmt.Errorf("only resource type %q is supported for provider type %q", resourceTypeGroup, sourceName)
+	}
+	if r.URN == "" {
+		return fmt.Errorf("resource urn is required")
+	}
+
+	return nil
+}
+
+func (p *provider) ValidateResourceDetails(ctx context.Context, r *domain.Resource) error {
+	return nil
+}
+
 func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
 	var resources = make([]*domain.Resource, 0)
 	var availableResourceTypes = pc.GetResourceTypes()
