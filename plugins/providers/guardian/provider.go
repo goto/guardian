@@ -200,6 +200,9 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 				IsPermanent:          pkgGrant.IsPermanent,
 				ExpirationDate:       pkgGrant.ExpirationDate,
 				ExpirationDateReason: pkgGrant.ExpirationDateReason,
+
+				GroupID:   pkgResource.ID,
+				GroupType: groupTypePackageUser,
 			}
 
 			dependencies = append(dependencies, grantDep)
@@ -211,7 +214,8 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 
 func (p *provider) getGrantableResources(ctx context.Context, packageID string) ([]*domain.Resource, error) {
 	return p.resourceService.Find(ctx, domain.ListResourcesFilter{
-		// PackageID: packageID, // TODO: implement package id filter
+		GroupIDs:   []string{packageID},
+		GroupTypes: []string{groupTypePackageResource},
 	})
 }
 
