@@ -570,8 +570,6 @@ func (a *adapter) FromResourceProto(r *guardianv1beta1.Resource) *domain.Resourc
 		Name:         r.GetName(),
 		Labels:       r.GetLabels(),
 		IsDeleted:    r.GetIsDeleted(),
-		GroupID:      r.GetGroupId(),
-		GroupType:    r.GetGroupType(),
 	}
 
 	if r.GetParentId() != "" {
@@ -609,8 +607,6 @@ func (a *adapter) ToResourceProto(r *domain.Resource) (*guardianv1beta1.Resource
 		Name:         r.Name,
 		Labels:       r.Labels,
 		IsDeleted:    r.IsDeleted,
-		GroupId:      r.GroupID,
-		GroupType:    r.GroupType,
 	}
 
 	if r.ParentID != nil {
