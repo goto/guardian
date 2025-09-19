@@ -113,6 +113,12 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) (*gorm.
 	if filter.ResourceTypes != nil {
 		db = db.Where(`"type" IN ?`, filter.ResourceTypes)
 	}
+	if filter.GroupIDs != nil {
+		db = db.Where(`"group_id" IN ?`, filter.GroupIDs)
+	}
+	if filter.GroupTypes != nil {
+		db = db.Where(`"group_type" IN ?`, filter.GroupTypes)
+	}
 
 	if filter.Size > 0 {
 		db = db.Limit(int(filter.Size))

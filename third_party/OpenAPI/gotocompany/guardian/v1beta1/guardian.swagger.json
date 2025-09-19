@@ -2420,6 +2420,26 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "groupIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "groupTypes",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -2863,6 +2883,12 @@
           }
         },
         "globalUrn": {
+          "type": "string"
+        },
+        "groupId": {
+          "type": "string"
+        },
+        "groupType": {
           "type": "string"
         }
       },
