@@ -5,6 +5,11 @@ import (
 	"fmt"
 )
 
+const (
+	groupTypePackageResource = "package_resource"
+	groupTypePackageUser     = "package_user"
+)
+
 type PackageInfo struct {
 	CreatedBy   string                  `json:"created_by" mapstructure:"created_by"`
 	Description string                  `json:"description" mapstructure:"description"`
