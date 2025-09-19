@@ -304,6 +304,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		}
 
 		strPermissions, err := s.getPermissions(ctx, provider.Config, appeal.Resource.Type, appeal.Role)
+
 		if err != nil {
 			return fmt.Errorf("getting permissions list: %w", err)
 		}
@@ -320,9 +321,9 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			return fmt.Errorf("getting creator details: %w", err)
 		}
 
-		steps, err := s.GetDynamicPolicySteps(ctx, appeal, policy)
+		steps, err := s.GetCustomSteps(ctx, appeal, policy)
 		if err != nil {
-			return fmt.Errorf("getting dynamic policy steps : %w", err)
+			return fmt.Errorf("getting custom steps : %w", err)
 		}
 		if steps != nil {
 			policy.Steps = append(policy.Steps, steps...)
@@ -1645,22 +1646,21 @@ func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[
 	return policy, nil
 }
 
-func (s *Service) GetDynamicPolicySteps(ctx context.Context, a *domain.Appeal, p *domain.Policy) ([]*domain.Step, error) {
-	if !p.HasDynamicPolicySteps() {
+func (s *Service) GetCustomSteps(ctx context.Context, a *domain.Appeal, p *domain.Policy) ([]*domain.Step, error) {
+	if !p.HasCustomSteps() {
 		return nil, nil
 	}
-	switch p.AppealConfig.DynamicPolicySteps.Type {
+	switch p.CustomSteps.Type {
 	case "http":
 		var cfg policy.AppealMetadataSourceConfigHTTP
-		dynamicStepsConfig := p.AppealConfig.DynamicPolicySteps
-		if err := mapstructure.Decode(dynamicStepsConfig.Config, &cfg); err != nil {
+		customStepsConfig := p.CustomSteps
+		if err := mapstructure.Decode(customStepsConfig.Config, &cfg); err != nil {
 			return nil, fmt.Errorf("error decoding metadata config: %w", err)
 		}
 
 		if cfg.URL == "" {
 			return nil, fmt.Errorf("URL cannot be empty for http type")
 		}
-
 		var err error
 		cfg.URL, err = evaluateExpressionWithAppeal(a, cfg.URL)
 		if err != nil {
@@ -1674,7 +1674,7 @@ func (s *Service) GetDynamicPolicySteps(ctx context.Context, a *domain.Appeal, p
 		headers := make(map[string]string)
 		cfg.Headers = headers
 		clientCreator := &http.HttpClientCreatorStruct{}
-		metadataCl, err := http.NewHTTPClient(&cfg.HTTPClientConfig, clientCreator, "AppealDynamicSteps")
+		metadataCl, err := http.NewHTTPClient(&cfg.HTTPClientConfig, clientCreator, "AppealCustomSteps")
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
@@ -1693,18 +1693,17 @@ func (s *Service) GetDynamicPolicySteps(ctx context.Context, a *domain.Appeal, p
 		}
 		defer res.Body.Close()
 
-		response := domain.StepData{}
-		err = json.Unmarshal(body, &response)
+		customStepResponse := make([]*domain.Step, 0)
+		s.logger.Info(ctx, "custom policy steps request and response ", "request", cfg.URL, "customStepResponse", string(body))
+		err = json.Unmarshal(body, &customStepResponse)
 		if err != nil {
 			return nil, fmt.Errorf("error unmarshaling response body: %w", err)
 		}
 
-		return response.Steps, nil
+		return customStepResponse, nil
 	default:
-		return nil, fmt.Errorf("invalid dynamic policy steps source type")
+		return nil, fmt.Errorf("invalid custom steps source type")
 	}
-	
-	return nil, nil
 }
 
 func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, p *domain.Policy) error {
