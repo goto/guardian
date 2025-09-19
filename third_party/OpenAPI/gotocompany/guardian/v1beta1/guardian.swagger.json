@@ -859,6 +859,16 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "actors",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -1067,6 +1077,12 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "includeApprovalDetails",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -1588,6 +1604,16 @@
           },
           {
             "name": "providerUrns",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "actors",
             "in": "query",
             "required": false,
             "type": "array",
@@ -2400,26 +2426,6 @@
             "in": "query",
             "required": false,
             "type": "string"
-          },
-          {
-            "name": "groupIds",
-            "in": "query",
-            "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
-          },
-          {
-            "name": "groupTypes",
-            "in": "query",
-            "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -2590,6 +2596,18 @@
         }
       }
     },
+    "PolicyAppealConfigDynamicPolicySteps": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "config": {},
+        "stepData": {
+          "$ref": "#/definitions/PolicyAppealConfigStepData"
+        }
+      }
+    },
     "PolicyAppealConfigMetadataSource": {
       "type": "object",
       "properties": {
@@ -2621,6 +2639,51 @@
         "description": {
           "type": "string"
         }
+      }
+    },
+    "PolicyAppealConfigStep": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "allowFailed": {
+          "type": "boolean"
+        },
+        "when": {
+          "type": "string"
+        },
+        "strategy": {
+          "type": "string"
+        },
+        "approvers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "approveIf": {
+          "type": "boolean"
+        },
+        "dontAllowSelfApproval": {
+          "type": "boolean"
+        }
+      }
+    },
+    "PolicyAppealConfigStepData": {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/PolicyAppealConfigStep"
+          }
+        },
+        "metadata": {}
       }
     },
     "PolicyApprovalStep": {
@@ -2863,12 +2926,6 @@
           }
         },
         "globalUrn": {
-          "type": "string"
-        },
-        "groupId": {
-          "type": "string"
-        },
-        "groupType": {
           "type": "string"
         }
       },
@@ -3813,6 +3870,9 @@
           "additionalProperties": {
             "$ref": "#/definitions/PolicyAppealConfigMetadataSource"
           }
+        },
+        "dynamicPolicySteps": {
+          "$ref": "#/definitions/PolicyAppealConfigDynamicPolicySteps"
         }
       }
     },
