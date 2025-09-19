@@ -223,6 +223,7 @@ type ListGrantsFilter struct {
 	ExpirationDateGreaterThan time.Time
 	IsPermanent               *bool
 	CreatedAtLte              time.Time
+	IncludeApprovalDetails    bool
 	Size                      int    `mapstructure:"size" validate:"omitempty"`
 	Offset                    int    `mapstructure:"offset" validate:"omitempty"`
 	Q                         string `mapstructure:"q" validate:"omitempty"`
