@@ -5,18 +5,12 @@ import (
 	"fmt"
 )
 
-type DynamicPolicySteps struct {
-	Type     string      `json:"type" yaml:"type"`
-	Config   interface{} `json:"config,omitempty" yaml:"config,omitempty"`
-	StepData StepData    `json:"value" yaml:"value"`
+type CustomSteps struct {
+	Type   string      `json:"type" yaml:"type"`
+	Config interface{} `json:"config,omitempty" yaml:"config,omitempty"`
 }
 
-type StepData struct {
-	Steps    []*Step
-	Metadata interface{}
-}
-
-func (c *DynamicPolicySteps) EncryptConfig(enc Encryptor) error {
+func (c *CustomSteps) EncryptConfig(enc Encryptor) error {
 	configStr, err := json.Marshal(c.Config)
 	if err != nil {
 		return fmt.Errorf("failed to json.Marshal config: %w", err)
@@ -31,7 +25,7 @@ func (c *DynamicPolicySteps) EncryptConfig(enc Encryptor) error {
 	return nil
 }
 
-func (c *DynamicPolicySteps) DecryptConfig(dec Decryptor) error {
+func (c *CustomSteps) DecryptConfig(dec Decryptor) error {
 	configStr, ok := c.Config.(string)
 	if !ok {
 		return fmt.Errorf("invalid config type: %T, expected string", c.Config)

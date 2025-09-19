@@ -1079,7 +1079,7 @@
             "collectionFormat": "multi"
           },
           {
-            "name": "includeApprovalDetails",
+            "name": "withApprovals",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -2596,18 +2596,6 @@
         }
       }
     },
-    "PolicyAppealConfigDynamicPolicySteps": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string"
-        },
-        "config": {},
-        "stepData": {
-          "$ref": "#/definitions/PolicyAppealConfigStepData"
-        }
-      }
-    },
     "PolicyAppealConfigMetadataSource": {
       "type": "object",
       "properties": {
@@ -2639,51 +2627,6 @@
         "description": {
           "type": "string"
         }
-      }
-    },
-    "PolicyAppealConfigStep": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "allowFailed": {
-          "type": "boolean"
-        },
-        "when": {
-          "type": "string"
-        },
-        "strategy": {
-          "type": "string"
-        },
-        "approvers": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "approveIf": {
-          "type": "boolean"
-        },
-        "dontAllowSelfApproval": {
-          "type": "boolean"
-        }
-      }
-    },
-    "PolicyAppealConfigStepData": {
-      "type": "object",
-      "properties": {
-        "steps": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/PolicyAppealConfigStep"
-          }
-        },
-        "metadata": {}
       }
     },
     "PolicyApprovalStep": {
@@ -2721,6 +2664,18 @@
         }
       }
     },
+    "PolicyCustomSteps": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "config": {},
+        "stepData": {
+          "$ref": "#/definitions/PolicyStepData"
+        }
+      }
+    },
     "PolicyIAM": {
       "type": "object",
       "properties": {
@@ -2749,6 +2704,19 @@
             "$ref": "#/definitions/RequirementAdditionalAppeal"
           }
         }
+      }
+    },
+    "PolicyStepData": {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/PolicyApprovalStep"
+          }
+        },
+        "metadata": {}
       }
     },
     "ProviderConfigAppealConfig": {
@@ -3832,6 +3800,9 @@
         },
         "appeal": {
           "$ref": "#/definitions/v1beta1PolicyAppealConfig"
+        },
+        "customSteps": {
+          "$ref": "#/definitions/PolicyCustomSteps"
         }
       },
       "title": "Policy is a configurable steps for appeal's approval"
@@ -3870,9 +3841,6 @@
           "additionalProperties": {
             "$ref": "#/definitions/PolicyAppealConfigMetadataSource"
           }
-        },
-        "dynamicPolicySteps": {
-          "$ref": "#/definitions/PolicyAppealConfigDynamicPolicySteps"
         }
       }
     },
