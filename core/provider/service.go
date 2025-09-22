@@ -651,13 +651,19 @@ func (s *Service) GetDependencyGrants(ctx context.Context, g domain.Grant) ([]*d
 	}
 
 	for _, d := range dependencies {
-		resources, err := s.resourceService.Find(ctx, domain.ListResourcesFilter{
-			ProviderType: d.Resource.ProviderType,
-			ProviderURN:  d.Resource.ProviderURN,
-			ResourceType: d.Resource.Type,
-			ResourceURN:  d.Resource.URN,
-			Size:         1,
-		})
+		filter := domain.ListResourcesFilter{Size: 1}
+		if d.ResourceID != "" {
+			filter.IDs = []string{d.ResourceID}
+		} else if d.Resource != nil {
+			filter.ProviderType = d.Resource.ProviderType
+			filter.ProviderURN = d.Resource.ProviderURN
+			filter.ResourceType = d.Resource.Type
+			filter.ResourceURN = d.Resource.URN
+		} else {
+			return nil, fmt.Errorf("invalid resource in grant dependency: missing resource identifier")
+		}
+
+		resources, err := s.resourceService.Find(ctx, filter)
 		if err != nil {
 			return nil, fmt.Errorf("unable to resolve resource %q for grant dependency: %w", d.Resource.URN, err)
 		}
