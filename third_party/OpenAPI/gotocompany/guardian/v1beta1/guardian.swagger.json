@@ -859,6 +859,16 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "actors",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -1067,6 +1077,12 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "withApprovals",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -1588,6 +1604,16 @@
           },
           {
             "name": "providerUrns",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "actors",
             "in": "query",
             "required": false,
             "type": "array",
@@ -2656,6 +2682,15 @@
         "dontAllowSelfApproval": {
           "type": "boolean"
         }
+      }
+    },
+    "PolicyCustomSteps": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "config": {}
       }
     },
     "PolicyIAM": {
@@ -3775,6 +3810,9 @@
         },
         "appeal": {
           "$ref": "#/definitions/v1beta1PolicyAppealConfig"
+        },
+        "customSteps": {
+          "$ref": "#/definitions/PolicyCustomSteps"
         }
       },
       "title": "Policy is a configurable steps for appeal's approval"
