@@ -14,6 +14,7 @@ import (
 	"github.com/goto/guardian/internal/store/postgres"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/pkg/postgrestest"
+	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -394,6 +395,21 @@ func (s *GrantRepositoryTestSuite) TestList() {
 	s.Run("should handle WithApprovals filter", func() {
 		ctx := context.Background()
 
+		// Create a grant for the test with different role to avoid unique constraint violation
+		testGrant := &domain.Grant{
+			Status:      domain.GrantStatusActive,
+			AppealID:    s.dummyAppeal.ID,
+			AccountID:   s.dummyAppeal.AccountID,
+			AccountType: s.dummyAppeal.AccountType,
+			ResourceID:  s.dummyAppeal.ResourceID,
+			Role:        "test-role-with-approvals",
+			Permissions: []string{"test-role-with-approvals"},
+			CreatedBy:   s.dummyAppeal.CreatedBy,
+			Source:      domain.GrantSourceImport,
+		}
+		err := s.repository.BulkInsert(ctx, []*domain.Grant{testGrant})
+		s.Require().NoError(err)
+
 		// Create approvers
 		approver1 := &domain.Approver{
 			ID:       uuid.NewString(),
@@ -426,7 +442,7 @@ func (s *GrantRepositoryTestSuite) TestList() {
 
 		// Insert approvals
 		approvalRepository := postgres.NewApprovalRepository(s.store.DB())
-		err := approvalRepository.BulkInsert(ctx, []*domain.Approval{approval1, approval2})
+		err = approvalRepository.BulkInsert(ctx, []*domain.Approval{approval1, approval2})
 		s.Require().NoError(err)
 
 		// Test with WithApprovals = true
