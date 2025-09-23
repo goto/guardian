@@ -15,6 +15,7 @@ type Policy struct {
 	Version      uint   `gorm:"primaryKey"`
 	Description  string
 	Steps        datatypes.JSON
+	CustomSteps  datatypes.JSON
 	AppealConfig datatypes.JSON
 	Labels       datatypes.JSON
 	Requirements datatypes.JSON
@@ -54,6 +55,14 @@ func (m *Policy) FromDomain(p *domain.Policy) error {
 	iam, err := json.Marshal(p.IAM)
 	if err != nil {
 		return err
+	}
+
+	if p.CustomSteps != nil {
+		customSteps, err := json.Marshal(p.CustomSteps)
+		if err != nil {
+			return err
+		}
+		m.CustomSteps = datatypes.JSON(customSteps)
 	}
 
 	m.ID = p.ID
