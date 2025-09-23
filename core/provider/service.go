@@ -464,9 +464,9 @@ func getFilledKeys(a *domain.Appeal, key string) (filledKeys []string) {
 		return
 	}
 
-	if parameters, ok := a.Details[key].(map[string]interface{}); ok {
+	if parameters, ok := a.Details[key].(map[string]any); ok {
 		for k, v := range parameters {
-			if val, ok := v.(string); ok && val != "" {
+			if v != nil && !reflect.ValueOf(v).IsZero() {
 				filledKeys = append(filledKeys, k)
 			}
 		}
