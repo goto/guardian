@@ -38,7 +38,22 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 	}
 
 	var models []model.Grant
-	if err := db.Joins("Resource").Joins("Appeal").Find(&models).Error; err != nil {
+	query := db.Joins("Resource")
+
+	// Only preload appeal details if requested
+	if filter.WithApprovals {
+		query = query.
+			Preload("Appeal").
+			Preload("Appeal.Approvals", func(db *gorm.DB) *gorm.DB {
+				return db.Order("index ASC")
+			}).
+			Preload("Appeal.Approvals.Approvers")
+	} else {
+		// Use Joins for basic appeal info without nested data
+		query = query.Joins("Appeal")
+	}
+
+	if err := query.Find(&models).Error; err != nil {
 		return nil, err
 	}
 
@@ -304,7 +319,7 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, er
 	if filter.AccountTypes != nil {
 		db = db.Where(`"grants"."account_type" IN ?`, filter.AccountTypes)
 	}
-	
+
 	if len(filter.GroupIDs) > 0 {
 		db = db.Where(`"grants"."group_id" IN ?`, filter.GroupIDs)
 	}
