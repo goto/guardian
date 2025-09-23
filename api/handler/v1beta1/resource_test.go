@@ -226,7 +226,7 @@ func (s *GrpcHandlersSuite) TestUpdateResource() {
 			ID:   expectedID,
 			Name: "new-name",
 		}
-		s.resourceService.EXPECT().Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedResource).Return(nil).
+		s.providerService.EXPECT().PatchResource(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedResource).Return(nil).
 			Run(func(_a0 context.Context, _a1 *domain.Resource) {
 				_a1.CreatedAt = timeNow
 				_a1.UpdatedAt = timeNow
@@ -256,7 +256,7 @@ func (s *GrpcHandlersSuite) TestUpdateResource() {
 	s.Run("should return not found error if resource not found", func() {
 		s.setup()
 
-		s.resourceService.EXPECT().Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*domain.Resource")).Return(resource.ErrRecordNotFound)
+		s.providerService.EXPECT().PatchResource(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*domain.Resource")).Return(resource.ErrRecordNotFound)
 
 		req := &guardianv1beta1.UpdateResourceRequest{Id: "unknown-id"}
 		res, err := s.grpcServer.UpdateResource(context.Background(), req)
@@ -270,7 +270,7 @@ func (s *GrpcHandlersSuite) TestUpdateResource() {
 		s.setup()
 
 		expectedError := errors.New("randome error")
-		s.resourceService.EXPECT().Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*domain.Resource")).Return(expectedError)
+		s.providerService.EXPECT().PatchResource(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*domain.Resource")).Return(expectedError)
 
 		req := &guardianv1beta1.UpdateResourceRequest{Id: "unknown-id"}
 		res, err := s.grpcServer.UpdateResource(context.Background(), req)
@@ -283,7 +283,7 @@ func (s *GrpcHandlersSuite) TestUpdateResource() {
 	s.Run("should return error if there is an error when parsing the resource", func() {
 		s.setup()
 
-		s.resourceService.EXPECT().Update(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*domain.Resource")).Return(nil).
+		s.providerService.EXPECT().PatchResource(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*domain.Resource")).Return(nil).
 			Run(func(_a0 context.Context, _a1 *domain.Resource) {
 				_a1.Details = map[string]interface{}{
 					"key": make(chan int), // invalid json

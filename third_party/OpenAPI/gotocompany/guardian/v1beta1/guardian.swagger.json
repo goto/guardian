@@ -1077,6 +1077,12 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "withApprovals",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -2420,6 +2426,26 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "groupIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "groupTypes",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -2658,6 +2684,15 @@
         }
       }
     },
+    "PolicyCustomSteps": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "config": {}
+      }
+    },
     "PolicyIAM": {
       "type": "object",
       "properties": {
@@ -2863,6 +2898,12 @@
           }
         },
         "globalUrn": {
+          "type": "string"
+        },
+        "groupId": {
+          "type": "string"
+        },
+        "groupType": {
           "type": "string"
         }
       },
@@ -3769,6 +3810,9 @@
         },
         "appeal": {
           "$ref": "#/definitions/v1beta1PolicyAppealConfig"
+        },
+        "customSteps": {
+          "$ref": "#/definitions/PolicyCustomSteps"
         }
       },
       "title": "Policy is a configurable steps for appeal's approval"
