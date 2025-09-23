@@ -1,0 +1,8 @@
+BEGIN;
+
+ALTER TABLE
+  "resources"
+DROP COLUMN IF EXISTS "group_id",
+DROP COLUMN IF EXISTS "group_type";
+
+COMMIT;
