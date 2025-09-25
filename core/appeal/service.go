@@ -1670,12 +1670,12 @@ func (s *Service) GetCustomSteps(ctx context.Context, a *domain.Appeal, p *domai
 			return nil, fmt.Errorf("error while evaluating body %w", err)
 		}
 		headers := make(map[string]string)
-		cfg.Headers = headers
 		for key, value := range cfg.Headers {
 			if headers[key], err = evaluateExpressionWithAppeal(a, value); err != nil {
 				return nil, fmt.Errorf("error while evaluating headers %w", err)
 			}
 		}
+		cfg.Headers = headers
 		clientCreator := &http.HttpClientCreatorStruct{}
 		metadataCl, err := http.NewHTTPClient(&cfg.HTTPClientConfig, clientCreator, "AppealCustomSteps")
 		if err != nil {
@@ -1696,14 +1696,14 @@ func (s *Service) GetCustomSteps(ctx context.Context, a *domain.Appeal, p *domai
 		}
 		defer res.Body.Close()
 
-		customStepResponse := make([]*domain.Step, 0)
+		customStepResponse := &domain.CustomStepsResponse{}
 		s.logger.Info(ctx, "custom policy steps request and response ", "request", cfg.URL, "customStepResponse", string(body))
 		err = json.Unmarshal(body, &customStepResponse)
 		if err != nil {
 			return nil, fmt.Errorf("error unmarshaling response body: %w", err)
 		}
 
-		return customStepResponse, nil
+		return customStepResponse.ApprovalSteps, nil
 	default:
 		return nil, fmt.Errorf("invalid custom steps source type")
 	}

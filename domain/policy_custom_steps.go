@@ -10,6 +10,10 @@ type CustomSteps struct {
 	Config interface{} `json:"config,omitempty" yaml:"config,omitempty"`
 }
 
+type CustomStepsResponse struct {
+	ApprovalSteps []*Step `json:"approval_steps"`
+}
+
 func (c *CustomSteps) EncryptConfig(enc Encryptor) error {
 	configStr, err := json.Marshal(c.Config)
 	if err != nil {

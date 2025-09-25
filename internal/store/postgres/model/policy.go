@@ -112,11 +112,19 @@ func (m *Policy) ToDomain() (*domain.Policy, error) {
 		}
 	}
 
+	var customSteps *domain.CustomSteps
+	if m.CustomSteps != nil {
+		if err := json.Unmarshal(m.CustomSteps, &customSteps); err != nil {
+			return nil, err
+		}
+	}
+
 	return &domain.Policy{
 		ID:           m.ID,
 		Version:      m.Version,
 		Description:  m.Description,
 		Steps:        steps,
+		CustomSteps:  customSteps,
 		AppealConfig: appealConfig,
 		Labels:       labels,
 		Requirements: requirements,
