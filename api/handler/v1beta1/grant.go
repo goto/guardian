@@ -32,6 +32,7 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		OrderBy:       req.GetOrderBy(),
 		Size:          int(req.GetSize()),
 		Offset:        int(req.GetOffset()),
+		WithApprovals: req.WithApprovals,
 	}
 	grants, total, err := s.listGrants(ctx, filter)
 	if err != nil {
