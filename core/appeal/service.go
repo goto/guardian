@@ -1662,19 +1662,24 @@ func (s *Service) GetCustomSteps(ctx context.Context, a *domain.Appeal, p *domai
 		var err error
 		cfg.URL, err = evaluateExpressionWithAppeal(a, cfg.URL)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error while evaluating url %w", err)
 		}
 
 		cfg.Body, err = evaluateExpressionWithAppeal(a, cfg.Body)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error while evaluating body %w", err)
 		}
 		headers := make(map[string]string)
 		cfg.Headers = headers
+		for key, value := range cfg.Headers {
+			if headers[key], err = evaluateExpressionWithAppeal(a, value); err != nil {
+				return nil, fmt.Errorf("error while evaluating headers %w", err)
+			}
+		}
 		clientCreator := &http.HttpClientCreatorStruct{}
 		metadataCl, err := http.NewHTTPClient(&cfg.HTTPClientConfig, clientCreator, "AppealCustomSteps")
 		if err != nil {
-			return nil, fmt.Errorf("%w", err)
+			return nil, fmt.Errorf(" error in http request %w", err)
 		}
 
 		res, err := metadataCl.MakeRequest(ctx)
