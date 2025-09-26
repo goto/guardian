@@ -319,16 +319,16 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			return fmt.Errorf("getting creator details: %w", err)
 		}
 
+		if err := s.populateAppealMetadata(ctx, appeal, policy); err != nil {
+			return fmt.Errorf("getting appeal metadata: %w", err)
+		}
+
 		steps, err := s.GetCustomSteps(ctx, appeal, policy)
 		if err != nil {
 			return fmt.Errorf("getting custom steps : %w", err)
 		}
 		if steps != nil {
-			policy.Steps = append(policy.Steps, steps...)
-		}
-
-		if err := s.populateAppealMetadata(ctx, appeal, policy); err != nil {
-			return fmt.Errorf("getting appeal metadata: %w", err)
+			appeal.Policy.Steps = append(policy.Steps, steps...)
 		}
 
 		appeal.Revision = 0
@@ -892,6 +892,15 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			if err != nil {
 				return nil, err
 			}
+		}
+
+		// Always fetch and append custom steps to match the appeal creation process
+		steps, err := s.GetCustomSteps(ctx, appeal, appeal.Policy)
+		if err != nil {
+			return nil, fmt.Errorf("getting custom steps: %w", err)
+		}
+		if steps != nil {
+			appeal.Policy.Steps = append(appeal.Policy.Steps, steps...)
 		}
 
 		policyStep := appeal.Policy.GetStepByName(currentApproval.Name)
