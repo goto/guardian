@@ -225,7 +225,7 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 	if policy.HasCustomSteps() {
 		totalStepCount = len(a.Approvals)
 	}
-	for i := 0; i < len(a.Approvals); i++ {
+	for i := 0; i < totalStepCount; i++ {
 		approval := a.GetApprovalByIndex(i)
 		if approval == nil {
 			return fmt.Errorf(`unable to find approval with index %q under policy "%s:%d"`, i, policy.ID, policy.Version)
