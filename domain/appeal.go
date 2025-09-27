@@ -219,7 +219,12 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 		return fmt.Errorf("appeal has no policy")
 	}
 
-	for i := 0; i < len(policy.Steps); i++ {
+	policyStepCount := len(policy.Steps)
+	totalStepCount := policyStepCount
+	if policy.HasCustomSteps() {
+		totalStepCount = len(a.Approvals)
+	}
+	for i := 0; i < len(a.Approvals); i++ {
 		approval := a.GetApprovalByIndex(i)
 		if approval == nil {
 			return fmt.Errorf(`unable to find approval with index %q under policy "%s:%d"`, i, policy.ID, policy.Version)
@@ -229,45 +234,24 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 			break
 		}
 		if approval.Status == ApprovalStatusPending {
-			stepConfig := policy.Steps[approval.Index]
+			if i < policyStepCount {
+				stepConfig := policy.Steps[approval.Index]
 
-			appealMap, err := a.ToMap()
-			if err != nil {
-				return fmt.Errorf("parsing appeal struct to map: %w", err)
-			}
-
-			if stepConfig.When != "" {
-				v, err := evaluator.Expression(stepConfig.When).EvaluateWithVars(map[string]interface{}{
-					"appeal": appealMap,
-				})
+				appealMap, err := a.ToMap()
 				if err != nil {
-					return err
+					return fmt.Errorf("parsing appeal struct to map: %w", err)
 				}
 
-				isFalsy := reflect.ValueOf(v).IsZero()
-				if isFalsy {
-					// mark current as skipped
-					approval.Status = ApprovalStatusSkipped
-
-					// mark next as pending
-					nextApproval := a.GetApprovalByIndex(approval.Index + 1)
-					if nextApproval != nil {
-						nextApproval.Status = ApprovalStatusPending
+				if stepConfig.When != "" {
+					v, err := evaluator.Expression(stepConfig.When).EvaluateWithVars(map[string]interface{}{
+						"appeal": appealMap,
+					})
+					if err != nil {
+						return err
 					}
-				}
-			}
 
-			if approval.Status != ApprovalStatusSkipped && stepConfig.Strategy == ApprovalStepStrategyAuto {
-				v, err := evaluator.Expression(stepConfig.ApproveIf).EvaluateWithVars(map[string]interface{}{
-					"appeal": appealMap,
-				})
-				if err != nil {
-					return err
-				}
-
-				isFalsy := reflect.ValueOf(v).IsZero()
-				if isFalsy {
-					if stepConfig.AllowFailed {
+					isFalsy := reflect.ValueOf(v).IsZero()
+					if isFalsy {
 						// mark current as skipped
 						approval.Status = ApprovalStatusSkipped
 
@@ -276,24 +260,46 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 						if nextApproval != nil {
 							nextApproval.Status = ApprovalStatusPending
 						}
-					} else {
-						approval.Status = ApprovalStatusRejected
-						approval.Reason = stepConfig.RejectionReason
-						a.Status = AppealStatusRejected
 					}
-				} else {
-					// mark current as approved
-					approval.Status = ApprovalStatusApproved
+				}
 
-					// mark next as pending
-					nextApproval := a.GetApprovalByIndex(approval.Index + 1)
-					if nextApproval != nil {
-						nextApproval.Status = ApprovalStatusPending
+				if approval.Status != ApprovalStatusSkipped && stepConfig.Strategy == ApprovalStepStrategyAuto {
+					v, err := evaluator.Expression(stepConfig.ApproveIf).EvaluateWithVars(map[string]interface{}{
+						"appeal": appealMap,
+					})
+					if err != nil {
+						return err
+					}
+					isFalsy := reflect.ValueOf(v).IsZero()
+					if isFalsy {
+						if stepConfig.AllowFailed {
+							// mark current as skipped
+							approval.Status = ApprovalStatusSkipped
+
+							// mark next as pending
+							nextApproval := a.GetApprovalByIndex(approval.Index + 1)
+							if nextApproval != nil {
+								nextApproval.Status = ApprovalStatusPending
+							}
+						} else {
+							approval.Status = ApprovalStatusRejected
+							approval.Reason = stepConfig.RejectionReason
+							a.Status = AppealStatusRejected
+						}
+					} else {
+						// mark current as approved
+						approval.Status = ApprovalStatusApproved
+
+						// mark next as pending
+						nextApproval := a.GetApprovalByIndex(approval.Index + 1)
+						if nextApproval != nil {
+							nextApproval.Status = ApprovalStatusPending
+						}
 					}
 				}
 			}
 		}
-		isLastApproval := approval.Index == len(policy.Steps)-1
+		isLastApproval := approval.Index == totalStepCount-1
 		if isLastApproval && (approval.Status == ApprovalStatusSkipped || approval.Status == ApprovalStatusApproved) {
 			a.Status = AppealStatusApproved
 		}
