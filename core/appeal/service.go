@@ -896,11 +896,10 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			}
 		}
 
-		isStepValid := true
 		isSelfApprovalNotAllowed := false
 		policyStep := appeal.Policy.GetStepByName(currentApproval.Name)
 		if policyStep == nil {
-			isStepValid = false
+			isStepValid := false
 			if appeal.Policy.HasCustomSteps() {
 				for _, ap := range appeal.Approvals {
 					if ap.Name == currentApproval.Name {
