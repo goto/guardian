@@ -154,7 +154,7 @@ func (s *Service) Create(ctx context.Context, p *domain.Policy) error {
 	}
 
 	if p.HasCustomSteps() {
-		if err := s.decryptAppealMetadata(p); err != nil {
+		if err := s.decryptCustomSteps(p); err != nil {
 			return err
 		}
 	}
