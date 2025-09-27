@@ -330,7 +330,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			return fmt.Errorf("getting custom steps : %w", err)
 		}
 		if steps != nil {
-			appeal.Policy.Steps = append(policy.Steps, steps...)
+			policy.Steps = append(policy.Steps, steps...)
 		}
 
 		appeal.Revision = 0
