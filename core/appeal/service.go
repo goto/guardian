@@ -894,22 +894,28 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			}
 		}
 
-		// Always fetch and append custom steps to match the appeal creation process
-		steps, err := s.GetCustomSteps(ctx, appeal, appeal.Policy)
-		if err != nil {
-			return nil, fmt.Errorf("getting custom steps: %w", err)
-		}
-		if steps != nil {
-			appeal.Policy.Steps = append(appeal.Policy.Steps, steps...)
-		}
-
+		isStepValid := true
+		isSelfApprovalNotAllowed := false
 		policyStep := appeal.Policy.GetStepByName(currentApproval.Name)
 		if policyStep == nil {
-			return nil, fmt.Errorf("%w: %q for appeal %q", ErrNoPolicyStepFound, approvalAction.ApprovalName, appeal.ID)
+			isStepValid = false
+			if appeal.Policy.HasCustomSteps() {
+				for _, ap := range appeal.Approvals {
+					if ap.Name == currentApproval.Name {
+						isStepValid = true
+						isSelfApprovalNotAllowed = ap.DontAllowSelfApproval
+					}
+				}
+			}
+			if !isStepValid {
+				return nil, fmt.Errorf("%w: %q for appeal %q", ErrNoPolicyStepFound, approvalAction.ApprovalName, appeal.ID)
+			}
+		} else {
+			isSelfApprovalNotAllowed = policyStep.DontAllowSelfApproval
 		}
 
 		// check if user is self approving the appeal
-		if policyStep.DontAllowSelfApproval {
+		if isSelfApprovalNotAllowed {
 			if approvalAction.Actor == appeal.CreatedBy {
 				return nil, ErrSelfApprovalNotAllowed
 			}
