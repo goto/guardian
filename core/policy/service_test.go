@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/goto/guardian/core/policy"
+
 	"testing"
 	"time"
 
@@ -12,7 +14,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/goto/guardian/core/policy"
 	policymocks "github.com/goto/guardian/core/policy/mocks"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/core/resource"
@@ -423,6 +424,98 @@ func (s *ServiceTestSuite) TestCreate() {
 			s.mockPolicyRepository.AssertNotCalled(s.T(), "Create")
 		})
 	})
+
+	s.Run("with custom steps", func() {
+		s.Run("should encrypt custom steps config on create", func() {
+			testPolicy := getValidPolicy()
+			testPolicy.CustomSteps = &domain.CustomSteps{
+				Type: "http",
+				Config: map[string]interface{}{
+					"url":    "https://api.example.com/steps",
+					"method": "GET",
+					"headers": map[string]interface{}{
+						"Authorization": "Bearer token",
+					},
+				},
+			}
+
+			expectedConfig := `{"headers":{"Authorization":"Bearer token"},"method":"GET","url":"https://api.example.com/steps"}`
+			// Expect IAM config encryption first
+			s.mockCrypto.EXPECT().Encrypt("test-password").Return("encrypted-test-password", nil).Once()
+			// Then expect appeal metadata encryption
+			s.mockCrypto.EXPECT().Encrypt(`{"url":"http://test-localhost:8080"}`).Return("encrypted-config", nil).Once()
+			// Then expect custom steps encryption
+			s.mockCrypto.EXPECT().Encrypt(expectedConfig).Return("encrypted-custom-config", nil).Once()
+
+			s.mockPolicyRepository.EXPECT().
+				Create(
+					mock.MatchedBy(func(ctx context.Context) bool { return true }),
+					mock.MatchedBy(func(arg interface{}) bool {
+						insertedPolicy := arg.(*domain.Policy)
+						return insertedPolicy.CustomSteps.Config == "encrypted-custom-config"
+					}),
+				).
+				Return(nil).Once()
+
+			// Expect decryption of IAM config
+			s.mockCrypto.EXPECT().Decrypt("encrypted-test-password").Return("test-password", nil).Once()
+			// Expect decryption of appeal metadata
+			s.mockCrypto.EXPECT().Decrypt("encrypted-config").Return(`{"url":"http://test-localhost:8080"}`, nil).Once()
+			// Expect decryption of custom steps
+			s.mockCrypto.EXPECT().Decrypt("encrypted-custom-config").Return(expectedConfig, nil).Once()
+
+			s.mockAuditLogger.EXPECT().Log(mock.Anything, policy.AuditKeyPolicyCreate, mock.Anything).Return(nil).Once()
+
+			actualError := s.service.Create(context.Background(), testPolicy)
+
+			s.Nil(actualError)
+			s.mockCrypto.AssertExpectations(s.T())
+			s.mockPolicyRepository.AssertExpectations(s.T())
+			time.Sleep(time.Millisecond)
+			s.mockAuditLogger.AssertExpectations(s.T())
+		})
+
+		s.Run("should handle custom steps with nil config", func() {
+			testPolicy := getValidPolicy()
+			testPolicy.CustomSteps = &domain.CustomSteps{
+				Type:   "http",
+				Config: nil,
+			}
+
+			// The validation will fail because Config is nil
+			actualError := s.service.Create(context.Background(), testPolicy)
+
+			s.NotNil(actualError)
+			s.Contains(actualError.Error(), "config should not be empty")
+			s.mockPolicyRepository.AssertNotCalled(s.T(), "Create")
+			s.mockAuditLogger.AssertNotCalled(s.T(), "Log")
+		})
+
+		s.Run("should return error if custom steps encryption fails", func() {
+			testPolicy := getValidPolicy()
+			testPolicy.CustomSteps = &domain.CustomSteps{
+				Type: "http",
+				Config: map[string]interface{}{
+					"url": "https://api.example.com",
+				},
+			}
+
+			encryptionError := errors.New("encryption failed")
+			// Expect IAM config encryption first
+			s.mockCrypto.EXPECT().Encrypt("test-password").Return("encrypted-test-password", nil).Once()
+			// Then expect appeal metadata encryption
+			s.mockCrypto.EXPECT().Encrypt(`{"url":"http://test-localhost:8080"}`).Return("encrypted-config", nil).Once()
+			// Then expect custom steps encryption to fail
+			s.mockCrypto.EXPECT().Encrypt(`{"url":"https://api.example.com"}`).Return("", encryptionError).Once()
+
+			actualError := s.service.Create(context.Background(), testPolicy)
+
+			s.NotNil(actualError)
+			s.Equal("encryption failed", actualError.Error())
+			s.mockPolicyRepository.AssertNotCalled(s.T(), "Create")
+			s.mockCrypto.AssertExpectations(s.T())
+		})
+	})
 }
 
 func (s *ServiceTestSuite) TestPolicyRequirements() {
@@ -722,6 +815,62 @@ func (s *ServiceTestSuite) TestFind() {
 		s.Equal(actualResult[0].IAM.Config.(map[string]any)["auth"].(map[string]any)["password"], expectedPassword)
 		s.Equal(actualResult[0].AppealConfig.MetadataSources["test-http-source"].Config, expectedConfig)
 		s.Nil(actualError)
+		s.mockPolicyRepository.AssertExpectations(s.T())
+		s.mockCrypto.AssertExpectations(s.T())
+	})
+
+	s.Run("should decrypt custom steps config when finding policies", func() {
+		policiesWithCustomSteps := []*domain.Policy{
+			{
+				ID: "policy-with-custom-steps",
+				CustomSteps: &domain.CustomSteps{
+					Type:   "http",
+					Config: "encrypted-custom-steps-config",
+				},
+			},
+			{
+				ID: "policy-without-custom-steps",
+			},
+		}
+
+		s.mockPolicyRepository.EXPECT().Find(mock.Anything).Return(policiesWithCustomSteps, nil).Once()
+
+		decryptedConfig := `{"url":"https://api.example.com/steps","method":"POST"}`
+		s.mockCrypto.EXPECT().Decrypt("encrypted-custom-steps-config").Return(decryptedConfig, nil).Once()
+
+		actualResult, actualError := s.service.Find(context.Background())
+
+		s.Nil(actualError)
+		s.Len(actualResult, 2)
+		s.NotNil(actualResult[0].CustomSteps)
+		s.Equal(map[string]interface{}{
+			"url":    "https://api.example.com/steps",
+			"method": "POST",
+		}, actualResult[0].CustomSteps.Config)
+		s.mockPolicyRepository.AssertExpectations(s.T())
+		s.mockCrypto.AssertExpectations(s.T())
+	})
+
+	s.Run("should handle custom steps decryption error gracefully", func() {
+		policiesWithCustomSteps := []*domain.Policy{
+			{
+				ID: "policy-with-custom-steps",
+				CustomSteps: &domain.CustomSteps{
+					Type:   "http",
+					Config: "encrypted-custom-steps-config",
+				},
+			},
+		}
+
+		s.mockPolicyRepository.EXPECT().Find(mock.Anything).Return(policiesWithCustomSteps, nil).Once()
+
+		expectedError := errors.New("decryption failed")
+		s.mockCrypto.EXPECT().Decrypt("encrypted-custom-steps-config").Return("", expectedError).Once()
+
+		actualResult, actualError := s.service.Find(context.Background())
+
+		s.Nil(actualResult)
+		s.EqualError(actualError, expectedError.Error())
 		s.mockPolicyRepository.AssertExpectations(s.T())
 		s.mockCrypto.AssertExpectations(s.T())
 	})

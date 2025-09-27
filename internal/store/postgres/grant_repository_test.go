@@ -395,30 +395,48 @@ func (s *GrantRepositoryTestSuite) TestList() {
 	s.Run("should handle WithApprovals filter", func() {
 		ctx := context.Background()
 
-		// Create a grant for the test with different role to avoid unique constraint violation
+		// Create a unique test appeal for this test
+		testAppealID := uuid.NewString()
+		testAppeal := &domain.Appeal{
+			ID:            testAppealID,
+			ResourceID:    s.dummyResource.ID,
+			PolicyID:      s.dummyPolicy.ID,
+			PolicyVersion: s.dummyPolicy.Version,
+			AccountID:     "test-approvals-user@example.com",
+			AccountType:   domain.DefaultAppealAccountType,
+			Role:          "test-role-with-approvals",
+			Permissions:   []string{"test-role-with-approvals"},
+			CreatedBy:     "test-approvals-user@example.com",
+			Status:        domain.AppealStatusApproved,
+		}
+		appealRepository := postgres.NewAppealRepository(s.store.DB())
+		err := appealRepository.BulkUpsert(ctx, []*domain.Appeal{testAppeal})
+		s.Require().NoError(err)
+
+		// Create a grant for the test with the unique appeal
 		testGrant := &domain.Grant{
 			Status:      domain.GrantStatusActive,
-			AppealID:    s.dummyAppeal.ID,
-			AccountID:   s.dummyAppeal.AccountID,
-			AccountType: s.dummyAppeal.AccountType,
-			ResourceID:  s.dummyAppeal.ResourceID,
-			Role:        "test-role-with-approvals",
-			Permissions: []string{"test-role-with-approvals"},
-			CreatedBy:   s.dummyAppeal.CreatedBy,
+			AppealID:    testAppealID,
+			AccountID:   testAppeal.AccountID,
+			AccountType: testAppeal.AccountType,
+			ResourceID:  testAppeal.ResourceID,
+			Role:        testAppeal.Role,
+			Permissions: testAppeal.Permissions,
+			CreatedBy:   testAppeal.CreatedBy,
 			Source:      domain.GrantSourceImport,
 		}
-		err := s.repository.BulkInsert(ctx, []*domain.Grant{testGrant})
+		err = s.repository.BulkInsert(ctx, []*domain.Grant{testGrant})
 		s.Require().NoError(err)
 
 		// Create approvers
 		approver1 := &domain.Approver{
 			ID:       uuid.NewString(),
-			AppealID: s.dummyAppeal.ID,
+			AppealID: testAppealID,
 			Email:    "approver1@example.com",
 		}
 		approver2 := &domain.Approver{
 			ID:       uuid.NewString(),
-			AppealID: s.dummyAppeal.ID,
+			AppealID: testAppealID,
 			Email:    "approver2@example.com",
 		}
 
@@ -426,7 +444,7 @@ func (s *GrantRepositoryTestSuite) TestList() {
 		approval1 := &domain.Approval{
 			ID:        uuid.NewString(),
 			Name:      "approval-step-1",
-			AppealID:  s.dummyAppeal.ID,
+			AppealID:  testAppealID,
 			Status:    domain.ApprovalStatusApproved,
 			Index:     0,
 			Approvers: []string{"approver1@example.com"},
@@ -434,7 +452,7 @@ func (s *GrantRepositoryTestSuite) TestList() {
 		approval2 := &domain.Approval{
 			ID:        uuid.NewString(),
 			Name:      "approval-step-2",
-			AppealID:  s.dummyAppeal.ID,
+			AppealID:  testAppealID,
 			Status:    domain.ApprovalStatusPending,
 			Index:     1,
 			Approvers: []string{"approver2@example.com"},
@@ -448,6 +466,9 @@ func (s *GrantRepositoryTestSuite) TestList() {
 		// Test with WithApprovals = true
 		grants, err := s.repository.List(ctx, domain.ListGrantsFilter{
 			WithApprovals: true,
+			AccountIDs:    []string{"test-approvals-user@example.com"},
+			Roles:         []string{"test-role-with-approvals"},
+			Permissions:   []string{"test-role-with-approvals"},
 		})
 
 		s.NoError(err)
@@ -455,7 +476,7 @@ func (s *GrantRepositoryTestSuite) TestList() {
 
 		// Verify appeal is loaded
 		s.NotNil(grants[0].Appeal)
-		s.Equal(s.dummyAppeal.ID, grants[0].Appeal.ID)
+		s.Equal(testAppealID, grants[0].Appeal.ID)
 
 		// Verify approvals are loaded and ordered by index
 		s.NotNil(grants[0].Appeal.Approvals)
@@ -477,6 +498,9 @@ func (s *GrantRepositoryTestSuite) TestList() {
 		// Test with WithApprovals = false
 		grants, err = s.repository.List(ctx, domain.ListGrantsFilter{
 			WithApprovals: false,
+			AccountIDs:    []string{"test-approvals-user@example.com"},
+			Roles:         []string{"test-role-with-approvals"},
+			Permissions:   []string{"test-role-with-approvals"},
 		})
 
 		s.NoError(err)
@@ -484,18 +508,22 @@ func (s *GrantRepositoryTestSuite) TestList() {
 
 		// Verify appeal is loaded but approvals are not
 		s.NotNil(grants[0].Appeal)
-		s.Equal(s.dummyAppeal.ID, grants[0].Appeal.ID)
+		s.Equal(testAppealID, grants[0].Appeal.ID)
 		s.Empty(grants[0].Appeal.Approvals)
 
 		// Test when WithApprovals is not specified (default behavior)
-		grants, err = s.repository.List(ctx, domain.ListGrantsFilter{})
+		grants, err = s.repository.List(ctx, domain.ListGrantsFilter{
+			AccountIDs:  []string{"test-approvals-user@example.com"},
+			Roles:       []string{"test-role-with-approvals"},
+			Permissions: []string{"test-role-with-approvals"},
+		})
 
 		s.NoError(err)
 		s.Len(grants, 1)
 
 		// Verify appeal is loaded but approvals are not
 		s.NotNil(grants[0].Appeal)
-		s.Equal(s.dummyAppeal.ID, grants[0].Appeal.ID)
+		s.Equal(testAppealID, grants[0].Appeal.ID)
 		s.Empty(grants[0].Appeal.Approvals)
 	})
 }
