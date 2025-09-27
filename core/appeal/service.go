@@ -333,16 +333,16 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			return fmt.Errorf("getting creator details: %w", err)
 		}
 
+		if err := s.populateAppealMetadata(ctx, appeal, policy); err != nil {
+			return fmt.Errorf("getting appeal metadata: %w", err)
+		}
+
 		steps, err := s.GetCustomSteps(ctx, appeal, policy)
 		if err != nil {
 			return fmt.Errorf("getting custom steps : %w", err)
 		}
 		if steps != nil {
-			policy.Steps = append(policy.Steps, steps...)
-		}
-
-		if err := s.populateAppealMetadata(ctx, appeal, policy); err != nil {
-			return fmt.Errorf("getting appeal metadata: %w", err)
+			appeal.Policy.Steps = append(policy.Steps, steps...)
 		}
 
 		appeal.Revision = 0
@@ -912,13 +912,28 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			}
 		}
 
+		isStepValid := true
+		isSelfApprovalNotAllowed := false
 		policyStep := appeal.Policy.GetStepByName(currentApproval.Name)
 		if policyStep == nil {
-			return nil, fmt.Errorf("%w: %q for appeal %q", ErrNoPolicyStepFound, approvalAction.ApprovalName, appeal.ID)
+			isStepValid = false
+			if appeal.Policy.HasCustomSteps() {
+				for _, ap := range appeal.Approvals {
+					if ap.Name == currentApproval.Name {
+						isStepValid = true
+						isSelfApprovalNotAllowed = ap.DontAllowSelfApproval
+					}
+				}
+			}
+			if !isStepValid {
+				return nil, fmt.Errorf("%w: %q for appeal %q", ErrNoPolicyStepFound, approvalAction.ApprovalName, appeal.ID)
+			}
+		} else {
+			isSelfApprovalNotAllowed = policyStep.DontAllowSelfApproval
 		}
 
 		// check if user is self approving the appeal
-		if policyStep.DontAllowSelfApproval {
+		if isSelfApprovalNotAllowed {
 			if approvalAction.Actor == appeal.CreatedBy {
 				return nil, ErrSelfApprovalNotAllowed
 			}
