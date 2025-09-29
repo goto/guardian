@@ -224,7 +224,13 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 	policyStepCount := len(policy.Steps)
 	totalStepCount := policyStepCount
 	if policy.HasCustomSteps() {
-		totalStepCount = len(a.Approvals)
+		nonStaleCount := 0
+		for _, approval := range a.Approvals {
+			if !approval.IsStale {
+				nonStaleCount++
+			}
+		}
+		totalStepCount = nonStaleCount
 	}
 	for i := 0; i < totalStepCount; i++ {
 		approval := a.GetApprovalByIndex(i)
