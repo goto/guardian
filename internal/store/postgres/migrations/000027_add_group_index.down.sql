@@ -1,7 +1,5 @@
 BEGIN;
 
-ALTER TABLE
-    "policies"
-DROP COLUMN IF EXISTS "custom_steps";
-
+DROP INDEX IF EXISTS "appeal_group_index";
+DROP INDEX IF EXISTS "grant_group_index";
 COMMIT;
