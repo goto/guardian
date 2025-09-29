@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres/model"
 	"github.com/goto/guardian/utils"
-	"github.com/jackc/pgx/v5/pgconn"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 const (
@@ -259,6 +260,9 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.DB
 	}
 	if filters.ResourceID != "" {
 		db = db.Where(`"appeals"."resource_id" = ?`, filters.ResourceID)
+	}
+	if len(filters.ResourceIDs) != 0 {
+		db = db.Where(`"appeals"."resource_id" IN ?`, filters.ResourceIDs)
 	}
 	if filters.Role != "" {
 		db = db.Where(`"appeals"."role" = ?`, filters.Role)

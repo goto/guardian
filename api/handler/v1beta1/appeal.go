@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/core/approval"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.ListUserAppealsRequest) (*guardianv1beta1.ListUserAppealsResponse, error) {
@@ -56,6 +57,9 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 	if req.GetQ() != "" {
 		filters.Q = req.GetQ()
 	}
+	if len(req.GetResourceIds()) != 0 {
+		filters.ResourceIDs = req.GetResourceIds()
+	}
 	filters.Offset = int(req.GetOffset())
 	filters.Size = int(req.GetSize())
 
@@ -86,6 +90,7 @@ func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListA
 		Size:          int(req.GetSize()),
 		Offset:        int(req.GetOffset()),
 		OrderBy:       req.GetOrderBy(),
+		ResourceIDs:   req.GetResourceIds(),
 	}
 	appeals, total, err := s.listAppeals(ctx, filters)
 	if err != nil {

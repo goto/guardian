@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+
 	"github.com/goto/guardian/pkg/diff"
 	"github.com/goto/guardian/pkg/evaluator"
 	"github.com/goto/guardian/utils"
@@ -420,6 +421,7 @@ type ListAppealsFilter struct {
 	OrderBy                   []string  `mapstructure:"order_by" validate:"omitempty,min=1"`
 	Size                      int       `mapstructure:"size" validate:"omitempty"`
 	Offset                    int       `mapstructure:"offset" validate:"omitempty"`
+	ResourceIDs               []string  `mapstructure:"resource_ids" validate:"omitempty,min=1"`
 }
 
 type DiffItem struct {
