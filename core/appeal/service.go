@@ -1721,7 +1721,7 @@ func (s *Service) GetCustomSteps(ctx context.Context, a *domain.Appeal, p *domai
 
 		return customStepResponse.ApprovalSteps, nil
 	default:
-		return nil, fmt.Errorf("invalid custom steps source type")
+		return nil, fmt.Errorf("invalid custom steps source type: %q", p.CustomSteps.Type)
 	}
 }
 
