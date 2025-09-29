@@ -651,6 +651,14 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		return fmt.Errorf("getting appeal metadata: %w", err)
 	}
 
+	steps, err := s.GetCustomSteps(ctx, appeal, policy)
+	if err != nil {
+		return fmt.Errorf("getting custom steps : %w", err)
+	}
+	if steps != nil {
+		policy.Steps = append(policy.Steps, steps...)
+	}
+
 	if err := s.addCreatorDetails(ctx, appeal, policy); err != nil {
 		return fmt.Errorf("getting creator details: %w", err)
 	}
