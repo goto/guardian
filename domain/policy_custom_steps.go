@@ -47,3 +47,13 @@ func (c *CustomSteps) DecryptConfig(dec Decryptor) error {
 
 	return nil
 }
+
+func (c *CustomSteps) Validate() error {
+	if c.Type != "http" {
+		return fmt.Errorf("invalid custom steps type: %s", c.Type)
+	}
+	if c.Config == nil {
+		return fmt.Errorf("config should not be empty")
+	}
+	return nil
+}

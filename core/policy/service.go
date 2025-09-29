@@ -458,19 +458,9 @@ func (s *Service) validatePolicy(ctx context.Context, p *domain.Policy, excluded
 	}
 
 	if p.HasCustomSteps() {
-		if err := s.validateCustomSteps(p.CustomSteps); err != nil {
-			return fmt.Errorf("invalid dynamic policy steps data: %w", err)
+		if err := p.CustomSteps.Validate(); err != nil {
+			return fmt.Errorf("invalid custom policy steps data: %w", err)
 		}
-	}
-	return nil
-}
-
-func (s *Service) validateCustomSteps(customSteps *domain.CustomSteps) error {
-	if customSteps.Type != "http" {
-		return fmt.Errorf("invalid custom steps type: %s", customSteps.Type)
-	}
-	if customSteps.Config == nil {
-		return fmt.Errorf("config should not be empty")
 	}
 	return nil
 }
