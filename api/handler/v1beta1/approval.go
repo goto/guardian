@@ -93,6 +93,7 @@ func (s *GRPCServer) UpdateApproval(ctx context.Context, req *guardianv1beta1.Up
 	a, err := s.appealService.UpdateApproval(ctx, domain.ApprovalAction{
 		AppealID:     id,
 		ApprovalName: req.GetApprovalName(),
+		ApprovalID:   req.GetApprovalId(),
 		Actor:        actor,
 		Action:       req.GetAction().GetAction(),
 		Reason:       req.GetAction().GetReason(),

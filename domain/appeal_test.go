@@ -1204,7 +1204,7 @@ func TestApprovalAction_Validate(t *testing.T) {
 				AppealID:     "appeal-1",
 				ApprovalName: "",
 			},
-			want: errors.New("approval name is required"),
+			want: errors.New("either approval_name or approval_id is required"),
 		},
 		{
 			name: "InvalidActor",
@@ -1239,4 +1239,3 @@ func TestApprovalAction_Validate(t *testing.T) {
 		})
 	}
 }
-

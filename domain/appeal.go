@@ -373,7 +373,8 @@ const (
 
 type ApprovalAction struct {
 	AppealID     string `validate:"required" json:"appeal_id"`
-	ApprovalName string `validate:"required" json:"approval_name"`
+	ApprovalName string `json:"approval_name"`
+	ApprovalID   string `json:"approval_id"`
 	Actor        string `validate:"email" json:"actor"`
 	Action       string `validate:"required,oneof=approve reject" json:"action"`
 	Reason       string `json:"reason"`
@@ -383,8 +384,9 @@ func (a ApprovalAction) Validate() error {
 	if a.AppealID == "" {
 		return fmt.Errorf("appeal id is required")
 	}
-	if a.ApprovalName == "" {
-		return fmt.Errorf("approval name is required")
+	// Either approval_name or approval_id must be provided
+	if a.ApprovalName == "" && a.ApprovalID == "" {
+		return fmt.Errorf("either approval_name or approval_id is required")
 	}
 	if validator.New().Var(a.Actor, "email") != nil {
 		return fmt.Errorf("actor is not a valid email: %q", a.Actor)
