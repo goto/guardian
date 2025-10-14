@@ -24,6 +24,7 @@ var (
 	}
 
 	grantEntityGroupKeyMapping = map[string]string{
+		"grant":    "grants",
 		"appeal":   "Appeal",
 		"resource": "Resource",
 	}
@@ -39,6 +40,7 @@ func NewGrantRepository(db *gorm.DB) *GrantRepository {
 
 func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilter) ([]domain.Grant, error) {
 	db := r.db.WithContext(ctx)
+	db = applyGrantsJoins(db)
 	var err error
 	db, err = applyGrantsFilter(db, filter)
 	if err != nil {
@@ -66,11 +68,9 @@ func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.Lis
 	if err := utils.ValidateStruct(filter); err != nil {
 		return nil, err
 	}
+
 	db := r.db.WithContext(ctx)
-	db.Joins(`LEFT JOIN "appeals" "Appeal" ON "grants"."appeal_id" = "Appeal"."id"
-  AND "Appeal"."deleted_at" IS NULL`).
-		Joins(`LEFT JOIN "resources" "Resource" ON "grants"."resource_id" = "Resource"."id"
-  AND "Resource"."deleted_at" IS NULL`)
+	db = applyGrantsSummariesJoins(db)
 	var err error
 	db, err = applyGrantsFilter(db, filter)
 	if err != nil {
@@ -164,6 +164,7 @@ func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.Lis
 
 func (r *GrantRepository) GetGrantsTotalCount(ctx context.Context, filter domain.ListGrantsFilter) (int64, error) {
 	db := r.db.WithContext(ctx)
+	db = applyGrantsJoins(db)
 
 	grantFilters := filter
 	grantFilters.Size = 0
@@ -380,16 +381,24 @@ func upsertResources(tx *gorm.DB, models []*model.Grant) error {
 	return nil
 }
 
+func applyGrantsJoins(db *gorm.DB) *gorm.DB {
+	return db.Joins(`LEFT JOIN resources AS "Resource" ON grants.resource_id = "Resource".id AND "Resource".deleted_at IS NULL`)
+}
+
+func applyGrantsSummariesJoins(db *gorm.DB) *gorm.DB {
+	return db.Joins(`LEFT JOIN resources AS "Resource" ON grants.resource_id = "Resource".id AND "Resource".deleted_at IS NULL`).
+		Joins(`LEFT JOIN appeals AS "Appeal" ON grants.appeal_id = "Appeal".id AND "Appeal".deleted_at IS NULL`)
+}
+
 func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, error) {
-	db = db.Joins("JOIN resources ON grants.resource_id = resources.id")
 	if filter.Q != "" {
 		// NOTE: avoid adding conditions before this grouped where clause.
 		// Otherwise, it will be wrapped in parentheses and the query will be invalid.
 		db = db.Where(db.
 			Where(`"grants"."account_id" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
 			Or(`"grants"."role" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
-			Or(`"resources"."urn" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
-			Or(`"resources"."name" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)),
+			Or(`"Resource"."urn" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
+			Or(`"Resource"."name" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)),
 		)
 	}
 
@@ -462,7 +471,6 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	if !filter.ExpirationDateGreaterThan.IsZero() {
 		db = db.Where(`"grants"."expiration_date" > ?`, filter.ExpirationDateGreaterThan)
 	}
-	db = db.Joins("Resource")
 	if filter.ProviderTypes != nil {
 		db = db.Where(`"Resource"."provider_type" IN ?`, filter.ProviderTypes)
 	}
