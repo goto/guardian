@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/pkg/slices"
@@ -24,6 +25,7 @@ const (
 //go:generate mockery --name=repository --exported --with-expecter
 type repository interface {
 	List(context.Context, domain.ListGrantsFilter) ([]domain.Grant, error)
+	GenerateSummary(context.Context, domain.ListGrantsFilter) (*domain.SummaryResult, error)
 	GetByID(context.Context, string) (*domain.Grant, error)
 	Update(context.Context, *domain.Grant) error
 	Patch(context.Context, domain.GrantUpdate) error
@@ -102,6 +104,10 @@ func NewService(deps ServiceDeps) *Service {
 
 func (s *Service) List(ctx context.Context, filter domain.ListGrantsFilter) ([]domain.Grant, error) {
 	return s.repo.List(ctx, filter)
+}
+
+func (s *Service) GenerateSummary(ctx context.Context, filter domain.ListGrantsFilter) (*domain.SummaryResult, error) {
+	return s.repo.GenerateSummary(ctx, filter)
 }
 
 func (s *Service) GetByID(ctx context.Context, id string) (*domain.Grant, error) {

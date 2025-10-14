@@ -1093,6 +1093,22 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "withSummaries",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "summaryGroupBys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -1830,6 +1846,22 @@
           },
           {
             "name": "groupTypes",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "withSummaries",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "summaryGroupBys",
             "in": "query",
             "required": false,
             "type": "array",
@@ -3662,6 +3694,9 @@
         "total": {
           "type": "integer",
           "format": "int32"
+        },
+        "summary": {
+          "$ref": "#/definitions/v1beta1SummaryResult"
         }
       }
     },
@@ -3762,6 +3797,9 @@
         "total": {
           "type": "integer",
           "format": "int32"
+        },
+        "summary": {
+          "$ref": "#/definitions/v1beta1SummaryResult"
         }
       }
     },
