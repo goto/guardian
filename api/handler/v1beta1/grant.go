@@ -4,34 +4,37 @@ import (
 	"context"
 	"errors"
 
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGrantsRequest) (*guardianv1beta1.ListGrantsResponse, error) {
 	filter := domain.ListGrantsFilter{
-		Q:             req.GetQ(),
-		Statuses:      req.GetStatuses(),
-		AccountIDs:    req.GetAccountIds(),
-		AccountTypes:  req.GetAccountTypes(),
-		GroupIDs:      req.GetGroupIds(),
-		GroupTypes:    req.GetGroupTypes(),
-		ResourceIDs:   req.GetResourceIds(),
-		Roles:         req.GetRoles(),
-		ProviderTypes: req.GetProviderTypes(),
-		ProviderURNs:  req.GetProviderUrns(),
-		ResourceTypes: req.GetResourceTypes(),
-		ResourceURNs:  req.GetResourceUrns(),
-		CreatedBy:     req.GetCreatedBy(),
-		Owner:         req.GetOwner(),
-		OrderBy:       req.GetOrderBy(),
-		Size:          int(req.GetSize()),
-		Offset:        int(req.GetOffset()),
+		Q:               req.GetQ(),
+		Statuses:        req.GetStatuses(),
+		AccountIDs:      req.GetAccountIds(),
+		AccountTypes:    req.GetAccountTypes(),
+		GroupIDs:        req.GetGroupIds(),
+		GroupTypes:      req.GetGroupTypes(),
+		ResourceIDs:     req.GetResourceIds(),
+		Roles:           req.GetRoles(),
+		ProviderTypes:   req.GetProviderTypes(),
+		ProviderURNs:    req.GetProviderUrns(),
+		ResourceTypes:   req.GetResourceTypes(),
+		ResourceURNs:    req.GetResourceUrns(),
+		CreatedBy:       req.GetCreatedBy(),
+		Owner:           req.GetOwner(),
+		OrderBy:         req.GetOrderBy(),
+		Size:            int(req.GetSize()),
+		Offset:          int(req.GetOffset()),
+		WithSummaries:   req.WithSummaries,
+		SummaryGroupBys: req.SummaryGroupBys,
 	}
 	grants, total, err := s.listGrants(ctx, filter)
 	if err != nil {
@@ -52,32 +55,48 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 	}
 
 	filter := domain.ListGrantsFilter{
-		Q:             req.GetQ(),
-		Statuses:      req.GetStatuses(),
-		AccountIDs:    req.GetAccountIds(),
-		AccountTypes:  req.GetAccountTypes(),
-		GroupIDs:      req.GetGroupIds(),
-		GroupTypes:    req.GetGroupTypes(),
-		ResourceIDs:   req.GetResourceIds(),
-		Roles:         req.GetRoles(),
-		ProviderTypes: req.GetProviderTypes(),
-		ProviderURNs:  req.GetProviderUrns(),
-		ResourceTypes: req.GetResourceTypes(),
-		ResourceURNs:  req.GetResourceUrns(),
-		OrderBy:       req.GetOrderBy(),
-		Size:          int(req.GetSize()),
-		Offset:        int(req.GetOffset()),
-		Owner:         user,
+		Q:               req.GetQ(),
+		Statuses:        req.GetStatuses(),
+		AccountIDs:      req.GetAccountIds(),
+		AccountTypes:    req.GetAccountTypes(),
+		GroupIDs:        req.GetGroupIds(),
+		GroupTypes:      req.GetGroupTypes(),
+		ResourceIDs:     req.GetResourceIds(),
+		Roles:           req.GetRoles(),
+		ProviderTypes:   req.GetProviderTypes(),
+		ProviderURNs:    req.GetProviderUrns(),
+		ResourceTypes:   req.GetResourceTypes(),
+		ResourceURNs:    req.GetResourceUrns(),
+		OrderBy:         req.GetOrderBy(),
+		Size:            int(req.GetSize()),
+		Offset:          int(req.GetOffset()),
+		Owner:           user,
+		WithSummaries:   req.WithSummaries,
+		SummaryGroupBys: req.SummaryGroupBys,
 	}
 	grants, total, err := s.listGrants(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
 
-	return &guardianv1beta1.ListUserGrantsResponse{
+	g := &guardianv1beta1.ListUserGrantsResponse{
 		Grants: grants,
 		Total:  int32(total),
-	}, nil
+	}
+
+	if filter.WithSummaries {
+		summaries, err := s.grantService.GenerateSummary(ctx, filter)
+		if err != nil {
+			return nil, s.internalError(ctx, "failed to generate summary", err)
+		}
+		summaryProto, err := s.adapter.ToSummaryProto(summaries)
+		if err != nil {
+			return nil, s.internalError(ctx, "failed to parse summary: %v", err)
+		}
+		g.Summary = summaryProto
+	}
+
+	return g, nil
 }
 
 func (s *GRPCServer) GetGrant(ctx context.Context, req *guardianv1beta1.GetGrantRequest) (*guardianv1beta1.GetGrantResponse, error) {
