@@ -72,10 +72,11 @@ func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.Lis
 	db := r.db.WithContext(ctx)
 	db = applyGrantsSummaryJoins(db)
 
-	// omit offset & size
+	// omit offset & size & order_by
 	f := filter
 	f.Offset = 0
 	f.Size = 0
+	f.OrderBy = nil
 
 	var err error
 	db, err = applyGrantsFilter(db, f)
@@ -380,15 +381,11 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	}
 	if len(filter.OrderBy) > 0 {
 		var err error
-		db, err = addOrderByClauseWithBaseTableName(db,
-			filter.OrderBy,
-			addOrderByClauseOptions{
-				statusColumnName: "status",
-				statusesOrder:    GrantStatusDefaultSort,
-			},
-			[]string{"updated_at", "created_at"},
-			"grants",
-		)
+		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
+			statusColumnName: `"grants"."status"`,
+			statusesOrder:    GrantStatusDefaultSort,
+		},
+			[]string{"updated_at", "created_at"})
 
 		if err != nil {
 			return nil, err
@@ -412,7 +409,7 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	if filter.ResourceURNs != nil {
 		db = db.Where(`"Resource"."urn" IN ?`, filter.ResourceURNs)
 	}
-	if filter.ExpiringInDays != 0 {
+	if filter.ExpiringInDays != 0 && slices.Contains(filter.Statuses, "active") {
 		db = db.Where(`"grants"."expiration_date" IS NOT NULL`)
 		db = db.Where(fmt.Sprintf(`"grants"."expiration_date" BETWEEN NOW() AND NOW() + INTERVAL '%d day'`, filter.ExpiringInDays))
 	}

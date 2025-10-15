@@ -57,44 +57,6 @@ func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClause
 	}), nil
 }
 
-func addOrderByClauseWithBaseTableName(db *gorm.DB, conditions []string, options addOrderByClauseOptions, allowedColumns []string, baseTableName string) (*gorm.DB, error) {
-	var orderByClauses []string
-	var vars []interface{}
-
-	for _, orderBy := range conditions {
-		if strings.Contains(orderBy, "status") {
-			orderByClauses = append(orderByClauses, fmt.Sprintf(`ARRAY_POSITION(ARRAY[?], "%s"."%s")`, baseTableName, options.statusColumnName))
-			vars = append(vars, options.statusesOrder)
-		} else {
-			columnOrder := strings.Split(orderBy, ":")
-			columnName := columnOrder[0]
-			if !utils.ContainsString(allowedColumns, columnName) {
-				return nil, fmt.Errorf("cannot order by column %q", columnName)
-			}
-			if len(columnOrder) == 1 {
-				orderByClauses = append(orderByClauses, fmt.Sprintf(`"%s"."%s"`, baseTableName, columnName))
-			} else if len(columnOrder) == 2 {
-				orderDirection := columnOrder[1]
-				if utils.ContainsString([]string{"asc", "desc"}, orderDirection) {
-					orderByClauses = append(orderByClauses, fmt.Sprintf(`"%s"."%s" %s`, baseTableName, columnName, orderDirection))
-				} else if orderDirection == "exact_asc" && columnName == "name" {
-					orderByClauses = append(orderByClauses, fmt.Sprintf(`(CASE WHEN lower("%s"."%s") = '%s' THEN 1 ELSE 2 END)`, baseTableName, columnName, strings.ToLower(options.searchQuery)))
-				} else {
-					return nil, fmt.Errorf("invalid order by direction: %s", orderDirection)
-				}
-			}
-		}
-	}
-
-	return db.Clauses(clause.OrderBy{
-		Expression: clause.Expr{
-			SQL:                strings.Join(orderByClauses, ", "),
-			Vars:               vars,
-			WithoutParentheses: true,
-		},
-	}), nil
-}
-
 func addOrderBy(db *gorm.DB, orderBy string) *gorm.DB {
 	if orderBy != "" {
 		var column, order string
