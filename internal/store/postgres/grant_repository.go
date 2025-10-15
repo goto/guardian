@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/lib/pq"
@@ -70,96 +69,20 @@ func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.Lis
 	}
 
 	db := r.db.WithContext(ctx)
-	db = applyGrantsSummariesJoins(db)
+	db = applyGrantsSummaryJoins(db)
+
+	// omit offset & size
+	f := filter
+	f.Offset = 0
+	f.Size = 0
+
 	var err error
-	db, err = applyGrantsFilter(db, filter)
-	if err != nil {
-		return nil, err
-	}
-	var selectCols []string
-	var groupCols []string
-	// TODO | https://github.com/goto/guardian/pull/218#discussion_r2336292684
-	// Add validation for group bys. e,g. filter to group by 'created_at' since it not make sense.
-	for _, groupKey := range filter.SummaryGroupBys {
-		var column string
-		for i, field := range strings.Split(groupKey, ".") {
-			if i == 0 {
-				tableName, ok := grantEntityGroupKeyMapping[field]
-				if !ok {
-					return nil, fmt.Errorf("%w %q", domain.ErrInvalidGroupByField, field)
-				}
-				column = fmt.Sprintf("%q", tableName)
-				continue
-			}
-
-			column += "." + fmt.Sprintf("%q", field)
-		}
-
-		selectCols = append(selectCols, fmt.Sprintf(`%s AS %q`, column, groupKey))
-		groupCols = append(groupCols, fmt.Sprintf("%q", groupKey))
-	}
-	selectCols = append(selectCols, fmt.Sprintf("COUNT(1) AS %s", countColumnAlias))
-
-	db = db.Table("grants").Select(strings.Join(selectCols, ", "))
-	if len(filter.SummaryGroupBys) > 0 {
-		db = db.Group(strings.Join(groupCols, ", "))
-	}
-
-	// Execute query
-	rows, err := db.Rows()
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	result := &domain.SummaryResult{
-		SummaryGroups: []*domain.SummaryGroup{},
-		Count:         0,
-	}
-
-	cols, err := rows.Columns()
+	db, err = applyGrantsFilter(db, f)
 	if err != nil {
 		return nil, err
 	}
 
-	for rows.Next() {
-		// Prepare scan destination
-		values := make([]interface{}, len(cols))
-		valuePtrs := make([]interface{}, len(cols))
-		for i := range cols {
-			valuePtrs[i] = &values[i]
-		}
-
-		if err := rows.Scan(valuePtrs...); err != nil {
-			return nil, err
-		}
-
-		groupFields := make(map[string]any)
-		var count int32
-		for i, col := range cols {
-			groupValues := values[:i]
-			val := values[i]
-			switch col {
-			case countColumnAlias:
-				intValue, err := strconv.Atoi(fmt.Sprint(val))
-				if err != nil {
-					return nil, fmt.Errorf("invalid count value (%T) for group values: %v", val, groupValues)
-				}
-				count = int32(intValue)
-			default:
-				groupFields[col] = val
-			}
-		}
-		if len(filter.SummaryGroupBys) > 0 {
-			result.SummaryGroups = append(result.SummaryGroups, &domain.SummaryGroup{
-				GroupFields: groupFields,
-				Count:       count,
-			})
-		}
-		result.Count += count
-	}
-
-	return result, nil
+	return generateSummary(ctx, db, "grants", f.SummaryGroupBys, grantEntityGroupKeyMapping)
 }
 
 func (r *GrantRepository) GetGrantsTotalCount(ctx context.Context, filter domain.ListGrantsFilter) (int64, error) {
@@ -382,11 +305,11 @@ func upsertResources(tx *gorm.DB, models []*model.Grant) error {
 }
 
 func applyGrantsJoins(db *gorm.DB) *gorm.DB {
-	return db.Joins("Resource").
-		Joins("Appeal")
+	return db.Joins("Resource", "LEFT").Where(`"Resource".deleted_at IS NULL`).
+		Joins("Appeal", "LEFT").Where(`"Appeal".deleted_at IS NULL`)
 }
 
-func applyGrantsSummariesJoins(db *gorm.DB) *gorm.DB {
+func applyGrantsSummaryJoins(db *gorm.DB) *gorm.DB {
 	return db.Joins(`LEFT JOIN resources AS "Resource" ON grants.resource_id = "Resource".id AND "Resource".deleted_at IS NULL`).
 		Joins(`LEFT JOIN appeals AS "Appeal" ON grants.appeal_id = "Appeal".id AND "Appeal".deleted_at IS NULL`)
 }
@@ -483,6 +406,10 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	}
 	if filter.ResourceURNs != nil {
 		db = db.Where(`"Resource"."urn" IN ?`, filter.ResourceURNs)
+	}
+	if filter.ExpiringInDays != 0 {
+		db = db.Where(`"grants"."expiration_date" IS NOT NULL`)
+		db = db.Where(fmt.Sprintf(`"grants"."expiration_date" BETWEEN NOW() AND NOW() + INTERVAL '%d day'`, filter.ExpiringInDays))
 	}
 	return db, nil
 }

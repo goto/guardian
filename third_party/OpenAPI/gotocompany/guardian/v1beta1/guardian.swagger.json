@@ -1095,7 +1095,14 @@
             "type": "boolean"
           },
           {
-            "name": "withSummaries",
+            "name": "expiringInDays",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "withSummary",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -1855,7 +1862,14 @@
             "collectionFormat": "multi"
           },
           {
-            "name": "withSummaries",
+            "name": "expiringInDays",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "withSummary",
             "in": "query",
             "required": false,
             "type": "boolean"

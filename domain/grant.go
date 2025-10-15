@@ -223,7 +223,8 @@ type ListGrantsFilter struct {
 	Size                      int    `mapstructure:"size" validate:"omitempty"`
 	Offset                    int    `mapstructure:"offset" validate:"omitempty"`
 	Q                         string `mapstructure:"q" validate:"omitempty"`
-	WithSummaries             bool
+	ExpiringInDays            int
+	WithSummary               bool
 	SummaryGroupBys           []string
 }
 

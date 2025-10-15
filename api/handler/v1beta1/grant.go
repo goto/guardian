@@ -33,29 +33,30 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		OrderBy:         req.GetOrderBy(),
 		Size:            int(req.GetSize()),
 		Offset:          int(req.GetOffset()),
-		WithSummaries:   req.WithSummaries,
-		SummaryGroupBys: req.SummaryGroupBys,
+		ExpiringInDays:  int(req.GetExpiringInDays()),
+		WithSummary:     req.GetWithSummary(),
+		SummaryGroupBys: req.GetSummaryGroupBys(),
 	}
-	grants, total, err := s.listGrants(ctx, filter)
+
+	grants, total, summary, err := s.listGrants(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return &guardianv1beta1.ListGrantsResponse{
-		Grants: grants,
-		Total:  int32(total),
+		Grants:  grants,
+		Total:   int32(total),
+		Summary: summary,
 	}, nil
 }
 
 func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.ListUserGrantsRequest) (*guardianv1beta1.ListUserGrantsResponse, error) {
 	user, err := s.getUser(ctx)
-
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, "failed to get metadata: user")
 	}
 
 	filter := domain.ListGrantsFilter{
-		Q:               req.GetQ(),
 		Statuses:        req.GetStatuses(),
 		AccountIDs:      req.GetAccountIds(),
 		AccountTypes:    req.GetAccountTypes(),
@@ -67,36 +68,26 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		ProviderURNs:    req.GetProviderUrns(),
 		ResourceTypes:   req.GetResourceTypes(),
 		ResourceURNs:    req.GetResourceUrns(),
+		Owner:           user,
 		OrderBy:         req.GetOrderBy(),
 		Size:            int(req.GetSize()),
 		Offset:          int(req.GetOffset()),
-		Owner:           user,
-		WithSummaries:   req.WithSummaries,
-		SummaryGroupBys: req.SummaryGroupBys,
+		Q:               req.GetQ(),
+		ExpiringInDays:  int(req.GetExpiringInDays()),
+		WithSummary:     req.GetWithSummary(),
+		SummaryGroupBys: req.GetSummaryGroupBys(),
 	}
-	grants, total, err := s.listGrants(ctx, filter)
+
+	grants, total, summary, err := s.listGrants(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
 
-	g := &guardianv1beta1.ListUserGrantsResponse{
-		Grants: grants,
-		Total:  int32(total),
-	}
-
-	if filter.WithSummaries {
-		summaries, err := s.grantService.GenerateSummary(ctx, filter)
-		if err != nil {
-			return nil, s.internalError(ctx, "failed to generate summary", err)
-		}
-		summaryProto, err := s.adapter.ToSummaryProto(summaries)
-		if err != nil {
-			return nil, s.internalError(ctx, "failed to parse summary: %v", err)
-		}
-		g.Summary = summaryProto
-	}
-
-	return g, nil
+	return &guardianv1beta1.ListUserGrantsResponse{
+		Grants:  grants,
+		Total:   int32(total),
+		Summary: summary,
+	}, nil
 }
 
 func (s *GRPCServer) GetGrant(ctx context.Context, req *guardianv1beta1.GetGrantRequest) (*guardianv1beta1.GetGrantResponse, error) {
@@ -240,9 +231,10 @@ func (s *GRPCServer) RestoreGrant(ctx context.Context, req *guardianv1beta1.Rest
 	}, nil
 }
 
-func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFilter) ([]*guardianv1beta1.Grant, int64, error) {
+func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFilter) ([]*guardianv1beta1.Grant, int64, *guardianv1beta1.SummaryResult, error) {
 	eg, ctx := errgroup.WithContext(ctx)
 	var grants []domain.Grant
+	var summary *domain.SummaryResult
 	var total int64
 
 	eg.Go(func() error {
@@ -261,21 +253,35 @@ func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFil
 		total = totalRecord
 		return nil
 	})
-
+	if filter.WithSummary {
+		eg.Go(func() error {
+			var e error
+			summary, e = s.grantService.GenerateSummary(ctx, filter)
+			if e != nil {
+				return s.internalError(ctx, "failed to generate summary: %s", e.Error())
+			}
+			return nil
+		})
+	}
 	if err := eg.Wait(); err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
 
 	var grantProtos []*guardianv1beta1.Grant
 	for i, a := range grants {
 		grantProto, err := s.adapter.ToGrantProto(&grants[i])
 		if err != nil {
-			return nil, 0, s.internalError(ctx, "failed to parse grant %q: %v", a.ID, err)
+			return nil, 0, nil, s.internalError(ctx, "failed to parse grant %q: %v", a.ID, err)
 		}
 		grantProtos = append(grantProtos, grantProto)
 	}
 
-	return grantProtos, total, nil
+	summaryProto, err := s.adapter.ToSummaryProto(summary)
+	if err != nil {
+		return nil, 0, nil, s.internalError(ctx, "failed to parse summary: %v", err)
+	}
+
+	return grantProtos, total, summaryProto, nil
 }
 
 func (s *GRPCServer) ImportGrantsFromProvider(ctx context.Context, req *guardianv1beta1.ImportGrantsFromProviderRequest) (*guardianv1beta1.ImportGrantsFromProviderResponse, error) {
