@@ -105,7 +105,7 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 	db := r.db.WithContext(ctx)
 	db = applyApprovalsSummariesJoins(db)
 
-	// omit offset & size
+	// omit offset & size & order_by
 	f := *filter
 	f.Offset = 0
 	f.Size = 0
