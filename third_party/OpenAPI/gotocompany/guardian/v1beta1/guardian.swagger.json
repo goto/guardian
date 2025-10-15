@@ -1102,6 +1102,12 @@
             "format": "int64"
           },
           {
+            "name": "hideInactiveWithActive",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
             "name": "withSummary",
             "in": "query",
             "required": false,
@@ -1867,6 +1873,12 @@
             "required": false,
             "type": "integer",
             "format": "int64"
+          },
+          {
+            "name": "hideInactiveWithActive",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           },
           {
             "name": "withSummary",
