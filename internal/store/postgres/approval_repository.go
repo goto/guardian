@@ -109,7 +109,8 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 	f := *filter
 	f.Offset = 0
 	f.Size = 0
-	
+	f.OrderBy = nil
+
 	var err error
 	db, err = applyApprovalsFilter(db, &f)
 	if err != nil {
@@ -233,7 +234,7 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		db = db.Where(`"Appeal"."status" IN ?`, filter.AppealStatuses)
 	}
 
-	if filter.OrderBy != nil {
+	if len(filter.OrderBy) > 0 {
 		var err error
 		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
 			statusColumnName: `"approvals"."status"`,
