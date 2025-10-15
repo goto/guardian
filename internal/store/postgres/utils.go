@@ -1,12 +1,16 @@
 package postgres
 
 import (
+	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
-	"github.com/goto/guardian/utils"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/utils"
 )
 
 type addOrderByClauseOptions struct {
@@ -71,4 +75,92 @@ func addOrderBy(db *gorm.DB, orderBy string) *gorm.DB {
 	}
 
 	return db
+}
+
+func generateSummary(_ context.Context, db *gorm.DB, baseTableName string, groupBys []string, entityGroupKeyMapping map[string]string) (*domain.SummaryResult, error) {
+	const countColumnAlias = "count"
+	var selectCols []string
+	var groupCols []string
+	
+	// TODO | https://github.com/goto/guardian/pull/218#discussion_r2336292684
+	// Add validation for group bys. e,g. filter to group by 'created_at' since it not make sense.
+	for _, groupKey := range groupBys {
+		var column string
+		for i, field := range strings.Split(groupKey, ".") {
+			if i == 0 {
+				tableName, ok := entityGroupKeyMapping[field]
+				if !ok {
+					return nil, fmt.Errorf("%w %q", domain.ErrInvalidGroupByField, field)
+				}
+				column = fmt.Sprintf("%q", tableName)
+				continue
+			}
+
+			column += "." + fmt.Sprintf("%q", field)
+		}
+
+		selectCols = append(selectCols, fmt.Sprintf(`%s AS %q`, column, groupKey))
+		groupCols = append(groupCols, fmt.Sprintf("%q", groupKey))
+	}
+	selectCols = append(selectCols, fmt.Sprintf("COUNT(1) AS %s", countColumnAlias))
+
+	db = db.Table(baseTableName).Select(strings.Join(selectCols, ", "))
+	if len(groupBys) > 0 {
+		db = db.Group(strings.Join(groupCols, ", "))
+	}
+
+	// Execute query
+	rows, err := db.Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := &domain.SummaryResult{
+		SummaryGroups: []*domain.SummaryGroup{},
+		Count:         0,
+	}
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		// Prepare scan destination
+		values := make([]interface{}, len(cols))
+		valuePtrs := make([]interface{}, len(cols))
+		for i := range cols {
+			valuePtrs[i] = &values[i]
+		}
+
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, err
+		}
+
+		groupFields := make(map[string]any)
+		var count int32
+		for i, col := range cols {
+			groupValues := values[:i]
+			val := values[i]
+			switch col {
+			case countColumnAlias:
+				intValue, err := strconv.Atoi(fmt.Sprint(val))
+				if err != nil {
+					return nil, fmt.Errorf("invalid count value (%T) for group values: %v", val, groupValues)
+				}
+				count = int32(intValue)
+			default:
+				groupFields[col] = val
+			}
+		}
+		if len(groupBys) > 0 {
+			result.SummaryGroups = append(result.SummaryGroups, &domain.SummaryGroup{
+				GroupFields: groupFields,
+				Count:       count,
+			})
+		}
+		result.Count += count
+	}
+	return result, nil
 }
