@@ -33,6 +33,7 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		OrderBy:                req.GetOrderBy(),
 		Size:                   int(req.GetSize()),
 		Offset:                 int(req.GetOffset()),
+		OmitGrants:             req.GetOmitGrants(),
 		ExpiringInDays:         int(req.GetExpiringInDays()),
 		HideInactiveWithActive: req.GetHideInactiveWithActive(),
 		WithSummary:            req.GetWithSummary(),
@@ -74,6 +75,7 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		Size:                   int(req.GetSize()),
 		Offset:                 int(req.GetOffset()),
 		Q:                      req.GetQ(),
+		OmitGrants:             req.GetOmitGrants(),
 		ExpiringInDays:         int(req.GetExpiringInDays()),
 		HideInactiveWithActive: req.GetHideInactiveWithActive(),
 		WithSummary:            req.GetWithSummary(),
@@ -239,14 +241,16 @@ func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFil
 	var summary *domain.SummaryResult
 	var total int64
 
-	eg.Go(func() error {
-		grantRecords, err := s.grantService.List(ctx, filter)
-		if err != nil {
-			return s.internalError(ctx, "failed to get grant list: %s", err)
-		}
-		grants = grantRecords
-		return nil
-	})
+	if !filter.OmitGrants {
+		eg.Go(func() error {
+			grantRecords, err := s.grantService.List(ctx, filter)
+			if err != nil {
+				return s.internalError(ctx, "failed to get grant list: %s", err)
+			}
+			grants = grantRecords
+			return nil
+		})
+	}
 	eg.Go(func() error {
 		totalRecord, err := s.grantService.GetGrantsTotalCount(ctx, filter)
 		if err != nil {

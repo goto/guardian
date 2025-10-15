@@ -1095,6 +1095,12 @@
             "type": "boolean"
           },
           {
+            "name": "omitGrants",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
             "name": "expiringInDays",
             "in": "query",
             "required": false,
@@ -1866,6 +1872,12 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "omitGrants",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           },
           {
             "name": "expiringInDays",
