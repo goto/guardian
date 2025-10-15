@@ -378,13 +378,17 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	if !filter.CreatedAtLte.IsZero() {
 		db = db.Where(`"grants"."created_at" <= ?`, filter.CreatedAtLte)
 	}
-	if filter.OrderBy != nil {
+	if len(filter.OrderBy) > 0 {
 		var err error
-		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
-			statusColumnName: `"grants"."status"`,
-			statusesOrder:    GrantStatusDefaultSort,
-		},
-			[]string{"updated_at", "created_at"})
+		db, err = addOrderByClauseWithBaseTableName(db,
+			filter.OrderBy,
+			addOrderByClauseOptions{
+				statusColumnName: "status",
+				statusesOrder:    GrantStatusDefaultSort,
+			},
+			[]string{"updated_at", "created_at"},
+			"grants",
+		)
 
 		if err != nil {
 			return nil, err
@@ -415,10 +419,10 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	if filter.HideInactiveWithActive && slices.Contains(filter.Statuses, "inactive") {
 		db = db.Where(`NOT EXISTS (
 		SELECT 1 FROM grants g2
-		WHERE g2.account_id = "grants".account_id
-		  AND g2.resource_id = "grants".resource_id
-		  AND g2.role = "grants".role
-		  AND g2.permissions = "grants".permissions
+		WHERE g2.account_id = "grants"."account_id"
+		  AND g2.resource_id = "grants"."resource_id"
+		  AND g2.role = "grants"."role"
+		  AND g2.permissions = "grants"."permissions"
 		  AND g2.status = 'active'
 	)`)
 	}
