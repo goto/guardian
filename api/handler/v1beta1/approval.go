@@ -271,7 +271,14 @@ func (s *GRPCServer) listApprovalsSummaries(ctx context.Context, actor string, i
 			summary, err := s.approvalService.GenerateApprovalSummary(egCtx, listApprovalsFilter, parameters.GetGroupBys())
 			if err != nil {
 				switch {
-				case errors.Is(err, domain.ErrInvalidGroupByField):
+				case errors.Is(err, domain.ErrInvalidUniqueInput) ||
+					errors.Is(err, domain.ErrEmptyUniqueTableName) ||
+					errors.Is(err, domain.ErrEmptyUniqueColumnName) ||
+					errors.Is(err, domain.ErrNotSupportedUniqueTableName) ||
+					errors.Is(err, domain.ErrInvalidGroupInput) ||
+					errors.Is(err, domain.ErrEmptyGroupTableName) ||
+					errors.Is(err, domain.ErrEmptyGroupColumnName) ||
+					errors.Is(err, domain.ErrNotSupportedGroupTableName):
 					return s.invalidArgument(egCtx, "invalid argument for %q: %s", key, err)
 				default:
 					return s.internalError(egCtx, "failed to generate approval summary for %q: %s", key, err)

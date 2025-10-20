@@ -77,7 +77,7 @@ func addOrderBy(db *gorm.DB, orderBy string) *gorm.DB {
 	return db
 }
 
-func generateUniqueSummaries(_ context.Context, db *gorm.DB, baseTableName string, fields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryUnique, error) {
+func generateUniqueSummaries(_ context.Context, dbGen func() (*gorm.DB, error), baseTableName string, fields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryUnique, error) {
 	ret := make([]*domain.SummaryUnique, 0, len(fields))
 	if len(fields) == 0 {
 		return ret, nil
@@ -85,21 +85,32 @@ func generateUniqueSummaries(_ context.Context, db *gorm.DB, baseTableName strin
 
 	for _, field := range fields {
 		sq := &domain.SummaryUnique{Field: field}
-
 		vs := strings.Split(field, ".")
 		if len(vs) != 2 {
-			return nil, fmt.Errorf("%w %q", domain.ErrInvalidUniquesField, field)
+			return nil, fmt.Errorf("%w. input: %q", domain.ErrInvalidUniqueInput, field)
 		}
 
 		tableName := strings.TrimSpace(vs[0])
+		if tableName == "" {
+			return nil, fmt.Errorf("%w. input: %q", domain.ErrEmptyUniqueTableName, field)
+		}
 		tableName, ok := entityGroupKeyMapping[tableName]
 		if !ok {
-			return nil, fmt.Errorf("%w %q", domain.ErrInvalidUniquesField, tableName)
+			return nil, fmt.Errorf("%w. input: %q", domain.ErrNotSupportedUniqueTableName, field)
 		}
 
 		columnName := strings.TrimSpace(vs[1])
-		cm := fmt.Sprintf(`"%s"."%s"`, tableName, columnName)
-		if err := db.Table(baseTableName).
+		if columnName == "" {
+			return nil, fmt.Errorf("%w. input: %q", domain.ErrEmptyUniqueColumnName, field)
+		}
+		// TODO add column validation. e,g. grants.unknown_column is not valid column.
+
+		cm := fmt.Sprintf("%q.%q", tableName, columnName)
+		db, err := dbGen()
+		if err != nil {
+			return nil, err
+		}
+		if err = db.Table(baseTableName).
 			Distinct(cm).
 			Order(fmt.Sprintf("%s ASC", cm)).
 			Pluck(cm, &sq.Values).Error; err != nil {
@@ -112,35 +123,46 @@ func generateUniqueSummaries(_ context.Context, db *gorm.DB, baseTableName strin
 	return ret, nil
 }
 
-func generateGroupSummaries(_ context.Context, db *gorm.DB, baseTableName string, groupBys []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryGroup, error) {
+func generateGroupSummaries(_ context.Context, dbGen func() (*gorm.DB, error), baseTableName string, fields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryGroup, error) {
 	sg := make([]*domain.SummaryGroup, 0)
-	if len(groupBys) == 0 {
+	if len(fields) == 0 {
 		return sg, nil
 	}
 
+	db, err := dbGen()
+	if err != nil {
+		return nil, err
+	}
+
 	const countColumnAlias = "count"
-	var selectCols []string
-	var groupCols []string
+	selectCols, groupCols := make([]string, len(fields)), make([]string, len(fields))
 
-	// TODO | https://github.com/goto/guardian/pull/218#discussion_r2336292684
-	// Add validation for group bys. e,g. filter to group by 'created_at' since it not make sense.
-	for _, groupKey := range groupBys {
-		var column string
-		for i, field := range strings.Split(groupKey, ".") {
-			if i == 0 {
-				tableName, ok := entityGroupKeyMapping[field]
-				if !ok {
-					return nil, fmt.Errorf("%w %q", domain.ErrInvalidGroupByField, field)
-				}
-				column = fmt.Sprintf("%q", tableName)
-				continue
-			}
-
-			column += "." + fmt.Sprintf("%q", field)
+	for i, field := range fields {
+		vs := strings.Split(field, ".")
+		if len(vs) != 2 {
+			return nil, fmt.Errorf("%w. input: %q", domain.ErrInvalidGroupInput, field)
 		}
 
-		selectCols = append(selectCols, fmt.Sprintf(`%s AS %q`, column, groupKey))
-		groupCols = append(groupCols, fmt.Sprintf("%q", groupKey))
+		tableName := strings.TrimSpace(vs[0])
+		if tableName == "" {
+			return nil, fmt.Errorf("%w. input: %q", domain.ErrEmptyGroupTableName, field)
+		}
+		tableName, ok := entityGroupKeyMapping[tableName]
+		if !ok {
+			return nil, fmt.Errorf("%w. input: %q", domain.ErrNotSupportedGroupTableName, field)
+		}
+
+		columnName := strings.TrimSpace(vs[1])
+		if columnName == "" {
+			return nil, fmt.Errorf("%w. input: %q", domain.ErrEmptyGroupColumnName, field)
+		}
+		// TODO add column validation. e,g. grants.unknown_column is not valid column.
+		// https://github.com/goto/guardian/pull/218#discussion_r2336292684
+		// Add validation for group bys. e,g. group by 'created_at' is not make sense.
+
+		cm := fmt.Sprintf("%q.%q", tableName, columnName)
+		selectCols[i] = fmt.Sprintf("%s AS %q", cm, field)
+		groupCols[i] = fmt.Sprintf("%q", field)
 	}
 	selectCols = append(selectCols, fmt.Sprintf("COUNT(1) AS %s", countColumnAlias))
 
@@ -167,7 +189,7 @@ func generateGroupSummaries(_ context.Context, db *gorm.DB, baseTableName string
 			valuePtrs[i] = &values[i]
 		}
 
-		if err := rows.Scan(valuePtrs...); err != nil {
+		if err = rows.Scan(valuePtrs...); err != nil {
 			return nil, err
 		}
 
