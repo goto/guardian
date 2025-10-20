@@ -72,19 +72,19 @@ func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.Lis
 	db := r.db.WithContext(ctx)
 	db = applyGrantsSummaryJoins(db)
 
+	sr := new(domain.SummaryResult)
+
 	// omit offset & size & keep order_by for unique summaries
 	f := filter
 	f.Offset = 0
 	f.Size = 0
-
-	sr := new(domain.SummaryResult)
 
 	if len(filter.SummaryUniques) > 0 {
 		db2, err := applyGrantsFilter(db, f)
 		if err != nil {
 			return nil, err
 		}
-		sr.SummaryUniques, err = generateUniqueSummaries(ctx, db2, f.SummaryUniques, grantEntityGroupKeyMapping)
+		sr.SummaryUniques, err = generateUniqueSummaries(ctx, db2, "grants", f.SummaryUniques, grantEntityGroupKeyMapping)
 		if err != nil {
 			return nil, err
 		}
