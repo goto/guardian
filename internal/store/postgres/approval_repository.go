@@ -105,19 +105,31 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 	db := r.db.WithContext(ctx)
 	db = applyApprovalsSummariesJoins(db)
 
-	// omit offset & size & order_by
-	f := *filter
+	// omit offset & size & keep order_by for unique summaries
+	f := filter
 	f.Offset = 0
 	f.Size = 0
 	f.OrderBy = nil
 
-	var err error
-	db, err = applyApprovalsFilter(db, &f)
-	if err != nil {
-		return nil, err
+	sr := new(domain.SummaryResult)
+
+	// omit offset & size & order_by for group summaries
+	if len(groupBys) > 0 {
+		db2, err := applyApprovalsFilter(db, f)
+		if err != nil {
+			return nil, err
+		}
+		sr.SummaryGroups, err = generateGroupSummaries(ctx, db2, "approvals", groupBys, approvalEntityGroupKeyMapping)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return generateSummary(ctx, db, "approvals", groupBys, approvalEntityGroupKeyMapping)
+	// TODO remove this block when already migrated to new summary endpoint
+	sr = generateSummaryResultCount(sr)
+	sr.Count = sr.GroupsCount
+
+	return sr, nil
 }
 
 func (r *ApprovalRepository) BulkInsert(ctx context.Context, approvals []*domain.Approval) error {

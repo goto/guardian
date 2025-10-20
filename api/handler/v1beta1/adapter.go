@@ -1087,6 +1087,8 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 		AppliedParameters: appliedParameters,
 		Groups:            make([]*guardianv1beta1.SummaryResult_Group, len(s.SummaryGroups)),
 		Count:             s.Count,
+		GroupsCount:       s.GroupsCount,
+		UniquesCount:      s.UniquesCount,
 	}
 
 	for i, group := range s.SummaryGroups {
@@ -1098,6 +1100,19 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 		summaryProto.Groups[i] = &guardianv1beta1.SummaryResult_Group{
 			GroupFields: groupFields,
 			Count:       group.Count,
+		}
+	}
+
+	for i, unique := range s.SummaryUniques {
+		values, err := toProtoList(unique.Values)
+		if err != nil {
+			return nil, fmt.Errorf("parsing unique values: %w", err)
+		}
+
+		summaryProto.Uniques[i] = &guardianv1beta1.SummaryResult_Unique{
+			Field:  unique.Field,
+			Values: values,
+			Count:  unique.Count,
 		}
 	}
 
@@ -1192,6 +1207,18 @@ func toGoMap(in map[string]*structpb.Value) map[string]any {
 
 func toProtoMap(in map[string]any) (map[string]*structpb.Value, error) {
 	out := make(map[string]*structpb.Value, len(in))
+	for k, v := range in {
+		val, err := structpb.NewValue(v)
+		if err != nil {
+			return nil, err
+		}
+		out[k] = val
+	}
+	return out, nil
+}
+
+func toProtoList(in []interface{}) ([]*structpb.Value, error) {
+	out := make([]*structpb.Value, len(in))
 	for k, v := range in {
 		val, err := structpb.NewValue(v)
 		if err != nil {
