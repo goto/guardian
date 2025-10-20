@@ -77,14 +77,12 @@ func addOrderBy(db *gorm.DB, orderBy string) *gorm.DB {
 	return db
 }
 
-func generateUniqueSummaries(_ context.Context, db *gorm.DB, fields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryUnique, error) {
+func generateUniqueSummaries(_ context.Context, db *gorm.DB, baseTableName string, fields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryUnique, error) {
 	ret := make([]*domain.SummaryUnique, 0, len(fields))
 	if len(fields) == 0 {
 		return ret, nil
 	}
 
-	// TODO | https://github.com/goto/guardian/pull/218#discussion_r2336292684
-	// Add validation for fields. e,g. unique values for 'id' is not make sense.
 	for _, field := range fields {
 		sq := &domain.SummaryUnique{Field: field}
 
@@ -101,7 +99,8 @@ func generateUniqueSummaries(_ context.Context, db *gorm.DB, fields []string, en
 
 		columnName := strings.TrimSpace(vs[1])
 		cm := fmt.Sprintf(`"%s"."%s"`, tableName, columnName)
-		if err := db.Distinct(cm).
+		if err := db.Table(baseTableName).
+			Distinct(cm).
 			Order(fmt.Sprintf("%s ASC", cm)).
 			Pluck(cm, &sq.Values).Error; err != nil {
 			return nil, err
