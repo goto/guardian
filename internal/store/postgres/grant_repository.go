@@ -72,19 +72,39 @@ func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.Lis
 	db := r.db.WithContext(ctx)
 	db = applyGrantsSummaryJoins(db)
 
-	// omit offset & size & order_by
+	// omit offset & size & keep order_by for unique summaries
 	f := filter
 	f.Offset = 0
 	f.Size = 0
-	f.OrderBy = nil
 
-	var err error
-	db, err = applyGrantsFilter(db, f)
-	if err != nil {
-		return nil, err
+	sr := new(domain.SummaryResult)
+
+	if len(filter.SummaryUniques) > 0 {
+		db2, err := applyGrantsFilter(db, f)
+		if err != nil {
+			return nil, err
+		}
+		sr.SummaryUniques, err = generateUniqueSummaries(ctx, db2, f.SummaryUniques, grantEntityGroupKeyMapping)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return generateSummary(ctx, db, "grants", f.SummaryGroupBys, grantEntityGroupKeyMapping)
+	// omit offset & size & order_by for group summaries
+	f.OrderBy = nil
+
+	if len(filter.SummaryGroupBys) > 0 {
+		db2, err := applyGrantsFilter(db, f)
+		if err != nil {
+			return nil, err
+		}
+		sr.SummaryGroups, err = generateGroupSummaries(ctx, db2, "grants", f.SummaryGroupBys, grantEntityGroupKeyMapping)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return generateSummaryResultCount(sr), nil
 }
 
 func (r *GrantRepository) GetGrantsTotalCount(ctx context.Context, filter domain.ListGrantsFilter) (int64, error) {

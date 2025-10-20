@@ -36,8 +36,8 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		OmitGrants:             req.GetOmitGrants(),
 		ExpiringInDays:         int(req.GetExpiringInDays()),
 		HideInactiveWithActive: req.GetHideInactiveWithActive(),
-		WithSummary:            req.GetWithSummary(),
 		SummaryGroupBys:        req.GetSummaryGroupBys(),
+		SummaryUniques:         req.GetSummaryUniques(),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
@@ -78,8 +78,8 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		OmitGrants:             req.GetOmitGrants(),
 		ExpiringInDays:         int(req.GetExpiringInDays()),
 		HideInactiveWithActive: req.GetHideInactiveWithActive(),
-		WithSummary:            req.GetWithSummary(),
 		SummaryGroupBys:        req.GetSummaryGroupBys(),
+		SummaryUniques:         req.GetSummaryUniques(),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
@@ -259,7 +259,7 @@ func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFil
 		total = totalRecord
 		return nil
 	})
-	if filter.WithSummary {
+	if filter.WithSummary() {
 		eg.Go(func() error {
 			var e error
 			summary, e = s.grantService.GenerateSummary(ctx, filter)

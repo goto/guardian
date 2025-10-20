@@ -1114,13 +1114,17 @@
             "type": "boolean"
           },
           {
-            "name": "withSummary",
+            "name": "summaryGroupBys",
             "in": "query",
             "required": false,
-            "type": "boolean"
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           },
           {
-            "name": "summaryGroupBys",
+            "name": "summaryUniques",
             "in": "query",
             "required": false,
             "type": "array",
@@ -1893,13 +1897,17 @@
             "type": "boolean"
           },
           {
-            "name": "withSummary",
+            "name": "summaryGroupBys",
             "in": "query",
             "required": false,
-            "type": "boolean"
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           },
           {
-            "name": "summaryGroupBys",
+            "name": "summaryUniques",
             "in": "query",
             "required": false,
             "type": "array",
@@ -2918,6 +2926,22 @@
         "groupFields": {
           "type": "object",
           "additionalProperties": {}
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "SummaryResultUnique": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {}
         },
         "count": {
           "type": "integer",
@@ -4233,6 +4257,22 @@
           }
         },
         "count": {
+          "type": "integer",
+          "format": "int32",
+          "title": "deprecated"
+        },
+        "uniques": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/SummaryResultUnique"
+          }
+        },
+        "groupsCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "uniquesCount": {
           "type": "integer",
           "format": "int32"
         }

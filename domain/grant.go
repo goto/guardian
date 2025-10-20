@@ -226,8 +226,12 @@ type ListGrantsFilter struct {
 	OmitGrants                bool
 	ExpiringInDays            int
 	HideInactiveWithActive    bool
-	WithSummary               bool
 	SummaryGroupBys           []string
+	SummaryUniques            []string
+}
+
+func (gf ListGrantsFilter) WithSummary() bool {
+	return len(gf.SummaryGroupBys) > 0 || len(gf.SummaryUniques) > 0
 }
 
 type RevokeGrantsFilter struct {

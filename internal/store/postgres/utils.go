@@ -77,7 +77,46 @@ func addOrderBy(db *gorm.DB, orderBy string) *gorm.DB {
 	return db
 }
 
-func generateSummary(_ context.Context, db *gorm.DB, baseTableName string, groupBys []string, entityGroupKeyMapping map[string]string) (*domain.SummaryResult, error) {
+func generateUniqueSummaries(_ context.Context, db *gorm.DB, fields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryUnique, error) {
+	ret := make([]*domain.SummaryUnique, 0, len(fields))
+	if len(fields) == 0 {
+		return ret, nil
+	}
+
+	// TODO | https://github.com/goto/guardian/pull/218#discussion_r2336292684
+	// Add validation for fields. e,g. unique values for 'id' is not make sense.
+	for _, field := range fields {
+		sq := &domain.SummaryUnique{Field: field}
+
+		vs := strings.Split(field, ".")
+		if len(vs) != 2 {
+			return nil, fmt.Errorf("%w %q", domain.ErrInvalidUniquesField, field)
+		}
+
+		tableName := strings.TrimSpace(vs[0])
+		tableName, ok := entityGroupKeyMapping[tableName]
+		if !ok {
+			return nil, fmt.Errorf("%w %q", domain.ErrInvalidUniquesField, tableName)
+		}
+
+		columnName := strings.TrimSpace(vs[1])
+		err := db.Table(tableName).Distinct(columnName).Order(fmt.Sprintf("%s ASC", columnName)).Pluck(columnName, &sq.Values).Error
+		if err != nil {
+			return nil, err
+		}
+		sq.Count = int32(len(sq.Values))
+		ret = append(ret, sq)
+	}
+
+	return ret, nil
+}
+
+func generateGroupSummaries(_ context.Context, db *gorm.DB, baseTableName string, groupBys []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryGroup, error) {
+	sg := make([]*domain.SummaryGroup, 0)
+	if len(groupBys) == 0 {
+		return sg, nil
+	}
+
 	const countColumnAlias = "count"
 	var selectCols []string
 	var groupCols []string
@@ -105,9 +144,7 @@ func generateSummary(_ context.Context, db *gorm.DB, baseTableName string, group
 	selectCols = append(selectCols, fmt.Sprintf("COUNT(1) AS %s", countColumnAlias))
 
 	db = db.Table(baseTableName).Select(strings.Join(selectCols, ", "))
-	if len(groupBys) > 0 {
-		db = db.Group(strings.Join(groupCols, ", "))
-	}
+	db = db.Group(strings.Join(groupCols, ", "))
 
 	// Execute query
 	rows, err := db.Rows()
@@ -115,11 +152,6 @@ func generateSummary(_ context.Context, db *gorm.DB, baseTableName string, group
 		return nil, err
 	}
 	defer rows.Close()
-
-	result := &domain.SummaryResult{
-		SummaryGroups: []*domain.SummaryGroup{},
-		Count:         0,
-	}
 
 	cols, err := rows.Columns()
 	if err != nil {
@@ -154,13 +186,30 @@ func generateSummary(_ context.Context, db *gorm.DB, baseTableName string, group
 				groupFields[col] = val
 			}
 		}
-		if len(groupBys) > 0 {
-			result.SummaryGroups = append(result.SummaryGroups, &domain.SummaryGroup{
-				GroupFields: groupFields,
-				Count:       count,
-			})
-		}
-		result.Count += count
+		sg = append(sg, &domain.SummaryGroup{
+			GroupFields: groupFields,
+			Count:       count,
+		})
 	}
-	return result, nil
+	return sg, nil
+}
+
+func generateSummaryResultCount(result *domain.SummaryResult) *domain.SummaryResult {
+	if result == nil {
+		return nil
+	}
+	var groupsCount int32
+	for _, v := range result.SummaryGroups {
+		groupsCount += v.Count
+	}
+	var uniquesCount int32
+	for _, v := range result.SummaryUniques {
+		uniquesCount += v.Count
+	}
+	return &domain.SummaryResult{
+		SummaryGroups:  result.SummaryGroups,
+		SummaryUniques: result.SummaryUniques,
+		GroupsCount:    groupsCount,
+		UniquesCount:   uniquesCount,
+	}
 }

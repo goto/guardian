@@ -15,6 +15,7 @@ const (
 )
 
 var (
+	ErrInvalidUniquesField = errors.New("invalid unique field")
 	ErrInvalidGroupByField = errors.New("invalid group by field")
 )
 
