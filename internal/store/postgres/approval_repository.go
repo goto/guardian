@@ -113,7 +113,7 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 		f.OrderBy = nil
 
 		db := r.db.WithContext(ctx)
-		db = applyGrantsSummaryJoins(db)
+		db = applyApprovalsSummaryJoins(db)
 		return applyApprovalsFilter(db, &f)
 	}
 
@@ -199,7 +199,7 @@ func applyApprovalsJoins(db *gorm.DB) *gorm.DB {
 		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
 }
 
-func applyApprovalsSummariesJoins(db *gorm.DB) *gorm.DB {
+func applyApprovalsSummaryJoins(db *gorm.DB) *gorm.DB {
 	return db.Joins(`LEFT JOIN "appeals" "Appeal" ON "approvals"."appeal_id" = "Appeal"."id"
   AND "Appeal"."deleted_at" IS NULL`).
 		Joins(`LEFT JOIN "resources" "Appeal__Resource" ON "Appeal"."resource_id" = "Appeal__Resource"."id"
