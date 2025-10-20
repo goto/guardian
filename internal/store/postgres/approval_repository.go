@@ -98,35 +98,35 @@ func (r *ApprovalRepository) GetApprovalsTotalCount(ctx context.Context, filter 
 }
 
 func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.SummaryResult, error) {
-	if err := utils.ValidateStruct(filter); err != nil {
+	var err error
+	if err = utils.ValidateStruct(filter); err != nil {
 		return nil, err
 	}
 
-	db := r.db.WithContext(ctx)
-	db = applyApprovalsSummariesJoins(db)
-
-	// omit offset & size & keep order_by for unique summaries
-	f := filter
-	f.Offset = 0
-	f.Size = 0
-	f.OrderBy = nil
-
 	sr := new(domain.SummaryResult)
+
+	dbGen := func() (*gorm.DB, error) {
+		// omit offset & size & order_by
+		f := *filter
+		f.Offset = 0
+		f.Size = 0
+		f.OrderBy = nil
+
+		db := r.db.WithContext(ctx)
+		db = applyGrantsSummaryJoins(db)
+		return applyApprovalsFilter(db, &f)
+	}
 
 	// omit offset & size & order_by for group summaries
 	if len(groupBys) > 0 {
-		db2, err := applyApprovalsFilter(db, f)
-		if err != nil {
-			return nil, err
-		}
-		sr.SummaryGroups, err = generateGroupSummaries(ctx, db2, "approvals", groupBys, approvalEntityGroupKeyMapping)
+		sr.SummaryGroups, err = generateGroupSummaries(ctx, dbGen, "approvals", groupBys, approvalEntityGroupKeyMapping)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// TODO remove this block when already migrated to new summary endpoint
 	sr = generateSummaryResultCount(sr)
+	// TODO remove this block when already migrated to new summary endpoint
 	sr.Count = sr.GroupsCount
 
 	return sr, nil

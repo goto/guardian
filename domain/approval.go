@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"errors"
 	"strings"
 	"time"
 )
@@ -12,11 +11,6 @@ const (
 	ApprovalStatusSkipped  = "skipped"
 	ApprovalStatusApproved = "approved"
 	ApprovalStatusRejected = "rejected"
-)
-
-var (
-	ErrInvalidUniquesField = errors.New("invalid unique field")
-	ErrInvalidGroupByField = errors.New("invalid group by field")
 )
 
 type Approval struct {

@@ -12,6 +12,7 @@ import (
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/slices"
 )
 
 func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGrantsRequest) (*guardianv1beta1.ListGrantsResponse, error) {
@@ -36,8 +37,8 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		OmitGrants:             req.GetOmitGrants(),
 		ExpiringInDays:         int(req.GetExpiringInDays()),
 		HideInactiveWithActive: req.GetHideInactiveWithActive(),
-		SummaryGroupBys:        req.GetSummaryGroupBys(),
-		SummaryUniques:         req.GetSummaryUniques(),
+		SummaryGroupBys:        slices.GenericsStandardizeSlice(req.GetSummaryGroupBys()),
+		SummaryUniques:         slices.GenericsStandardizeSlice(req.GetSummaryUniques()),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
@@ -78,8 +79,8 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		OmitGrants:             req.GetOmitGrants(),
 		ExpiringInDays:         int(req.GetExpiringInDays()),
 		HideInactiveWithActive: req.GetHideInactiveWithActive(),
-		SummaryGroupBys:        req.GetSummaryGroupBys(),
-		SummaryUniques:         req.GetSummaryUniques(),
+		SummaryGroupBys:        slices.GenericsStandardizeSlice(req.GetSummaryGroupBys()),
+		SummaryUniques:         slices.GenericsStandardizeSlice(req.GetSummaryUniques()),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
@@ -264,7 +265,19 @@ func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFil
 			var e error
 			summary, e = s.grantService.GenerateSummary(ctx, filter)
 			if e != nil {
-				return s.internalError(ctx, "failed to generate summary: %s", e.Error())
+				switch {
+				case errors.Is(e, domain.ErrInvalidUniqueInput) ||
+					errors.Is(e, domain.ErrEmptyUniqueTableName) ||
+					errors.Is(e, domain.ErrEmptyUniqueColumnName) ||
+					errors.Is(e, domain.ErrNotSupportedUniqueTableName) ||
+					errors.Is(e, domain.ErrInvalidGroupInput) ||
+					errors.Is(e, domain.ErrEmptyGroupTableName) ||
+					errors.Is(e, domain.ErrEmptyGroupColumnName) ||
+					errors.Is(e, domain.ErrNotSupportedGroupTableName):
+					return s.invalidArgument(ctx, "invalid summary argument: %s", e.Error())
+				default:
+					return s.internalError(ctx, "failed to generate summary: %s", e.Error())
+				}
 			}
 			return nil
 		})

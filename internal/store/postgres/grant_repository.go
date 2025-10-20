@@ -65,40 +65,34 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 }
 
 func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.ListGrantsFilter) (*domain.SummaryResult, error) {
-	if err := utils.ValidateStruct(filter); err != nil {
+	var err error
+	if err = utils.ValidateStruct(filter); err != nil {
 		return nil, err
 	}
 
-	db := r.db.WithContext(ctx)
-	db = applyGrantsSummaryJoins(db)
-
 	sr := new(domain.SummaryResult)
 
-	// omit offset & size & keep order_by for unique summaries
-	f := filter
-	f.Offset = 0
-	f.Size = 0
+	dbGen := func() (*gorm.DB, error) {
+		// omit offset & size & order_by
+		f := filter
+		f.Offset = 0
+		f.Size = 0
+		f.OrderBy = nil
+
+		db := r.db.WithContext(ctx)
+		db = applyGrantsSummaryJoins(db)
+		return applyGrantsFilter(db, f)
+	}
 
 	if len(filter.SummaryUniques) > 0 {
-		db2, err := applyGrantsFilter(db, f)
-		if err != nil {
-			return nil, err
-		}
-		sr.SummaryUniques, err = generateUniqueSummaries(ctx, db2, "grants", f.SummaryUniques, grantEntityGroupKeyMapping)
+		sr.SummaryUniques, err = generateUniqueSummaries(ctx, dbGen, "grants", filter.SummaryUniques, grantEntityGroupKeyMapping)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// omit offset & size & order_by for group summaries
-	f.OrderBy = nil
-
 	if len(filter.SummaryGroupBys) > 0 {
-		db2, err := applyGrantsFilter(db, f)
-		if err != nil {
-			return nil, err
-		}
-		sr.SummaryGroups, err = generateGroupSummaries(ctx, db2, "grants", f.SummaryGroupBys, grantEntityGroupKeyMapping)
+		sr.SummaryGroups, err = generateGroupSummaries(ctx, dbGen, "grants", filter.SummaryGroupBys, grantEntityGroupKeyMapping)
 		if err != nil {
 			return nil, err
 		}
@@ -327,13 +321,12 @@ func upsertResources(tx *gorm.DB, models []*model.Grant) error {
 }
 
 func applyGrantsJoins(db *gorm.DB) *gorm.DB {
-	return db.Joins("Resource", "LEFT").Where(`"Resource".deleted_at IS NULL`).
-		Joins("Appeal", "LEFT").Where(`"Appeal".deleted_at IS NULL`)
+	return db.Joins("Resource", "LEFT").Joins("Appeal", "LEFT")
 }
 
 func applyGrantsSummaryJoins(db *gorm.DB) *gorm.DB {
-	return db.Joins(`LEFT JOIN resources AS "Resource" ON grants.resource_id = "Resource".id AND "Resource".deleted_at IS NULL`).
-		Joins(`LEFT JOIN appeals AS "Appeal" ON grants.appeal_id = "Appeal".id AND "Appeal".deleted_at IS NULL`)
+	return db.Joins(`LEFT JOIN "resources" AS "Resource" ON "grants"."resource_id" = "Resource"."id"`).
+		Joins(`LEFT JOIN "appeals" AS "Appeal" ON "grants"."appeal_id" = "Appeal"."id"`)
 }
 
 func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, error) {
