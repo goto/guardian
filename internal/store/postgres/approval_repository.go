@@ -202,7 +202,7 @@ func applyApprovalsJoins(db *gorm.DB) *gorm.DB {
 func applyApprovalsSummaryJoins(db *gorm.DB) *gorm.DB {
 	return db.Joins(`LEFT JOIN "appeals" "Appeal" ON "approvals"."appeal_id" = "Appeal"."id"`).
 		Joins(`LEFT JOIN "resources" "Appeal__Resource" ON "Appeal"."resource_id" = "Appeal__Resource"."id"`).
-		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
+		Joins(`LEFT JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
 }
 
 func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, error) {
