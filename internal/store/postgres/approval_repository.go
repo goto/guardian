@@ -200,10 +200,8 @@ func applyApprovalsJoins(db *gorm.DB) *gorm.DB {
 }
 
 func applyApprovalsSummaryJoins(db *gorm.DB) *gorm.DB {
-	return db.Joins(`LEFT JOIN "appeals" "Appeal" ON "approvals"."appeal_id" = "Appeal"."id"
-  AND "Appeal"."deleted_at" IS NULL`).
-		Joins(`LEFT JOIN "resources" "Appeal__Resource" ON "Appeal"."resource_id" = "Appeal__Resource"."id"
-  AND "Appeal__Resource"."deleted_at" IS NULL`).
+	return db.Joins(`LEFT JOIN "appeals" "Appeal" ON "approvals"."appeal_id" = "Appeal"."id"`).
+		Joins(`LEFT JOIN "resources" "Appeal__Resource" ON "Appeal"."resource_id" = "Appeal__Resource"."id"`).
 		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
 }
 
