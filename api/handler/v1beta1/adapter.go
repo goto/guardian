@@ -1086,6 +1086,7 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 	summaryProto := &guardianv1beta1.SummaryResult{
 		AppliedParameters: appliedParameters,
 		Groups:            make([]*guardianv1beta1.SummaryResult_Group, len(s.SummaryGroups)),
+		Uniques:           make([]*guardianv1beta1.SummaryResult_Unique, len(s.SummaryUniques)),
 		Count:             s.Count,
 		GroupsCount:       s.GroupsCount,
 		UniquesCount:      s.UniquesCount,
