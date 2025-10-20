@@ -101,8 +101,7 @@ func generateUniqueSummaries(_ context.Context, db *gorm.DB, fields []string, en
 
 		columnName := strings.TrimSpace(vs[1])
 		cm := fmt.Sprintf(`"%s"."%s"`, tableName, columnName)
-		if err := db.Table(tableName).
-			Distinct(cm).
+		if err := db.Distinct(cm).
 			Order(fmt.Sprintf("%s ASC", cm)).
 			Pluck(cm, &sq.Values).Error; err != nil {
 			return nil, err
