@@ -49,9 +49,17 @@ func GenericsIsSliceEqual[T comparable](a, b []T) bool {
 }
 
 func GenericsStandardizeSlice[T constraints.Ordered](list []T) []T {
+	list = GenericsStandardizeSliceNilAble(list)
 	if list == nil {
 		list = make([]T, 0)
 		return list
+	}
+	return list
+}
+
+func GenericsStandardizeSliceNilAble[T constraints.Ordered](list []T) []T {
+	if list == nil {
+		return nil
 	}
 	result := GenericsFilterSliceEmptyValues(list)
 	result = GenericsUniqueSliceValues(result)
