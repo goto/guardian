@@ -37,8 +37,8 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		OmitGrants:             req.GetOmitGrants(),
 		ExpiringInDays:         int(req.GetExpiringInDays()),
 		HideInactiveWithActive: req.GetHideInactiveWithActive(),
-		SummaryGroupBys:        slices.GenericsStandardizeSlice(req.GetSummaryGroupBys()),
-		SummaryUniques:         slices.GenericsStandardizeSlice(req.GetSummaryUniques()),
+		SummaryGroupBys:        slices.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
+		SummaryUniques:         slices.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
@@ -79,8 +79,8 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		OmitGrants:             req.GetOmitGrants(),
 		ExpiringInDays:         int(req.GetExpiringInDays()),
 		HideInactiveWithActive: req.GetHideInactiveWithActive(),
-		SummaryGroupBys:        slices.GenericsStandardizeSlice(req.GetSummaryGroupBys()),
-		SummaryUniques:         slices.GenericsStandardizeSlice(req.GetSummaryUniques()),
+		SummaryGroupBys:        slices.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
+		SummaryUniques:         slices.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
