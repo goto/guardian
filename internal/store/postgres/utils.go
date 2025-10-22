@@ -84,7 +84,7 @@ func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error)
 	if len(fields) == 0 {
 		return ret, nil
 	}
-	eg, ctx := errgroup.WithContext(ctx)
+	eg, _ := errgroup.WithContext(ctx)
 	mu := &sync.Mutex{}
 	for _, field := range fields {
 		field := field
