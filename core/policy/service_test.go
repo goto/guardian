@@ -9,6 +9,9 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
+
 	"github.com/goto/guardian/core/policy"
 	policymocks "github.com/goto/guardian/core/policy/mocks"
 	"github.com/goto/guardian/core/provider"
@@ -16,8 +19,6 @@ import (
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/mocks"
 	"github.com/goto/guardian/plugins/identities"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
 )
 
 type ServiceTestSuite struct {
@@ -402,7 +403,7 @@ func (s *ServiceTestSuite) TestCreate() {
 		s.Nil(actualError)
 		s.Equal(expectedVersion, validPolicy.Version)
 		s.mockPolicyRepository.AssertExpectations(s.T())
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Second)
 		s.mockAuditLogger.AssertExpectations(s.T())
 		s.mockCrypto.AssertExpectations(s.T())
 	})
