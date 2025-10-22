@@ -48,6 +48,7 @@ type Grant struct {
 	RequestedExpirationDate *time.Time  `json:"requested_expiration_date,omitempty" yaml:"requested_expiration_date,omitempty"`
 	ExpirationDateReason    string      `json:"expiration_date_reason,omitempty" yaml:"expiration_date_reason,omitempty"`
 	AppealID                string      `json:"appeal_id" yaml:"appeal_id"`
+	PendingAppealID         string      `json:"pending_appeal_id" yaml:"pending_appeal_id,omitempty" gorm:"-"`
 	Source                  GrantSource `json:"source" yaml:"source"`
 	RevokedBy               string      `json:"revoked_by,omitempty" yaml:"revoked_by,omitempty"`
 	RevokedAt               *time.Time  `json:"revoked_at,omitempty" yaml:"revoked_at,omitempty"`
@@ -230,6 +231,7 @@ type ListGrantsFilter struct {
 	ExpiringInDays            int
 	InactiveGrantPolicy       guardianv1beta1.InactiveGrantPolicy
 	FieldMasks                []string
+	WithPendingAppeal         bool
 }
 
 func (gf ListGrantsFilter) WithSummary() bool {

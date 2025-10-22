@@ -1130,6 +1130,12 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "withPendingAppeal",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -1924,6 +1930,12 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "withPendingAppeal",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -3602,6 +3614,9 @@
           "type": "string"
         },
         "groupType": {
+          "type": "string"
+        },
+        "pendingAppealId": {
           "type": "string"
         }
       }

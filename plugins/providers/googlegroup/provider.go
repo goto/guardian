@@ -152,7 +152,6 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 }
 
 func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, grant domain.Grant) error {
-
 	memberEmail := grant.AccountID
 
 	// check if the memberEmail matches the expected format for the account type
@@ -199,7 +198,6 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 }
 
 func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, grant domain.Grant) error {
-
 	client, err := p.GetAdminServiceClient(ctx, *pc)
 	if err != nil {
 		return fmt.Errorf("failed to get admin client: %w", err)

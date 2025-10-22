@@ -1239,4 +1239,3 @@ func TestApprovalAction_Validate(t *testing.T) {
 		})
 	}
 }
-
