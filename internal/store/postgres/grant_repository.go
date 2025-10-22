@@ -429,10 +429,12 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		db = db.Where(`"grants"."expiration_date" IS NOT NULL`)
 		db = db.Where(fmt.Sprintf(`"grants"."expiration_date" BETWEEN NOW() AND NOW() + INTERVAL '%d day'`, filter.ExpiringInDays))
 	}
-	if owner != "" && slices.Contains(filter.Statuses, "inactive") {
+	if owner != "" && (len(filter.Statuses) == 0 || slices.Contains(filter.Statuses, "inactive")) {
 		switch filter.InactiveGrantPolicy {
-		// Smart visibility mode:
-		// - If a resource has both active and inactive grants, only active ones are shown.
+		case guardianv1beta1.InactiveGrantPolicy_INACTIVE_GRANT_POLICY_UNSPECIFIED:
+			fallthrough
+		case guardianv1beta1.InactiveGrantPolicy_INACTIVE_GRANT_POLICY_INCLUDE_ALL:
+			break
 		case guardianv1beta1.InactiveGrantPolicy_INACTIVE_GRANT_POLICY_SMART:
 			q := fmt.Sprintf(`NOT EXISTS (
 		SELECT 1 FROM grants g2
@@ -444,6 +446,8 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		  AND LOWER("g2"."owner") = '%s'
 	)`, owner)
 			db = db.Where(q)
+		default:
+			return nil, fmt.Errorf("unknown inactive grant policy: %q", fmt.Sprint(filter.InactiveGrantPolicy))
 		}
 	}
 	return db, nil
