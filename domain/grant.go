@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/pkg/diff"
 )
 
@@ -223,14 +224,18 @@ type ListGrantsFilter struct {
 	Size                      int    `mapstructure:"size" validate:"omitempty"`
 	Offset                    int    `mapstructure:"offset" validate:"omitempty"`
 	Q                         string `mapstructure:"q" validate:"omitempty"`
-	OmitGrants                bool
-	ExpiringInDays            int
-	HideInactiveWithActive    bool
 	SummaryGroupBys           []string
 	SummaryUniques            []string
+	ExpiringInDays            int
+	InactiveGrantPolicy       guardianv1beta1.InactiveGrantPolicy
+	FieldMasks                []string
 }
 
 func (gf ListGrantsFilter) WithSummary() bool {
+	return len(gf.SummaryGroupBys) > 0 || len(gf.SummaryUniques) > 0
+}
+
+func (gf ListGrantsFilter) WithGrant() bool {
 	return len(gf.SummaryGroupBys) > 0 || len(gf.SummaryUniques) > 0
 }
 
