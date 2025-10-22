@@ -59,7 +59,7 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 	for i, m := range models {
 		g, err := m.ToDomain()
 		if err != nil {
-			return nil, fmt.Errorf("parsing grant %q: %w", g.ID, err)
+			return nil, fmt.Errorf("parsing grant %q: %w", m.ID, err)
 		}
 		grants[i] = *g
 		accountIDs[i] = m.AccountID
@@ -82,15 +82,15 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 	if err != nil {
 		return nil, err
 	}
-	var appeals []*model.Appeal
-	if err = db.Find(&appeals).Error; err != nil {
+	var models2 []*model.Appeal
+	if err = db.Find(&models2).Error; err != nil {
 		return nil, err
 	}
-	pendingAppeals := make([]*domain.Appeal, len(appeals))
-	for i, appeal := range appeals {
-		a, err := appeal.ToDomain()
+	pendingAppeals := make([]*domain.Appeal, len(models2))
+	for i, m := range models2 {
+		a, err := m.ToDomain()
 		if err != nil {
-			return nil, fmt.Errorf("parsing appeal %q: %w", appeal.ID, err)
+			return nil, fmt.Errorf("parsing appeal %q: %w", m.ID, err)
 		}
 		pendingAppeals[i] = a
 	}
