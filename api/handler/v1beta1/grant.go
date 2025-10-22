@@ -241,7 +241,7 @@ func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFil
 	var summary *domain.SummaryResult
 	var total int64
 
-	if !slices.GenericsSliceContainsOne(filter.FieldMasks, "grant") {
+	if filter.WithGrant() {
 		eg.Go(func() error {
 			grantRecords, err := s.grantService.List(ctx, filter)
 			if err != nil {

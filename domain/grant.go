@@ -9,6 +9,7 @@ import (
 
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/pkg/diff"
+	"github.com/goto/guardian/pkg/slices"
 )
 
 type GrantStatus string
@@ -236,7 +237,7 @@ func (gf ListGrantsFilter) WithSummary() bool {
 }
 
 func (gf ListGrantsFilter) WithGrant() bool {
-	return len(gf.SummaryGroupBys) > 0 || len(gf.SummaryUniques) > 0
+	return !slices.GenericsSliceContainsOne(gf.FieldMasks, "grant")
 }
 
 type RevokeGrantsFilter struct {
