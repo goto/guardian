@@ -21,6 +21,10 @@ func UniqueStringSlice(slice []string) []string {
 }
 
 func ToLowerStringSlice(slice []string) []string {
+	if slice == nil {
+		return nil
+	}
+
 	result := make([]string, len(slice))
 	for i, v := range slice {
 		result[i] = strings.ToLower(v)
