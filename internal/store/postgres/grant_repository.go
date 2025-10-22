@@ -100,7 +100,7 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 				break
 			}
 			if strings.EqualFold(g.ResourceID, appeal.ResourceID) &&
-				strings.EqualFold(g.Appeal.AccountID, appeal.AccountID) &&
+				strings.EqualFold(g.AccountID, appeal.AccountID) &&
 				strings.EqualFold(g.Role, appeal.Role) {
 				g.PendingAppealID = appeal.ID
 				grants[i] = g
