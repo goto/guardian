@@ -17,28 +17,27 @@ import (
 
 func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGrantsRequest) (*guardianv1beta1.ListGrantsResponse, error) {
 	filter := domain.ListGrantsFilter{
-		Q:                      req.GetQ(),
-		Statuses:               req.GetStatuses(),
-		AccountIDs:             req.GetAccountIds(),
-		AccountTypes:           req.GetAccountTypes(),
-		GroupIDs:               req.GetGroupIds(),
-		GroupTypes:             req.GetGroupTypes(),
-		ResourceIDs:            req.GetResourceIds(),
-		Roles:                  req.GetRoles(),
-		ProviderTypes:          req.GetProviderTypes(),
-		ProviderURNs:           req.GetProviderUrns(),
-		ResourceTypes:          req.GetResourceTypes(),
-		ResourceURNs:           req.GetResourceUrns(),
-		CreatedBy:              req.GetCreatedBy(),
-		Owner:                  req.GetOwner(),
-		OrderBy:                req.GetOrderBy(),
-		Size:                   int(req.GetSize()),
-		Offset:                 int(req.GetOffset()),
-		OmitGrants:             req.GetOmitGrants(),
-		ExpiringInDays:         int(req.GetExpiringInDays()),
-		HideInactiveWithActive: req.GetHideInactiveWithActive(),
-		SummaryGroupBys:        slices.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
-		SummaryUniques:         slices.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
+		Q:               req.GetQ(),
+		Statuses:        req.GetStatuses(),
+		AccountIDs:      req.GetAccountIds(),
+		AccountTypes:    req.GetAccountTypes(),
+		GroupIDs:        req.GetGroupIds(),
+		GroupTypes:      req.GetGroupTypes(),
+		ResourceIDs:     req.GetResourceIds(),
+		Roles:           req.GetRoles(),
+		ProviderTypes:   req.GetProviderTypes(),
+		ProviderURNs:    req.GetProviderUrns(),
+		ResourceTypes:   req.GetResourceTypes(),
+		ResourceURNs:    req.GetResourceUrns(),
+		CreatedBy:       req.GetCreatedBy(),
+		Owner:           req.GetOwner(),
+		OrderBy:         req.GetOrderBy(),
+		Size:            int(req.GetSize()),
+		Offset:          int(req.GetOffset()),
+		SummaryGroupBys: slices.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
+		SummaryUniques:  slices.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
+		ExpiringInDays:  int(req.GetExpiringInDays()),
+		FieldMasks:      req.GetFieldMasks(),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
@@ -60,27 +59,27 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 	}
 
 	filter := domain.ListGrantsFilter{
-		Statuses:               req.GetStatuses(),
-		AccountIDs:             req.GetAccountIds(),
-		AccountTypes:           req.GetAccountTypes(),
-		GroupIDs:               req.GetGroupIds(),
-		GroupTypes:             req.GetGroupTypes(),
-		ResourceIDs:            req.GetResourceIds(),
-		Roles:                  req.GetRoles(),
-		ProviderTypes:          req.GetProviderTypes(),
-		ProviderURNs:           req.GetProviderUrns(),
-		ResourceTypes:          req.GetResourceTypes(),
-		ResourceURNs:           req.GetResourceUrns(),
-		Owner:                  user,
-		OrderBy:                req.GetOrderBy(),
-		Size:                   int(req.GetSize()),
-		Offset:                 int(req.GetOffset()),
-		Q:                      req.GetQ(),
-		OmitGrants:             req.GetOmitGrants(),
-		ExpiringInDays:         int(req.GetExpiringInDays()),
-		HideInactiveWithActive: req.GetHideInactiveWithActive(),
-		SummaryGroupBys:        slices.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
-		SummaryUniques:         slices.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
+		Statuses:            req.GetStatuses(),
+		AccountIDs:          req.GetAccountIds(),
+		AccountTypes:        req.GetAccountTypes(),
+		GroupIDs:            req.GetGroupIds(),
+		GroupTypes:          req.GetGroupTypes(),
+		ResourceIDs:         req.GetResourceIds(),
+		Roles:               req.GetRoles(),
+		ProviderTypes:       req.GetProviderTypes(),
+		ProviderURNs:        req.GetProviderUrns(),
+		ResourceTypes:       req.GetResourceTypes(),
+		ResourceURNs:        req.GetResourceUrns(),
+		Owner:               user,
+		OrderBy:             req.GetOrderBy(),
+		Size:                int(req.GetSize()),
+		Offset:              int(req.GetOffset()),
+		Q:                   req.GetQ(),
+		SummaryGroupBys:     slices.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
+		SummaryUniques:      slices.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
+		ExpiringInDays:      int(req.GetExpiringInDays()),
+		InactiveGrantPolicy: req.GetInactiveGrantPolicy(),
+		FieldMasks:          req.GetFieldMasks(),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
@@ -242,7 +241,7 @@ func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFil
 	var summary *domain.SummaryResult
 	var total int64
 
-	if !filter.OmitGrants {
+	if !slices.GenericsSliceContainsOne(filter.FieldMasks, "grant") {
 		eg.Go(func() error {
 			grantRecords, err := s.grantService.List(ctx, filter)
 			if err != nil {
@@ -251,15 +250,15 @@ func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFil
 			grants = grantRecords
 			return nil
 		})
+		eg.Go(func() error {
+			totalRecord, err := s.grantService.GetGrantsTotalCount(ctx, filter)
+			if err != nil {
+				return s.internalError(ctx, "failed to get grant total count: %s", err)
+			}
+			total = totalRecord
+			return nil
+		})
 	}
-	eg.Go(func() error {
-		totalRecord, err := s.grantService.GetGrantsTotalCount(ctx, filter)
-		if err != nil {
-			return s.internalError(ctx, "failed to get grant total count: %s", err)
-		}
-		total = totalRecord
-		return nil
-	})
 	if filter.WithSummary() {
 		eg.Go(func() error {
 			var e error

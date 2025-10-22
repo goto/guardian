@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -77,49 +79,55 @@ func addOrderBy(db *gorm.DB, orderBy string) *gorm.DB {
 	return db
 }
 
-func generateUniqueSummaries(_ context.Context, dbGen func() (*gorm.DB, error), baseTableName string, fields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryUnique, error) {
+func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error), baseTableName string, fields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryUnique, error) {
 	ret := make([]*domain.SummaryUnique, 0, len(fields))
 	if len(fields) == 0 {
 		return ret, nil
 	}
-
+	eg, ctx := errgroup.WithContext(ctx)
+	mu := &sync.Mutex{}
 	for _, field := range fields {
-		sq := &domain.SummaryUnique{Field: field}
-		vs := strings.Split(field, ".")
-		if len(vs) != 2 {
-			return nil, fmt.Errorf("%w. input: %q", domain.ErrInvalidUniqueInput, field)
-		}
+		field := field
+		eg.Go(func() error {
+			sq := &domain.SummaryUnique{Field: field}
+			vs := strings.Split(field, ".")
+			if len(vs) != 2 {
+				return fmt.Errorf("%w. input: %q", domain.ErrInvalidUniqueInput, field)
+			}
 
-		tableName := strings.TrimSpace(vs[0])
-		if tableName == "" {
-			return nil, fmt.Errorf("%w. input: %q", domain.ErrEmptyUniqueTableName, field)
-		}
-		tableName, ok := entityGroupKeyMapping[tableName]
-		if !ok {
-			return nil, fmt.Errorf("%w. input: %q", domain.ErrNotSupportedUniqueTableName, field)
-		}
+			tableName := strings.TrimSpace(vs[0])
+			if tableName == "" {
+				return fmt.Errorf("%w. input: %q", domain.ErrEmptyUniqueTableName, field)
+			}
+			tableName, ok := entityGroupKeyMapping[tableName]
+			if !ok {
+				return fmt.Errorf("%w. input: %q", domain.ErrNotSupportedUniqueTableName, field)
+			}
 
-		columnName := strings.TrimSpace(vs[1])
-		if columnName == "" {
-			return nil, fmt.Errorf("%w. input: %q", domain.ErrEmptyUniqueColumnName, field)
-		}
-		// TODO add column validation. e,g. grants.unknown_column is not valid column.
+			columnName := strings.TrimSpace(vs[1])
+			if columnName == "" {
+				return fmt.Errorf("%w. input: %q", domain.ErrEmptyUniqueColumnName, field)
+			}
+			// TODO add column validation. e,g. grants.unknown_column is not valid column.
 
-		cm := fmt.Sprintf("%q.%q", tableName, columnName)
-		db, err := dbGen()
-		if err != nil {
-			return nil, err
-		}
-		if err = db.Table(baseTableName).
-			Distinct(cm).
-			Order(fmt.Sprintf("%s ASC", cm)).
-			Pluck(cm, &sq.Values).Error; err != nil {
-			return nil, err
-		}
-		sq.Count = int32(len(sq.Values))
-		ret = append(ret, sq)
+			cm := fmt.Sprintf("%q.%q", tableName, columnName)
+			db, err := dbGen()
+			if err != nil {
+				return err
+			}
+			if err = db.Table(baseTableName).
+				Distinct(cm).
+				Order(fmt.Sprintf("%s ASC", cm)).
+				Pluck(cm, &sq.Values).Error; err != nil {
+				return err
+			}
+			sq.Count = int32(len(sq.Values))
+			mu.Lock()
+			ret = append(ret, sq)
+			mu.Unlock()
+			return nil
+		})
 	}
-
 	return ret, nil
 }
 
