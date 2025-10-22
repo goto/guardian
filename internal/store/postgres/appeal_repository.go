@@ -13,6 +13,7 @@ import (
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres/model"
+	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
 
@@ -264,8 +265,8 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.DB
 	if len(filters.ResourceIDs) != 0 {
 		db = db.Where(`"appeals"."resource_id" IN ?`, filters.ResourceIDs)
 	}
-	if filters.Role != "" {
-		db = db.Where(`"appeals"."role" = ?`, filters.Role)
+	if filters.Role != "" || len(filters.Roles) > 0 {
+		db = db.Where(`LOWER("appeals"."role") IN ?`, slicesUtil.ToLowerStringSlice(slicesUtil.GenericsStandardizeSlice(append(filters.Roles, filters.Role))))
 	}
 	if !filters.ExpirationDateLessThan.IsZero() {
 		db = db.Where(`"options" -> 'expiration_date' < ?`, filters.ExpirationDateLessThan)

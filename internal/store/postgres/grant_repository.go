@@ -54,15 +54,17 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 		return nil, err
 	}
 
-	grants, accountIDs, resourceIDs := make([]domain.Grant, len(models)), make([]string, len(models)), make([]string, len(models))
+	grants := make([]domain.Grant, len(models))
+	accountIDs, resourceIDs, roles := make([]string, len(models)), make([]string, len(models)), make([]string, len(models))
 	for i, m := range models {
 		g, err := m.ToDomain()
 		if err != nil {
 			return nil, fmt.Errorf("parsing grant %q: %w", g.ID, err)
 		}
 		grants[i] = *g
-		accountIDs[i] = strings.ToLower(m.Appeal.AccountID)
-		resourceIDs[i] = strings.ToLower(m.Appeal.ResourceID)
+		accountIDs[i] = m.AccountID
+		resourceIDs[i] = m.ResourceID
+		roles[i] = m.Role
 	}
 
 	if !filter.WithPendingAppeal {
@@ -75,6 +77,7 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 		Statuses:    []string{"pending"},
 		AccountIDs:  slicesUtil.GenericsStandardizeSlice(accountIDs),
 		ResourceIDs: slicesUtil.GenericsStandardizeSlice(resourceIDs),
+		Roles:       slicesUtil.GenericsStandardizeSlice(roles),
 	})
 	if err != nil {
 		return nil, err
