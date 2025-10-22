@@ -128,6 +128,9 @@ func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error)
 			return nil
 		})
 	}
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
 	return ret, nil
 }
 
