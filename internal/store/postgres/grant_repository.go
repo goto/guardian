@@ -15,6 +15,7 @@ import (
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres/model"
+	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
 
@@ -53,13 +54,56 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 		return nil, err
 	}
 
-	var grants []domain.Grant
-	for _, m := range models {
+	grants, accountIDs, resourceIDs := make([]domain.Grant, len(models)), make([]string, len(models)), make([]string, len(models))
+	for i, m := range models {
 		g, err := m.ToDomain()
 		if err != nil {
 			return nil, fmt.Errorf("parsing grant %q: %w", g.ID, err)
 		}
-		grants = append(grants, *g)
+		grants[i] = *g
+		accountIDs[i] = strings.ToLower(m.Appeal.AccountID)
+		resourceIDs[i] = strings.ToLower(m.Appeal.ResourceID)
+	}
+
+	if !filter.WithPendingAppeal {
+		return grants, nil
+	}
+
+	// TODO: move this to service layer. currently appeal service is not supported when attached to the grant service
+	db = r.db.WithContext(ctx)
+	db, err = applyAppealFilter(db, &domain.ListAppealsFilter{
+		Statuses:    []string{"pending"},
+		AccountIDs:  slicesUtil.GenericsStandardizeSlice(accountIDs),
+		ResourceIDs: slicesUtil.GenericsStandardizeSlice(resourceIDs),
+	})
+	if err != nil {
+		return nil, err
+	}
+	var appeals []*model.Appeal
+	if err = db.Find(&appeals).Error; err != nil {
+		return nil, err
+	}
+	pendingAppeals := make([]*domain.Appeal, len(appeals))
+	for i, appeal := range appeals {
+		a, err := appeal.ToDomain()
+		if err != nil {
+			return nil, fmt.Errorf("parsing appeal %q: %w", appeal.ID, err)
+		}
+		pendingAppeals[i] = a
+	}
+	for i, g := range grants {
+		for _, appeal := range pendingAppeals {
+			if appeal.Resource == nil {
+				break
+			}
+			if strings.EqualFold(g.ResourceID, appeal.ResourceID) &&
+				strings.EqualFold(g.Appeal.AccountID, appeal.AccountID) &&
+				strings.EqualFold(g.Role, appeal.Role) {
+				g.PendingAppealID = appeal.ID
+				grants[i] = g
+				break
+			}
+		}
 	}
 
 	return grants, nil

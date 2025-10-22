@@ -300,7 +300,7 @@ func (s *AppealRepositoryTestSuite) TestFind() {
 	s.Run("should run query with group filters", func() {
 		testGroupID1 := "test-group-id-1"
 		testGroupID2 := "test-group-id-2"
-		
+
 		groupAppeals := []*domain.Appeal{
 			{
 				ResourceID:    s.dummyResource.ID,
@@ -334,10 +334,10 @@ func (s *AppealRepositoryTestSuite) TestFind() {
 		s.Require().NoError(err)
 
 		testCases := []struct {
-			name           string
-			filters        *domain.ListAppealsFilter
-			expectedCount  int
-			expectedIDs    []string
+			name          string
+			filters       *domain.ListAppealsFilter
+			expectedCount int
+			expectedIDs   []string
 		}{
 			{
 				name: "filter by single group_id",

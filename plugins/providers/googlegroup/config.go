@@ -66,7 +66,6 @@ func (pc *config) validateResourceConfig() error {
 					return fmt.Errorf("invalid permission: %s for resource type: %s", permissionStr, rc.Type)
 				}
 			}
-
 		}
 	}
 

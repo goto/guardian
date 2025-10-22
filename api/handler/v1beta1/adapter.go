@@ -895,6 +895,7 @@ func (a *adapter) ToGrantProto(grant *domain.Grant) (*guardianv1beta1.Grant, err
 		ExpirationDateReason: grant.ExpirationDateReason,
 		RestoreReason:        grant.RestoreReason,
 		RestoredBy:           grant.RestoredBy,
+		PendingAppealId:      grant.PendingAppealID,
 	}
 
 	if grant.ExpirationDate != nil {

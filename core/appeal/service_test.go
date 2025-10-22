@@ -2030,7 +2030,6 @@ func (s *ServiceTestSuite) TestCreate() {
 				return
 			}
 			w.WriteHeader(http.StatusBadRequest)
-
 		}))
 		url := fmt.Sprintf("'%s?user=' + $appeal.account_id", server.URL)
 		expDate := timeNow.Add(23 * time.Hour)
@@ -5992,7 +5991,6 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			})
 		}
 	})
-
 }
 
 func (s *ServiceTestSuite) TestGrantAccessToProvider() {

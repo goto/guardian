@@ -17,27 +17,28 @@ import (
 
 func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGrantsRequest) (*guardianv1beta1.ListGrantsResponse, error) {
 	filter := domain.ListGrantsFilter{
-		Q:               req.GetQ(),
-		Statuses:        req.GetStatuses(),
-		AccountIDs:      req.GetAccountIds(),
-		AccountTypes:    req.GetAccountTypes(),
-		GroupIDs:        req.GetGroupIds(),
-		GroupTypes:      req.GetGroupTypes(),
-		ResourceIDs:     req.GetResourceIds(),
-		Roles:           req.GetRoles(),
-		ProviderTypes:   req.GetProviderTypes(),
-		ProviderURNs:    req.GetProviderUrns(),
-		ResourceTypes:   req.GetResourceTypes(),
-		ResourceURNs:    req.GetResourceUrns(),
-		CreatedBy:       req.GetCreatedBy(),
-		Owner:           req.GetOwner(),
-		OrderBy:         req.GetOrderBy(),
-		Size:            int(req.GetSize()),
-		Offset:          int(req.GetOffset()),
-		SummaryGroupBys: slices.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
-		SummaryUniques:  slices.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
-		ExpiringInDays:  int(req.GetExpiringInDays()),
-		FieldMasks:      req.GetFieldMasks(),
+		Q:                 req.GetQ(),
+		Statuses:          req.GetStatuses(),
+		AccountIDs:        req.GetAccountIds(),
+		AccountTypes:      req.GetAccountTypes(),
+		GroupIDs:          req.GetGroupIds(),
+		GroupTypes:        req.GetGroupTypes(),
+		ResourceIDs:       req.GetResourceIds(),
+		Roles:             req.GetRoles(),
+		ProviderTypes:     req.GetProviderTypes(),
+		ProviderURNs:      req.GetProviderUrns(),
+		ResourceTypes:     req.GetResourceTypes(),
+		ResourceURNs:      req.GetResourceUrns(),
+		CreatedBy:         req.GetCreatedBy(),
+		Owner:             req.GetOwner(),
+		OrderBy:           req.GetOrderBy(),
+		Size:              int(req.GetSize()),
+		Offset:            int(req.GetOffset()),
+		SummaryGroupBys:   slices.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
+		SummaryUniques:    slices.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
+		ExpiringInDays:    int(req.GetExpiringInDays()),
+		FieldMasks:        req.GetFieldMasks(),
+		WithPendingAppeal: req.GetWithPendingAppeal(),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
@@ -80,6 +81,7 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		ExpiringInDays:      int(req.GetExpiringInDays()),
 		InactiveGrantPolicy: req.GetInactiveGrantPolicy(),
 		FieldMasks:          req.GetFieldMasks(),
+		WithPendingAppeal:   req.GetWithPendingAppeal(),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
