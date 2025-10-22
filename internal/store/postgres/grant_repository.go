@@ -382,27 +382,12 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	if filter.Permissions != nil {
 		db = db.Where(`"grants"."permissions" @> ?`, pq.StringArray(filter.Permissions))
 	}
-	if filter.Owner != "" || filter.CreatedBy != "" {
-		owner := strings.ToLower(filter.Owner)
-		if filter.CreatedBy != "" {
-			owner = strings.ToLower(filter.CreatedBy)
-		}
+	owner := strings.ToLower(filter.Owner)
+	if filter.CreatedBy != "" {
+		owner = strings.ToLower(filter.CreatedBy)
+	}
+	if owner != "" {
 		db = db.Where(`LOWER("grants"."owner") = ?`, owner)
-		switch filter.InactiveGrantPolicy {
-		// Smart visibility mode:
-		// - If a resource has both active and inactive grants, only active ones are shown.
-		case guardianv1beta1.InactiveGrantPolicy_INACTIVE_GRANT_POLICY_SMART:
-			q := fmt.Sprintf(`NOT EXISTS (
-		SELECT 1 FROM grants g2
-		WHERE g2.account_id = "grants"."account_id"
-		  AND g2.resource_id = "grants"."resource_id"
-		  AND g2.role = "grants"."role"
-		  AND g2.permissions = "grants"."permissions"
-		  AND g2.status = 'active'
-		  AND LOWER("g2"."owner") = '%s'
-	)`, owner)
-			db = db.Where(q)
-		}
 	}
 	if filter.IsPermanent != nil {
 		db = db.Where(`"grants"."is_permanent" = ?`, *filter.IsPermanent)
@@ -443,6 +428,23 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	if filter.ExpiringInDays != 0 && slices.Contains(filter.Statuses, "active") {
 		db = db.Where(`"grants"."expiration_date" IS NOT NULL`)
 		db = db.Where(fmt.Sprintf(`"grants"."expiration_date" BETWEEN NOW() AND NOW() + INTERVAL '%d day'`, filter.ExpiringInDays))
+	}
+	if owner != "" && slices.Contains(filter.Statuses, "inactive") {
+		switch filter.InactiveGrantPolicy {
+		// Smart visibility mode:
+		// - If a resource has both active and inactive grants, only active ones are shown.
+		case guardianv1beta1.InactiveGrantPolicy_INACTIVE_GRANT_POLICY_SMART:
+			q := fmt.Sprintf(`NOT EXISTS (
+		SELECT 1 FROM grants g2
+		WHERE g2.account_id = "grants"."account_id"
+		  AND g2.resource_id = "grants"."resource_id"
+		  AND g2.role = "grants"."role"
+		  AND g2.permissions = "grants"."permissions"
+		  AND g2.status = 'active'
+		  AND LOWER("g2"."owner") = '%s'
+	)`, owner)
+			db = db.Where(q)
+		}
 	}
 	return db, nil
 }
