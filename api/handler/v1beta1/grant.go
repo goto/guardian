@@ -241,7 +241,7 @@ func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFil
 	var summary *domain.SummaryResult
 	var total int64
 
-	if filter.WithGrant() {
+	if filter.WithGrants() {
 		eg.Go(func() error {
 			grantRecords, err := s.grantService.List(ctx, filter)
 			if err != nil {
@@ -250,6 +250,8 @@ func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFil
 			grants = grantRecords
 			return nil
 		})
+	}
+	if filter.WithTotal() {
 		eg.Go(func() error {
 			totalRecord, err := s.grantService.GetGrantsTotalCount(ctx, filter)
 			if err != nil {

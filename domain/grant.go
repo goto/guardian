@@ -236,8 +236,12 @@ func (gf ListGrantsFilter) WithSummary() bool {
 	return len(gf.SummaryGroupBys) > 0 || len(gf.SummaryUniques) > 0
 }
 
-func (gf ListGrantsFilter) WithGrant() bool {
-	return !slices.GenericsSliceContainsOne(gf.FieldMasks, "grant")
+func (gf ListGrantsFilter) WithGrants() bool {
+	return !slices.GenericsSliceContainsOne(gf.FieldMasks, "grants")
+}
+
+func (gf ListGrantsFilter) WithTotal() bool {
+	return !slices.GenericsSliceContainsOne(gf.FieldMasks, "total")
 }
 
 type RevokeGrantsFilter struct {
