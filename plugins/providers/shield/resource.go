@@ -106,6 +106,7 @@ type Resource struct {
 	User         User         `json:"user" mapstructure:"user"`
 	Organization Organization `json:"organization" mapstructure:"organization"`
 }
+
 type Role struct {
 	ID          string                 `json:"id" mapstructure:"id"`
 	Name        string                 `json:"name" mapstructure:"name"`
@@ -298,10 +299,10 @@ func (r *Resource) ToDomain() *domain.Resource {
 	return &domain.Resource{
 		Type: r.Namespace.ID,
 		Name: r.Name,
-		URN:  fmt.Sprintf("resource:%v", r.URN),
+		URN:  fmt.Sprintf("resource:%v", r.ID),
 		Details: map[string]interface{}{
-			"id":        r.ID,
-			"namespace": r.Namespace,
+			"urn":       r.URN,
+			"namespace": r.Namespace.Name,
 		},
 	}
 }
