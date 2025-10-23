@@ -229,9 +229,13 @@ type ListGrantsFilter struct {
 	SummaryGroupBys           []string
 	SummaryUniques            []string
 	ExpiringInDays            int
-	InactiveGrantPolicy       guardianv1beta1.InactiveGrantPolicy
 	FieldMasks                []string
 	WithPendingAppeal         bool
+	RoleStartsWith            string
+	RoleEndsWith              string
+	RoleContains              string
+
+	UserInactiveGrantPolicy guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy
 }
 
 func (gf ListGrantsFilter) WithSummary() bool {
