@@ -450,9 +450,9 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	if !filter.StartTime.IsZero() && !filter.EndTime.IsZero() {
 		db = db.Where(`"grants"."created_at" BETWEEN ? AND ?`, filter.StartTime, filter.EndTime)
 	} else if !filter.StartTime.IsZero() {
-		db = db.Where(`"grants"."created_at" >= ?"`, filter.StartTime)
+		db = db.Where(`"grants"."created_at" >= ?`, filter.StartTime)
 	} else if !filter.EndTime.IsZero() {
-		db = db.Where(`"grants"."created_at" <= ?"`, filter.EndTime)
+		db = db.Where(`"grants"."created_at" <= ?`, filter.EndTime)
 	}
 
 	if owner != "" && (len(filter.Statuses) == 0 || slices.Contains(filter.Statuses, "inactive")) {
