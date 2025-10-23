@@ -302,7 +302,7 @@ func (r *Resource) ToDomain() *domain.Resource {
 		URN:  fmt.Sprintf("resource:%v", r.ID),
 		Details: map[string]interface{}{
 			"urn":       r.URN,
-			"namespace": r.Namespace.Name,
+			"namespace": r.Namespace,
 		},
 	}
 }
