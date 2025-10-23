@@ -476,13 +476,31 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		db = db.Where(`"grants"."expiration_date" IS NOT NULL`)
 		db = db.Where(fmt.Sprintf(`"grants"."expiration_date" BETWEEN NOW() AND NOW() + INTERVAL '%d day'`, filter.ExpiringInDays))
 	}
+	if (filter.RoleStartsWith != "" || filter.RoleEndsWith != "") && filter.RoleContains != "" {
+		return nil, fmt.Errorf("invalid filter: role_contains cannot be used together with role_starts_with or role_ends_with")
+	}
+
+	var patterns []string
+	if filter.RoleStartsWith != "" {
+		patterns = append(patterns, filter.RoleStartsWith+"%")
+	}
+	if filter.RoleEndsWith != "" {
+		patterns = append(patterns, "%"+filter.RoleEndsWith)
+	}
+	if filter.RoleContains != "" {
+		patterns = append(patterns, "%"+filter.RoleContains+"%")
+	}
+	if len(patterns) > 0 {
+		db = db.Where(`"grants"."role" LIKE ANY (?)`, pq.Array(patterns))
+	}
+
 	if owner != "" && (len(filter.Statuses) == 0 || slices.Contains(filter.Statuses, "inactive")) {
-		switch filter.InactiveGrantPolicy {
-		case guardianv1beta1.InactiveGrantPolicy_INACTIVE_GRANT_POLICY_UNSPECIFIED:
+		switch filter.UserInactiveGrantPolicy {
+		case guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_UNSPECIFIED:
 			fallthrough
-		case guardianv1beta1.InactiveGrantPolicy_INACTIVE_GRANT_POLICY_INCLUDE_ALL:
+		case guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_INCLUDE_ALL:
 			break
-		case guardianv1beta1.InactiveGrantPolicy_INACTIVE_GRANT_POLICY_SMART:
+		case guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_SMART:
 			q := fmt.Sprintf(`NOT EXISTS (
 		SELECT 1 FROM grants g2
 		WHERE g2.account_id = "grants"."account_id"
@@ -494,8 +512,9 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	)`, owner)
 			db = db.Where(q)
 		default:
-			return nil, fmt.Errorf("unknown inactive grant policy: %q", fmt.Sprint(filter.InactiveGrantPolicy))
+			return nil, fmt.Errorf("unknown inactive grant policy: %q", fmt.Sprint(filter.UserInactiveGrantPolicy))
 		}
 	}
+
 	return db, nil
 }

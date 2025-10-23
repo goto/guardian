@@ -1136,6 +1136,24 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "roleStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "roleEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "roleContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -1909,19 +1927,6 @@
             "format": "int64"
           },
           {
-            "name": "inactiveGrantPolicy",
-            "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart visibility mode:\n- If a resource has both active and inactive grants, only active ones are shown.",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "enum": [
-              "INACTIVE_GRANT_POLICY_UNSPECIFIED",
-              "INACTIVE_GRANT_POLICY_INCLUDE_ALL",
-              "INACTIVE_GRANT_POLICY_SMART"
-            ],
-            "default": "INACTIVE_GRANT_POLICY_UNSPECIFIED"
-          },
-          {
             "name": "fieldMasks",
             "in": "query",
             "required": false,
@@ -1936,6 +1941,37 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "roleStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "roleEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "roleContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "inactiveGrantPolicy",
+            "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart visibility mode:\n- If a resource has both active and inactive grants, only active ones are shown.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "INACTIVE_GRANT_POLICY_UNSPECIFIED",
+              "INACTIVE_GRANT_POLICY_INCLUDE_ALL",
+              "INACTIVE_GRANT_POLICY_SMART"
+            ],
+            "default": "INACTIVE_GRANT_POLICY_UNSPECIFIED"
           }
         ],
         "tags": [
@@ -2723,6 +2759,16 @@
       "properties": {
         "eq": {}
       }
+    },
+    "ListUserGrantsRequestInactiveGrantPolicy": {
+      "type": "string",
+      "enum": [
+        "INACTIVE_GRANT_POLICY_UNSPECIFIED",
+        "INACTIVE_GRANT_POLICY_INCLUDE_ALL",
+        "INACTIVE_GRANT_POLICY_SMART"
+      ],
+      "default": "INACTIVE_GRANT_POLICY_UNSPECIFIED",
+      "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart visibility mode:\n- If a resource has both active and inactive grants, only active ones are shown."
     },
     "PolicyAppealConfigDurationOptions": {
       "type": "object",
@@ -3698,16 +3744,6 @@
           }
         }
       }
-    },
-    "v1beta1InactiveGrantPolicy": {
-      "type": "string",
-      "enum": [
-        "INACTIVE_GRANT_POLICY_UNSPECIFIED",
-        "INACTIVE_GRANT_POLICY_INCLUDE_ALL",
-        "INACTIVE_GRANT_POLICY_SMART"
-      ],
-      "default": "INACTIVE_GRANT_POLICY_UNSPECIFIED",
-      "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart visibility mode:\n- If a resource has both active and inactive grants, only active ones are shown."
     },
     "v1beta1ListActivitiesResponse": {
       "type": "object",
