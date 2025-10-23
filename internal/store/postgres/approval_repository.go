@@ -292,6 +292,6 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	} else if !filter.EndTime.IsZero() {
 		db = db.Where(`"Appeal"."created_at" <= ?"`, filter.EndTime)
 	}
-	
+
 	return db, nil
 }
