@@ -41,6 +41,8 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		ProviderTypes:  req.GetProviderTypes(),
 		ProviderURNs:   req.GetProviderUrns(),
 		Actors:         req.GetActors(),
+		StartTime:      req.GetStartTime().AsTime(),
+		EndTime:        req.GetEndTime().AsTime(),
 	})
 	if err != nil {
 		return nil, err
@@ -72,6 +74,8 @@ func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.Lis
 		ProviderTypes:  req.GetProviderTypes(),
 		ProviderURNs:   req.GetProviderUrns(),
 		Actors:         req.GetActors(),
+		StartTime:      req.GetStartTime().AsTime(),
+		EndTime:        req.GetEndTime().AsTime(),
 	})
 	if err != nil {
 		return nil, err

@@ -284,5 +284,14 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	if len(filter.Actors) > 0 {
 		db = db.Where(`"approvals"."actor" IN ?`, filter.Actors)
 	}
+
+	if !filter.StartTime.IsZero() && !filter.EndTime.IsZero() {
+		db = db.Where(`"Appeal"."created_at" BETWEEN ? AND ?`, filter.StartTime, filter.EndTime)
+	} else if !filter.StartTime.IsZero() {
+		db = db.Where(`"Appeal"."created_at" >= ?"`, filter.StartTime)
+	} else if !filter.EndTime.IsZero() {
+		db = db.Where(`"Appeal"."created_at" <= ?"`, filter.EndTime)
+	}
+	
 	return db, nil
 }
