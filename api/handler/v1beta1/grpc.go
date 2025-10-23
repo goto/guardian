@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/goto/guardian/pkg/log"
 
@@ -48,6 +51,8 @@ type ProtoAdapter interface {
 	ToAppealActivityProto(e *domain.Event) (*guardianv1beta1.AppealActivity, error)
 
 	ToSummaryProto(summary *domain.SummaryResult) (*guardianv1beta1.SummaryResult, error)
+
+	FromTimeProto(t *timestamppb.Timestamp) time.Time
 	// TODO: remove interface
 }
 

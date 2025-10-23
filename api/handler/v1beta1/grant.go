@@ -34,8 +34,6 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		OrderBy:           req.GetOrderBy(),
 		Size:              int(req.GetSize()),
 		Offset:            int(req.GetOffset()),
-		StartTime:         req.GetStartTime().AsTime(),
-		EndTime:           req.GetEndTime().AsTime(),
 		SummaryGroupBys:   slices.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
 		SummaryUniques:    slices.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
 		ExpiringInDays:    int(req.GetExpiringInDays()),
@@ -44,6 +42,8 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		RoleStartsWith:    req.GetRoleStartsWith(),
 		RoleEndsWith:      req.GetRoleEndsWith(),
 		RoleContains:      req.GetRoleContains(),
+		StartTime:         s.adapter.FromTimeProto(req.GetStartTime()),
+		EndTime:           s.adapter.FromTimeProto(req.GetEndTime()),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
@@ -81,8 +81,6 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		Size:              int(req.GetSize()),
 		Offset:            int(req.GetOffset()),
 		Q:                 req.GetQ(),
-		StartTime:         req.GetStartTime().AsTime(),
-		EndTime:           req.GetEndTime().AsTime(),
 		SummaryGroupBys:   slices.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
 		SummaryUniques:    slices.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
 		ExpiringInDays:    int(req.GetExpiringInDays()),
@@ -91,6 +89,8 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		RoleStartsWith:    req.GetRoleStartsWith(),
 		RoleEndsWith:      req.GetRoleEndsWith(),
 		RoleContains:      req.GetRoleContains(),
+		StartTime:         s.adapter.FromTimeProto(req.GetStartTime()),
+		EndTime:           s.adapter.FromTimeProto(req.GetEndTime()),
 
 		UserInactiveGrantPolicy: req.GetInactiveGrantPolicy(),
 	}
