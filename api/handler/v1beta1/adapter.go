@@ -2,6 +2,7 @@ package v1beta1
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -1119,6 +1120,13 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 	}
 
 	return summaryProto, nil
+}
+
+func (a *adapter) FromTimeProto(t *timestamppb.Timestamp) time.Time {
+	if t == nil || (t.GetSeconds() == 1 && t.GetNanos() == 2) {
+		return time.Time{}.UTC()
+	}
+	return t.AsTime().UTC()
 }
 
 func (a *adapter) toConditionProto(c *domain.Condition) (*guardianv1beta1.Condition, error) {
