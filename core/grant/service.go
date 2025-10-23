@@ -11,7 +11,7 @@ import (
 
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
-	"github.com/goto/guardian/pkg/slices"
+	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/plugins/notifiers"
 	"github.com/goto/guardian/utils"
 )
@@ -33,6 +33,11 @@ type repository interface {
 	GetGrantsTotalCount(context.Context, domain.ListGrantsFilter) (int64, error)
 	ListUserRoles(context.Context, string) ([]string, error)
 	Create(context.Context, *domain.Grant) error
+}
+
+//go:generate mockery --name=appealService --exported --with-expecter
+type appealService interface {
+	Find(ctx context.Context, filters *domain.ListAppealsFilter) ([]*domain.Appeal, error)
 }
 
 //go:generate mockery --name=providerService --exported --with-expecter
@@ -69,6 +74,7 @@ type grantCreation struct {
 
 type Service struct {
 	repo            repository
+	AppealService   appealService
 	providerService providerService
 	resourceService resourceService
 
@@ -102,8 +108,53 @@ func NewService(deps ServiceDeps) *Service {
 	}
 }
 
+func (s *Service) SetAppealService(a appealService) {
+	s.AppealService = a
+}
+
 func (s *Service) List(ctx context.Context, filter domain.ListGrantsFilter) ([]domain.Grant, error) {
-	return s.repo.List(ctx, filter)
+	grants, err := s.repo.List(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if !filter.WithPendingAppeal || len(grants) == 0 {
+		return grants, nil
+	}
+
+	accountIDs, resourceIDs, roles := make([]string, len(grants)), make([]string, len(grants)), make([]string, len(grants))
+	for i, m := range grants {
+		accountIDs[i] = m.AccountID
+		resourceIDs[i] = m.ResourceID
+		roles[i] = m.Role
+	}
+
+	pendingAppeals, err := s.AppealService.Find(ctx, &domain.ListAppealsFilter{
+		Statuses:    []string{"pending"},
+		AccountIDs:  slicesUtil.GenericsStandardizeSlice(accountIDs),
+		ResourceIDs: slicesUtil.GenericsStandardizeSlice(resourceIDs),
+		Roles:       slicesUtil.GenericsStandardizeSlice(roles),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for i, g := range grants {
+		for _, appeal := range pendingAppeals {
+			if appeal.Resource == nil {
+				break
+			}
+			if strings.EqualFold(g.ResourceID, appeal.ResourceID) &&
+				strings.EqualFold(g.AccountID, appeal.AccountID) &&
+				strings.EqualFold(g.Role, appeal.Role) {
+				g.PendingAppealID = appeal.ID
+				grants[i] = g
+				break
+			}
+		}
+	}
+
+	return grants, nil
 }
 
 func (s *Service) GenerateSummary(ctx context.Context, filter domain.ListGrantsFilter) (*domain.SummaryResult, error) {
@@ -595,7 +646,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 	for _, g := range grants {
 		accountIDs = append(accountIDs, g.AccountID)
 	}
-	accountIDs = slices.UniqueStringSlice(accountIDs)
+	accountIDs = slicesUtil.UniqueStringSlice(accountIDs)
 
 	s.logger.Info(ctx, "getting activities", "provider_urn", provider.URN)
 	activities, err := s.providerService.ListActivities(ctx, *provider, domain.ListActivitiesFilter{

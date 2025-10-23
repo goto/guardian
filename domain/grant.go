@@ -226,6 +226,8 @@ type ListGrantsFilter struct {
 	Size                      int    `mapstructure:"size" validate:"omitempty"`
 	Offset                    int    `mapstructure:"offset" validate:"omitempty"`
 	Q                         string `mapstructure:"q" validate:"omitempty"`
+	StartTime                 time.Time
+	EndTime                   time.Time
 	SummaryGroupBys           []string
 	SummaryUniques            []string
 	ExpiringInDays            int

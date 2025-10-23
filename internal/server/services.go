@@ -211,6 +211,8 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		Notifier:   deps.Notifier,
 	})
 
+	grantService.SetAppealService(appealService)
+
 	return &Services{
 		resourceService,
 		activityService,

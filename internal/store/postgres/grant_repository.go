@@ -15,7 +15,6 @@ import (
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres/model"
-	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
 
@@ -55,58 +54,12 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 	}
 
 	grants := make([]domain.Grant, len(models))
-	accountIDs, resourceIDs, roles := make([]string, len(models)), make([]string, len(models)), make([]string, len(models))
 	for i, m := range models {
 		g, err := m.ToDomain()
 		if err != nil {
 			return nil, fmt.Errorf("parsing grant %q: %w", m.ID, err)
 		}
 		grants[i] = *g
-		accountIDs[i] = m.AccountID
-		resourceIDs[i] = m.ResourceID
-		roles[i] = m.Role
-	}
-
-	if !filter.WithPendingAppeal {
-		return grants, nil
-	}
-
-	// TODO: move this to service layer. currently appeal service is not supported when attached to the grant service
-	db = r.db.WithContext(ctx)
-	db, err = applyAppealFilter(db, &domain.ListAppealsFilter{
-		Statuses:    []string{"pending"},
-		AccountIDs:  slicesUtil.GenericsStandardizeSlice(accountIDs),
-		ResourceIDs: slicesUtil.GenericsStandardizeSlice(resourceIDs),
-		Roles:       slicesUtil.GenericsStandardizeSlice(roles),
-	})
-	if err != nil {
-		return nil, err
-	}
-	var models2 []*model.Appeal
-	if err = db.Find(&models2).Error; err != nil {
-		return nil, err
-	}
-	pendingAppeals := make([]*domain.Appeal, len(models2))
-	for i, m := range models2 {
-		a, err := m.ToDomain()
-		if err != nil {
-			return nil, fmt.Errorf("parsing appeal %q: %w", m.ID, err)
-		}
-		pendingAppeals[i] = a
-	}
-	for i, g := range grants {
-		for _, appeal := range pendingAppeals {
-			if appeal.Resource == nil {
-				break
-			}
-			if strings.EqualFold(g.ResourceID, appeal.ResourceID) &&
-				strings.EqualFold(g.AccountID, appeal.AccountID) &&
-				strings.EqualFold(g.Role, appeal.Role) {
-				g.PendingAppealID = appeal.ID
-				grants[i] = g
-				break
-			}
-		}
 	}
 
 	return grants, nil
@@ -492,6 +445,14 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	}
 	if len(patterns) > 0 {
 		db = db.Where(`"grants"."role" LIKE ANY (?)`, pq.Array(patterns))
+	}
+
+	if !filter.StartTime.IsZero() && !filter.EndTime.IsZero() {
+		db = db.Where(`"grants"."created_at" BETWEEN ? AND ?`, filter.StartTime, filter.EndTime)
+	} else if !filter.StartTime.IsZero() {
+		db = db.Where(`"grants"."created_at" >= ?"`, filter.StartTime)
+	} else if !filter.EndTime.IsZero() {
+		db = db.Where(`"grants"."created_at" <= ?"`, filter.EndTime)
 	}
 
 	if owner != "" && (len(filter.Statuses) == 0 || slices.Contains(filter.Statuses, "inactive")) {
