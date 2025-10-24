@@ -66,7 +66,7 @@ func TestValidate(t *testing.T) {
 			},
 		},
 		{
-			Type: shield.ResourceTypeProject,
+			Type: shield.ResourceTypeOrganization,
 			Roles: []*domain.Role{
 				{
 					Permissions: []interface{}{"admin"},
