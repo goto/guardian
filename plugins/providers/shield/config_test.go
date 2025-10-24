@@ -86,6 +86,17 @@ func TestValidate(t *testing.T) {
 		},
 	}
 
+	inValidAssertionResourceTypeConfig := []*domain.ResourceConfig{
+		{
+			Type: shield.ResourceTypeTeam,
+			Roles: []*domain.Role{
+				{
+					Permissions: []interface{}{1},
+				},
+			},
+		},
+	}
+
 	t.Run("error validations", func(t *testing.T) {
 		testCases := []struct {
 			name           string
@@ -106,6 +117,11 @@ func TestValidate(t *testing.T) {
 				name:           "should return error if invalid resource type config",
 				credentials:    validCredentials,
 				resourceConfig: inValidResourceTypeConfig,
+			},
+			{
+				name:           "should return error if invalid assertion type",
+				credentials:    validCredentials,
+				resourceConfig: inValidAssertionResourceTypeConfig,
 			},
 		}
 
