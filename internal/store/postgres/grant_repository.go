@@ -49,7 +49,7 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 	}
 
 	var models []model.Grant
-	if err := db.Find(&models).Error; err != nil {
+	if err := db.Preload("Appeal").Preload("Resource").Find(&models).Error; err != nil {
 		return nil, err
 	}
 
