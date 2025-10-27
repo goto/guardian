@@ -3221,6 +3221,9 @@
         },
         "description": {
           "type": "string"
+        },
+        "dryRun": {
+          "type": "boolean"
         }
       }
     },

@@ -110,11 +110,18 @@ type CreateAppealOption func(*createAppealOptions)
 
 type createAppealOptions struct {
 	IsAdditionalAppeal bool
+	DryRun             bool
 }
 
 func CreateWithAdditionalAppeal() CreateAppealOption {
 	return func(opts *createAppealOptions) {
 		opts.IsAdditionalAppeal = true
+	}
+}
+
+func CreateWithDryRun() CreateAppealOption {
+	return func(opts *createAppealOptions) {
+		opts.DryRun = true
 	}
 }
 
@@ -201,6 +208,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		opt(createAppealOpts)
 	}
 	isAdditionalAppealCreation := createAppealOpts.IsAdditionalAppeal
+	isDryRun := createAppealOpts.DryRun
 
 	resourceIDs := []string{}
 	accountIDs := []string{}
@@ -268,6 +276,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		if err := validateAppeal(appeal, pendingAppeals); err != nil {
 			return err
 		}
+
 		if err := addResource(appeal, resources); err != nil {
 			return fmt.Errorf("couldn't find resource with id %q: %w", appeal.ResourceID, err)
 		}
@@ -342,17 +351,21 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 				}
 				newGrant.Resource = appeal.Resource
 				appeal.Grant = newGrant
-				if prevGrant != nil {
-					if _, err := s.grantService.Revoke(ctx, prevGrant.ID, domain.SystemActorName, prevGrant.RevokeReason,
-						grant.SkipNotifications(),
-						grant.SkipRevokeAccessInProvider(),
-					); err != nil {
-						return fmt.Errorf("revoking previous grant: %w", err)
-					}
-				}
 
-				if err := s.GrantAccessToProvider(ctx, appeal, opts...); err != nil {
-					return fmt.Errorf("granting access: %w", err)
+				// Skip grant operations in dry run mode
+				if !isDryRun {
+					if prevGrant != nil {
+						if _, err := s.grantService.Revoke(ctx, prevGrant.ID, domain.SystemActorName, prevGrant.RevokeReason,
+							grant.SkipNotifications(),
+							grant.SkipRevokeAccessInProvider(),
+						); err != nil {
+							return fmt.Errorf("revoking previous grant: %w", err)
+						}
+					}
+
+					if err := s.GrantAccessToProvider(ctx, appeal, opts...); err != nil {
+						return fmt.Errorf("granting access: %w", err)
+					}
 				}
 
 				notifications = append(notifications, domain.Notification{
@@ -377,16 +390,19 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		}
 	}
 
-	if err := s.repo.BulkUpsert(ctx, appeals); err != nil {
-		return fmt.Errorf("inserting appeals into db: %w", err)
-	}
-
-	go func() {
-		ctx := context.WithoutCancel(ctx)
-		if err := s.auditLogger.Log(ctx, AuditKeyBulkInsert, appeals); err != nil {
-			s.logger.Error(ctx, "failed to record audit log", "error", err)
+	// Skip database persistence in dry run mode
+	if !isDryRun {
+		if err := s.repo.BulkUpsert(ctx, appeals); err != nil {
+			return fmt.Errorf("inserting appeals into db: %w", err)
 		}
-	}()
+
+		go func() {
+			ctx := context.WithoutCancel(ctx)
+			if err := s.auditLogger.Log(ctx, AuditKeyBulkInsert, appeals); err != nil {
+				s.logger.Error(ctx, "failed to record audit log", "error", err)
+			}
+		}()
+	}
 
 	for _, a := range appeals {
 		if a.Status == domain.AppealStatusRejected {
@@ -420,7 +436,8 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		notifications = append(notifications, s.getApprovalNotifications(ctx, a)...)
 	}
 
-	if len(notifications) > 0 {
+	// Skip notifications in dry run mode
+	if !isDryRun && len(notifications) > 0 {
 		go func() {
 			ctx := context.WithoutCancel(ctx)
 			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
