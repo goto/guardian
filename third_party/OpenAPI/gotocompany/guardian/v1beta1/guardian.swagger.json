@@ -881,6 +881,36 @@
             "collectionFormat": "multi"
           },
           {
+            "name": "summaryGroupBys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryUniques",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "fieldMasks",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
             "name": "startTime",
             "in": "query",
             "required": false,
@@ -1723,6 +1753,36 @@
           },
           {
             "name": "actors",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryGroupBys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryUniques",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "fieldMasks",
             "in": "query",
             "required": false,
             "type": "array",
@@ -3866,6 +3926,9 @@
         "total": {
           "type": "integer",
           "format": "int32"
+        },
+        "summary": {
+          "$ref": "#/definitions/v1beta1SummaryResult"
         }
       }
     },
@@ -3969,6 +4032,9 @@
         "total": {
           "type": "integer",
           "format": "int32"
+        },
+        "summary": {
+          "$ref": "#/definitions/v1beta1SummaryResult"
         }
       }
     },

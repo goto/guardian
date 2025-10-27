@@ -5,15 +5,15 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/mitchellh/mapstructure"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/mitchellh/mapstructure"
-
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/domain"
+	slicesUtil "github.com/goto/guardian/pkg/slices"
 )
 
 func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1.ListUserApprovalsRequest) (*guardianv1beta1.ListUserApprovalsResponse, error) {
@@ -22,28 +22,33 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
 
-	approvals, total, err := s.listApprovals(ctx, &domain.ListApprovalsFilter{
-		Q:              req.GetQ(),
-		AccountID:      req.GetAccountId(),
-		AccountTypes:   req.GetAccountTypes(),
-		ResourceTypes:  req.GetResourceTypes(),
-		CreatedBy:      user,
-		Statuses:       req.GetStatuses(),
-		OrderBy:        req.GetOrderBy(),
-		Size:           int(req.GetSize()),
-		Offset:         int(req.GetOffset()),
-		AppealStatuses: req.GetAppealStatuses(),
-		Stale:          req.GetStale(),
-		RoleStartsWith: req.GetRoleStartsWith(),
-		RoleEndsWith:   req.GetRoleEndsWith(),
-		RoleContains:   req.GetRoleContains(),
-		StepNames:      req.GetStepNames(),
-		ProviderTypes:  req.GetProviderTypes(),
-		ProviderURNs:   req.GetProviderUrns(),
-		Actors:         req.GetActors(),
-		StartTime:      s.adapter.FromTimeProto(req.GetStartTime()),
-		EndTime:        s.adapter.FromTimeProto(req.GetEndTime()),
-	})
+	filter := &domain.ListApprovalsFilter{
+		Q:               req.GetQ(),
+		AccountID:       req.GetAccountId(),
+		AccountTypes:    req.GetAccountTypes(),
+		ResourceTypes:   req.GetResourceTypes(),
+		CreatedBy:       user,
+		Statuses:        req.GetStatuses(),
+		OrderBy:         req.GetOrderBy(),
+		Size:            int(req.GetSize()),
+		Offset:          int(req.GetOffset()),
+		AppealStatuses:  req.GetAppealStatuses(),
+		Stale:           req.GetStale(),
+		RoleStartsWith:  req.GetRoleStartsWith(),
+		RoleEndsWith:    req.GetRoleEndsWith(),
+		RoleContains:    req.GetRoleContains(),
+		StepNames:       req.GetStepNames(),
+		ProviderTypes:   req.GetProviderTypes(),
+		ProviderURNs:    req.GetProviderUrns(),
+		Actors:          req.GetActors(),
+		SummaryGroupBys: slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
+		SummaryUniques:  slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
+		FieldMasks:      slicesUtil.GenericsStandardizeSliceNilAble(req.GetFieldMasks()),
+		StartTime:       s.adapter.FromTimeProto(req.GetStartTime()),
+		EndTime:         s.adapter.FromTimeProto(req.GetEndTime()),
+	}
+
+	approvals, total, summary, err := s.listApprovals(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -51,32 +56,38 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 	return &guardianv1beta1.ListUserApprovalsResponse{
 		Approvals: approvals,
 		Total:     int32(total),
+		Summary:   summary,
 	}, nil
 }
 
 func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.ListApprovalsRequest) (*guardianv1beta1.ListApprovalsResponse, error) {
-	approvals, total, err := s.listApprovals(ctx, &domain.ListApprovalsFilter{
-		Q:              req.GetQ(),
-		AccountID:      req.GetAccountId(),
-		AccountTypes:   req.GetAccountTypes(),
-		ResourceTypes:  req.GetResourceTypes(),
-		CreatedBy:      req.GetCreatedBy(),
-		Statuses:       req.GetStatuses(),
-		OrderBy:        req.GetOrderBy(),
-		Size:           int(req.GetSize()),
-		Offset:         int(req.GetOffset()),
-		AppealStatuses: req.GetAppealStatuses(),
-		Stale:          req.GetStale(),
-		RoleStartsWith: req.GetRoleStartsWith(),
-		RoleEndsWith:   req.GetRoleEndsWith(),
-		RoleContains:   req.GetRoleContains(),
-		StepNames:      req.GetStepNames(),
-		ProviderTypes:  req.GetProviderTypes(),
-		ProviderURNs:   req.GetProviderUrns(),
-		Actors:         req.GetActors(),
-		StartTime:      s.adapter.FromTimeProto(req.GetStartTime()),
-		EndTime:        s.adapter.FromTimeProto(req.GetEndTime()),
-	})
+	filter := &domain.ListApprovalsFilter{
+		Q:               req.GetQ(),
+		AccountID:       req.GetAccountId(),
+		AccountTypes:    req.GetAccountTypes(),
+		ResourceTypes:   req.GetResourceTypes(),
+		CreatedBy:       req.GetCreatedBy(),
+		Statuses:        req.GetStatuses(),
+		OrderBy:         req.GetOrderBy(),
+		Size:            int(req.GetSize()),
+		Offset:          int(req.GetOffset()),
+		AppealStatuses:  req.GetAppealStatuses(),
+		Stale:           req.GetStale(),
+		RoleStartsWith:  req.GetRoleStartsWith(),
+		RoleEndsWith:    req.GetRoleEndsWith(),
+		RoleContains:    req.GetRoleContains(),
+		StepNames:       req.GetStepNames(),
+		ProviderTypes:   req.GetProviderTypes(),
+		ProviderURNs:    req.GetProviderUrns(),
+		Actors:          req.GetActors(),
+		SummaryGroupBys: slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
+		SummaryUniques:  slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
+		FieldMasks:      slicesUtil.GenericsStandardizeSliceNilAble(req.GetFieldMasks()),
+		StartTime:       s.adapter.FromTimeProto(req.GetStartTime()),
+		EndTime:         s.adapter.FromTimeProto(req.GetEndTime()),
+	}
+
+	approvals, total, summary, err := s.listApprovals(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +95,7 @@ func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.Lis
 	return &guardianv1beta1.ListApprovalsResponse{
 		Approvals: approvals,
 		Total:     int32(total),
+		Summary:   summary,
 	}, nil
 }
 
@@ -212,43 +224,73 @@ func (s *GRPCServer) DeleteApprover(ctx context.Context, req *guardianv1beta1.De
 	}, nil
 }
 
-func (s *GRPCServer) listApprovals(ctx context.Context, filters *domain.ListApprovalsFilter) ([]*guardianv1beta1.Approval, int64, error) {
+func (s *GRPCServer) listApprovals(ctx context.Context, filter *domain.ListApprovalsFilter) ([]*guardianv1beta1.Approval, int64, *guardianv1beta1.SummaryResult, error) {
 	eg, ctx := errgroup.WithContext(ctx)
 	var approvals []*domain.Approval
+	var summary *domain.SummaryResult
 	var total int64
 
-	eg.Go(func() error {
-		approvalRecords, err := s.approvalService.ListApprovals(ctx, filters)
-		if err != nil {
-			return s.internalError(ctx, "failed to get approval list: %s", err)
-		}
-		approvals = approvalRecords
-		return nil
-	})
-
-	eg.Go(func() error {
-		totalRecord, err := s.approvalService.GetApprovalsTotalCount(ctx, filters)
-		if err != nil {
-			return s.internalError(ctx, "failed to get approval list: %v", err)
-		}
-		total = totalRecord
-		return nil
-	})
-
+	if filter.WithApprovals() {
+		eg.Go(func() error {
+			approvalRecords, err := s.approvalService.ListApprovals(ctx, filter)
+			if err != nil {
+				return s.internalError(ctx, "failed to get approval list: %s", err)
+			}
+			approvals = approvalRecords
+			return nil
+		})
+	}
+	if filter.WithTotal() {
+		eg.Go(func() error {
+			totalRecord, err := s.approvalService.GetApprovalsTotalCount(ctx, filter)
+			if err != nil {
+				return s.internalError(ctx, "failed to get approval list: %v", err)
+			}
+			total = totalRecord
+			return nil
+		})
+	}
+	if filter.WithSummary() {
+		eg.Go(func() error {
+			var e error
+			summary, e = s.approvalService.GenerateSummary(ctx, *filter)
+			if e != nil {
+				switch {
+				case errors.Is(e, domain.ErrInvalidUniqueInput) ||
+					errors.Is(e, domain.ErrEmptyUniqueTableName) ||
+					errors.Is(e, domain.ErrEmptyUniqueColumnName) ||
+					errors.Is(e, domain.ErrNotSupportedUniqueTableName) ||
+					errors.Is(e, domain.ErrInvalidGroupInput) ||
+					errors.Is(e, domain.ErrEmptyGroupTableName) ||
+					errors.Is(e, domain.ErrEmptyGroupColumnName) ||
+					errors.Is(e, domain.ErrNotSupportedGroupTableName):
+					return s.invalidArgument(ctx, "invalid summary argument: %s", e.Error())
+				default:
+					return s.internalError(ctx, "failed to generate summary: %s", e.Error())
+				}
+			}
+			return nil
+		})
+	}
 	if err := eg.Wait(); err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
 
-	approvalProtos := []*guardianv1beta1.Approval{}
+	var approvalsProto []*guardianv1beta1.Approval
 	for _, a := range approvals {
 		approvalProto, err := s.adapter.ToApprovalProto(a)
 		if err != nil {
-			return nil, 0, s.internalError(ctx, "failed to parse approval: %v: %s", a.ID, err)
+			return nil, 0, nil, s.internalError(ctx, "failed to parse approval: %v: %s", a.ID, err)
 		}
-		approvalProtos = append(approvalProtos, approvalProto)
+		approvalsProto = append(approvalsProto, approvalProto)
 	}
 
-	return approvalProtos, total, nil
+	summaryProto, err := s.adapter.ToSummaryProto(summary)
+	if err != nil {
+		return nil, 0, nil, s.internalError(ctx, "failed to parse summary: %v", err)
+	}
+
+	return approvalsProto, total, summaryProto, nil
 }
 
 func (s *GRPCServer) listApprovalsSummaries(ctx context.Context, actor string, items map[string]*guardianv1beta1.SummaryParameters) (map[string]*guardianv1beta1.SummaryResult, error) {

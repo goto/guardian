@@ -120,6 +120,7 @@ type appealService interface {
 type approvalService interface {
 	ListApprovals(context.Context, *domain.ListApprovalsFilter) ([]*domain.Approval, error)
 	GetApprovalsTotalCount(context.Context, *domain.ListApprovalsFilter) (int64, error)
+	GenerateSummary(context.Context, domain.ListApprovalsFilter) (*domain.SummaryResult, error)
 	GenerateApprovalSummary(context.Context, *domain.ListApprovalsFilter, []string) (*domain.SummaryResult, error)
 	BulkInsert(context.Context, []*domain.Approval) error
 }

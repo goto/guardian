@@ -129,6 +129,65 @@ func (_c *ApprovalService_GenerateApprovalSummary_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// GenerateSummary provides a mock function with given fields: _a0, _a1
+func (_m *ApprovalService) GenerateSummary(_a0 context.Context, _a1 domain.ListApprovalsFilter) (*domain.SummaryResult, error) {
+	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GenerateSummary")
+	}
+
+	var r0 *domain.SummaryResult
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListApprovalsFilter) (*domain.SummaryResult, error)); ok {
+		return rf(_a0, _a1)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListApprovalsFilter) *domain.SummaryResult); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.SummaryResult)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, domain.ListApprovalsFilter) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ApprovalService_GenerateSummary_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GenerateSummary'
+type ApprovalService_GenerateSummary_Call struct {
+	*mock.Call
+}
+
+// GenerateSummary is a helper method to define mock.On call
+//   - _a0 context.Context
+//   - _a1 domain.ListApprovalsFilter
+func (_e *ApprovalService_Expecter) GenerateSummary(_a0 interface{}, _a1 interface{}) *ApprovalService_GenerateSummary_Call {
+	return &ApprovalService_GenerateSummary_Call{Call: _e.mock.On("GenerateSummary", _a0, _a1)}
+}
+
+func (_c *ApprovalService_GenerateSummary_Call) Run(run func(_a0 context.Context, _a1 domain.ListApprovalsFilter)) *ApprovalService_GenerateSummary_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(domain.ListApprovalsFilter))
+	})
+	return _c
+}
+
+func (_c *ApprovalService_GenerateSummary_Call) Return(_a0 *domain.SummaryResult, _a1 error) *ApprovalService_GenerateSummary_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *ApprovalService_GenerateSummary_Call) RunAndReturn(run func(context.Context, domain.ListApprovalsFilter) (*domain.SummaryResult, error)) *ApprovalService_GenerateSummary_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetApprovalsTotalCount provides a mock function with given fields: _a0, _a1
 func (_m *ApprovalService) GetApprovalsTotalCount(_a0 context.Context, _a1 *domain.ListApprovalsFilter) (int64, error) {
 	ret := _m.Called(_a0, _a1)

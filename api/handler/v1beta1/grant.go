@@ -12,7 +12,7 @@ import (
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
-	"github.com/goto/guardian/pkg/slices"
+	slicesUtil "github.com/goto/guardian/pkg/slices"
 )
 
 func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGrantsRequest) (*guardianv1beta1.ListGrantsResponse, error) {
@@ -34,10 +34,10 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		OrderBy:           req.GetOrderBy(),
 		Size:              int(req.GetSize()),
 		Offset:            int(req.GetOffset()),
-		SummaryGroupBys:   slices.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
-		SummaryUniques:    slices.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
+		SummaryGroupBys:   slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
+		SummaryUniques:    slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
 		ExpiringInDays:    int(req.GetExpiringInDays()),
-		FieldMasks:        req.GetFieldMasks(),
+		FieldMasks:        slicesUtil.GenericsStandardizeSliceNilAble(req.GetFieldMasks()),
 		WithPendingAppeal: req.GetWithPendingAppeal(),
 		RoleStartsWith:    req.GetRoleStartsWith(),
 		RoleEndsWith:      req.GetRoleEndsWith(),
@@ -81,10 +81,10 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		Size:              int(req.GetSize()),
 		Offset:            int(req.GetOffset()),
 		Q:                 req.GetQ(),
-		SummaryGroupBys:   slices.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
-		SummaryUniques:    slices.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
+		SummaryGroupBys:   slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
+		SummaryUniques:    slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
 		ExpiringInDays:    int(req.GetExpiringInDays()),
-		FieldMasks:        req.GetFieldMasks(),
+		FieldMasks:        slicesUtil.GenericsStandardizeSliceNilAble(req.GetFieldMasks()),
 		WithPendingAppeal: req.GetWithPendingAppeal(),
 		RoleStartsWith:    req.GetRoleStartsWith(),
 		RoleEndsWith:      req.GetRoleEndsWith(),
@@ -300,13 +300,13 @@ func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFil
 		return nil, 0, nil, err
 	}
 
-	var grantProtos []*guardianv1beta1.Grant
+	var grantsProto []*guardianv1beta1.Grant
 	for i, a := range grants {
 		grantProto, err := s.adapter.ToGrantProto(&grants[i])
 		if err != nil {
 			return nil, 0, nil, s.internalError(ctx, "failed to parse grant %q: %v", a.ID, err)
 		}
-		grantProtos = append(grantProtos, grantProto)
+		grantsProto = append(grantsProto, grantProto)
 	}
 
 	summaryProto, err := s.adapter.ToSummaryProto(summary)
@@ -314,7 +314,7 @@ func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFil
 		return nil, 0, nil, s.internalError(ctx, "failed to parse summary: %v", err)
 	}
 
-	return grantProtos, total, summaryProto, nil
+	return grantsProto, total, summaryProto, nil
 }
 
 func (s *GRPCServer) ImportGrantsFromProvider(ctx context.Context, req *guardianv1beta1.ImportGrantsFromProviderRequest) (*guardianv1beta1.ImportGrantsFromProviderResponse, error) {

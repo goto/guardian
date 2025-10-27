@@ -81,7 +81,7 @@ func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.Lis
 		f.OrderBy = nil
 
 		db := r.db.WithContext(ctx)
-		db = applyGrantsSummaryJoins(db)
+		db = applyGrantsJoins(db)
 		return applyGrantsFilter(db, f)
 	}
 
@@ -322,10 +322,6 @@ func upsertResources(tx *gorm.DB, models []*model.Grant) error {
 }
 
 func applyGrantsJoins(db *gorm.DB) *gorm.DB {
-	return db.Joins("Resource", "LEFT").Joins("Appeal", "LEFT")
-}
-
-func applyGrantsSummaryJoins(db *gorm.DB) *gorm.DB {
 	return db.Joins(`LEFT JOIN "resources" AS "Resource" ON "grants"."resource_id" = "Resource"."id"`).
 		Joins(`LEFT JOIN "appeals" AS "Appeal" ON "grants"."appeal_id" = "Appeal"."id"`)
 }
@@ -429,10 +425,10 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		db = db.Where(`"grants"."expiration_date" IS NOT NULL`)
 		db = db.Where(fmt.Sprintf(`"grants"."expiration_date" BETWEEN NOW() AND NOW() + INTERVAL '%d day'`, filter.ExpiringInDays))
 	}
+
 	if (filter.RoleStartsWith != "" || filter.RoleEndsWith != "") && filter.RoleContains != "" {
 		return nil, fmt.Errorf("invalid filter: role_contains cannot be used together with role_starts_with or role_ends_with")
 	}
-
 	var patterns []string
 	if filter.RoleStartsWith != "" {
 		patterns = append(patterns, filter.RoleStartsWith+"%")
