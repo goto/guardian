@@ -66,7 +66,7 @@ func TestValidate(t *testing.T) {
 			},
 		},
 		{
-			Type: shield.ResourceTypeProject,
+			Type: shield.ResourceTypeOrganization,
 			Roles: []*domain.Role{
 				{
 					Permissions: []interface{}{"admin"},
@@ -81,6 +81,17 @@ func TestValidate(t *testing.T) {
 			Roles: []*domain.Role{
 				{
 					Permissions: []interface{}{"users"},
+				},
+			},
+		},
+	}
+
+	inValidAssertionResourceTypeConfig := []*domain.ResourceConfig{
+		{
+			Type: shield.ResourceTypeTeam,
+			Roles: []*domain.Role{
+				{
+					Permissions: []interface{}{1},
 				},
 			},
 		},
@@ -106,6 +117,11 @@ func TestValidate(t *testing.T) {
 				name:           "should return error if invalid resource type config",
 				credentials:    validCredentials,
 				resourceConfig: inValidResourceTypeConfig,
+			},
+			{
+				name:           "should return error if invalid assertion type",
+				credentials:    validCredentials,
+				resourceConfig: inValidAssertionResourceTypeConfig,
 			},
 		}
 
