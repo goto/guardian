@@ -115,14 +115,6 @@ func (s *Service) SetAppealService(a appealService) {
 }
 
 func (s *Service) List(ctx context.Context, filter domain.ListGrantsFilter) ([]domain.Grant, error) {
-	excludedUserGrantIDs, err := s.generateExcludedUserGrantIDsForSmartInactiveGrants(ctx, filter)
-	if err != nil {
-		return nil, fmt.Errorf("fail to generate excluded user grant ids: %w", err)
-	}
-	if len(excludedUserGrantIDs) > 0 {
-		filter.NotIDs = slicesUtil.GenericsStandardizeSlice(append(filter.NotIDs, excludedUserGrantIDs...))
-	}
-
 	grants, err := s.repo.List(ctx, filter)
 	if err != nil {
 		return nil, err
@@ -168,17 +160,10 @@ func (s *Service) List(ctx context.Context, filter domain.ListGrantsFilter) ([]d
 }
 
 func (s *Service) GenerateSummary(ctx context.Context, filter domain.ListGrantsFilter) (*domain.SummaryResult, error) {
-	excludedUserGrantIDs, err := s.generateExcludedUserGrantIDsForSmartInactiveGrants(ctx, filter)
-	if err != nil {
-		return nil, fmt.Errorf("fail to generate excluded user grant ids: %w", err)
-	}
-	if len(excludedUserGrantIDs) > 0 {
-		filter.NotIDs = slicesUtil.GenericsStandardizeSlice(append(filter.NotIDs, excludedUserGrantIDs...))
-	}
 	return s.repo.GenerateSummary(ctx, filter)
 }
 
-func (s *Service) generateExcludedUserGrantIDsForSmartInactiveGrants(ctx context.Context, filter domain.ListGrantsFilter) ([]string, error) {
+func (s *Service) GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx context.Context, filter domain.ListGrantsFilter) ([]string, error) {
 	owner := strings.ToLower(filter.Owner)
 	if filter.CreatedBy != "" {
 		owner = strings.ToLower(filter.CreatedBy)
@@ -916,13 +901,6 @@ func getGrantIDs(grants []domain.Grant) []string {
 }
 
 func (s *Service) GetGrantsTotalCount(ctx context.Context, filter domain.ListGrantsFilter) (int64, error) {
-	excludedUserGrantIDs, err := s.generateExcludedUserGrantIDsForSmartInactiveGrants(ctx, filter)
-	if err != nil {
-		return 0, fmt.Errorf("fail to generate excluded user grant ids: %w", err)
-	}
-	if len(excludedUserGrantIDs) > 0 {
-		filter.NotIDs = slicesUtil.GenericsStandardizeSlice(append(filter.NotIDs, excludedUserGrantIDs...))
-	}
 	return s.repo.GetGrantsTotalCount(ctx, filter)
 }
 
