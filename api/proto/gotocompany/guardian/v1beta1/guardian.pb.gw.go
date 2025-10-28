@@ -1759,6 +1759,10 @@ func local_request_GuardianService_GenerateApprovalSummaries_0(ctx context.Conte
 
 }
 
+var (
+	filter_GuardianService_UpdateApproval_0 = &utilities.DoubleArray{Encoding: map[string]int{"action": 0, "id": 1, "approval_name": 2, "approvalName": 3}, Base: []int{1, 2, 4, 5, 6, 0, 0, 0, 0, 0, 0}, Check: []int{0, 1, 1, 1, 1, 2, 2, 3, 3, 4, 5}}
+)
+
 func request_GuardianService_UpdateApproval_0(ctx context.Context, marshaler runtime.Marshaler, client GuardianServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq UpdateApprovalRequest
 	var metadata runtime.ServerMetadata
@@ -1796,6 +1800,13 @@ func request_GuardianService_UpdateApproval_0(ctx context.Context, marshaler run
 	protoReq.ApprovalName, err = runtime.String(val)
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "approval_name", err)
+	}
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GuardianService_UpdateApproval_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.UpdateApproval(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -1840,6 +1851,13 @@ func local_request_GuardianService_UpdateApproval_0(ctx context.Context, marshal
 	protoReq.ApprovalName, err = runtime.String(val)
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "approval_name", err)
+	}
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GuardianService_UpdateApproval_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := server.UpdateApproval(ctx, &protoReq)

@@ -850,9 +850,31 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 		return nil, err
 	}
 
-	currentApproval := appeal.GetApproval(approvalAction.ApprovalName)
+	// Prioritize approval_id over approval_name
+	var currentApproval *domain.Approval
+	if approvalAction.ApprovalID != "" {
+		currentApproval = appeal.GetApproval(approvalAction.ApprovalID)
+	} else {
+		currentApproval = appeal.GetApproval(approvalAction.ApprovalName)
+	}
+
 	if currentApproval == nil {
-		return nil, fmt.Errorf("%w: %q", ErrApprovalNotFound, approvalAction.ApprovalName)
+		identifier := approvalAction.ApprovalID
+		if identifier == "" {
+			identifier = approvalAction.ApprovalName
+		}
+		return nil, fmt.Errorf("%w: %q", ErrApprovalNotFound, identifier)
+	}
+
+	// If both approval_id and approval_name are provided, verify they match
+	if approvalAction.ApprovalID != "" && approvalAction.ApprovalName != "" {
+		if currentApproval.Name != approvalAction.ApprovalName {
+			return nil, fmt.Errorf("%w: approval with id %q has name %q, but expected %q",
+				ErrInvalidUpdateApprovalParameter,
+				approvalAction.ApprovalID,
+				currentApproval.Name,
+				approvalAction.ApprovalName)
+		}
 	}
 
 	// validate previous approvals status

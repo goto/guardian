@@ -679,6 +679,12 @@
             "schema": {
               "$ref": "#/definitions/UpdateApprovalRequestAction"
             }
+          },
+          {
+            "name": "approvalId",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
