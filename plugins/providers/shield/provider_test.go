@@ -429,11 +429,11 @@ func TestGetResources(t *testing.T) {
 			},
 			{
 				Type:        "dynamic_resource_type",
-				URN:         "resource:dynamic_resource:dynamic_resource_1",
+				URN:         "resource:dynamic_resource_id",
 				ProviderURN: providerURN,
 				Name:        "dynamic_resource_1",
 				Details: map[string]interface{}{
-					"id": "dynamic_resource_id",
+					"urn": "dynamic_resource:dynamic_resource_1",
 					"namespace": shield.Namespace{
 						ID:   "dynamic_resource_type",
 						Name: "Dynamic Namespace",

@@ -121,8 +121,6 @@ func (c *Config) validatePermission(resourceType string, value interface{}) (*Pe
 	var nameValidation string
 	if resourceType == ResourceTypeTeam {
 		nameValidation = "oneof=users admins member manager"
-	} else if resourceType == ResourceTypeProject {
-		nameValidation = "oneof=admins owner"
 	} else if resourceType == ResourceTypeOrganization {
 		nameValidation = "oneof=admins owner"
 	}
