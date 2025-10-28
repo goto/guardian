@@ -46,6 +46,10 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		FieldMasks:      slicesUtil.GenericsStandardizeSliceNilAble(req.GetFieldMasks()),
 		StartTime:       s.adapter.FromTimeProto(req.GetStartTime()),
 		EndTime:         s.adapter.FromTimeProto(req.GetEndTime()),
+		ResourceUrns:    slicesUtil.GenericsStandardizeSliceNilAble(req.GetResourceUrns()),
+		Roles:           slicesUtil.GenericsStandardizeSliceNilAble(req.GetRoles()),
+		Requestors:      slicesUtil.GenericsStandardizeSliceNilAble(req.GetRequestors()),
+		AccountIDs:      slicesUtil.GenericsStandardizeSliceNilAble(req.GetAccountIds()),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)
@@ -85,6 +89,10 @@ func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.Lis
 		FieldMasks:      slicesUtil.GenericsStandardizeSliceNilAble(req.GetFieldMasks()),
 		StartTime:       s.adapter.FromTimeProto(req.GetStartTime()),
 		EndTime:         s.adapter.FromTimeProto(req.GetEndTime()),
+		ResourceUrns:    slicesUtil.GenericsStandardizeSliceNilAble(req.GetResourceUrns()),
+		Roles:           slicesUtil.GenericsStandardizeSliceNilAble(req.GetRoles()),
+		Requestors:      slicesUtil.GenericsStandardizeSliceNilAble(req.GetRequestors()),
+		AccountIDs:      slicesUtil.GenericsStandardizeSliceNilAble(req.GetAccountIds()),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)

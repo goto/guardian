@@ -11,6 +11,7 @@ import (
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres/model"
+	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
 
@@ -258,7 +259,13 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		db = db.Where(`"approvals"."status" IN ?`, filter.Statuses)
 	}
 	if filter.AccountID != "" {
-		db = db.Where(`LOWER("Appeal"."account_id") = ?`, strings.ToLower(filter.AccountID))
+		filter.AccountIDs = slicesUtil.GenericsStandardizeSlice(append(filter.AccountIDs, filter.AccountID))
+	}
+	if len(filter.AccountIDs) > 0 {
+		db = db.Where(`LOWER("Appeal"."account_id") IN ?`, slicesUtil.ToLowerStringSlice(filter.AccountIDs))
+	}
+	if len(filter.Requestors) > 0 {
+		db = db.Where(`LOWER("Appeal"."created_by") IN ?`, slicesUtil.ToLowerStringSlice(filter.Requestors))
 	}
 	if filter.AccountTypes != nil {
 		db = db.Where(`"Appeal"."account_type" IN ?`, filter.AccountTypes)
@@ -271,6 +278,9 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	}
 	if filter.ResourceTypes != nil {
 		db = db.Where(`"Appeal__Resource"."type" IN ?`, filter.ResourceTypes)
+	}
+	if len(filter.ResourceUrns) > 0 {
+		db = db.Where(`"Appeal__Resource"."urn" IN ?`, filter.ResourceUrns)
 	}
 
 	if len(filter.AppealStatuses) == 0 {
@@ -309,8 +319,11 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	if filter.RoleContains != "" {
 		patterns = append(patterns, "%"+filter.RoleContains+"%")
 	}
+	if len(filter.Roles) > 0 {
+		patterns = append(patterns, filter.Roles...)
+	}
 	if len(patterns) > 0 {
-		db = db.Where(`"Appeal"."role" LIKE ANY (?)`, pq.Array(patterns))
+		db = db.Where(`"Appeal"."role" LIKE ANY (?)`, pq.Array(slicesUtil.GenericsStandardizeSlice(patterns)))
 	}
 
 	if len(filter.StepNames) > 0 {

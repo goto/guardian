@@ -86,6 +86,10 @@ type ListApprovalsFilter struct {
 	FieldMasks      []string  `mapstructure:"field_masks" json:"field_masks,omitempty"`
 	SummaryGroupBys []string  `mapstructure:"summary_group_bys" json:"summary_group_bys,omitempty"`
 	SummaryUniques  []string  `mapstructure:"summary_uniques" json:"summary_uniques,omitempty"`
+	ResourceUrns    []string  `mapstructure:"resource_urns" json:"resource_urns,omitempty"`
+	Roles           []string  `mapstructure:"roles" json:"roles,omitempty"`
+	Requestors      []string  `mapstructure:"requestors" json:"requestors,omitempty"`
+	AccountIDs      []string  `mapstructure:"account_ids" json:"account_ids,omitempty"`
 }
 
 func (af ListApprovalsFilter) WithSummary() bool {
