@@ -48,7 +48,7 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 	}
 
 	var models []model.Grant
-	if err := db.Preload("Appeal").Preload("Resource").Find(&models).Error; err != nil {
+	if err := db.Find(&models).Error; err != nil {
 		return nil, err
 	}
 
@@ -321,8 +321,8 @@ func upsertResources(tx *gorm.DB, models []*model.Grant) error {
 }
 
 func applyGrantsJoins(db *gorm.DB) *gorm.DB {
-	return db.Joins(`LEFT JOIN "resources" AS "Resource" ON "grants"."resource_id" = "Resource"."id"`).
-		Joins(`LEFT JOIN "appeals" AS "Appeal" ON "grants"."appeal_id" = "Appeal"."id"`)
+	return db.Joins(`JOIN "resources" "Resource" ON "grants"."resource_id" = "Resource"."id"`).
+		Joins(`LEFT JOIN "appeals" "Appeal" ON "grants"."appeal_id" = "Appeal"."id"`)
 }
 
 func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, error) {
