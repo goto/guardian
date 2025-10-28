@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/goto/guardian/pkg/log"
 
@@ -48,6 +51,8 @@ type ProtoAdapter interface {
 	ToAppealActivityProto(e *domain.Event) (*guardianv1beta1.AppealActivity, error)
 
 	ToSummaryProto(summary *domain.SummaryResult) (*guardianv1beta1.SummaryResult, error)
+
+	FromTimeProto(t *timestamppb.Timestamp) time.Time
 	// TODO: remove interface
 }
 
@@ -115,6 +120,7 @@ type appealService interface {
 type approvalService interface {
 	ListApprovals(context.Context, *domain.ListApprovalsFilter) ([]*domain.Approval, error)
 	GetApprovalsTotalCount(context.Context, *domain.ListApprovalsFilter) (int64, error)
+	GenerateSummary(context.Context, domain.ListApprovalsFilter) (*domain.SummaryResult, error)
 	GenerateApprovalSummary(context.Context, *domain.ListApprovalsFilter, []string) (*domain.SummaryResult, error)
 	BulkInsert(context.Context, []*domain.Approval) error
 }
@@ -124,6 +130,7 @@ type grantService interface {
 	ListUserRoles(context.Context, string) ([]string, error)
 	GetGrantsTotalCount(context.Context, domain.ListGrantsFilter) (int64, error)
 	List(context.Context, domain.ListGrantsFilter) ([]domain.Grant, error)
+	GenerateSummary(context.Context, domain.ListGrantsFilter) (*domain.SummaryResult, error)
 	GetByID(context.Context, string) (*domain.Grant, error)
 	Update(context.Context, *domain.GrantUpdate) (*domain.Grant, error)
 	Restore(ctx context.Context, id, actor, reason string) (*domain.Grant, error)

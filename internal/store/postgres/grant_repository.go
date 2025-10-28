@@ -4,20 +4,30 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
-	"github.com/goto/guardian/core/grant"
-	"github.com/goto/guardian/domain"
-	"github.com/goto/guardian/internal/store/postgres/model"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
+	"github.com/goto/guardian/core/grant"
+	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/internal/store/postgres/model"
+	"github.com/goto/guardian/utils"
 )
 
 var (
 	GrantStatusDefaultSort = []string{
 		string(domain.GrantStatusActive),
 		string(domain.GrantStatusInactive),
+	}
+
+	grantEntityGroupKeyMapping = map[string]string{
+		"grant":    "grants",
+		"appeal":   "Appeal",
+		"resource": "Resource",
 	}
 )
 
@@ -31,38 +41,77 @@ func NewGrantRepository(db *gorm.DB) *GrantRepository {
 
 func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilter) ([]domain.Grant, error) {
 	db := r.db.WithContext(ctx)
+	db = applyGrantsJoins(db)
 	var err error
-	db, err = applyGrantFilter(db, filter)
+	db, err = applyGrantsFilter(db, filter)
 	if err != nil {
 		return nil, err
 	}
 
 	var models []model.Grant
-	if err := db.Joins("Resource").Joins("Appeal").Find(&models).Error; err != nil {
+	if err := db.Preload("Appeal").Preload("Resource").Find(&models).Error; err != nil {
 		return nil, err
 	}
 
-	var grants []domain.Grant
-	for _, m := range models {
+	grants := make([]domain.Grant, len(models))
+	for i, m := range models {
 		g, err := m.ToDomain()
 		if err != nil {
-			return nil, fmt.Errorf("parsing grant %q: %w", g.ID, err)
+			return nil, fmt.Errorf("parsing grant %q: %w", m.ID, err)
 		}
-		grants = append(grants, *g)
+		grants[i] = *g
 	}
 
 	return grants, nil
 }
 
+func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.ListGrantsFilter) (*domain.SummaryResult, error) {
+	var err error
+	if err = utils.ValidateStruct(filter); err != nil {
+		return nil, err
+	}
+
+	sr := new(domain.SummaryResult)
+
+	dbGen := func() (*gorm.DB, error) {
+		// omit offset & size & order_by
+		f := filter
+		f.Offset = 0
+		f.Size = 0
+		f.OrderBy = nil
+
+		db := r.db.WithContext(ctx)
+		db = applyGrantsJoins(db)
+		return applyGrantsFilter(db, f)
+	}
+
+	if len(filter.SummaryUniques) > 0 {
+		sr.SummaryUniques, err = generateUniqueSummaries(ctx, dbGen, "grants", filter.SummaryUniques, grantEntityGroupKeyMapping)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(filter.SummaryGroupBys) > 0 {
+		sr.SummaryGroups, err = generateGroupSummaries(ctx, dbGen, "grants", filter.SummaryGroupBys, grantEntityGroupKeyMapping)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return generateSummaryResultCount(sr), nil
+}
+
 func (r *GrantRepository) GetGrantsTotalCount(ctx context.Context, filter domain.ListGrantsFilter) (int64, error) {
 	db := r.db.WithContext(ctx)
+	db = applyGrantsJoins(db)
 
 	grantFilters := filter
 	grantFilters.Size = 0
 	grantFilters.Offset = 0
 
 	var err error
-	db, err = applyGrantFilter(db, grantFilters)
+	db, err = applyGrantsFilter(db, grantFilters)
 	if err != nil {
 		return 0, err
 	}
@@ -272,16 +321,20 @@ func upsertResources(tx *gorm.DB, models []*model.Grant) error {
 	return nil
 }
 
-func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, error) {
-	db = db.Joins("JOIN resources ON grants.resource_id = resources.id")
+func applyGrantsJoins(db *gorm.DB) *gorm.DB {
+	return db.Joins(`LEFT JOIN "resources" AS "Resource" ON "grants"."resource_id" = "Resource"."id"`).
+		Joins(`LEFT JOIN "appeals" AS "Appeal" ON "grants"."appeal_id" = "Appeal"."id"`)
+}
+
+func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, error) {
 	if filter.Q != "" {
 		// NOTE: avoid adding conditions before this grouped where clause.
 		// Otherwise, it will be wrapped in parentheses and the query will be invalid.
 		db = db.Where(db.
 			Where(`"grants"."account_id" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
 			Or(`"grants"."role" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
-			Or(`"resources"."urn" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
-			Or(`"resources"."name" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)),
+			Or(`"Resource"."urn" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)).
+			Or(`"Resource"."name" LIKE ?`, fmt.Sprintf("%%%s%%", filter.Q)),
 		)
 	}
 
@@ -304,7 +357,7 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, er
 	if filter.AccountTypes != nil {
 		db = db.Where(`"grants"."account_type" IN ?`, filter.AccountTypes)
 	}
-	
+
 	if len(filter.GroupIDs) > 0 {
 		db = db.Where(`"grants"."group_id" IN ?`, filter.GroupIDs)
 	}
@@ -325,10 +378,12 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, er
 	if filter.Permissions != nil {
 		db = db.Where(`"grants"."permissions" @> ?`, pq.StringArray(filter.Permissions))
 	}
-	if filter.Owner != "" {
-		db = db.Where(`LOWER("grants"."owner") = ?`, strings.ToLower(filter.Owner))
-	} else if filter.CreatedBy != "" {
-		db = db.Where(`LOWER("grants"."owner") = ?`, strings.ToLower(filter.CreatedBy))
+	owner := strings.ToLower(filter.Owner)
+	if filter.CreatedBy != "" {
+		owner = strings.ToLower(filter.CreatedBy)
+	}
+	if owner != "" {
+		db = db.Where(`LOWER("grants"."owner") = ?`, owner)
 	}
 	if filter.IsPermanent != nil {
 		db = db.Where(`"grants"."is_permanent" = ?`, *filter.IsPermanent)
@@ -336,7 +391,7 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, er
 	if !filter.CreatedAtLte.IsZero() {
 		db = db.Where(`"grants"."created_at" <= ?`, filter.CreatedAtLte)
 	}
-	if filter.OrderBy != nil {
+	if len(filter.OrderBy) > 0 {
 		var err error
 		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
 			statusColumnName: `"grants"."status"`,
@@ -354,7 +409,6 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, er
 	if !filter.ExpirationDateGreaterThan.IsZero() {
 		db = db.Where(`"grants"."expiration_date" > ?`, filter.ExpirationDateGreaterThan)
 	}
-	db = db.Joins("Resource")
 	if filter.ProviderTypes != nil {
 		db = db.Where(`"Resource"."provider_type" IN ?`, filter.ProviderTypes)
 	}
@@ -367,5 +421,57 @@ func applyGrantFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, er
 	if filter.ResourceURNs != nil {
 		db = db.Where(`"Resource"."urn" IN ?`, filter.ResourceURNs)
 	}
+	if filter.ExpiringInDays != 0 && slices.Contains(filter.Statuses, "active") {
+		db = db.Where(`"grants"."expiration_date" IS NOT NULL`)
+		db = db.Where(fmt.Sprintf(`"grants"."expiration_date" BETWEEN NOW() AND NOW() + INTERVAL '%d day'`, filter.ExpiringInDays))
+	}
+
+	if (filter.RoleStartsWith != "" || filter.RoleEndsWith != "") && filter.RoleContains != "" {
+		return nil, fmt.Errorf("invalid filter: role_contains cannot be used together with role_starts_with or role_ends_with")
+	}
+	var patterns []string
+	if filter.RoleStartsWith != "" {
+		patterns = append(patterns, filter.RoleStartsWith+"%")
+	}
+	if filter.RoleEndsWith != "" {
+		patterns = append(patterns, "%"+filter.RoleEndsWith)
+	}
+	if filter.RoleContains != "" {
+		patterns = append(patterns, "%"+filter.RoleContains+"%")
+	}
+	if len(patterns) > 0 {
+		db = db.Where(`"grants"."role" LIKE ANY (?)`, pq.Array(patterns))
+	}
+
+	if !filter.StartTime.IsZero() && !filter.EndTime.IsZero() {
+		db = db.Where(`"grants"."created_at" BETWEEN ? AND ?`, filter.StartTime, filter.EndTime)
+	} else if !filter.StartTime.IsZero() {
+		db = db.Where(`"grants"."created_at" >= ?`, filter.StartTime)
+	} else if !filter.EndTime.IsZero() {
+		db = db.Where(`"grants"."created_at" <= ?`, filter.EndTime)
+	}
+
+	if owner != "" && (len(filter.Statuses) == 0 || slices.Contains(filter.Statuses, "inactive")) {
+		switch filter.UserInactiveGrantPolicy {
+		case guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_UNSPECIFIED:
+			fallthrough
+		case guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_INCLUDE_ALL:
+			break
+		case guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_SMART:
+			q := fmt.Sprintf(`NOT EXISTS (
+		SELECT 1 FROM grants g2
+		WHERE g2.account_id = "grants"."account_id"
+		  AND g2.resource_id = "grants"."resource_id"
+		  AND g2.role = "grants"."role"
+		  AND g2.permissions = "grants"."permissions"
+		  AND g2.status = 'active'
+		  AND LOWER("g2"."owner") = '%s'
+	)`, owner)
+			db = db.Where(q)
+		default:
+			return nil, fmt.Errorf("unknown inactive grant policy: %q", fmt.Sprint(filter.UserInactiveGrantPolicy))
+		}
+	}
+
 	return db, nil
 }

@@ -15,6 +15,7 @@ type repository interface {
 	AddApprover(context.Context, *domain.Approver) error
 	DeleteApprover(ctx context.Context, approvalID, email string) error
 	GenerateApprovalSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.SummaryResult, error)
+	GenerateSummary(context.Context, domain.ListApprovalsFilter) (*domain.SummaryResult, error)
 }
 
 //go:generate mockery --name=policyService --exported --with-expecter
@@ -68,6 +69,10 @@ func (s *Service) GenerateApprovalSummary(ctx context.Context, filters *domain.L
 	result.AppliedParameters = appliedParameters
 
 	return result, nil
+}
+
+func (s *Service) GenerateSummary(ctx context.Context, filter domain.ListApprovalsFilter) (*domain.SummaryResult, error) {
+	return s.repo.GenerateSummary(ctx, filter)
 }
 
 func (s *Service) BulkInsert(ctx context.Context, approvals []*domain.Approval) error {

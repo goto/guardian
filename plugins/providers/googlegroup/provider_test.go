@@ -91,7 +91,6 @@ func TestCreateConfig(t *testing.T) {
 		Filter: "$urn in test-group-1@gojek.com",
 	}
 	t.Run("should not create config", func(t *testing.T) {
-
 		t.Run("should not create config when credentials are not present", func(t *testing.T) {
 			var encryptor = new(mocks.Encryptor)
 			var logger = log.NewNoop()
@@ -545,7 +544,6 @@ func TestGrantAccess(t *testing.T) {
 	})
 
 	t.Run("should return error if permissions are invalid", func(t *testing.T) {
-
 		t.Run("should return error if more than 1 permission is specified ", func(t *testing.T) {
 			var encryptor = new(mocks.Encryptor)
 			var adminProvider = new(mocks.AdminService)
@@ -740,7 +738,6 @@ func TestRevokeAccess(t *testing.T) {
 	}
 
 	t.Run("should return error if permissions are invalid", func(t *testing.T) {
-
 		t.Run("should return error if more than 1 permission is specified ", func(t *testing.T) {
 			var encryptor = new(mocks.Encryptor)
 			var adminProvider = new(mocks.AdminService)

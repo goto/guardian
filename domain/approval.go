@@ -1,9 +1,10 @@
 package domain
 
 import (
-	"errors"
 	"strings"
 	"time"
+
+	"github.com/goto/guardian/pkg/slices"
 )
 
 const (
@@ -12,10 +13,6 @@ const (
 	ApprovalStatusSkipped  = "skipped"
 	ApprovalStatusApproved = "approved"
 	ApprovalStatusRejected = "rejected"
-)
-
-var (
-	ErrInvalidGroupByField = errors.New("invalid group by field")
 )
 
 type Approval struct {
@@ -66,22 +63,43 @@ func (a *Approval) IsExistingApprover(approver string) bool {
 }
 
 type ListApprovalsFilter struct {
-	Q              string   `mapstructure:"q" json:"q,omitempty" validate:"omitempty"`
-	AccountID      string   `mapstructure:"account_id" json:"account_id,omitempty" validate:"omitempty,required"`
-	AccountTypes   []string `mapstructure:"account_types" json:"account_types,omitempty" validate:"omitempty,min=1"`
-	ResourceTypes  []string `mapstructure:"resource_types" json:"resource_types,omitempty" validate:"omitempty,min=1"`
-	CreatedBy      string   `mapstructure:"created_by" json:"created_by,omitempty" validate:"omitempty,required"`
-	Statuses       []string `mapstructure:"statuses" json:"statuses,omitempty" validate:"omitempty,min=1"`
-	OrderBy        []string `mapstructure:"order_by" json:"order_by,omitempty" validate:"omitempty,min=1"`
-	Size           int      `mapstructure:"size" json:"size,omitempty" validate:"omitempty"`
-	Offset         int      `mapstructure:"offset" json:"offset,omitempty" validate:"omitempty"`
-	AppealStatuses []string `mapstructure:"appeal_statuses" json:"appeal_statuses,omitempty" validate:"omitempty,min=1"`
-	Stale          bool     `mapstructure:"stale" json:"stale,omitempty" validate:"omitempty"`
-	RoleStartsWith string   `mapstructure:"role_starts_with" json:"role_starts_with,omitempty" validate:"omitempty"`
-	RoleEndsWith   string   `mapstructure:"role_ends_with" json:"role_ends_with,omitempty" validate:"omitempty"`
-	RoleContains   string   `mapstructure:"role_contains" json:"role_contains,omitempty" validate:"omitempty"`
-	StepNames      []string `mapstructure:"step_names" json:"step_names,omitempty" validate:"omitempty,min=1"`
-	ProviderTypes  []string `mapstructure:"provider_types" json:"provider_types,omitempty" validate:"omitempty,min=1"`
-	ProviderURNs   []string `mapstructure:"provider_urns" json:"provider_urns,omitempty" validate:"omitempty,min=1"`
-	Actors         []string `mapstructure:"actors" json:"actors,omitempty" validate:"omitempty,min=1"`
+	Q               string    `mapstructure:"q" json:"q,omitempty" validate:"omitempty"`
+	AccountID       string    `mapstructure:"account_id" json:"account_id,omitempty" validate:"omitempty,required"`
+	AccountTypes    []string  `mapstructure:"account_types" json:"account_types,omitempty" validate:"omitempty,min=1"`
+	ResourceTypes   []string  `mapstructure:"resource_types" json:"resource_types,omitempty" validate:"omitempty,min=1"`
+	CreatedBy       string    `mapstructure:"created_by" json:"created_by,omitempty" validate:"omitempty,required"`
+	Statuses        []string  `mapstructure:"statuses" json:"statuses,omitempty" validate:"omitempty,min=1"`
+	OrderBy         []string  `mapstructure:"order_by" json:"order_by,omitempty" validate:"omitempty,min=1"`
+	Size            int       `mapstructure:"size" json:"size,omitempty" validate:"omitempty"`
+	Offset          int       `mapstructure:"offset" json:"offset,omitempty" validate:"omitempty"`
+	AppealStatuses  []string  `mapstructure:"appeal_statuses" json:"appeal_statuses,omitempty" validate:"omitempty,min=1"`
+	Stale           bool      `mapstructure:"stale" json:"stale,omitempty" validate:"omitempty"`
+	RoleStartsWith  string    `mapstructure:"role_starts_with" json:"role_starts_with,omitempty" validate:"omitempty"`
+	RoleEndsWith    string    `mapstructure:"role_ends_with" json:"role_ends_with,omitempty" validate:"omitempty"`
+	RoleContains    string    `mapstructure:"role_contains" json:"role_contains,omitempty" validate:"omitempty"`
+	StepNames       []string  `mapstructure:"step_names" json:"step_names,omitempty" validate:"omitempty,min=1"`
+	ProviderTypes   []string  `mapstructure:"provider_types" json:"provider_types,omitempty" validate:"omitempty,min=1"`
+	ProviderURNs    []string  `mapstructure:"provider_urns" json:"provider_urns,omitempty" validate:"omitempty,min=1"`
+	Actors          []string  `mapstructure:"actors" json:"actors,omitempty" validate:"omitempty,min=1"`
+	StartTime       time.Time `mapstructure:"start_time" json:"start_time,omitempty"`
+	EndTime         time.Time `mapstructure:"end_time" json:"end_time,omitempty"`
+	FieldMasks      []string  `mapstructure:"field_masks" json:"field_masks,omitempty"`
+	SummaryGroupBys []string  `mapstructure:"summary_group_bys" json:"summary_group_bys,omitempty"`
+	SummaryUniques  []string  `mapstructure:"summary_uniques" json:"summary_uniques,omitempty"`
+	ResourceUrns    []string  `mapstructure:"resource_urns" json:"resource_urns,omitempty"`
+	Roles           []string  `mapstructure:"roles" json:"roles,omitempty"`
+	Requestors      []string  `mapstructure:"requestors" json:"requestors,omitempty"`
+	AccountIDs      []string  `mapstructure:"account_ids" json:"account_ids,omitempty"`
+}
+
+func (af ListApprovalsFilter) WithSummary() bool {
+	return len(af.SummaryGroupBys) > 0 || len(af.SummaryUniques) > 0
+}
+
+func (af ListApprovalsFilter) WithApprovals() bool {
+	return !slices.GenericsSliceContainsOne(af.FieldMasks, "approvals")
+}
+
+func (af ListApprovalsFilter) WithTotal() bool {
+	return !slices.GenericsSliceContainsOne(af.FieldMasks, "total")
 }

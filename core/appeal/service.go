@@ -13,6 +13,9 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/mitchellh/mapstructure"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/goto/guardian/core/comment"
 	"github.com/goto/guardian/core/event"
 	"github.com/goto/guardian/core/grant"
@@ -23,8 +26,6 @@ import (
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/notifiers"
 	"github.com/goto/guardian/utils"
-	"github.com/mitchellh/mapstructure"
-	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -1821,7 +1822,7 @@ func validateAppeal(a *domain.Appeal, pendingAppealsMap map[string]map[string]ma
 	if pendingAppealsMap[accountID] != nil &&
 		pendingAppealsMap[accountID][a.ResourceID] != nil &&
 		pendingAppealsMap[accountID][a.ResourceID][a.Role] != nil {
-		return ErrAppealDuplicate
+		return fmt.Errorf("%w. appeal id: %q", ErrAppealDuplicate, pendingAppealsMap[accountID][a.ResourceID][a.Role].ID)
 	}
 
 	return nil

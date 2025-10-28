@@ -560,8 +560,8 @@ func (s *GrpcHandlersSuite) TestRevokeGrant() {
 		}
 
 		req := &guardianv1beta1.RevokeGrantRequest{
-			Id:                   id,
-			Reason:               reason,
+			Id:     id,
+			Reason: reason,
 		}
 
 		s.grantService.EXPECT().

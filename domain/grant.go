@@ -7,7 +7,9 @@ import (
 	"strings"
 	"time"
 
+	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/pkg/diff"
+	"github.com/goto/guardian/pkg/slices"
 )
 
 type GrantStatus string
@@ -46,6 +48,7 @@ type Grant struct {
 	RequestedExpirationDate *time.Time  `json:"requested_expiration_date,omitempty" yaml:"requested_expiration_date,omitempty"`
 	ExpirationDateReason    string      `json:"expiration_date_reason,omitempty" yaml:"expiration_date_reason,omitempty"`
 	AppealID                string      `json:"appeal_id" yaml:"appeal_id"`
+	PendingAppealID         string      `json:"pending_appeal_id" yaml:"pending_appeal_id,omitempty" gorm:"-"`
 	Source                  GrantSource `json:"source" yaml:"source"`
 	RevokedBy               string      `json:"revoked_by,omitempty" yaml:"revoked_by,omitempty"`
 	RevokedAt               *time.Time  `json:"revoked_at,omitempty" yaml:"revoked_at,omitempty"`
@@ -223,6 +226,30 @@ type ListGrantsFilter struct {
 	Size                      int    `mapstructure:"size" validate:"omitempty"`
 	Offset                    int    `mapstructure:"offset" validate:"omitempty"`
 	Q                         string `mapstructure:"q" validate:"omitempty"`
+	StartTime                 time.Time
+	EndTime                   time.Time
+	SummaryGroupBys           []string
+	SummaryUniques            []string
+	ExpiringInDays            int
+	FieldMasks                []string
+	WithPendingAppeal         bool
+	RoleStartsWith            string
+	RoleEndsWith              string
+	RoleContains              string
+
+	UserInactiveGrantPolicy guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy
+}
+
+func (gf ListGrantsFilter) WithSummary() bool {
+	return len(gf.SummaryGroupBys) > 0 || len(gf.SummaryUniques) > 0
+}
+
+func (gf ListGrantsFilter) WithGrants() bool {
+	return !slices.GenericsSliceContainsOne(gf.FieldMasks, "grants")
+}
+
+func (gf ListGrantsFilter) WithTotal() bool {
+	return !slices.GenericsSliceContainsOne(gf.FieldMasks, "total")
 }
 
 type RevokeGrantsFilter struct {

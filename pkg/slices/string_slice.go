@@ -1,5 +1,9 @@
 package slices
 
+import (
+	"strings"
+)
+
 func UniqueStringSlice(slice []string) []string {
 	if slice == nil {
 		return nil
@@ -14,4 +18,16 @@ func UniqueStringSlice(slice []string) []string {
 		}
 	}
 	return list
+}
+
+func ToLowerStringSlice(slice []string) []string {
+	if slice == nil {
+		return nil
+	}
+
+	result := make([]string, len(slice))
+	for i, v := range slice {
+		result[i] = strings.ToLower(v)
+	}
+	return result
 }

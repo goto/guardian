@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/lib/pq"
@@ -12,11 +11,8 @@ import (
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres/model"
+	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
-)
-
-const (
-	countColumnAlias = "count"
 )
 
 var (
@@ -28,7 +24,7 @@ var (
 		domain.ApprovalStatusSkipped,
 	}
 
-	entityGroupKeyMapping = map[string]string{
+	approvalEntityGroupKeyMapping = map[string]string{
 		"resource": "Appeal__Resource",
 		"appeal":   "Appeal",
 		"approver": "approvers",
@@ -103,101 +99,73 @@ func (r *ApprovalRepository) GetApprovalsTotalCount(ctx context.Context, filter 
 }
 
 func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.SummaryResult, error) {
-	if err := utils.ValidateStruct(filter); err != nil {
-		return nil, err
-	}
-
-	db := r.db.WithContext(ctx)
-	db = applyApprovalsSummariesJoins(db)
 	var err error
-	db, err = applyApprovalsFilter(db, filter)
-	if err != nil {
+	if err = utils.ValidateStruct(filter); err != nil {
 		return nil, err
 	}
-	var selectCols []string
-	var groupCols []string
-	// TODO | https://github.com/goto/guardian/pull/218#discussion_r2336292684
-	// Add validation for group bys. e,g. filter to group by 'created_at' since it not make sense.
-	for _, groupKey := range groupBys {
-		var column string
-		for i, field := range strings.Split(groupKey, ".") {
-			if i == 0 {
-				tableName, ok := entityGroupKeyMapping[field]
-				if !ok {
-					return nil, fmt.Errorf("%w %q", domain.ErrInvalidGroupByField, field)
-				}
-				column = fmt.Sprintf("%q", tableName)
-				continue
-			}
 
-			column += "." + fmt.Sprintf("%q", field)
-		}
+	sr := new(domain.SummaryResult)
 
-		selectCols = append(selectCols, fmt.Sprintf(`%s AS %q`, column, groupKey))
-		groupCols = append(groupCols, fmt.Sprintf("%q", groupKey))
+	dbGen := func() (*gorm.DB, error) {
+		// omit offset & size & order_by
+		f := *filter
+		f.Offset = 0
+		f.Size = 0
+		f.OrderBy = nil
+
+		db := r.db.WithContext(ctx)
+		db = applyApprovalsSummaryJoins(db)
+		return applyApprovalsFilter(db, &f)
 	}
-	selectCols = append(selectCols, fmt.Sprintf("COUNT(1) AS %s", countColumnAlias))
 
-	db = db.Table("approvals").Select(strings.Join(selectCols, ", "))
+	// omit offset & size & order_by for group summaries
 	if len(groupBys) > 0 {
-		db = db.Group(strings.Join(groupCols, ", "))
-	}
-
-	// Execute query
-	rows, err := db.Rows()
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	result := &domain.SummaryResult{
-		SummaryGroups: []*domain.SummaryGroup{},
-		Count:         0,
-	}
-
-	cols, err := rows.Columns()
-	if err != nil {
-		return nil, err
-	}
-
-	for rows.Next() {
-		// Prepare scan destination
-		values := make([]interface{}, len(cols))
-		valuePtrs := make([]interface{}, len(cols))
-		for i := range cols {
-			valuePtrs[i] = &values[i]
-		}
-
-		if err := rows.Scan(valuePtrs...); err != nil {
+		sr.SummaryGroups, err = generateGroupSummaries(ctx, dbGen, "approvals", groupBys, approvalEntityGroupKeyMapping)
+		if err != nil {
 			return nil, err
 		}
-
-		groupFields := make(map[string]any)
-		var count int32
-		for i, col := range cols {
-			groupValues := values[:i]
-			val := values[i]
-			switch col {
-			case countColumnAlias:
-				intValue, err := strconv.Atoi(fmt.Sprint(val))
-				if err != nil {
-					return nil, fmt.Errorf("invalid count value (%T) for group values: %v", val, groupValues)
-				}
-				count = int32(intValue)
-			default:
-				groupFields[col] = val
-			}
-		}
-		if len(groupBys) > 0 {
-			result.SummaryGroups = append(result.SummaryGroups, &domain.SummaryGroup{
-				GroupFields: groupFields,
-				Count:       count,
-			})
-		}
-		result.Count += count
+		sr = generateSummaryResultCount(sr)
+		sr.Count = sr.GroupsCount
 	}
 
-	return result, nil
+	return sr, nil
+}
+
+func (r *ApprovalRepository) GenerateSummary(ctx context.Context, filter domain.ListApprovalsFilter) (*domain.SummaryResult, error) {
+	var err error
+	if err = utils.ValidateStruct(filter); err != nil {
+		return nil, err
+	}
+
+	sr := new(domain.SummaryResult)
+
+	dbGen := func() (*gorm.DB, error) {
+		// omit offset & size & order_by
+		f := filter
+		f.Offset = 0
+		f.Size = 0
+		f.OrderBy = nil
+
+		db := r.db.WithContext(ctx)
+		db = applyApprovalsSummaryJoins(db)
+		return applyApprovalsFilter(db, &f)
+	}
+
+	if len(filter.SummaryUniques) > 0 {
+		sr.SummaryUniques, err = generateUniqueSummaries(ctx, dbGen, "approvals", filter.SummaryUniques, approvalEntityGroupKeyMapping)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(filter.SummaryGroupBys) > 0 {
+		sr.SummaryGroups, err = generateGroupSummaries(ctx, dbGen, "approvals", filter.SummaryGroupBys, approvalEntityGroupKeyMapping)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return generateSummaryResultCount(sr), nil
 }
 
 func (r *ApprovalRepository) BulkInsert(ctx context.Context, approvals []*domain.Approval) error {
@@ -267,12 +235,10 @@ func applyApprovalsJoins(db *gorm.DB) *gorm.DB {
 		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
 }
 
-func applyApprovalsSummariesJoins(db *gorm.DB) *gorm.DB {
-	return db.Joins(`LEFT JOIN "appeals" "Appeal" ON "approvals"."appeal_id" = "Appeal"."id"
-  AND "Appeal"."deleted_at" IS NULL`).
-		Joins(`LEFT JOIN "resources" "Appeal__Resource" ON "Appeal"."resource_id" = "Appeal__Resource"."id"
-  AND "Appeal__Resource"."deleted_at" IS NULL`).
-		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
+func applyApprovalsSummaryJoins(db *gorm.DB) *gorm.DB {
+	return db.Joins(`LEFT JOIN "appeals" "Appeal" ON "approvals"."appeal_id" = "Appeal"."id"`).
+		Joins(`LEFT JOIN "resources" "Appeal__Resource" ON "Appeal"."resource_id" = "Appeal__Resource"."id"`).
+		Joins(`LEFT JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
 }
 
 func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, error) {
@@ -293,7 +259,13 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		db = db.Where(`"approvals"."status" IN ?`, filter.Statuses)
 	}
 	if filter.AccountID != "" {
-		db = db.Where(`LOWER("Appeal"."account_id") = ?`, strings.ToLower(filter.AccountID))
+		filter.AccountIDs = slicesUtil.GenericsStandardizeSlice(append(filter.AccountIDs, filter.AccountID))
+	}
+	if len(filter.AccountIDs) > 0 {
+		db = db.Where(`LOWER("Appeal"."account_id") IN ?`, slicesUtil.ToLowerStringSlice(filter.AccountIDs))
+	}
+	if len(filter.Requestors) > 0 {
+		db = db.Where(`LOWER("Appeal"."created_by") IN ?`, slicesUtil.ToLowerStringSlice(filter.Requestors))
 	}
 	if filter.AccountTypes != nil {
 		db = db.Where(`"Appeal"."account_type" IN ?`, filter.AccountTypes)
@@ -307,6 +279,9 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	if filter.ResourceTypes != nil {
 		db = db.Where(`"Appeal__Resource"."type" IN ?`, filter.ResourceTypes)
 	}
+	if len(filter.ResourceUrns) > 0 {
+		db = db.Where(`"Appeal__Resource"."urn" IN ?`, filter.ResourceUrns)
+	}
 
 	if len(filter.AppealStatuses) == 0 {
 		db = db.Where(`"Appeal"."status" != ?`, domain.AppealStatusCanceled)
@@ -314,7 +289,7 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		db = db.Where(`"Appeal"."status" IN ?`, filter.AppealStatuses)
 	}
 
-	if filter.OrderBy != nil {
+	if len(filter.OrderBy) > 0 {
 		var err error
 		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
 			statusColumnName: `"approvals"."status"`,
@@ -344,8 +319,11 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	if filter.RoleContains != "" {
 		patterns = append(patterns, "%"+filter.RoleContains+"%")
 	}
+	if len(filter.Roles) > 0 {
+		patterns = append(patterns, filter.Roles...)
+	}
 	if len(patterns) > 0 {
-		db = db.Where(`"Appeal"."role" LIKE ANY (?)`, pq.Array(patterns))
+		db = db.Where(`"Appeal"."role" LIKE ANY (?)`, pq.Array(slicesUtil.GenericsStandardizeSlice(patterns)))
 	}
 
 	if len(filter.StepNames) > 0 {
@@ -354,5 +332,14 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	if len(filter.Actors) > 0 {
 		db = db.Where(`"approvals"."actor" IN ?`, filter.Actors)
 	}
+
+	if !filter.StartTime.IsZero() && !filter.EndTime.IsZero() {
+		db = db.Where(`"Appeal"."created_at" BETWEEN ? AND ?`, filter.StartTime, filter.EndTime)
+	} else if !filter.StartTime.IsZero() {
+		db = db.Where(`"Appeal"."created_at" >= ?`, filter.StartTime)
+	} else if !filter.EndTime.IsZero() {
+		db = db.Where(`"Appeal"."created_at" <= ?`, filter.EndTime)
+	}
+
 	return db, nil
 }

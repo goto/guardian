@@ -2,6 +2,7 @@ package v1beta1
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -895,6 +896,7 @@ func (a *adapter) ToGrantProto(grant *domain.Grant) (*guardianv1beta1.Grant, err
 		ExpirationDateReason: grant.ExpirationDateReason,
 		RestoreReason:        grant.RestoreReason,
 		RestoredBy:           grant.RestoredBy,
+		PendingAppealId:      grant.PendingAppealID,
 	}
 
 	if grant.ExpirationDate != nil {
@@ -1086,7 +1088,10 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 	summaryProto := &guardianv1beta1.SummaryResult{
 		AppliedParameters: appliedParameters,
 		Groups:            make([]*guardianv1beta1.SummaryResult_Group, len(s.SummaryGroups)),
+		Uniques:           make([]*guardianv1beta1.SummaryResult_Unique, len(s.SummaryUniques)),
 		Count:             s.Count,
+		GroupsCount:       s.GroupsCount,
+		UniquesCount:      s.UniquesCount,
 	}
 
 	for i, group := range s.SummaryGroups {
@@ -1101,7 +1106,27 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 		}
 	}
 
+	for i, unique := range s.SummaryUniques {
+		values, err := toProtoList(unique.Values)
+		if err != nil {
+			return nil, fmt.Errorf("parsing unique values: %w", err)
+		}
+
+		summaryProto.Uniques[i] = &guardianv1beta1.SummaryResult_Unique{
+			Field:  unique.Field,
+			Values: values,
+			Count:  unique.Count,
+		}
+	}
+
 	return summaryProto, nil
+}
+
+func (a *adapter) FromTimeProto(t *timestamppb.Timestamp) time.Time {
+	if t == nil || (t.GetSeconds() == 1 && t.GetNanos() == 2) {
+		return time.Time{}.UTC()
+	}
+	return t.AsTime().UTC()
 }
 
 func (a *adapter) toConditionProto(c *domain.Condition) (*guardianv1beta1.Condition, error) {
@@ -1192,6 +1217,18 @@ func toGoMap(in map[string]*structpb.Value) map[string]any {
 
 func toProtoMap(in map[string]any) (map[string]*structpb.Value, error) {
 	out := make(map[string]*structpb.Value, len(in))
+	for k, v := range in {
+		val, err := structpb.NewValue(v)
+		if err != nil {
+			return nil, err
+		}
+		out[k] = val
+	}
+	return out, nil
+}
+
+func toProtoList(in []interface{}) ([]*structpb.Value, error) {
+	out := make([]*structpb.Value, len(in))
 	for k, v := range in {
 		val, err := structpb.NewValue(v)
 		if err != nil {

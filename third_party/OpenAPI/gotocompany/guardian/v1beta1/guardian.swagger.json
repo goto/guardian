@@ -879,6 +879,90 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryGroupBys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryUniques",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "fieldMasks",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "startTime",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "endTime",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "resourceUrns",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "roles",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "requestors",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "accountIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -1093,6 +1177,81 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "summaryGroupBys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryUniques",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "expiringInDays",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "fieldMasks",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "withPendingAppeal",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "roleStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "roleEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "roleContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startTime",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "endTime",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
           }
         ],
         "tags": [
@@ -1641,6 +1800,90 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryGroupBys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryUniques",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "fieldMasks",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "startTime",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "endTime",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "resourceUrns",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "roles",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "requestors",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "accountIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -1837,6 +2080,94 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryGroupBys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryUniques",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "expiringInDays",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "fieldMasks",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "withPendingAppeal",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "roleStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "roleEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "roleContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "inactiveGrantPolicy",
+            "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart visibility mode:\n- If a resource has both active and inactive grants, only active ones are shown.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "INACTIVE_GRANT_POLICY_UNSPECIFIED",
+              "INACTIVE_GRANT_POLICY_INCLUDE_ALL",
+              "INACTIVE_GRANT_POLICY_SMART"
+            ],
+            "default": "INACTIVE_GRANT_POLICY_UNSPECIFIED"
+          },
+          {
+            "name": "startTime",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "endTime",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
           }
         ],
         "tags": [
@@ -2625,6 +2956,16 @@
         "eq": {}
       }
     },
+    "ListUserGrantsRequestInactiveGrantPolicy": {
+      "type": "string",
+      "enum": [
+        "INACTIVE_GRANT_POLICY_UNSPECIFIED",
+        "INACTIVE_GRANT_POLICY_INCLUDE_ALL",
+        "INACTIVE_GRANT_POLICY_SMART"
+      ],
+      "default": "INACTIVE_GRANT_POLICY_UNSPECIFIED",
+      "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart visibility mode:\n- If a resource has both active and inactive grants, only active ones are shown."
+    },
     "PolicyAppealConfigDurationOptions": {
       "type": "object",
       "properties": {
@@ -2848,6 +3189,22 @@
         "groupFields": {
           "type": "object",
           "additionalProperties": {}
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "SummaryResultUnique": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {}
         },
         "count": {
           "type": "integer",
@@ -3500,6 +3857,9 @@
         },
         "groupType": {
           "type": "string"
+        },
+        "pendingAppealId": {
+          "type": "string"
         }
       }
     },
@@ -3646,6 +4006,9 @@
         "total": {
           "type": "integer",
           "format": "int32"
+        },
+        "summary": {
+          "$ref": "#/definitions/v1beta1SummaryResult"
         }
       }
     },
@@ -3662,6 +4025,9 @@
         "total": {
           "type": "integer",
           "format": "int32"
+        },
+        "summary": {
+          "$ref": "#/definitions/v1beta1SummaryResult"
         }
       }
     },
@@ -3746,6 +4112,9 @@
         "total": {
           "type": "integer",
           "format": "int32"
+        },
+        "summary": {
+          "$ref": "#/definitions/v1beta1SummaryResult"
         }
       }
     },
@@ -3762,6 +4131,9 @@
         "total": {
           "type": "integer",
           "format": "int32"
+        },
+        "summary": {
+          "$ref": "#/definitions/v1beta1SummaryResult"
         }
       }
     },
@@ -4157,6 +4529,22 @@
           }
         },
         "count": {
+          "type": "integer",
+          "format": "int32",
+          "title": "deprecated"
+        },
+        "uniques": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/SummaryResultUnique"
+          }
+        },
+        "groupsCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "uniquesCount": {
           "type": "integer",
           "format": "int32"
         }

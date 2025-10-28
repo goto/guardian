@@ -117,6 +117,65 @@ func (_c *Repository_Create_Call) RunAndReturn(run func(context.Context, *domain
 	return _c
 }
 
+// GenerateSummary provides a mock function with given fields: _a0, _a1
+func (_m *Repository) GenerateSummary(_a0 context.Context, _a1 domain.ListGrantsFilter) (*domain.SummaryResult, error) {
+	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GenerateSummary")
+	}
+
+	var r0 *domain.SummaryResult
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListGrantsFilter) (*domain.SummaryResult, error)); ok {
+		return rf(_a0, _a1)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListGrantsFilter) *domain.SummaryResult); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.SummaryResult)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, domain.ListGrantsFilter) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Repository_GenerateSummary_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GenerateSummary'
+type Repository_GenerateSummary_Call struct {
+	*mock.Call
+}
+
+// GenerateSummary is a helper method to define mock.On call
+//   - _a0 context.Context
+//   - _a1 domain.ListGrantsFilter
+func (_e *Repository_Expecter) GenerateSummary(_a0 interface{}, _a1 interface{}) *Repository_GenerateSummary_Call {
+	return &Repository_GenerateSummary_Call{Call: _e.mock.On("GenerateSummary", _a0, _a1)}
+}
+
+func (_c *Repository_GenerateSummary_Call) Run(run func(_a0 context.Context, _a1 domain.ListGrantsFilter)) *Repository_GenerateSummary_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(domain.ListGrantsFilter))
+	})
+	return _c
+}
+
+func (_c *Repository_GenerateSummary_Call) Return(_a0 *domain.SummaryResult, _a1 error) *Repository_GenerateSummary_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Repository_GenerateSummary_Call) RunAndReturn(run func(context.Context, domain.ListGrantsFilter) (*domain.SummaryResult, error)) *Repository_GenerateSummary_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetByID provides a mock function with given fields: _a0, _a1
 func (_m *Repository) GetByID(_a0 context.Context, _a1 string) (*domain.Grant, error) {
 	ret := _m.Called(_a0, _a1)
