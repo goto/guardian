@@ -48,7 +48,7 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 	}
 
 	var models []model.Grant
-	if err := db.Find(&models).Error; err != nil {
+	if err := db.Preload("Appeal").Find(&models).Error; err != nil {
 		return nil, err
 	}
 
@@ -80,7 +80,7 @@ func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.Lis
 		f.OrderBy = nil
 
 		db := r.db.WithContext(ctx)
-		db = applyGrantsJoins(db)
+		db = applyGrantsSummaryJoins(db)
 		return applyGrantsFilter(db, f)
 	}
 
@@ -321,8 +321,11 @@ func upsertResources(tx *gorm.DB, models []*model.Grant) error {
 }
 
 func applyGrantsJoins(db *gorm.DB) *gorm.DB {
-	return db.Joins("Resource").
-		Joins("LEFT JOIN Appeal")
+	return db.Joins("Resource")
+}
+
+func applyGrantsSummaryJoins(db *gorm.DB) *gorm.DB {
+	return db.Joins("Resource").Joins("Appeal")
 }
 
 func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, error) {
