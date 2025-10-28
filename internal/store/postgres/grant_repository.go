@@ -345,7 +345,7 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	}
 
 	if len(filter.NotIDs) > 0 {
-		db = db.Where(`LOWER("grants"."id") NOT IN ?`, filter.NotIDs)
+		db = db.Where(`"grants"."id" NOT IN ?`, filter.NotIDs)
 	}
 
 	accounts := make([]string, 0)
