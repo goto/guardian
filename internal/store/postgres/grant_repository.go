@@ -25,7 +25,6 @@ var (
 
 	grantEntityGroupKeyMapping = map[string]string{
 		"grant":    "grants",
-		"appeal":   "Appeal",
 		"resource": "Resource",
 	}
 )
@@ -80,7 +79,7 @@ func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.Lis
 		f.OrderBy = nil
 
 		db := r.db.WithContext(ctx)
-		db = applyGrantsSummaryJoins(db)
+		db = applyGrantsJoins(db)
 		return applyGrantsFilter(db, f)
 	}
 
@@ -322,10 +321,6 @@ func upsertResources(tx *gorm.DB, models []*model.Grant) error {
 
 func applyGrantsJoins(db *gorm.DB) *gorm.DB {
 	return db.Joins("Resource")
-}
-
-func applyGrantsSummaryJoins(db *gorm.DB) *gorm.DB {
-	return db.Joins("Resource").Joins("Appeal")
 }
 
 func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, error) {
