@@ -915,8 +915,15 @@ func getGrantIDs(grants []domain.Grant) []string {
 	return ids
 }
 
-func (s *Service) GetGrantsTotalCount(ctx context.Context, filters domain.ListGrantsFilter) (int64, error) {
-	return s.repo.GetGrantsTotalCount(ctx, filters)
+func (s *Service) GetGrantsTotalCount(ctx context.Context, filter domain.ListGrantsFilter) (int64, error) {
+	excludedUserGrantIDs, err := s.generateExcludedUserGrantIDsForSmartInactiveGrants(ctx, filter)
+	if err != nil {
+		return 0, fmt.Errorf("fail to generate excluded user grant ids: %w", err)
+	}
+	if len(excludedUserGrantIDs) > 0 {
+		filter.NotIDs = slicesUtil.GenericsStandardizeSlice(append(filter.NotIDs, excludedUserGrantIDs...))
+	}
+	return s.repo.GetGrantsTotalCount(ctx, filter)
 }
 
 func (s *Service) ListUserRoles(ctx context.Context, owner string) ([]string, error) {
