@@ -321,8 +321,8 @@ func upsertResources(tx *gorm.DB, models []*model.Grant) error {
 }
 
 func applyGrantsJoins(db *gorm.DB) *gorm.DB {
-	return db.Joins(`JOIN "resources" "Resource" ON "grants"."resource_id" = "Resource"."id"`).
-		Joins(`LEFT JOIN "appeals" "Appeal" ON "grants"."appeal_id" = "Appeal"."id"`)
+	return db.Joins("Resource").
+		Joins("LEFT JOIN Appeal")
 }
 
 func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, error) {
