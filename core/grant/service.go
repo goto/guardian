@@ -3,12 +3,14 @@ package grant
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
 
+	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
 	slicesUtil "github.com/goto/guardian/pkg/slices"
@@ -113,6 +115,14 @@ func (s *Service) SetAppealService(a appealService) {
 }
 
 func (s *Service) List(ctx context.Context, filter domain.ListGrantsFilter) ([]domain.Grant, error) {
+	excludedUserGrantIDs, err := s.generateExcludedUserGrantIDsForSmartInactiveGrants(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("fail to generate excluded user grant ids: %w", err)
+	}
+	if len(excludedUserGrantIDs) > 0 {
+		filter.NotIDs = slicesUtil.GenericsStandardizeSlice(append(filter.NotIDs, excludedUserGrantIDs...))
+	}
+
 	grants, err := s.repo.List(ctx, filter)
 	if err != nil {
 		return nil, err
@@ -130,7 +140,7 @@ func (s *Service) List(ctx context.Context, filter domain.ListGrantsFilter) ([]d
 	}
 
 	pendingAppeals, err := s.AppealService.Find(ctx, &domain.ListAppealsFilter{
-		Statuses:    []string{"pending"},
+		Statuses:    []string{domain.AppealStatusPending},
 		AccountIDs:  slicesUtil.GenericsStandardizeSlice(accountIDs),
 		ResourceIDs: slicesUtil.GenericsStandardizeSlice(resourceIDs),
 		Roles:       slicesUtil.GenericsStandardizeSlice(roles),
@@ -158,7 +168,110 @@ func (s *Service) List(ctx context.Context, filter domain.ListGrantsFilter) ([]d
 }
 
 func (s *Service) GenerateSummary(ctx context.Context, filter domain.ListGrantsFilter) (*domain.SummaryResult, error) {
+	excludedUserGrantIDs, err := s.generateExcludedUserGrantIDsForSmartInactiveGrants(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("fail to generate excluded user grant ids: %w", err)
+	}
+	if len(excludedUserGrantIDs) > 0 {
+		filter.NotIDs = slicesUtil.GenericsStandardizeSlice(append(filter.NotIDs, excludedUserGrantIDs...))
+	}
 	return s.repo.GenerateSummary(ctx, filter)
+}
+
+func (s *Service) generateExcludedUserGrantIDsForSmartInactiveGrants(ctx context.Context, filter domain.ListGrantsFilter) ([]string, error) {
+	owner := strings.ToLower(filter.Owner)
+	if filter.CreatedBy != "" {
+		owner = strings.ToLower(filter.CreatedBy)
+	}
+	var ret []string
+
+	if filter.UserInactiveGrantPolicy != guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_SMART ||
+		owner == "" ||
+		(len(filter.Statuses) != 0 && !slices.Contains(filter.Statuses, string(domain.GrantStatusInactive))) {
+		return ret, nil
+	}
+
+	// get inactive grants
+	inf := filter
+	inf.Offset, inf.Size, inf.OrderBy = 0, 0, nil
+	inf.Statuses = []string{string(domain.GrantStatusInactive)}
+	inactiveGrants, err := s.repo.List(ctx, inf)
+	if err != nil {
+		return nil, err
+	}
+
+	// get active grants
+	acf := filter
+	acf.Offset, acf.Size, acf.OrderBy = 0, 0, nil
+	acf.Statuses = []string{string(domain.GrantStatusActive)}
+	activeGrants, err := s.repo.List(ctx, acf)
+	if err != nil {
+		return nil, err
+	}
+
+	/* scenario: exclude inactive grants that have an active counterpart
+	if at least 1 active to the same resource, it will hide the inactive to the same resource. e,g.
+	- active
+	> resource1, account1, role1
+
+	- inactive (to the same resource)
+	> resource1, account1, role1
+
+	- return inactive grant
+	> empty. */
+	activeMap := make(map[string]struct{})
+	for _, ag := range activeGrants {
+		key := ag.ResourceID + ":" + ag.AccountID + ":" + ag.Role
+		activeMap[key] = struct{}{}
+	}
+	for _, ig := range inactiveGrants {
+		key := ig.ResourceID + ":" + ig.AccountID + ":" + ig.Role
+		if _, found := activeMap[key]; found {
+			ret = append(ret, ig.ID)
+		}
+	}
+
+	/* scenario: handle multiple inactive grants for the same resource (keep latest)
+	will take 1 from latest inactive grant only to the same resource. e,g.
+	- active
+	> empty
+
+	- inactive (to the same resource)
+	> resource1, account1, role1, created5
+	> resource1, account1, role1, created4
+	> resource1, account1, role1, created3
+
+	- return inactive grant
+	> resource1, account1, role1, created5 */
+	type inactiveData struct {
+		latest      *domain.Grant
+		excludedIDs []string
+	}
+	group := make(map[string]*inactiveData)
+
+	for _, ig := range inactiveGrants {
+		key := ig.ResourceID + ":" + ig.AccountID + ":" + ig.Role
+		if _, found := activeMap[key]; found {
+			continue // skip already excluded by active
+		}
+		d := group[key]
+		if d == nil {
+			group[key] = &inactiveData{latest: &ig}
+			continue
+		}
+		if ig.UpdatedAt.After(d.latest.UpdatedAt) {
+			d.excludedIDs = append(d.excludedIDs, d.latest.ID)
+			d.latest = &ig
+		} else {
+			d.excludedIDs = append(d.excludedIDs, ig.ID)
+		}
+	}
+
+	for _, d := range group {
+		ret = append(ret, d.excludedIDs...)
+	}
+
+	return slicesUtil.GenericsStandardizeSlice(ret), nil
 }
 
 func (s *Service) GetByID(ctx context.Context, id string) (*domain.Grant, error) {

@@ -204,6 +204,7 @@ func (gu *GrantUpdate) Validate(current Grant) error {
 }
 
 type ListGrantsFilter struct {
+	NotIDs                    []string
 	Statuses                  []string
 	AccountIDs                []string
 	AccountTypes              []string

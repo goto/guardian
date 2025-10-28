@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres/model"
@@ -345,6 +344,10 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		db = db.Offset(filter.Offset)
 	}
 
+	if len(filter.NotIDs) > 0 {
+		db = db.Where(`LOWER("grants"."id") NOT IN ?`, filter.NotIDs)
+	}
+
 	accounts := make([]string, 0)
 	if filter.AccountIDs != nil {
 		for _, account := range filter.AccountIDs {
@@ -449,28 +452,6 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		db = db.Where(`"grants"."created_at" >= ?`, filter.StartTime)
 	} else if !filter.EndTime.IsZero() {
 		db = db.Where(`"grants"."created_at" <= ?`, filter.EndTime)
-	}
-
-	if owner != "" && (len(filter.Statuses) == 0 || slices.Contains(filter.Statuses, "inactive")) {
-		switch filter.UserInactiveGrantPolicy {
-		case guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_UNSPECIFIED:
-			fallthrough
-		case guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_INCLUDE_ALL:
-			break
-		case guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_SMART:
-			q := fmt.Sprintf(`NOT EXISTS (
-		SELECT 1 FROM grants g2
-		WHERE g2.account_id = "grants"."account_id"
-		  AND g2.resource_id = "grants"."resource_id"
-		  AND g2.role = "grants"."role"
-		  AND g2.permissions = "grants"."permissions"
-		  AND g2.status = 'active'
-		  AND LOWER("g2"."owner") = '%s'
-	)`, owner)
-			db = db.Where(q)
-		default:
-			return nil, fmt.Errorf("unknown inactive grant policy: %q", fmt.Sprint(filter.UserInactiveGrantPolicy))
-		}
 	}
 
 	return db, nil
