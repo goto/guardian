@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -117,11 +118,13 @@ func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error)
 			}
 			if err = db.Table(baseTableName).
 				Distinct(cm).
-				Order(fmt.Sprintf("%s ASC", cm)).
 				Pluck(cm, &sq.Values).Error; err != nil {
 				return err
 			}
 			sq.Count = int32(len(sq.Values))
+			sort.Slice(sq.Values, func(i, j int) bool {
+				return fmt.Sprint(sq.Values[i]) < fmt.Sprint(sq.Values[j])
+			})
 			mu.Lock()
 			ret = append(ret, sq)
 			mu.Unlock()
