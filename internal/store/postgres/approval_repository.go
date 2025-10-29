@@ -253,7 +253,7 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		)
 	}
 	if filter.CreatedBy != "" {
-		db = db.Where(`LOWER("approvers"."email") = ?`, strings.ToLower(filter.CreatedBy))
+		db = db.Where(`"approvers"."email" = ?`, strings.ToLower(filter.CreatedBy))
 	}
 	if filter.Statuses != nil {
 		db = db.Where(`"approvals"."status" IN ?`, filter.Statuses)

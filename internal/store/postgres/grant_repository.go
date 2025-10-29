@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres/model"
@@ -26,7 +25,6 @@ var (
 
 	grantEntityGroupKeyMapping = map[string]string{
 		"grant":    "grants",
-		"appeal":   "Appeal",
 		"resource": "Resource",
 	}
 )
@@ -49,7 +47,7 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 	}
 
 	var models []model.Grant
-	if err := db.Preload("Appeal").Preload("Resource").Find(&models).Error; err != nil {
+	if err = db.Preload("Resource").Joins("Appeal").Find(&models).Error; err != nil {
 		return nil, err
 	}
 
@@ -322,8 +320,7 @@ func upsertResources(tx *gorm.DB, models []*model.Grant) error {
 }
 
 func applyGrantsJoins(db *gorm.DB) *gorm.DB {
-	return db.Joins(`LEFT JOIN "resources" AS "Resource" ON "grants"."resource_id" = "Resource"."id"`).
-		Joins(`LEFT JOIN "appeals" AS "Appeal" ON "grants"."appeal_id" = "Appeal"."id"`)
+	return db.Joins(`LEFT JOIN "resources" AS "Resource" ON "grants"."resource_id" = "Resource"."id"`)
 }
 
 func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, error) {
@@ -343,6 +340,10 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	}
 	if filter.Offset > 0 {
 		db = db.Offset(filter.Offset)
+	}
+
+	if len(filter.NotIDs) > 0 {
+		db = db.Where(`"grants"."id" NOT IN ?`, filter.NotIDs)
 	}
 
 	accounts := make([]string, 0)
@@ -449,28 +450,6 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		db = db.Where(`"grants"."created_at" >= ?`, filter.StartTime)
 	} else if !filter.EndTime.IsZero() {
 		db = db.Where(`"grants"."created_at" <= ?`, filter.EndTime)
-	}
-
-	if owner != "" && (len(filter.Statuses) == 0 || slices.Contains(filter.Statuses, "inactive")) {
-		switch filter.UserInactiveGrantPolicy {
-		case guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_UNSPECIFIED:
-			fallthrough
-		case guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_INCLUDE_ALL:
-			break
-		case guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_SMART:
-			q := fmt.Sprintf(`NOT EXISTS (
-		SELECT 1 FROM grants g2
-		WHERE g2.account_id = "grants"."account_id"
-		  AND g2.resource_id = "grants"."resource_id"
-		  AND g2.role = "grants"."role"
-		  AND g2.permissions = "grants"."permissions"
-		  AND g2.status = 'active'
-		  AND LOWER("g2"."owner") = '%s'
-	)`, owner)
-			db = db.Where(q)
-		default:
-			return nil, fmt.Errorf("unknown inactive grant policy: %q", fmt.Sprint(filter.UserInactiveGrantPolicy))
-		}
 	}
 
 	return db, nil
