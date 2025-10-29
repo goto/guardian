@@ -144,6 +144,65 @@ func (_c *GrantService_GenerateSummary_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// GenerateUserExcludedGrantIDsForSmartInactiveGrants provides a mock function with given fields: ctx, filter
+func (_m *GrantService) GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx context.Context, filter domain.ListGrantsFilter) ([]string, error) {
+	ret := _m.Called(ctx, filter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GenerateUserExcludedGrantIDsForSmartInactiveGrants")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListGrantsFilter) ([]string, error)); ok {
+		return rf(ctx, filter)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListGrantsFilter) []string); ok {
+		r0 = rf(ctx, filter)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, domain.ListGrantsFilter) error); ok {
+		r1 = rf(ctx, filter)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GrantService_GenerateUserExcludedGrantIDsForSmartInactiveGrants_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GenerateUserExcludedGrantIDsForSmartInactiveGrants'
+type GrantService_GenerateUserExcludedGrantIDsForSmartInactiveGrants_Call struct {
+	*mock.Call
+}
+
+// GenerateUserExcludedGrantIDsForSmartInactiveGrants is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter domain.ListGrantsFilter
+func (_e *GrantService_Expecter) GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx interface{}, filter interface{}) *GrantService_GenerateUserExcludedGrantIDsForSmartInactiveGrants_Call {
+	return &GrantService_GenerateUserExcludedGrantIDsForSmartInactiveGrants_Call{Call: _e.mock.On("GenerateUserExcludedGrantIDsForSmartInactiveGrants", ctx, filter)}
+}
+
+func (_c *GrantService_GenerateUserExcludedGrantIDsForSmartInactiveGrants_Call) Run(run func(ctx context.Context, filter domain.ListGrantsFilter)) *GrantService_GenerateUserExcludedGrantIDsForSmartInactiveGrants_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(domain.ListGrantsFilter))
+	})
+	return _c
+}
+
+func (_c *GrantService_GenerateUserExcludedGrantIDsForSmartInactiveGrants_Call) Return(_a0 []string, _a1 error) *GrantService_GenerateUserExcludedGrantIDsForSmartInactiveGrants_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *GrantService_GenerateUserExcludedGrantIDsForSmartInactiveGrants_Call) RunAndReturn(run func(context.Context, domain.ListGrantsFilter) ([]string, error)) *GrantService_GenerateUserExcludedGrantIDsForSmartInactiveGrants_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetByID provides a mock function with given fields: _a0, _a1
 func (_m *GrantService) GetByID(_a0 context.Context, _a1 string) (*domain.Grant, error) {
 	ret := _m.Called(_a0, _a1)

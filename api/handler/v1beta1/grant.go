@@ -96,6 +96,14 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		UserInactiveGrantPolicy: req.GetInactiveGrantPolicy(),
 	}
 
+	excludedUserGrantIDs, err := s.grantService.GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to generate user excluded grant ids: %s", err)
+	}
+	if len(excludedUserGrantIDs) > 0 {
+		filter.NotIDs = slicesUtil.GenericsStandardizeSlice(append(filter.NotIDs, excludedUserGrantIDs...))
+	}
+
 	grants, total, summary, err := s.listGrants(ctx, filter)
 	if err != nil {
 		return nil, err
