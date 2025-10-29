@@ -131,6 +131,7 @@ type grantService interface {
 	GetGrantsTotalCount(context.Context, domain.ListGrantsFilter) (int64, error)
 	List(context.Context, domain.ListGrantsFilter) ([]domain.Grant, error)
 	GenerateSummary(context.Context, domain.ListGrantsFilter) (*domain.SummaryResult, error)
+	GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx context.Context, filter domain.ListGrantsFilter) ([]string, error)
 	GetByID(context.Context, string) (*domain.Grant, error)
 	Update(context.Context, *domain.GrantUpdate) (*domain.Grant, error)
 	Restore(ctx context.Context, id, actor, reason string) (*domain.Grant, error)
