@@ -85,19 +85,21 @@ func (s *ServiceTestSuite) TestCreate() {
 				expectedError: policy.ErrIDContainsWhitespaces,
 			},
 			{
-				name: "nil steps",
+				name: "nil steps and nil custom_steps",
 				policy: &domain.Policy{
 					ID:      "test-id",
 					Version: 1,
 				},
+				expectedError: policy.ErrPolicyStepsRequired,
 			},
 			{
-				name: "empty steps",
+				name: "empty steps and nil custom_steps",
 				policy: &domain.Policy{
 					ID:      "test-id",
 					Version: 1,
 					Steps:   []*domain.Step{},
 				},
+				expectedError: policy.ErrPolicyStepsRequired,
 			},
 			{
 				name: "step: empty name",
@@ -423,6 +425,30 @@ func (s *ServiceTestSuite) TestCreate() {
 			s.Nil(actualError)
 			s.mockPolicyRepository.AssertNotCalled(s.T(), "Create")
 		})
+	})
+
+	s.Run("should allow policy with only custom_steps and no steps", func() {
+		testPolicy := &domain.Policy{
+			ID:      "test-policy-with-custom-steps",
+			Version: 1,
+			CustomSteps: &domain.CustomSteps{
+				Type: "http",
+				Config: map[string]interface{}{
+					"url": "https://api.example.com/approval-steps",
+				},
+			},
+		}
+
+		expectedConfig := `{"url":"https://api.example.com/approval-steps"}`
+		s.mockCrypto.EXPECT().Encrypt(expectedConfig).Return("encrypted-custom-config", nil).Once()
+		s.mockCrypto.EXPECT().Decrypt("encrypted-custom-config").Return(expectedConfig, nil).Once()
+		s.mockPolicyRepository.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
+		s.mockAuditLogger.EXPECT().Log(mock.Anything, policy.AuditKeyPolicyCreate, mock.Anything).Return(nil).Once()
+
+		actualError := s.service.Create(context.Background(), testPolicy)
+
+		s.NoError(actualError)
+		s.mockPolicyRepository.AssertExpectations(s.T())
 	})
 
 	s.Run("with custom steps", func() {

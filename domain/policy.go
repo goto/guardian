@@ -294,7 +294,7 @@ type Policy struct {
 	ID           string              `json:"id" yaml:"id" validate:"required"`
 	Version      uint                `json:"version" yaml:"version" validate:"required"`
 	Description  string              `json:"description" yaml:"description"`
-	Steps        []*Step             `json:"steps" yaml:"steps" validate:"required,min=1,dive"`
+	Steps        []*Step             `json:"steps" yaml:"steps" validate:"omitempty,dive"`
 	CustomSteps  *CustomSteps        `json:"custom_steps" yaml:"custom_steps"`
 	AppealConfig *PolicyAppealConfig `json:"appeal" yaml:"appeal" validate:"omitempty,dive"`
 	Requirements []*Requirement      `json:"requirements,omitempty" yaml:"requirements,omitempty" validate:"omitempty,min=1,dive"`

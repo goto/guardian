@@ -359,8 +359,16 @@ func (s *Service) validatePolicy(ctx context.Context, p *domain.Policy, excluded
 		return err
 	}
 
-	if err := s.validateSteps(p.Steps); err != nil {
-		return err
+	// Validate that either Steps or CustomSteps is present
+	if (p.Steps == nil || len(p.Steps) == 0) && p.CustomSteps == nil {
+		return ErrPolicyStepsRequired
+	}
+
+	// Only validate steps if they are provided
+	if p.Steps != nil && len(p.Steps) > 0 {
+		if err := s.validateSteps(p.Steps); err != nil {
+			return err
+		}
 	}
 
 	if err := s.validateAppealConfig(p.AppealConfig); err != nil {
