@@ -111,11 +111,18 @@ type CreateAppealOption func(*createAppealOptions)
 
 type createAppealOptions struct {
 	IsAdditionalAppeal bool
+	DryRun             bool
 }
 
 func CreateWithAdditionalAppeal() CreateAppealOption {
 	return func(opts *createAppealOptions) {
 		opts.IsAdditionalAppeal = true
+	}
+}
+
+func CreateWithDryRun() CreateAppealOption {
+	return func(opts *createAppealOptions) {
+		opts.DryRun = true
 	}
 }
 
@@ -202,6 +209,17 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		opt(createAppealOpts)
 	}
 	isAdditionalAppealCreation := createAppealOpts.IsAdditionalAppeal
+	isDryRun := createAppealOpts.DryRun
+
+	// Log when dry run mode is enabled
+	if isDryRun {
+		s.logger.Info(ctx, "dry run mode enabled - appeals will not be persisted")
+	}
+
+	// Validate - dry run cannot be used with additional appeals
+	if isDryRun && isAdditionalAppealCreation {
+		return fmt.Errorf("dry run mode cannot be used with additional appeals: this limitation exists to keep the implementation simple")
+	}
 
 	resourceIDs := []string{}
 	accountIDs := []string{}
@@ -345,6 +363,11 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		for _, approval := range appeal.Approvals {
 			// TODO: direcly check on appeal.Status==domain.AppealStatusApproved instead of manual looping through approvals
 			if approval.Index == len(appeal.Approvals)-1 && (approval.Status == domain.ApprovalStatusApproved || appeal.Status == domain.AppealStatusApproved) {
+				// Skip grant creation and notification preparation in dry run mode
+				if isDryRun {
+					continue
+				}
+
 				newGrant, prevGrant, err := s.prepareGrant(ctx, appeal)
 				if err != nil {
 					return fmt.Errorf("preparing grant: %w", err)
@@ -386,58 +409,64 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		}
 	}
 
-	if err := s.repo.BulkUpsert(ctx, appeals); err != nil {
-		return fmt.Errorf("inserting appeals into db: %w", err)
-	}
-
-	go func() {
-		ctx := context.WithoutCancel(ctx)
-		if err := s.auditLogger.Log(ctx, AuditKeyBulkInsert, appeals); err != nil {
-			s.logger.Error(ctx, "failed to record audit log", "error", err)
-		}
-	}()
-
-	for _, a := range appeals {
-		if a.Status == domain.AppealStatusRejected {
-			var reason string
-			for _, approval := range a.Approvals {
-				if approval.Status == domain.ApprovalStatusRejected {
-					reason = approval.Reason
-					break
-				}
-			}
-
-			notifications = append(notifications, domain.Notification{
-				User: a.CreatedBy,
-				Labels: map[string]string{
-					"appeal_id": a.ID,
-				},
-				Message: domain.NotificationMessage{
-					Type: domain.NotificationTypeAppealRejected,
-					Variables: map[string]interface{}{
-						"resource_name": fmt.Sprintf("%s (%s: %s)", a.Resource.Name, a.Resource.ProviderType, a.Resource.URN),
-						"role":          a.Role,
-						"account_id":    a.AccountID,
-						"appeal_id":     a.ID,
-						"requestor":     a.CreatedBy,
-						"reason":        reason,
-					},
-				},
-			})
+	// Skip database persistence and audit logging in dry run mode
+	if !isDryRun {
+		if err := s.repo.BulkUpsert(ctx, appeals); err != nil {
+			return fmt.Errorf("inserting appeals into db: %w", err)
 		}
 
-		notifications = append(notifications, s.getApprovalNotifications(ctx, a)...)
-	}
-
-	if len(notifications) > 0 {
 		go func() {
 			ctx := context.WithoutCancel(ctx)
-			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
-				for _, err1 := range errs {
-					s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
-				}
+			if err := s.auditLogger.Log(ctx, AuditKeyBulkInsert, appeals); err != nil {
+				s.logger.Error(ctx, "failed to record audit log", "error", err)
 			}
 		}()
+	}
+
+	// Skip notification preparation and sending in dry run mode
+	if !isDryRun {
+		for _, a := range appeals {
+			if a.Status == domain.AppealStatusRejected {
+				var reason string
+				for _, approval := range a.Approvals {
+					if approval.Status == domain.ApprovalStatusRejected {
+						reason = approval.Reason
+						break
+					}
+				}
+
+				notifications = append(notifications, domain.Notification{
+					User: a.CreatedBy,
+					Labels: map[string]string{
+						"appeal_id": a.ID,
+					},
+					Message: domain.NotificationMessage{
+						Type: domain.NotificationTypeAppealRejected,
+						Variables: map[string]interface{}{
+							"resource_name": fmt.Sprintf("%s (%s: %s)", a.Resource.Name, a.Resource.ProviderType, a.Resource.URN),
+							"role":          a.Role,
+							"account_id":    a.AccountID,
+							"appeal_id":     a.ID,
+							"requestor":     a.CreatedBy,
+							"reason":        reason,
+						},
+					},
+				})
+			}
+
+			notifications = append(notifications, s.getApprovalNotifications(ctx, a)...)
+		}
+
+		if len(notifications) > 0 {
+			go func() {
+				ctx := context.WithoutCancel(ctx)
+				if errs := s.notifier.Notify(ctx, notifications); errs != nil {
+					for _, err1 := range errs {
+						s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+					}
+				}
+			}()
+		}
 	}
 
 	return nil

@@ -6911,6 +6911,359 @@ func (s *ServiceTestSuite) TestGetAppealsTotalCount() {
 	})
 }
 
+func (s *ServiceTestSuite) TestCreate_DryRun() {
+	appeal.TimeNow = func() time.Time {
+		return timeNow
+	}
+
+	s.Run("should not persist to database when dry_run=true", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		testProvider := &domain.Provider{
+			ID:   "1",
+			Type: "provider_type",
+			URN:  "provider_urn",
+			Config: &domain.ProviderConfig{
+				Appeal: &domain.AppealConfig{
+					AllowPermanentAccess: false,
+				},
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: "resource_type",
+						Policy: &domain.PolicyConfig{
+							ID:      "policy_id",
+							Version: 1,
+						},
+						Roles: []*domain.Role{
+							{
+								ID:          "role_1",
+								Permissions: []interface{}{"permission_1"},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		testResource := &domain.Resource{
+			ID:           "1",
+			ProviderType: testProvider.Type,
+			ProviderURN:  testProvider.URN,
+			Type:         "resource_type",
+		}
+
+		testPolicy := &domain.Policy{
+			ID:      "policy_id",
+			Version: 1,
+			Steps: []*domain.Step{
+				{
+					Name:     "step_1",
+					Strategy: "manual",
+					Approvers: []string{
+						"manager@example.com",
+					},
+				},
+			},
+		}
+
+		testAppeal := &domain.Appeal{
+			CreatedBy:  "test-user",
+			AccountID:  "test-user",
+			ResourceID: "1",
+			Role:       "role_1",
+			Options: &domain.AppealOptions{
+				Duration: "24h",
+			},
+		}
+
+		h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Resource{testResource}, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything).Return([]*domain.Provider{testProvider}, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything).Return([]*domain.Policy{testPolicy}, nil).Once()
+		h.mockRepository.EXPECT().Find(h.ctxMatcher, mock.Anything).Return([]*domain.Appeal{}, nil).Once()
+		h.mockProviderService.EXPECT().ValidateAppeal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		h.mockProviderService.EXPECT().GetPermissions(mock.Anything, mock.Anything, "resource_type", "role_1").Return([]interface{}{"permission_1"}, nil).Once()
+		h.mockIAMManager.EXPECT().ParseConfig(mock.Anything).Return(nil, nil).Maybe()
+		h.mockIAMManager.EXPECT().GetClient(mock.Anything).Return(h.mockIAMClient, nil).Maybe()
+		h.mockGrantService.EXPECT().List(mock.Anything, mock.Anything).Return([]domain.Grant{}, nil).Once()
+
+		// IMPORTANT: BulkUpsert, AuditLogger, and Notifier should NOT be called in dry run mode
+		// No expectations set means they should not be called
+
+		actualError := h.service.Create(context.Background(), []*domain.Appeal{testAppeal}, appeal.CreateWithDryRun())
+
+		s.NoError(actualError)
+	})
+
+	s.Run("should not create grants when dry_run=true even with auto-approval", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		testProvider := &domain.Provider{
+			ID:   "1",
+			Type: "provider_type",
+			URN:  "provider_urn",
+			Config: &domain.ProviderConfig{
+				Appeal: &domain.AppealConfig{
+					AllowPermanentAccess: false,
+				},
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: "resource_type",
+						Policy: &domain.PolicyConfig{
+							ID:      "policy_id",
+							Version: 1,
+						},
+						Roles: []*domain.Role{
+							{
+								ID:          "role_1",
+								Permissions: []interface{}{"permission_1"},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		testResource := &domain.Resource{
+			ID:           "1",
+			ProviderType: testProvider.Type,
+			ProviderURN:  testProvider.URN,
+			Type:         "resource_type",
+		}
+
+		testPolicy := &domain.Policy{
+			ID:      "policy_id",
+			Version: 1,
+			Steps: []*domain.Step{
+				{
+					Name:       "auto_approval",
+					Strategy:   "auto",
+					ApproveIf:  "true", // Always auto-approve
+					Approvers:  []string{},
+				},
+			},
+		}
+
+		testAppeal := &domain.Appeal{
+			CreatedBy:  "test-user",
+			AccountID:  "test-user",
+			ResourceID: "1",
+			Role:       "role_1",
+			Options: &domain.AppealOptions{
+				Duration: "24h",
+			},
+		}
+
+		h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Resource{testResource}, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything).Return([]*domain.Provider{testProvider}, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything).Return([]*domain.Policy{testPolicy}, nil).Once()
+		h.mockRepository.EXPECT().Find(h.ctxMatcher, mock.Anything).Return([]*domain.Appeal{}, nil).Once()
+		h.mockProviderService.EXPECT().ValidateAppeal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		h.mockProviderService.EXPECT().GetPermissions(mock.Anything, mock.Anything, "resource_type", "role_1").Return([]interface{}{"permission_1"}, nil).Once()
+		h.mockIAMManager.EXPECT().ParseConfig(mock.Anything).Return(nil, nil).Maybe()
+		h.mockIAMManager.EXPECT().GetClient(mock.Anything).Return(h.mockIAMClient, nil).Maybe()
+		h.mockGrantService.EXPECT().List(mock.Anything, mock.Anything).Return([]domain.Grant{}, nil).Once()
+
+		// IMPORTANT: Grant creation should NOT happen in dry run mode
+		// No GrantAccess or BulkUpsert expectations
+
+		actualError := h.service.Create(context.Background(), []*domain.Appeal{testAppeal}, appeal.CreateWithDryRun())
+
+		s.NoError(actualError)
+		// Verify appeal status is approved but grant was not created
+		s.Equal(domain.AppealStatusApproved, testAppeal.Status)
+		s.Nil(testAppeal.Grant)
+	})
+
+	s.Run("should return error when dry_run=true with additional appeals", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		testAppeal := &domain.Appeal{
+			CreatedBy:  "test-user",
+			AccountID:  "test-user",
+			ResourceID: "1",
+			Role:       "role_1",
+		}
+
+		actualError := h.service.Create(context.Background(), []*domain.Appeal{testAppeal}, appeal.CreateWithDryRun(), appeal.CreateWithAdditionalAppeal())
+
+		s.Error(actualError)
+		s.Contains(actualError.Error(), "dry run mode cannot be used with additional appeals")
+		s.Contains(actualError.Error(), "this limitation exists to keep the implementation simple")
+	})
+
+	s.Run("should calculate approvals correctly in dry_run mode", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		testProvider := &domain.Provider{
+			ID:   "1",
+			Type: "provider_type",
+			URN:  "provider_urn",
+			Config: &domain.ProviderConfig{
+				Appeal: &domain.AppealConfig{
+					AllowPermanentAccess: false,
+				},
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: "resource_type",
+						Policy: &domain.PolicyConfig{
+							ID:      "policy_id",
+							Version: 1,
+						},
+						Roles: []*domain.Role{
+							{
+								ID:          "role_1",
+								Permissions: []interface{}{"permission_1"},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		testResource := &domain.Resource{
+			ID:           "1",
+			ProviderType: testProvider.Type,
+			ProviderURN:  testProvider.URN,
+			Type:         "resource_type",
+		}
+
+		testPolicy := &domain.Policy{
+			ID:      "policy_id",
+			Version: 1,
+			Steps: []*domain.Step{
+				{
+					Name:     "manager_approval",
+					Strategy: "manual",
+					Approvers: []string{
+						"manager@example.com",
+					},
+				},
+				{
+					Name:     "admin_approval",
+					Strategy: "manual",
+					Approvers: []string{
+						"admin@example.com",
+					},
+				},
+			},
+		}
+
+		testAppeal := &domain.Appeal{
+			CreatedBy:  "test-user",
+			AccountID:  "test-user",
+			ResourceID: "1",
+			Role:       "role_1",
+			Options: &domain.AppealOptions{
+				Duration: "24h",
+			},
+		}
+
+		h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Resource{testResource}, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything).Return([]*domain.Provider{testProvider}, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything).Return([]*domain.Policy{testPolicy}, nil).Once()
+		h.mockRepository.EXPECT().Find(h.ctxMatcher, mock.Anything).Return([]*domain.Appeal{}, nil).Once()
+		h.mockProviderService.EXPECT().ValidateAppeal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		h.mockProviderService.EXPECT().GetPermissions(mock.Anything, mock.Anything, "resource_type", "role_1").Return([]interface{}{"permission_1"}, nil).Once()
+		h.mockIAMManager.EXPECT().ParseConfig(mock.Anything).Return(nil, nil).Maybe()
+		h.mockIAMManager.EXPECT().GetClient(mock.Anything).Return(h.mockIAMClient, nil).Maybe()
+		h.mockGrantService.EXPECT().List(mock.Anything, mock.Anything).Return([]domain.Grant{}, nil).Once()
+
+		actualError := h.service.Create(context.Background(), []*domain.Appeal{testAppeal}, appeal.CreateWithDryRun())
+
+		s.NoError(actualError)
+		s.Len(testAppeal.Approvals, 2)
+		s.Equal("manager_approval", testAppeal.Approvals[0].Name)
+		s.Equal("admin_approval", testAppeal.Approvals[1].Name)
+		s.Equal(domain.ApprovalStatusPending, testAppeal.Approvals[0].Status)
+		s.Equal(domain.ApprovalStatusBlocked, testAppeal.Approvals[1].Status)
+	})
+
+	s.Run("normal create should still work with dry_run=false", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		testProvider := &domain.Provider{
+			ID:   "1",
+			Type: "provider_type",
+			URN:  "provider_urn",
+			Config: &domain.ProviderConfig{
+				Appeal: &domain.AppealConfig{
+					AllowPermanentAccess: false,
+				},
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: "resource_type",
+						Policy: &domain.PolicyConfig{
+							ID:      "policy_id",
+							Version: 1,
+						},
+						Roles: []*domain.Role{
+							{
+								ID:          "role_1",
+								Permissions: []interface{}{"permission_1"},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		testResource := &domain.Resource{
+			ID:           "1",
+			ProviderType: testProvider.Type,
+			ProviderURN:  testProvider.URN,
+			Type:         "resource_type",
+		}
+
+		testPolicy := &domain.Policy{
+			ID:      "policy_id",
+			Version: 1,
+			Steps: []*domain.Step{
+				{
+					Name:     "step_1",
+					Strategy: "manual",
+					Approvers: []string{
+						"manager@example.com",
+					},
+				},
+			},
+		}
+
+		testAppeal := &domain.Appeal{
+			CreatedBy:  "test-user",
+			AccountID:  "test-user",
+			ResourceID: "1",
+			Role:       "role_1",
+			Options: &domain.AppealOptions{
+				Duration: "24h",
+			},
+		}
+
+		h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Resource{testResource}, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything).Return([]*domain.Provider{testProvider}, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything).Return([]*domain.Policy{testPolicy}, nil).Once()
+		h.mockRepository.EXPECT().Find(h.ctxMatcher, mock.Anything).Return([]*domain.Appeal{}, nil).Once()
+		h.mockProviderService.EXPECT().ValidateAppeal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		h.mockProviderService.EXPECT().GetPermissions(mock.Anything, mock.Anything, "resource_type", "role_1").Return([]interface{}{"permission_1"}, nil).Once()
+		h.mockIAMManager.EXPECT().ParseConfig(mock.Anything).Return(nil, nil).Maybe()
+		h.mockIAMManager.EXPECT().GetClient(mock.Anything).Return(h.mockIAMClient, nil).Maybe()
+		h.mockGrantService.EXPECT().List(mock.Anything, mock.Anything).Return([]domain.Grant{}, nil).Once()
+
+		// IMPORTANT: Normal create should still call BulkUpsert, AuditLogger, and Notifier
+		h.mockRepository.EXPECT().BulkUpsert(h.ctxMatcher, mock.Anything).Return(nil).Once()
+		h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
+		h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return([]error{}).Maybe()
+
+		actualError := h.service.Create(context.Background(), []*domain.Appeal{testAppeal})
+
+		s.NoError(actualError)
+	})
+}
+
 func grantArgMatcher(expected domain.Grant) any {
 	return mock.MatchedBy(func(actual domain.Grant) bool {
 		return cmp.Equal(
