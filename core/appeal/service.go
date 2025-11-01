@@ -932,27 +932,9 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			}
 		}
 
-		isSelfApprovalNotAllowed := false
-		policyStep := appeal.Policy.GetStepByName(currentApproval.Name)
-		if policyStep == nil {
-			isStepValid := false
-			if appeal.Policy.HasCustomSteps() {
-				for _, ap := range appeal.Approvals {
-					if ap.Name == currentApproval.Name {
-						isStepValid = true
-						isSelfApprovalNotAllowed = ap.DontAllowSelfApproval
-					}
-				}
-			}
-			if !isStepValid {
-				return nil, fmt.Errorf("%w: %q for appeal %q", ErrNoPolicyStepFound, approvalAction.ApprovalName, appeal.ID)
-			}
-		} else {
-			isSelfApprovalNotAllowed = policyStep.DontAllowSelfApproval
-		}
-
 		// check if user is self approving the appeal
-		if isSelfApprovalNotAllowed {
+		// Read directly from approval object - works for both regular and custom steps
+		if currentApproval.DontAllowSelfApproval {
 			if approvalAction.Actor == appeal.CreatedBy {
 				return nil, ErrSelfApprovalNotAllowed
 			}

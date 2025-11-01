@@ -3529,6 +3529,12 @@
         "appealRevision": {
           "type": "integer",
           "format": "int64"
+        },
+        "dontAllowSelfApproval": {
+          "type": "boolean"
+        },
+        "allowFailed": {
+          "type": "boolean"
         }
       },
       "title": "Approval is an approval item that generated in an appeal based on the selected policy"

@@ -35,6 +35,7 @@ type Approval struct {
 	CreatedAt             time.Time `json:"created_at,omitempty" yaml:"created_at,omitempty"`
 	UpdatedAt             time.Time `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
 	DontAllowSelfApproval bool      `json:"dont_allow_self_approval,omitempty" yaml:"dont_allow_self_approval,omitempty"`
+	AllowFailed           bool      `json:"allow_failed,omitempty" yaml:"allow_failed,omitempty"`
 }
 
 func (a *Approval) Approve() {

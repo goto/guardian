@@ -279,7 +279,7 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 					}
 					isFalsy := reflect.ValueOf(v).IsZero()
 					if isFalsy {
-						if stepConfig.AllowFailed {
+						if approval.AllowFailed {
 							// mark current as skipped
 							approval.Status = ApprovalStatusSkipped
 

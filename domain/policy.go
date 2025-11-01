@@ -175,14 +175,16 @@ func (s Step) ToApproval(a *Appeal, p *Policy, index int) (*Approval, error) {
 	}
 
 	approval := &Approval{
-		Index:          index,
-		Name:           s.Name,
-		PolicyID:       p.ID,
-		PolicyVersion:  p.Version,
-		Approvers:      approvers,
-		Status:         ApprovalStatusPending,
-		AppealRevision: a.Revision,
-		IsStale:        false,
+		Index:                 index,
+		Name:                  s.Name,
+		PolicyID:              p.ID,
+		PolicyVersion:         p.Version,
+		Approvers:             approvers,
+		Status:                ApprovalStatusPending,
+		AppealRevision:        a.Revision,
+		IsStale:               false,
+		DontAllowSelfApproval: s.DontAllowSelfApproval,
+		AllowFailed:           s.AllowFailed,
 	}
 
 	if index > 0 {
