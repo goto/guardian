@@ -49,6 +49,8 @@ type ListResourcesFilter struct {
 	IsDeleted     bool              `mapstructure:"is_deleted" validate:"omitempty"`
 	ProviderType  string            `mapstructure:"provider_type" validate:"omitempty"`
 	ProviderURN   string            `mapstructure:"provider_urn" validate:"omitempty"`
+	ProviderTypes []string          `mapstructure:"provider_types" validate:"omitempty"`
+	ProviderURNs  []string          `mapstructure:"provider_urns" validate:"omitempty"`
 	Name          string            `mapstructure:"name" validate:"omitempty"`
 	ResourceURN   string            `mapstructure:"urn" validate:"omitempty"`
 	ResourceType  string            `mapstructure:"type" validate:"omitempty"`

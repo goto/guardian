@@ -9,12 +9,13 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/google/uuid"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/core/resource"
 	"github.com/goto/guardian/domain"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func (s *GRPCServer) CreateResource(ctx context.Context, req *guardianv1beta1.CreateResourceRequest) (*guardianv1beta1.CreateResourceResponse, error) {
@@ -61,19 +62,23 @@ func (s *GRPCServer) ListResources(ctx context.Context, req *guardianv1beta1.Lis
 		}
 	}
 	filter := domain.ListResourcesFilter{
-		IsDeleted:    req.GetIsDeleted(),
-		ResourceType: req.GetType(),
-		ResourceURN:  req.GetUrn(),
-		ProviderType: req.GetProviderType(),
-		ProviderURN:  req.GetProviderUrn(),
-		Name:         req.GetName(),
-		Details:      details,
-		Size:         req.GetSize(),
-		Offset:       req.GetOffset(),
-		OrderBy:      req.GetOrderBy(),
-		Q:            req.GetQ(),
-		GroupIDs:     req.GetGroupIds(),
-		GroupTypes:   req.GetGroupTypes(),
+		IsDeleted:     req.GetIsDeleted(),
+		ProviderType:  req.GetProviderType(),
+		ProviderURN:   req.GetProviderUrn(),
+		ProviderTypes: req.GetProviderTypes(),
+		ProviderURNs:  req.GetProviderUrns(),
+		Name:          req.GetName(),
+		ResourceURN:   req.GetUrn(),
+		ResourceType:  req.GetType(),
+		ResourceURNs:  req.GetUrns(),
+		ResourceTypes: req.GetTypes(),
+		Details:       details,
+		Size:          req.GetSize(),
+		Offset:        req.GetOffset(),
+		OrderBy:       req.GetOrderBy(),
+		Q:             req.GetQ(),
+		GroupIDs:      req.GetGroupIds(),
+		GroupTypes:    req.GetGroupTypes(),
 	}
 
 	resources, total, err := s.listResources(ctx, filter)
