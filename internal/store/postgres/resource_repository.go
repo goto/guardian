@@ -6,11 +6,13 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+
 	"github.com/goto/guardian/core/resource"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres/model"
+	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
-	"gorm.io/gorm"
 )
 
 var (
@@ -92,32 +94,47 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) (*gorm.
 	if !filter.IsDeleted {
 		db = db.Where(`"is_deleted" = ?`, filter.IsDeleted)
 	}
-	if filter.ResourceType != "" {
-		db = db.Where(`"type" = ?`, filter.ResourceType)
-	}
-	if filter.Name != "" {
-		db = db.Where(`"name" = ?`, filter.Name)
-	}
+
+	providerTypes := slicesUtil.GenericsUniqueSliceValues(filter.ProviderTypes)
 	if filter.ProviderType != "" {
-		db = db.Where(`"provider_type" = ?`, filter.ProviderType)
+		providerTypes = slicesUtil.GenericsUniqueSliceValues(append(filter.ProviderTypes, filter.ProviderType))
 	}
+	if len(providerTypes) > 0 {
+		db = db.Where(`"provider_type" IN ?`, providerTypes)
+	}
+
+	resourceTypes := slicesUtil.GenericsUniqueSliceValues(filter.ResourceTypes)
+	if filter.ResourceType != "" {
+		resourceTypes = slicesUtil.GenericsUniqueSliceValues(append(filter.ResourceTypes, filter.ResourceType))
+	}
+	if len(resourceTypes) > 0 {
+		db = db.Where(`"type" IN ?`, resourceTypes)
+	}
+
+	providerURNs := slicesUtil.GenericsUniqueSliceValues(filter.ProviderURNs)
 	if filter.ProviderURN != "" {
-		db = db.Where(`"provider_urn" = ?`, filter.ProviderURN)
+		providerURNs = slicesUtil.GenericsUniqueSliceValues(append(filter.ProviderURNs, filter.ProviderURN))
 	}
+	if len(providerURNs) != 0 {
+		db = db.Where(`"provider_urn" IN ?`, providerURNs)
+	}
+
+	resourceURNs := slicesUtil.GenericsUniqueSliceValues(filter.ResourceURNs)
 	if filter.ResourceURN != "" {
-		db = db.Where(`"urn" = ?`, filter.ResourceURN)
+		resourceURNs = slicesUtil.GenericsUniqueSliceValues(append(filter.ResourceURNs, filter.ResourceURN))
 	}
-	if filter.ResourceURNs != nil {
-		db = db.Where(`"urn" IN ?`, filter.ResourceURNs)
+	if len(resourceURNs) != 0 {
+		db = db.Where(`"urn" IN ?`, resourceURNs)
 	}
-	if filter.ResourceTypes != nil {
-		db = db.Where(`"type" IN ?`, filter.ResourceTypes)
-	}
+
 	if filter.GroupIDs != nil {
 		db = db.Where(`"group_id" IN ?`, filter.GroupIDs)
 	}
 	if filter.GroupTypes != nil {
 		db = db.Where(`"group_type" IN ?`, filter.GroupTypes)
+	}
+	if filter.Name != "" {
+		db = db.Where(`"name" = ?`, filter.Name)
 	}
 
 	if filter.Size > 0 {

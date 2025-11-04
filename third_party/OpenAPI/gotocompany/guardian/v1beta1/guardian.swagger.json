@@ -2144,7 +2144,7 @@
           },
           {
             "name": "inactiveGrantPolicy",
-            "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart visibility mode:\n- If a resource has both active and inactive grants, only active ones are shown.",
+            "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart visibility mode:\n- If a resource has both active and inactive grants, only active ones are shown.\n- If all grants for a resource are inactive, only the latest inactive grant is returned.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -2797,6 +2797,46 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "providerTypes",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "providerUrns",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "types",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "urns",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -2964,7 +3004,7 @@
         "INACTIVE_GRANT_POLICY_SMART"
       ],
       "default": "INACTIVE_GRANT_POLICY_UNSPECIFIED",
-      "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart visibility mode:\n- If a resource has both active and inactive grants, only active ones are shown."
+      "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart visibility mode:\n- If a resource has both active and inactive grants, only active ones are shown.\n- If all grants for a resource are inactive, only the latest inactive grant is returned."
     },
     "PolicyAppealConfigDurationOptions": {
       "type": "object",
