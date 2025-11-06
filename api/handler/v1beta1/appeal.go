@@ -13,6 +13,7 @@ import (
 	"github.com/goto/guardian/core/approval"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
+	slicesUtil "github.com/goto/guardian/pkg/slices"
 )
 
 func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.ListUserAppealsRequest) (*guardianv1beta1.ListUserAppealsResponse, error) {
@@ -22,48 +23,34 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 	}
 
 	filters := &domain.ListAppealsFilter{
-		CreatedBy: user,
+		Q:               req.GetQ(),
+		AccountTypes:    req.GetAccountTypes(),
+		CreatedBy:       user,
+		AccountIDs:      req.GetAccountIds(),
+		GroupIDs:        req.GetGroupIds(),
+		GroupTypes:      req.GetGroupTypes(),
+		Role:            req.GetRole(),
+		Roles:           req.GetRoles(),
+		Statuses:        req.GetStatuses(),
+		ProviderTypes:   req.GetProviderTypes(),
+		ProviderURNs:    req.GetProviderUrns(),
+		ResourceTypes:   req.GetResourceTypes(),
+		ResourceURNs:    req.GetResourceUrns(),
+		OrderBy:         req.GetOrderBy(),
+		Size:            int(req.GetSize()),
+		Offset:          int(req.GetOffset()),
+		ResourceIDs:     req.GetResourceIds(),
+		SummaryGroupBys: slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
+		SummaryUniques:  slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
+		FieldMasks:      slicesUtil.GenericsStandardizeSliceNilAble(req.GetFieldMasks()),
+		RoleStartsWith:  req.GetRoleStartsWith(),
+		RoleEndsWith:    req.GetRoleEndsWith(),
+		RoleContains:    req.GetRoleContains(),
+		StartTime:       s.adapter.FromTimeProto(req.GetStartTime()),
+		EndTime:         s.adapter.FromTimeProto(req.GetEndTime()),
 	}
-	if req.GetStatuses() != nil {
-		filters.Statuses = req.GetStatuses()
-	}
-	if req.GetRole() != "" {
-		filters.Role = req.GetRole()
-	}
-	if req.GetProviderTypes() != nil {
-		filters.ProviderTypes = req.GetProviderTypes()
-	}
-	if req.GetProviderUrns() != nil {
-		filters.ProviderURNs = req.GetProviderUrns()
-	}
-	if req.GetResourceTypes() != nil {
-		filters.ResourceTypes = req.GetResourceTypes()
-	}
-	if req.GetAccountTypes() != nil {
-		filters.AccountTypes = req.GetAccountTypes()
-	}
-	if req.GetResourceUrns() != nil {
-		filters.ResourceURNs = req.GetResourceUrns()
-	}
-	if req.GetGroupIds() != nil {
-		filters.GroupIDs = req.GetGroupIds()
-	}
-	if req.GetGroupTypes() != nil {
-		filters.GroupTypes = req.GetGroupTypes()
-	}
-	if req.GetOrderBy() != nil {
-		filters.OrderBy = req.GetOrderBy()
-	}
-	if req.GetQ() != "" {
-		filters.Q = req.GetQ()
-	}
-	if len(req.GetResourceIds()) != 0 {
-		filters.ResourceIDs = req.GetResourceIds()
-	}
-	filters.Offset = int(req.GetOffset())
-	filters.Size = int(req.GetSize())
 
-	appeals, total, err := s.listAppeals(ctx, filters)
+	appeals, total, summary, err := s.listAppeals(ctx, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -71,28 +58,41 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 	return &guardianv1beta1.ListUserAppealsResponse{
 		Appeals: appeals,
 		Total:   int32(total),
+		Summary: summary,
 	}, nil
 }
 
 func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListAppealsRequest) (*guardianv1beta1.ListAppealsResponse, error) {
 	filters := &domain.ListAppealsFilter{
-		Q:             req.GetQ(),
-		AccountTypes:  req.GetAccountTypes(),
-		AccountID:     req.GetAccountId(),
-		GroupIDs:      req.GetGroupIds(),
-		GroupTypes:    req.GetGroupTypes(),
-		Statuses:      req.GetStatuses(),
-		Role:          req.GetRole(),
-		ProviderTypes: req.GetProviderTypes(),
-		ProviderURNs:  req.GetProviderUrns(),
-		ResourceTypes: req.GetResourceTypes(),
-		ResourceURNs:  req.GetResourceUrns(),
-		Size:          int(req.GetSize()),
-		Offset:        int(req.GetOffset()),
-		OrderBy:       req.GetOrderBy(),
-		ResourceIDs:   req.GetResourceIds(),
+		Q:               req.GetQ(),
+		AccountTypes:    req.GetAccountTypes(),
+		CreatedBy:       req.GetCreatedBy(),
+		AccountID:       req.GetAccountId(),
+		AccountIDs:      req.GetAccountIds(),
+		GroupIDs:        req.GetGroupIds(),
+		GroupTypes:      req.GetGroupTypes(),
+		Role:            req.GetRole(),
+		Roles:           req.GetRoles(),
+		Statuses:        req.GetStatuses(),
+		ProviderTypes:   req.GetProviderTypes(),
+		ProviderURNs:    req.GetProviderUrns(),
+		ResourceTypes:   req.GetResourceTypes(),
+		ResourceURNs:    req.GetResourceUrns(),
+		OrderBy:         req.GetOrderBy(),
+		Size:            int(req.GetSize()),
+		Offset:          int(req.GetOffset()),
+		ResourceIDs:     req.GetResourceIds(),
+		SummaryGroupBys: slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
+		SummaryUniques:  slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
+		FieldMasks:      slicesUtil.GenericsStandardizeSliceNilAble(req.GetFieldMasks()),
+		RoleStartsWith:  req.GetRoleStartsWith(),
+		RoleEndsWith:    req.GetRoleEndsWith(),
+		RoleContains:    req.GetRoleContains(),
+		StartTime:       s.adapter.FromTimeProto(req.GetStartTime()),
+		EndTime:         s.adapter.FromTimeProto(req.GetEndTime()),
 	}
-	appeals, total, err := s.listAppeals(ctx, filters)
+
+	appeals, total, summary, err := s.listAppeals(ctx, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +100,7 @@ func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListA
 	return &guardianv1beta1.ListAppealsResponse{
 		Appeals: appeals,
 		Total:   int32(total),
+		Summary: summary,
 	}, nil
 }
 
@@ -306,40 +307,72 @@ func (s *GRPCServer) ListAppealActivities(ctx context.Context, req *guardianv1be
 	}, nil
 }
 
-func (s *GRPCServer) listAppeals(ctx context.Context, filters *domain.ListAppealsFilter) ([]*guardianv1beta1.Appeal, int64, error) {
+func (s *GRPCServer) listAppeals(ctx context.Context, filters *domain.ListAppealsFilter) ([]*guardianv1beta1.Appeal, int64, *guardianv1beta1.SummaryResult, error) {
 	eg, ctx := errgroup.WithContext(ctx)
 	var appeals []*domain.Appeal
+	var summary *domain.SummaryResult
 	var total int64
 
-	eg.Go(func() error {
-		appealRecords, err := s.appealService.Find(ctx, filters)
-		if err != nil {
-			return s.internalError(ctx, "failed to get appeal list: %s", err)
-		}
-		appeals = appealRecords
-		return nil
-	})
-	eg.Go(func() error {
-		totalRecord, err := s.appealService.GetAppealsTotalCount(ctx, filters)
-		if err != nil {
-			return s.internalError(ctx, "failed to get appeal total count: %s", err)
-		}
-		total = totalRecord
-		return nil
-	})
+	if filters.WithAppeals() {
+		eg.Go(func() error {
+			appealRecords, err := s.appealService.Find(ctx, filters)
+			if err != nil {
+				return s.internalError(ctx, "failed to get appeal list: %s", err)
+			}
+			appeals = appealRecords
+			return nil
+		})
+	}
+	if filters.WithTotal() {
+		eg.Go(func() error {
+			totalRecord, err := s.appealService.GetAppealsTotalCount(ctx, filters)
+			if err != nil {
+				return s.internalError(ctx, "failed to get appeal total count: %s", err)
+			}
+			total = totalRecord
+			return nil
+		})
+	}
+	if filters.WithSummary() {
+		eg.Go(func() error {
+			var e error
+			summary, e = s.appealService.GenerateSummary(ctx, filters)
+			if e != nil {
+				switch {
+				case errors.Is(e, domain.ErrInvalidUniqueInput) ||
+					errors.Is(e, domain.ErrEmptyUniqueTableName) ||
+					errors.Is(e, domain.ErrEmptyUniqueColumnName) ||
+					errors.Is(e, domain.ErrNotSupportedUniqueTableName) ||
+					errors.Is(e, domain.ErrInvalidGroupInput) ||
+					errors.Is(e, domain.ErrEmptyGroupTableName) ||
+					errors.Is(e, domain.ErrEmptyGroupColumnName) ||
+					errors.Is(e, domain.ErrNotSupportedGroupTableName):
+					return s.invalidArgument(ctx, "invalid summary argument: %s", e.Error())
+				default:
+					return s.internalError(ctx, "failed to generate summary: %s", e.Error())
+				}
+			}
+			return nil
+		})
+	}
 
 	if err := eg.Wait(); err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
 
-	appealProtos := []*guardianv1beta1.Appeal{}
-	for _, a := range appeals {
+	appealsProto := make([]*guardianv1beta1.Appeal, len(appeals))
+	for i, a := range appeals {
 		appealProto, err := s.adapter.ToAppealProto(a)
 		if err != nil {
-			return nil, 0, s.internalError(ctx, "failed to parse appeal: %s", err)
+			return nil, 0, nil, s.internalError(ctx, "failed to parse appeal: %s", err)
 		}
-		appealProtos = append(appealProtos, appealProto)
+		appealsProto[i] = appealProto
 	}
 
-	return appealProtos, total, nil
+	summaryProto, err := s.adapter.ToSummaryProto(summary)
+	if err != nil {
+		return nil, 0, nil, s.internalError(ctx, "failed to parse summary: %v", err)
+	}
+
+	return appealsProto, total, summaryProto, nil
 }

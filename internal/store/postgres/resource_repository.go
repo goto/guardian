@@ -48,14 +48,13 @@ func (r *ResourceRepository) Find(ctx context.Context, filter domain.ListResourc
 		return nil, err
 	}
 
-	records := []*domain.Resource{}
-	for _, m := range models {
+	records := make([]*domain.Resource, len(models))
+	for i, m := range models {
 		r, err := m.ToDomain()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("parsing appeal: %w", err)
 		}
-
-		records = append(records, r)
+		records[i] = r
 	}
 
 	return records, nil
@@ -97,7 +96,7 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) (*gorm.
 
 	providerTypes := slicesUtil.GenericsUniqueSliceValues(filter.ProviderTypes)
 	if filter.ProviderType != "" {
-		providerTypes = slicesUtil.GenericsUniqueSliceValues(append(filter.ProviderTypes, filter.ProviderType))
+		providerTypes = slicesUtil.GenericsUniqueSliceValues(append(providerTypes, filter.ProviderType))
 	}
 	if len(providerTypes) > 0 {
 		db = db.Where(`"provider_type" IN ?`, providerTypes)
@@ -105,7 +104,7 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) (*gorm.
 
 	resourceTypes := slicesUtil.GenericsUniqueSliceValues(filter.ResourceTypes)
 	if filter.ResourceType != "" {
-		resourceTypes = slicesUtil.GenericsUniqueSliceValues(append(filter.ResourceTypes, filter.ResourceType))
+		resourceTypes = slicesUtil.GenericsUniqueSliceValues(append(resourceTypes, filter.ResourceType))
 	}
 	if len(resourceTypes) > 0 {
 		db = db.Where(`"type" IN ?`, resourceTypes)
@@ -113,7 +112,7 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) (*gorm.
 
 	providerURNs := slicesUtil.GenericsUniqueSliceValues(filter.ProviderURNs)
 	if filter.ProviderURN != "" {
-		providerURNs = slicesUtil.GenericsUniqueSliceValues(append(filter.ProviderURNs, filter.ProviderURN))
+		providerURNs = slicesUtil.GenericsUniqueSliceValues(append(providerURNs, filter.ProviderURN))
 	}
 	if len(providerURNs) != 0 {
 		db = db.Where(`"provider_urn" IN ?`, providerURNs)
@@ -121,7 +120,7 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) (*gorm.
 
 	resourceURNs := slicesUtil.GenericsUniqueSliceValues(filter.ResourceURNs)
 	if filter.ResourceURN != "" {
-		resourceURNs = slicesUtil.GenericsUniqueSliceValues(append(filter.ResourceURNs, filter.ResourceURN))
+		resourceURNs = slicesUtil.GenericsUniqueSliceValues(append(resourceURNs, filter.ResourceURN))
 	}
 	if len(resourceURNs) != 0 {
 		db = db.Where(`"urn" IN ?`, resourceURNs)

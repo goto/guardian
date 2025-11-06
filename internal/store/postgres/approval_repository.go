@@ -63,7 +63,10 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 	}
 
 	var models []*model.Approval
-	if err := db.Preload("Appeal.Approvals").Preload("Appeal.Resource").Find(&models).Error; err != nil {
+	if err := db.Preload("Appeal.Resource").
+		Preload("Appeal.Approvals").
+		Preload("Appeal.Approvals.Approvers").
+		Find(&models).Error; err != nil {
 		return nil, err
 	}
 
@@ -81,20 +84,23 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 
 func (r *ApprovalRepository) GetApprovalsTotalCount(ctx context.Context, filter *domain.ListApprovalsFilter) (int64, error) {
 	db := r.db.WithContext(ctx)
+	db = applyApprovalsJoins(db)
+
+	// omit offset & size & order_by
 	f := *filter
 	f.Size = 0
 	f.Offset = 0
-	db = applyApprovalsJoins(db)
+	f.OrderBy = nil
+
 	var err error
 	db, err = applyApprovalsFilter(db, &f)
 	if err != nil {
 		return 0, err
 	}
 	var count int64
-	if err := db.Model(&model.Approval{}).Count(&count).Error; err != nil {
+	if err = db.Model(&model.Approval{}).Count(&count).Error; err != nil {
 		return 0, err
 	}
-
 	return count, nil
 }
 

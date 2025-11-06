@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/mitchellh/mapstructure"
+
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
-	"github.com/mitchellh/mapstructure"
 )
 
 type resourceService interface {
@@ -49,7 +50,7 @@ func (p *provider) GetType() string {
 }
 
 func (p *provider) GetAccountTypes() []string {
-	return []string{"user"}
+	return validAccountTypes
 }
 
 func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*domain.Role, error) {
@@ -57,54 +58,67 @@ func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*
 }
 
 func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
+	if a.Resource == nil {
+		return errors.New("nil appeal resource")
+	}
+
 	packageID := a.ResourceID
-	if packageID == "" && a.Resource != nil {
+	if packageID == "" {
 		packageID = a.Resource.ID
 	}
 
-	var err error
-	var resources []*domain.Resource
-	var pkgInfo *PackageInfo
-	var requestorAccounts []*RequestorAccount
+	switch a.Resource.Type {
+	case resourceTypePackage:
+		switch a.Role {
+		case accountTypeBot:
+			// TODO add validation for bot user if required
 
-	resources, err = p.getGrantableResources(ctx, packageID)
-	if err != nil {
-		return fmt.Errorf("failed to get grantable resources: %w", err)
-	}
-	providerTypes := getUniqueProviderTypes(resources)
+		case accountTypeUser:
+			var err error
+			var resources []*domain.Resource
+			var pkgInfo *PackageInfo
+			var requestorAccounts []*RequestorAccount
 
-	pkgInfo, err = getPackageInfo(a.Resource)
-	if err != nil {
-		return fmt.Errorf("unable to get package info: %w", err)
-	}
-
-	requestorAccounts, err = getRequestorAccounts(a)
-	if err != nil {
-		return fmt.Errorf("invalid appeal parameters: %w", err)
-	}
-
-	for _, requiredProviderType := range providerTypes {
-		var isAccountTypeFound bool
-		for _, accountConfig := range pkgInfo.Accounts {
-			if accountConfig.ProviderType != requiredProviderType {
-				continue
+			resources, err = p.getGrantableResources(ctx, packageID)
+			if err != nil {
+				return fmt.Errorf("failed to get grantable resources: %w", err)
 			}
-			isAccountTypeFound = true
+			providerTypes := getUniqueProviderTypes(resources)
 
-			requiredAccountType := accountConfig.AccountType
-			var isAccountIDFound bool
-			for _, ra := range requestorAccounts {
-				if ra.ProviderType == requiredProviderType && ra.AccountType == requiredAccountType && ra.AccountID != "" {
-					isAccountIDFound = true
-					break
+			pkgInfo, err = getPackageInfo(a.Resource)
+			if err != nil {
+				return fmt.Errorf("unable to get package info: %w", err)
+			}
+
+			requestorAccounts, err = getRequestorAccounts(a)
+			if err != nil {
+				return fmt.Errorf("invalid appeal parameters: %w", err)
+			}
+
+			for _, requiredProviderType := range providerTypes {
+				var isAccountTypeFound bool
+				for _, accountConfig := range pkgInfo.Accounts {
+					if accountConfig.ProviderType != requiredProviderType {
+						continue
+					}
+					isAccountTypeFound = true
+
+					requiredAccountType := accountConfig.AccountType
+					var isAccountIDFound bool
+					for _, ra := range requestorAccounts {
+						if ra.ProviderType == requiredProviderType && ra.AccountType == requiredAccountType && ra.AccountID != "" {
+							isAccountIDFound = true
+							break
+						}
+					}
+					if !isAccountIDFound {
+						return fmt.Errorf("details.%s.%s.account_id is required", domain.ReservedDetailsKeyProviderParameters, providerParameterKeyAccounts)
+					}
+				}
+				if !isAccountTypeFound {
+					return fmt.Errorf("invalid package config: unable to find required account type for provider type %q", requiredProviderType)
 				}
 			}
-			if !isAccountIDFound {
-				return fmt.Errorf("details.%s.%s.account_id is required", domain.ReservedDetailsKeyProviderParameters, providerParameterKeyAccounts)
-			}
-		}
-		if !isAccountTypeFound {
-			return fmt.Errorf("invalid package config: unable to find required account type for provider type %q", requiredProviderType)
 		}
 	}
 
@@ -148,64 +162,70 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 
 	switch g.Resource.Type {
 	case resourceTypePackage:
-		pkgGrant := g
-		pkgResource := g.Resource
-		pkgInfo, err := getPackageInfo(pkgResource)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get package info: %w", err)
-		}
+		switch g.AccountType {
+		case accountTypeBot:
+			// TODO append dependency grant(s) for bot user to variable 'dependencies' if required
 
-		requestorAccounts, err := getRequestorAccounts(g.Appeal)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get requestor accounts: %w", err)
-		}
+		case accountTypeUser:
+			pkgGrant := g
+			pkgResource := g.Resource
+			pkgInfo, err := getPackageInfo(pkgResource)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get package info: %w", err)
+			}
 
-		resources, err := p.getGrantableResources(ctx, pkgResource.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get grantable resources: %w", err)
-		}
+			requestorAccounts, err := getRequestorAccounts(g.Appeal)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get requestor accounts: %w", err)
+			}
 
-		for _, resource := range resources {
-			var pkgAccountConfig *PackageAccountConfig
-			for _, a := range pkgInfo.Accounts {
-				if a.ProviderType == resource.ProviderType {
-					pkgAccountConfig = a
-					break
+			resources, err := p.getGrantableResources(ctx, pkgResource.ID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get grantable resources: %w", err)
+			}
+
+			for _, resource := range resources {
+				var pkgAccountConfig *PackageAccountConfig
+				for _, a := range pkgInfo.Accounts {
+					if a.ProviderType == resource.ProviderType {
+						pkgAccountConfig = a
+						break
+					}
 				}
-			}
-			if pkgAccountConfig == nil {
-				return nil, fmt.Errorf("unable to find account configuration for provider type %q", resource.ProviderType)
-			}
-
-			var requestorAccount *RequestorAccount
-			for _, ra := range requestorAccounts {
-				if ra.ProviderType == resource.ProviderType && ra.AccountType == pkgAccountConfig.AccountType {
-					requestorAccount = ra
-					break
+				if pkgAccountConfig == nil {
+					return nil, fmt.Errorf("unable to find account configuration for provider type %q", resource.ProviderType)
 				}
+
+				var requestorAccount *RequestorAccount
+				for _, ra := range requestorAccounts {
+					if ra.ProviderType == resource.ProviderType && ra.AccountType == pkgAccountConfig.AccountType {
+						requestorAccount = ra
+						break
+					}
+				}
+				if requestorAccount == nil {
+					return nil, fmt.Errorf("unable to find requestor account for provider type %q and account type %q", resource.ProviderType, pkgAccountConfig.AccountType)
+				}
+
+				accountType := pkgAccountConfig.AccountType
+				accountID := requestorAccount.AccountID
+
+				grantDep := &domain.Grant{
+					ResourceID:  resource.ID,
+					AccountType: accountType,
+					AccountID:   accountID,
+					Role:        pkgAccountConfig.GrantParameters.Role,
+
+					IsPermanent:          pkgGrant.IsPermanent,
+					ExpirationDate:       pkgGrant.ExpirationDate,
+					ExpirationDateReason: pkgGrant.ExpirationDateReason,
+
+					GroupID:   pkgResource.ID,
+					GroupType: groupTypePackageUser,
+				}
+
+				dependencies = append(dependencies, grantDep)
 			}
-			if requestorAccount == nil {
-				return nil, fmt.Errorf("unable to find requestor account for provider type %q and account type %q", resource.ProviderType, pkgAccountConfig.AccountType)
-			}
-
-			accountType := pkgAccountConfig.AccountType
-			accountID := requestorAccount.AccountID
-
-			grantDep := &domain.Grant{
-				ResourceID:  resource.ID,
-				AccountType: accountType,
-				AccountID:   accountID,
-				Role:        pkgAccountConfig.GrantParameters.Role,
-
-				IsPermanent:          pkgGrant.IsPermanent,
-				ExpirationDate:       pkgGrant.ExpirationDate,
-				ExpirationDateReason: pkgGrant.ExpirationDateReason,
-
-				GroupID:   pkgResource.ID,
-				GroupType: groupTypePackageUser,
-			}
-
-			dependencies = append(dependencies, grantDep)
 		}
 	}
 

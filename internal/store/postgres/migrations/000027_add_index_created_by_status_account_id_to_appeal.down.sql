@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS idx_appeals_lower_created_by_status_lower_account_id;
