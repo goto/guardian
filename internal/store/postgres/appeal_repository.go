@@ -145,19 +145,23 @@ func (r *AppealRepository) GenerateSummary(ctx context.Context, filters *domain.
 
 func (r *AppealRepository) GetAppealsTotalCount(ctx context.Context, filter *domain.ListAppealsFilter) (int64, error) {
 	db := r.db.WithContext(ctx)
+	db = applyAppealsJoins(db)
 
-	appealFilters := *filter
-	appealFilters.Size = 0
-	appealFilters.Offset = 0
+	// omit offset & size & order_by
+	f := *filter
+	f.Size = 0
+	f.Offset = 0
+	f.OrderBy = nil
 
 	var err error
-	db, err = applyAppealsFilter(db, &appealFilters)
+	db, err = applyAppealsFilter(db, &f)
 	if err != nil {
 		return 0, err
 	}
 	var count int64
-	err = db.Model(&model.Appeal{}).Count(&count).Error
-
+	if err = db.Model(&model.Appeal{}).Count(&count).Error; err != nil {
+		return 0, err
+	}
 	return count, err
 }
 

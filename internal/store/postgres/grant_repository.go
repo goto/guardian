@@ -104,18 +104,21 @@ func (r *GrantRepository) GetGrantsTotalCount(ctx context.Context, filter domain
 	db := r.db.WithContext(ctx)
 	db = applyGrantsJoins(db)
 
-	grantFilters := filter
-	grantFilters.Size = 0
-	grantFilters.Offset = 0
+	// omit offset & size & order_by
+	f := filter
+	f.Size = 0
+	f.Offset = 0
+	f.OrderBy = nil
 
 	var err error
-	db, err = applyGrantsFilter(db, grantFilters)
+	db, err = applyGrantsFilter(db, f)
 	if err != nil {
 		return 0, err
 	}
 	var count int64
-	err = db.Model(&model.Grant{}).Count(&count).Error
-
+	if err = db.Model(&model.Grant{}).Count(&count).Error; err != nil {
+		return 0, err
+	}
 	return count, err
 }
 
