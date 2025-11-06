@@ -63,7 +63,10 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 	}
 
 	var models []*model.Approval
-	if err := db.Preload("Appeal.Approvals").Preload("Appeal.Approvals.Approvers").Preload("Appeal.Resource").Find(&models).Error; err != nil {
+	if err := db.Preload("Appeal.Resource").
+		Preload("Appeal.Approvals").
+		Preload("Appeal.Approvals.Approvers").
+		Find(&models).Error; err != nil {
 		return nil, err
 	}
 
