@@ -114,6 +114,7 @@ type appealService interface {
 	ListComments(context.Context, domain.ListCommentsFilter) ([]*domain.Comment, error)
 	CreateComment(context.Context, *domain.Comment) error
 	ListActivities(context.Context, string) ([]*domain.Event, error)
+	GenerateSummary(context.Context, *domain.ListAppealsFilter) (*domain.SummaryResult, error)
 }
 
 //go:generate mockery --name=approvalService --exported --with-expecter

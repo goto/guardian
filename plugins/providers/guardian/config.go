@@ -16,10 +16,14 @@ const (
 	packagePermissionAdmin  = "admin"
 
 	providerParameterKeyAccounts = "accounts"
+
+	accountTypeUser = "user"
+	accountTypeBot  = "bot"
 )
 
 var (
-	validPermissions = []string{packagePermissionMember, packagePermissionAdmin}
+	validPermissions  = []string{packagePermissionMember, packagePermissionAdmin}
+	validAccountTypes = []string{accountTypeUser, accountTypeBot}
 )
 
 type config struct {

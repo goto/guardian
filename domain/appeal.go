@@ -11,6 +11,7 @@ import (
 
 	"github.com/goto/guardian/pkg/diff"
 	"github.com/goto/guardian/pkg/evaluator"
+	"github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
 
@@ -417,6 +418,26 @@ type ListAppealsFilter struct {
 	Size                      int       `mapstructure:"size" validate:"omitempty"`
 	Offset                    int       `mapstructure:"offset" validate:"omitempty"`
 	ResourceIDs               []string  `mapstructure:"resource_ids" validate:"omitempty,min=1"`
+	SummaryGroupBys           []string  `mapstructure:"summary_group_bys" validate:"omitempty"`
+	SummaryUniques            []string  `mapstructure:"summary_uniques" validate:"omitempty"`
+	FieldMasks                []string  `mapstructure:"field_masks" validate:"omitempty"`
+	RoleStartsWith            string    `mapstructure:"role_starts_with" validate:"omitempty"`
+	RoleEndsWith              string    `mapstructure:"role_ends_with" validate:"omitempty"`
+	RoleContains              string    `mapstructure:"role_contains" validate:"omitempty"`
+	StartTime                 time.Time `mapstructure:"start_time" validate:"omitempty"`
+	EndTime                   time.Time `mapstructure:"end_time" validate:"omitempty"`
+}
+
+func (af ListAppealsFilter) WithSummary() bool {
+	return len(af.SummaryGroupBys) > 0 || len(af.SummaryUniques) > 0
+}
+
+func (af ListAppealsFilter) WithAppeals() bool {
+	return !slices.GenericsSliceContainsOne(af.FieldMasks, "appeals")
+}
+
+func (af ListAppealsFilter) WithTotal() bool {
+	return !slices.GenericsSliceContainsOne(af.FieldMasks, "total")
 }
 
 type DiffItem struct {

@@ -1,0 +1,3 @@
+BEGIN;
+CREATE INDEX IF NOT EXISTS idx_appeals_lower_created_by_status_lower_account_id ON appeals (LOWER(created_by), status, LOWER(account_id));
+COMMIT;

@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/mitchellh/mapstructure"
+
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
-	"github.com/mitchellh/mapstructure"
 )
 
 type resourceService interface {
@@ -49,7 +50,7 @@ func (p *provider) GetType() string {
 }
 
 func (p *provider) GetAccountTypes() []string {
-	return []string{"user"}
+	return validAccountTypes
 }
 
 func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*domain.Role, error) {
@@ -148,64 +149,69 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 
 	switch g.Resource.Type {
 	case resourceTypePackage:
-		pkgGrant := g
-		pkgResource := g.Resource
-		pkgInfo, err := getPackageInfo(pkgResource)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get package info: %w", err)
-		}
+		switch g.Role {
+		case accountTypeBot:
+			break
+		case accountTypeUser:
+			pkgGrant := g
+			pkgResource := g.Resource
+			pkgInfo, err := getPackageInfo(pkgResource)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get package info: %w", err)
+			}
 
-		requestorAccounts, err := getRequestorAccounts(g.Appeal)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get requestor accounts: %w", err)
-		}
+			requestorAccounts, err := getRequestorAccounts(g.Appeal)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get requestor accounts: %w", err)
+			}
 
-		resources, err := p.getGrantableResources(ctx, pkgResource.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get grantable resources: %w", err)
-		}
+			resources, err := p.getGrantableResources(ctx, pkgResource.ID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get grantable resources: %w", err)
+			}
 
-		for _, resource := range resources {
-			var pkgAccountConfig *PackageAccountConfig
-			for _, a := range pkgInfo.Accounts {
-				if a.ProviderType == resource.ProviderType {
-					pkgAccountConfig = a
-					break
+			for _, resource := range resources {
+				var pkgAccountConfig *PackageAccountConfig
+				for _, a := range pkgInfo.Accounts {
+					if a.ProviderType == resource.ProviderType {
+						pkgAccountConfig = a
+						break
+					}
 				}
-			}
-			if pkgAccountConfig == nil {
-				return nil, fmt.Errorf("unable to find account configuration for provider type %q", resource.ProviderType)
-			}
-
-			var requestorAccount *RequestorAccount
-			for _, ra := range requestorAccounts {
-				if ra.ProviderType == resource.ProviderType && ra.AccountType == pkgAccountConfig.AccountType {
-					requestorAccount = ra
-					break
+				if pkgAccountConfig == nil {
+					return nil, fmt.Errorf("unable to find account configuration for provider type %q", resource.ProviderType)
 				}
+
+				var requestorAccount *RequestorAccount
+				for _, ra := range requestorAccounts {
+					if ra.ProviderType == resource.ProviderType && ra.AccountType == pkgAccountConfig.AccountType {
+						requestorAccount = ra
+						break
+					}
+				}
+				if requestorAccount == nil {
+					return nil, fmt.Errorf("unable to find requestor account for provider type %q and account type %q", resource.ProviderType, pkgAccountConfig.AccountType)
+				}
+
+				accountType := pkgAccountConfig.AccountType
+				accountID := requestorAccount.AccountID
+
+				grantDep := &domain.Grant{
+					ResourceID:  resource.ID,
+					AccountType: accountType,
+					AccountID:   accountID,
+					Role:        pkgAccountConfig.GrantParameters.Role,
+
+					IsPermanent:          pkgGrant.IsPermanent,
+					ExpirationDate:       pkgGrant.ExpirationDate,
+					ExpirationDateReason: pkgGrant.ExpirationDateReason,
+
+					GroupID:   pkgResource.ID,
+					GroupType: groupTypePackageUser,
+				}
+
+				dependencies = append(dependencies, grantDep)
 			}
-			if requestorAccount == nil {
-				return nil, fmt.Errorf("unable to find requestor account for provider type %q and account type %q", resource.ProviderType, pkgAccountConfig.AccountType)
-			}
-
-			accountType := pkgAccountConfig.AccountType
-			accountID := requestorAccount.AccountID
-
-			grantDep := &domain.Grant{
-				ResourceID:  resource.ID,
-				AccountType: accountType,
-				AccountID:   accountID,
-				Role:        pkgAccountConfig.GrantParameters.Role,
-
-				IsPermanent:          pkgGrant.IsPermanent,
-				ExpirationDate:       pkgGrant.ExpirationDate,
-				ExpirationDateReason: pkgGrant.ExpirationDateReason,
-
-				GroupID:   pkgResource.ID,
-				GroupType: groupTypePackageUser,
-			}
-
-			dependencies = append(dependencies, grantDep)
 		}
 	}
 

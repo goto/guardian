@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -28,6 +29,11 @@ var (
 		domain.AppealStatusApproved,
 		domain.AppealStatusRejected,
 		domain.AppealStatusCanceled,
+	}
+
+	appealEntityGroupKeyMapping = map[string]string{
+		"appeal":   "appeals",
+		"resource": "Resource",
 	}
 )
 
@@ -74,28 +80,67 @@ func (r *AppealRepository) Find(ctx context.Context, filters *domain.ListAppeals
 	}
 
 	db := r.db.WithContext(ctx)
+	db = applyAppealsJoins(db)
 	var err error
-	db, err = applyAppealFilter(db, filters)
+	db, err = applyAppealsFilter(db, filters)
 	if err != nil {
 		return nil, err
 	}
 
 	var models []*model.Appeal
-	if err := db.Joins("Grant").Find(&models).Error; err != nil {
+	if err := db.Preload("Resource").
+		Preload("Grant").
+		Find(&models).Error; err != nil {
 		return nil, err
 	}
 
-	records := []*domain.Appeal{}
-	for _, m := range models {
+	records := make([]*domain.Appeal, len(models))
+	for i, m := range models {
 		a, err := m.ToDomain()
 		if err != nil {
 			return nil, fmt.Errorf("parsing appeal: %w", err)
 		}
-
-		records = append(records, a)
+		records[i] = a
 	}
 
 	return records, nil
+}
+
+func (r *AppealRepository) GenerateSummary(ctx context.Context, filters *domain.ListAppealsFilter) (*domain.SummaryResult, error) {
+	var err error
+	if err = utils.ValidateStruct(filters); err != nil {
+		return nil, err
+	}
+
+	sr := new(domain.SummaryResult)
+
+	dbGen := func() (*gorm.DB, error) {
+		// omit offset & size & order_by
+		f := filters
+		f.Offset = 0
+		f.Size = 0
+		f.OrderBy = nil
+
+		db := r.db.WithContext(ctx)
+		db = applyAppealsJoins(db)
+		return applyAppealsFilter(db, f)
+	}
+
+	if len(filters.SummaryUniques) > 0 {
+		sr.SummaryUniques, err = generateUniqueSummaries(ctx, dbGen, "appeals", filters.SummaryUniques, appealEntityGroupKeyMapping)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(filters.SummaryGroupBys) > 0 {
+		sr.SummaryGroups, err = generateGroupSummaries(ctx, dbGen, "appeals", filters.SummaryGroupBys, appealEntityGroupKeyMapping)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return generateSummaryResultCount(sr), nil
 }
 
 func (r *AppealRepository) GetAppealsTotalCount(ctx context.Context, filter *domain.ListAppealsFilter) (int64, error) {
@@ -106,7 +151,7 @@ func (r *AppealRepository) GetAppealsTotalCount(ctx context.Context, filter *dom
 	appealFilters.Offset = 0
 
 	var err error
-	db, err = applyAppealFilter(db, &appealFilters)
+	db, err = applyAppealsFilter(db, &appealFilters)
 	if err != nil {
 		return 0, err
 	}
@@ -205,16 +250,19 @@ func (r *AppealRepository) Update(ctx context.Context, a *domain.Appeal) error {
 	})
 }
 
-func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.DB, error) {
-	db = db.Joins("JOIN resources ON appeals.resource_id = resources.id")
+func applyAppealsJoins(db *gorm.DB) *gorm.DB {
+	return db.Joins(`LEFT JOIN "resources" AS "Resource" ON "appeals"."resource_id" = "Resource"."id"`)
+}
+
+func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.DB, error) {
 	if filters.Q != "" {
 		// NOTE: avoid adding conditions before this grouped where clause.
 		// Otherwise, it will be wrapped in parentheses and the query will be invalid.
 		db = db.Where(db.
 			Where(`"appeals"."account_id" LIKE ?`, fmt.Sprintf("%%%s%%", filters.Q)).
 			Or(`"appeals"."role" LIKE ?`, fmt.Sprintf("%%%s%%", filters.Q)).
-			Or(`"resources"."urn" LIKE ?`, fmt.Sprintf("%%%s%%", filters.Q)).
-			Or(`"resources"."name" LIKE ?`, fmt.Sprintf("%%%s%%", filters.Q)),
+			Or(`"Resource"."urn" LIKE ?`, fmt.Sprintf("%%%s%%", filters.Q)).
+			Or(`"Resource"."name" LIKE ?`, fmt.Sprintf("%%%s%%", filters.Q)),
 		)
 	}
 	if filters.Statuses != nil {
@@ -224,7 +272,7 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.DB
 		db = db.Where(`"appeals"."account_type" IN ?`, filters.AccountTypes)
 	}
 	if filters.ResourceTypes != nil {
-		db = db.Where(`"resources"."type" IN ?`, filters.ResourceTypes)
+		db = db.Where(`"Resource"."type" IN ?`, filters.ResourceTypes)
 	}
 
 	if filters.Size > 0 {
@@ -237,17 +285,32 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.DB
 	if filters.CreatedBy != "" {
 		db = db.Where(`LOWER("appeals"."created_by") = ?`, strings.ToLower(filters.CreatedBy))
 	}
-	accounts := make([]string, 0)
+	if filters.Statuses != nil {
+		db = db.Where(`"appeals"."status" IN ?`, filters.Statuses)
+	}
+
+	accountIDs := slicesUtil.GenericsUniqueSliceValues(filters.AccountIDs)
 	if filters.AccountID != "" {
-		accounts = append(accounts, strings.ToLower(filters.AccountID))
+		accountIDs = slicesUtil.GenericsUniqueSliceValues(append(accountIDs, filters.AccountID))
 	}
-	if filters.AccountIDs != nil {
-		for _, account := range filters.AccountIDs {
-			accounts = append(accounts, strings.ToLower(account))
-		}
+	if len(accountIDs) > 0 {
+		db = db.Where(`LOWER("appeals"."account_id") IN ?`, slicesUtil.ToLowerStringSlice(accountIDs))
 	}
-	if len(accounts) > 0 {
-		db = db.Where(`LOWER("appeals"."account_id") IN ?`, accounts)
+
+	resourceIDs := slicesUtil.GenericsUniqueSliceValues(filters.ResourceIDs)
+	if filters.ResourceID != "" {
+		resourceIDs = slicesUtil.GenericsUniqueSliceValues(append(resourceIDs, filters.ResourceID))
+	}
+	if len(resourceIDs) != 0 {
+		db = db.Where(`"appeals"."resource_id" IN ?`, resourceIDs)
+	}
+
+	roles := slicesUtil.GenericsUniqueSliceValues(filters.Roles)
+	if filters.Role != "" {
+		roles = slicesUtil.GenericsUniqueSliceValues(append(roles, filters.Role))
+	}
+	if len(roles) != 0 {
+		db = db.Where(`LOWER("appeals"."role") IN ?`, roles)
 	}
 
 	if len(filters.GroupIDs) > 0 {
@@ -255,18 +318,6 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.DB
 	}
 	if len(filters.GroupTypes) > 0 {
 		db = db.Where(`"appeals"."group_type" IN ?`, filters.GroupTypes)
-	}
-	if filters.Statuses != nil {
-		db = db.Where(`"appeals"."status" IN ?`, filters.Statuses)
-	}
-	if filters.ResourceID != "" {
-		db = db.Where(`"appeals"."resource_id" = ?`, filters.ResourceID)
-	}
-	if len(filters.ResourceIDs) != 0 {
-		db = db.Where(`"appeals"."resource_id" IN ?`, filters.ResourceIDs)
-	}
-	if filters.Role != "" || len(filters.Roles) > 0 {
-		db = db.Where(`LOWER("appeals"."role") IN ?`, slicesUtil.ToLowerStringSlice(slicesUtil.GenericsStandardizeSlice(append(filters.Roles, filters.Role))))
 	}
 	if !filters.ExpirationDateLessThan.IsZero() {
 		db = db.Where(`"options" -> 'expiration_date' < ?`, filters.ExpirationDateLessThan)
@@ -287,18 +338,36 @@ func applyAppealFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.DB
 		}
 	}
 
-	db = db.Joins("Resource")
 	if filters.ProviderTypes != nil {
 		db = db.Where(`"Resource"."provider_type" IN ?`, filters.ProviderTypes)
 	}
 	if filters.ProviderURNs != nil {
 		db = db.Where(`"Resource"."provider_urn" IN ?`, filters.ProviderURNs)
 	}
-	if filters.ResourceTypes != nil {
-		db = db.Where(`"Resource"."type" IN ?`, filters.ResourceTypes)
-	}
 	if filters.ResourceURNs != nil {
 		db = db.Where(`"Resource"."urn" IN ?`, filters.ResourceURNs)
+	}
+
+	var patterns []string
+	if filters.RoleStartsWith != "" {
+		patterns = append(patterns, filters.RoleStartsWith+"%")
+	}
+	if filters.RoleEndsWith != "" {
+		patterns = append(patterns, "%"+filters.RoleEndsWith)
+	}
+	if filters.RoleContains != "" {
+		patterns = append(patterns, "%"+filters.RoleContains+"%")
+	}
+	if len(patterns) > 0 {
+		db = db.Where(`LOWER("appeals"."role") LIKE ANY (?)`, pq.Array(patterns))
+	}
+
+	if !filters.StartTime.IsZero() && !filters.EndTime.IsZero() {
+		db = db.Where(`"appeals"."created_at" BETWEEN ? AND ?`, filters.StartTime, filters.EndTime)
+	} else if !filters.StartTime.IsZero() {
+		db = db.Where(`"appeals"."created_at" >= ?`, filters.StartTime)
+	} else if !filters.EndTime.IsZero() {
+		db = db.Where(`"appeals"."created_at" <= ?`, filters.EndTime)
 	}
 
 	return db, nil
