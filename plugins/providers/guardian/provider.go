@@ -58,54 +58,67 @@ func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*
 }
 
 func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
+	if a.Resource == nil {
+		return errors.New("nil appeal resource")
+	}
+
 	packageID := a.ResourceID
-	if packageID == "" && a.Resource != nil {
+	if packageID == "" {
 		packageID = a.Resource.ID
 	}
 
-	var err error
-	var resources []*domain.Resource
-	var pkgInfo *PackageInfo
-	var requestorAccounts []*RequestorAccount
+	switch a.Resource.Type {
+	case resourceTypePackage:
+		switch a.Role {
+		case accountTypeBot:
+			break
 
-	resources, err = p.getGrantableResources(ctx, packageID)
-	if err != nil {
-		return fmt.Errorf("failed to get grantable resources: %w", err)
-	}
-	providerTypes := getUniqueProviderTypes(resources)
+		case accountTypeUser:
+			var err error
+			var resources []*domain.Resource
+			var pkgInfo *PackageInfo
+			var requestorAccounts []*RequestorAccount
 
-	pkgInfo, err = getPackageInfo(a.Resource)
-	if err != nil {
-		return fmt.Errorf("unable to get package info: %w", err)
-	}
-
-	requestorAccounts, err = getRequestorAccounts(a)
-	if err != nil {
-		return fmt.Errorf("invalid appeal parameters: %w", err)
-	}
-
-	for _, requiredProviderType := range providerTypes {
-		var isAccountTypeFound bool
-		for _, accountConfig := range pkgInfo.Accounts {
-			if accountConfig.ProviderType != requiredProviderType {
-				continue
+			resources, err = p.getGrantableResources(ctx, packageID)
+			if err != nil {
+				return fmt.Errorf("failed to get grantable resources: %w", err)
 			}
-			isAccountTypeFound = true
+			providerTypes := getUniqueProviderTypes(resources)
 
-			requiredAccountType := accountConfig.AccountType
-			var isAccountIDFound bool
-			for _, ra := range requestorAccounts {
-				if ra.ProviderType == requiredProviderType && ra.AccountType == requiredAccountType && ra.AccountID != "" {
-					isAccountIDFound = true
-					break
+			pkgInfo, err = getPackageInfo(a.Resource)
+			if err != nil {
+				return fmt.Errorf("unable to get package info: %w", err)
+			}
+
+			requestorAccounts, err = getRequestorAccounts(a)
+			if err != nil {
+				return fmt.Errorf("invalid appeal parameters: %w", err)
+			}
+
+			for _, requiredProviderType := range providerTypes {
+				var isAccountTypeFound bool
+				for _, accountConfig := range pkgInfo.Accounts {
+					if accountConfig.ProviderType != requiredProviderType {
+						continue
+					}
+					isAccountTypeFound = true
+
+					requiredAccountType := accountConfig.AccountType
+					var isAccountIDFound bool
+					for _, ra := range requestorAccounts {
+						if ra.ProviderType == requiredProviderType && ra.AccountType == requiredAccountType && ra.AccountID != "" {
+							isAccountIDFound = true
+							break
+						}
+					}
+					if !isAccountIDFound {
+						return fmt.Errorf("details.%s.%s.account_id is required", domain.ReservedDetailsKeyProviderParameters, providerParameterKeyAccounts)
+					}
+				}
+				if !isAccountTypeFound {
+					return fmt.Errorf("invalid package config: unable to find required account type for provider type %q", requiredProviderType)
 				}
 			}
-			if !isAccountIDFound {
-				return fmt.Errorf("details.%s.%s.account_id is required", domain.ReservedDetailsKeyProviderParameters, providerParameterKeyAccounts)
-			}
-		}
-		if !isAccountTypeFound {
-			return fmt.Errorf("invalid package config: unable to find required account type for provider type %q", requiredProviderType)
 		}
 	}
 
