@@ -9,13 +9,14 @@ import (
 	maxcompute "github.com/alibabacloud-go/maxcompute-20220104/client"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps"
 	"github.com/bearaujus/bworker/pool"
+	"golang.org/x/net/context"
+
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/alicatalogapis"
 	"github.com/goto/guardian/pkg/aliclientmanager"
 	"github.com/goto/guardian/pkg/log"
 	sliceshelper "github.com/goto/guardian/pkg/slices"
-	"golang.org/x/net/context"
 )
 
 //go:generate mockery --name=encryptor --exported --with-expecter
@@ -356,6 +357,8 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 			Type:         resourceTypeProject,
 			URN:          projectName,
 		},
+		GroupID:   g.GroupID,
+		GroupType: g.GroupType,
 	}
 
 	return []*domain.Grant{projectMember}, nil
