@@ -71,7 +71,7 @@ func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
 	case resourceTypePackage:
 		switch a.Role {
 		case accountTypeBot:
-			break
+			// TODO add validation for bot user if required
 
 		case accountTypeUser:
 			var err error
@@ -164,7 +164,8 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 	case resourceTypePackage:
 		switch g.Role {
 		case accountTypeBot:
-			break
+			// TODO append dependency grant(s) for bot user to variable 'dependencies' if required
+
 		case accountTypeUser:
 			pkgGrant := g
 			pkgResource := g.Resource
