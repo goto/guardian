@@ -162,7 +162,7 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 
 	switch g.Resource.Type {
 	case resourceTypePackage:
-		switch g.Role {
+		switch g.AccountType {
 		case accountTypeBot:
 			// TODO append dependency grant(s) for bot user to variable 'dependencies' if required
 
