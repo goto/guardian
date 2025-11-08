@@ -1104,6 +1104,10 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 			GroupFields: groupFields,
 			Count:       group.Count,
 		}
+
+		if len(group.DistinctCounts) > 0 {
+			summaryProto.Groups[i].DistinctCounts = group.DistinctCounts
+		}
 	}
 
 	for i, unique := range s.SummaryUniques {

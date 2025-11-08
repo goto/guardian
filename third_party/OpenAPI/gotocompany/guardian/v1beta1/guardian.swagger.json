@@ -1334,6 +1334,16 @@
             "required": false,
             "type": "string",
             "format": "date-time"
+          },
+          {
+            "name": "summaryDistinctCounts",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -3397,6 +3407,13 @@
         "count": {
           "type": "integer",
           "format": "int32"
+        },
+        "distinctCounts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "int32"
+          }
         }
       }
     },

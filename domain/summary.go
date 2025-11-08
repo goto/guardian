@@ -37,6 +37,7 @@ type SummaryUnique struct {
 }
 
 type SummaryGroup struct {
-	GroupFields map[string]any `json:"group_fields,omitempty"`
-	Count       int32          `json:"count,omitempty"`
+	GroupFields    map[string]any   `json:"group_fields,omitempty"`
+	Count          int32            `json:"count,omitempty"`
+	DistinctCounts map[string]int32 `json:"distinct_counts,omitempty"`
 }

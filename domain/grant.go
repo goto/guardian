@@ -231,6 +231,7 @@ type ListGrantsFilter struct {
 	EndTime                   time.Time
 	SummaryGroupBys           []string
 	SummaryUniques            []string
+	SummaryDistinctCounts     []string
 	ExpiringInDays            int
 	FieldMasks                []string
 	WithPendingAppeal         bool

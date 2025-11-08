@@ -91,7 +91,7 @@ func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.Lis
 	}
 
 	if len(filter.SummaryGroupBys) > 0 {
-		sr.SummaryGroups, err = generateGroupSummaries(ctx, dbGen, "grants", filter.SummaryGroupBys, grantEntityGroupKeyMapping)
+		sr.SummaryGroups, err = generateGroupSummaries(ctx, dbGen, "grants", filter.SummaryGroupBys, filter.SummaryDistinctCounts, grantEntityGroupKeyMapping)
 		if err != nil {
 			return nil, err
 		}
