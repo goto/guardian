@@ -3295,6 +3295,13 @@
             "type": "object",
             "$ref": "#/definitions/RequirementAdditionalAppeal"
           }
+        },
+        "postHooks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/RequirementPostAppealHook"
+          }
         }
       }
     },
@@ -3364,6 +3371,26 @@
         },
         "accountType": {
           "type": "string"
+        }
+      }
+    },
+    "RequirementPostAppealHook": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "config": {
+          "type": "object"
+        },
+        "allowFailed": {
+          "type": "boolean"
         }
       }
     },
