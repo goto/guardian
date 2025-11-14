@@ -284,9 +284,53 @@ type AdditionalAppeal struct {
 	AccountType string              `json:"account_type" yaml:"account_type"`
 }
 
+// PostAppealHook defines a hook that executes after requirement appeals are created
+type PostAppealHook struct {
+	Name        string      `json:"name" yaml:"name" validate:"required"`
+	Description string      `json:"description,omitempty" yaml:"description,omitempty"`
+	Type        string      `json:"type" yaml:"type" validate:"required,oneof=http"`
+	Config      interface{} `json:"config,omitempty" yaml:"config,omitempty"`
+	AllowFailed bool        `json:"allow_failed" yaml:"allow_failed"`
+}
+
+func (h *PostAppealHook) EncryptConfig(enc Encryptor) error {
+	configStr, err := json.Marshal(h.Config)
+	if err != nil {
+		return fmt.Errorf("failed to json.Marshal config: %w", err)
+	}
+
+	encryptedConfig, err := enc.Encrypt(string(configStr))
+	if err != nil {
+		return err
+	}
+	h.Config = encryptedConfig
+
+	return nil
+}
+
+func (h *PostAppealHook) DecryptConfig(dec Decryptor) error {
+	configStr, ok := h.Config.(string)
+	if !ok {
+		return fmt.Errorf("invalid config type: %T, expected string", h.Config)
+	}
+	decryptedConfig, err := dec.Decrypt(configStr)
+	if err != nil {
+		return err
+	}
+
+	var cfg interface{}
+	if err := json.Unmarshal([]byte(decryptedConfig), &cfg); err != nil {
+		return fmt.Errorf("failed to json.Unmarshal config: %w", err)
+	}
+	h.Config = cfg
+
+	return nil
+}
+
 type Requirement struct {
-	On      *RequirementTrigger `json:"on" yaml:"on" validate:"required"`
-	Appeals []*AdditionalAppeal `json:"appeals" yaml:"appeals" validate:"required,min=1,dive"`
+	On        *RequirementTrigger `json:"on" yaml:"on" validate:"required"`
+	Appeals   []*AdditionalAppeal `json:"appeals,omitempty" yaml:"appeals,omitempty" validate:"omitempty,dive"`
+	PostHooks []*PostAppealHook   `json:"post_hooks,omitempty" yaml:"post_hooks,omitempty" validate:"omitempty,dive"`
 }
 
 // Policy is the approval policy configuration
@@ -310,6 +354,15 @@ func (p *Policy) RemoveSensitiveValues() {
 	if p.AppealConfig != nil {
 		for key := range p.AppealConfig.MetadataSources {
 			p.AppealConfig.MetadataSources[key].Config = nil
+		}
+	}
+	if p.Requirements != nil {
+		for _, req := range p.Requirements {
+			if req.PostHooks != nil {
+				for _, hook := range req.PostHooks {
+					hook.Config = nil
+				}
+			}
 		}
 	}
 }

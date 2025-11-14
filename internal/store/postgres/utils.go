@@ -137,7 +137,7 @@ func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error)
 	return ret, nil
 }
 
-func generateGroupSummaries(_ context.Context, dbGen func() (*gorm.DB, error), baseTableName string, fields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryGroup, error) {
+func generateGroupSummaries(_ context.Context, dbGen func() (*gorm.DB, error), baseTableName string, fields []string, distinctCountFields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryGroup, error) {
 	sg := make([]*domain.SummaryGroup, 0)
 	if len(fields) == 0 {
 		return sg, nil
@@ -149,6 +149,7 @@ func generateGroupSummaries(_ context.Context, dbGen func() (*gorm.DB, error), b
 	}
 
 	const countColumnAlias = "count"
+	const distinctCountPrefix = "distinct_"
 	selectCols, groupCols := make([]string, len(fields)), make([]string, len(fields))
 
 	for i, field := range fields {
@@ -180,6 +181,17 @@ func generateGroupSummaries(_ context.Context, dbGen func() (*gorm.DB, error), b
 	}
 	selectCols = append(selectCols, fmt.Sprintf("COUNT(1) AS %s", countColumnAlias))
 
+	distinctCountColumns := make(map[string]string)
+	for _, field := range distinctCountFields {
+		if strings.Contains(field, ".") {
+			return nil, fmt.Errorf("distinct count field must be simple column name (got %q)", field)
+		}
+
+		alias := distinctCountPrefix + field
+		selectCols = append(selectCols, fmt.Sprintf("COUNT(DISTINCT LOWER(%q.%q)) AS %s", baseTableName, field, alias))
+		distinctCountColumns[alias] = field
+	}
+
 	db = db.Table(baseTableName).Select(strings.Join(selectCols, ", "))
 	db = db.Group(strings.Join(groupCols, ", "))
 
@@ -208,25 +220,41 @@ func generateGroupSummaries(_ context.Context, dbGen func() (*gorm.DB, error), b
 		}
 
 		groupFields := make(map[string]any)
+		distinctCounts := make(map[string]int32)
 		var count int32
 		for i, col := range cols {
 			groupValues := values[:i]
 			val := values[i]
-			switch col {
-			case countColumnAlias:
+			switch {
+			case col == countColumnAlias:
 				intValue, err := strconv.Atoi(fmt.Sprint(val))
 				if err != nil {
 					return nil, fmt.Errorf("invalid count value (%T) for group values: %v", val, groupValues)
 				}
 				count = int32(intValue)
+
+			case strings.HasPrefix(col, distinctCountPrefix):
+				fieldName := distinctCountColumns[col]
+				intValue, err := strconv.Atoi(fmt.Sprint(val))
+				if err != nil {
+					return nil, fmt.Errorf("invalid distinct count value for %q (%T): %v", fieldName, val, val)
+				}
+				distinctCounts[fieldName] = int32(intValue)
+
 			default:
 				groupFields[col] = val
 			}
 		}
-		sg = append(sg, &domain.SummaryGroup{
+
+		summary := &domain.SummaryGroup{
 			GroupFields: groupFields,
 			Count:       count,
-		})
+		}
+		if len(distinctCounts) > 0 {
+			summary.DistinctCounts = distinctCounts
+		}
+
+		sg = append(sg, summary)
 	}
 	return sg, nil
 }

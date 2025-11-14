@@ -134,7 +134,7 @@ func (r *AppealRepository) GenerateSummary(ctx context.Context, filters *domain.
 	}
 
 	if len(filters.SummaryGroupBys) > 0 {
-		sr.SummaryGroups, err = generateGroupSummaries(ctx, dbGen, "appeals", filters.SummaryGroupBys, appealEntityGroupKeyMapping)
+		sr.SummaryGroups, err = generateGroupSummaries(ctx, dbGen, "appeals", filters.SummaryGroupBys, nil, appealEntityGroupKeyMapping)
 		if err != nil {
 			return nil, err
 		}

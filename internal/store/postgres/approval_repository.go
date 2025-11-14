@@ -126,7 +126,7 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 
 	// omit offset & size & order_by for group summaries
 	if len(groupBys) > 0 {
-		sr.SummaryGroups, err = generateGroupSummaries(ctx, dbGen, "approvals", groupBys, approvalEntityGroupKeyMapping)
+		sr.SummaryGroups, err = generateGroupSummaries(ctx, dbGen, "approvals", groupBys, nil, approvalEntityGroupKeyMapping)
 		if err != nil {
 			return nil, err
 		}
@@ -165,7 +165,7 @@ func (r *ApprovalRepository) GenerateSummary(ctx context.Context, filter domain.
 	}
 
 	if len(filter.SummaryGroupBys) > 0 {
-		sr.SummaryGroups, err = generateGroupSummaries(ctx, dbGen, "approvals", filter.SummaryGroupBys, approvalEntityGroupKeyMapping)
+		sr.SummaryGroups, err = generateGroupSummaries(ctx, dbGen, "approvals", filter.SummaryGroupBys, nil, approvalEntityGroupKeyMapping)
 		if err != nil {
 			return nil, err
 		}
