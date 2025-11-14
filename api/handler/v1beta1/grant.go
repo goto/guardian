@@ -17,7 +17,6 @@ import (
 
 func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGrantsRequest) (*guardianv1beta1.ListGrantsResponse, error) {
 	filter := domain.ListGrantsFilter{
-<<<<<<< HEAD
 		Q:                     req.GetQ(),
 		Statuses:              req.GetStatuses(),
 		AccountIDs:            req.GetAccountIds(),
