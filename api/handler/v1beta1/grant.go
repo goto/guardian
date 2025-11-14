@@ -17,6 +17,7 @@ import (
 
 func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGrantsRequest) (*guardianv1beta1.ListGrantsResponse, error) {
 	filter := domain.ListGrantsFilter{
+<<<<<<< HEAD
 		Q:                     req.GetQ(),
 		Statuses:              req.GetStatuses(),
 		AccountIDs:            req.GetAccountIds(),
@@ -34,6 +35,7 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		OrderBy:               req.GetOrderBy(),
 		Size:                  int(req.GetSize()),
 		Offset:                int(req.GetOffset()),
+		WithApprovals:         req.WithApprovals,
 		SummaryGroupBys:       slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryGroupBys()),
 		SummaryUniques:        slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryUniques()),
 		SummaryDistinctCounts: slicesUtil.GenericsStandardizeSliceNilAble(req.GetSummaryDistinctCounts()),

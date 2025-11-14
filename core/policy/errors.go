@@ -11,4 +11,5 @@ var (
 	ErrStepNameContainsWhitespaces = errors.New("step name should not contain whitespaces")
 	ErrInvalidApprovers            = errors.New("invalid approvers")
 	ErrStepDependencyDoesNotExists = errors.New("step dependency does not exists")
+	ErrPolicyStepsRequired         = errors.New("either steps or custom_steps must be defined in policy")
 )

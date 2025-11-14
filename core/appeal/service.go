@@ -112,11 +112,18 @@ type CreateAppealOption func(*createAppealOptions)
 
 type createAppealOptions struct {
 	IsAdditionalAppeal bool
+	DryRun             bool
 }
 
 func CreateWithAdditionalAppeal() CreateAppealOption {
 	return func(opts *createAppealOptions) {
 		opts.IsAdditionalAppeal = true
+	}
+}
+
+func CreateWithDryRun() CreateAppealOption {
+	return func(opts *createAppealOptions) {
+		opts.DryRun = true
 	}
 }
 
@@ -203,6 +210,17 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		opt(createAppealOpts)
 	}
 	isAdditionalAppealCreation := createAppealOpts.IsAdditionalAppeal
+	isDryRun := createAppealOpts.DryRun
+
+	// Log when dry run mode is enabled
+	if isDryRun {
+		s.logger.Info(ctx, "dry run mode enabled - appeals will not be persisted")
+	}
+
+	// Validate - dry run cannot be used with additional appeals
+	if isDryRun && isAdditionalAppealCreation {
+		return fmt.Errorf("dry run mode cannot be used with additional appeals: this limitation exists to keep the implementation simple")
+	}
 
 	resourceIDs := []string{}
 	accountIDs := []string{}
@@ -304,11 +322,11 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		}
 
 		strPermissions, err := s.getPermissions(ctx, provider.Config, appeal.Resource.Type, appeal.Role)
+
 		if err != nil {
 			return fmt.Errorf("getting permissions list: %w", err)
 		}
 		appeal.Permissions = strPermissions
-
 		if err := validateAppealDurationConfig(appeal, policy); err != nil {
 			return err
 		}
@@ -325,6 +343,14 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			return fmt.Errorf("getting appeal metadata: %w", err)
 		}
 
+		steps, err := s.GetCustomSteps(ctx, appeal, policy)
+		if err != nil {
+			return fmt.Errorf("getting custom steps : %w", err)
+		}
+		if steps != nil {
+			policy.Steps = append(policy.Steps, steps...)
+		}
+
 		appeal.Revision = 0
 		if err := appeal.ApplyPolicy(policy); err != nil {
 			return err
@@ -338,6 +364,11 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		for _, approval := range appeal.Approvals {
 			// TODO: direcly check on appeal.Status==domain.AppealStatusApproved instead of manual looping through approvals
 			if approval.Index == len(appeal.Approvals)-1 && (approval.Status == domain.ApprovalStatusApproved || appeal.Status == domain.AppealStatusApproved) {
+				// Skip grant creation and notification preparation in dry run mode
+				if isDryRun {
+					continue
+				}
+
 				newGrant, prevGrant, err := s.prepareGrant(ctx, appeal)
 				if err != nil {
 					return fmt.Errorf("preparing grant: %w", err)
@@ -379,58 +410,64 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		}
 	}
 
-	if err := s.repo.BulkUpsert(ctx, appeals); err != nil {
-		return fmt.Errorf("inserting appeals into db: %w", err)
-	}
-
-	go func() {
-		ctx := context.WithoutCancel(ctx)
-		if err := s.auditLogger.Log(ctx, AuditKeyBulkInsert, appeals); err != nil {
-			s.logger.Error(ctx, "failed to record audit log", "error", err)
-		}
-	}()
-
-	for _, a := range appeals {
-		if a.Status == domain.AppealStatusRejected {
-			var reason string
-			for _, approval := range a.Approvals {
-				if approval.Status == domain.ApprovalStatusRejected {
-					reason = approval.Reason
-					break
-				}
-			}
-
-			notifications = append(notifications, domain.Notification{
-				User: a.CreatedBy,
-				Labels: map[string]string{
-					"appeal_id": a.ID,
-				},
-				Message: domain.NotificationMessage{
-					Type: domain.NotificationTypeAppealRejected,
-					Variables: map[string]interface{}{
-						"resource_name": fmt.Sprintf("%s (%s: %s)", a.Resource.Name, a.Resource.ProviderType, a.Resource.URN),
-						"role":          a.Role,
-						"account_id":    a.AccountID,
-						"appeal_id":     a.ID,
-						"requestor":     a.CreatedBy,
-						"reason":        reason,
-					},
-				},
-			})
+	// Skip database persistence and audit logging in dry run mode
+	if !isDryRun {
+		if err := s.repo.BulkUpsert(ctx, appeals); err != nil {
+			return fmt.Errorf("inserting appeals into db: %w", err)
 		}
 
-		notifications = append(notifications, s.getApprovalNotifications(ctx, a)...)
-	}
-
-	if len(notifications) > 0 {
 		go func() {
 			ctx := context.WithoutCancel(ctx)
-			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
-				for _, err1 := range errs {
-					s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
-				}
+			if err := s.auditLogger.Log(ctx, AuditKeyBulkInsert, appeals); err != nil {
+				s.logger.Error(ctx, "failed to record audit log", "error", err)
 			}
 		}()
+	}
+
+	// Skip notification preparation and sending in dry run mode
+	if !isDryRun {
+		for _, a := range appeals {
+			if a.Status == domain.AppealStatusRejected {
+				var reason string
+				for _, approval := range a.Approvals {
+					if approval.Status == domain.ApprovalStatusRejected {
+						reason = approval.Reason
+						break
+					}
+				}
+
+				notifications = append(notifications, domain.Notification{
+					User: a.CreatedBy,
+					Labels: map[string]string{
+						"appeal_id": a.ID,
+					},
+					Message: domain.NotificationMessage{
+						Type: domain.NotificationTypeAppealRejected,
+						Variables: map[string]interface{}{
+							"resource_name": fmt.Sprintf("%s (%s: %s)", a.Resource.Name, a.Resource.ProviderType, a.Resource.URN),
+							"role":          a.Role,
+							"account_id":    a.AccountID,
+							"appeal_id":     a.ID,
+							"requestor":     a.CreatedBy,
+							"reason":        reason,
+						},
+					},
+				})
+			}
+
+			notifications = append(notifications, s.getApprovalNotifications(ctx, a)...)
+		}
+
+		if len(notifications) > 0 {
+			go func() {
+				ctx := context.WithoutCancel(ctx)
+				if errs := s.notifier.Notify(ctx, notifications); errs != nil {
+					for _, err1 := range errs {
+						s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+					}
+				}
+			}()
+		}
 	}
 
 	return nil
@@ -625,6 +662,14 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 
 	if err := s.populateAppealMetadata(ctx, appeal, policy); err != nil {
 		return fmt.Errorf("getting appeal metadata: %w", err)
+	}
+
+	steps, err := s.GetCustomSteps(ctx, appeal, policy)
+	if err != nil {
+		return fmt.Errorf("getting custom steps : %w", err)
+	}
+	if steps != nil {
+		policy.Steps = append(policy.Steps, steps...)
 	}
 
 	if err := s.addCreatorDetails(ctx, appeal, policy); err != nil {
@@ -888,13 +933,9 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			}
 		}
 
-		policyStep := appeal.Policy.GetStepByName(currentApproval.Name)
-		if policyStep == nil {
-			return nil, fmt.Errorf("%w: %q for appeal %q", ErrNoPolicyStepFound, approvalAction.ApprovalName, appeal.ID)
-		}
-
 		// check if user is self approving the appeal
-		if policyStep.DontAllowSelfApproval {
+		// Read directly from approval object - works for both regular and custom steps
+		if currentApproval.DontAllowSelfApproval {
 			if approvalAction.Actor == appeal.CreatedBy {
 				return nil, ErrSelfApprovalNotAllowed
 			}
@@ -1659,6 +1700,71 @@ func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[
 		return nil, fmt.Errorf("couldn't find details for policy %q: %w", fmt.Sprintf("%s@%v", policyConfig.ID, policyConfig.Version), ErrPolicyNotFound)
 	}
 	return policy, nil
+}
+
+func (s *Service) GetCustomSteps(ctx context.Context, a *domain.Appeal, p *domain.Policy) ([]*domain.Step, error) {
+	if !p.HasCustomSteps() {
+		return nil, nil
+	}
+	switch p.CustomSteps.Type {
+	case "http":
+		var cfg policy.AppealMetadataSourceConfigHTTP
+		customStepsConfig := p.CustomSteps
+		if err := mapstructure.Decode(customStepsConfig.Config, &cfg); err != nil {
+			return nil, fmt.Errorf("error decoding metadata config: %w", err)
+		}
+
+		if cfg.URL == "" {
+			return nil, fmt.Errorf("URL cannot be empty for http type")
+		}
+		var err error
+		cfg.URL, err = evaluateExpressionWithAppeal(a, cfg.URL)
+		if err != nil {
+			return nil, fmt.Errorf("error while evaluating url %w", err)
+		}
+
+		cfg.Body, err = evaluateExpressionWithAppeal(a, cfg.Body)
+		if err != nil {
+			return nil, fmt.Errorf("error while evaluating body %w", err)
+		}
+		headers := make(map[string]string)
+		for key, value := range cfg.Headers {
+			if headers[key], err = evaluateExpressionWithAppeal(a, value); err != nil {
+				return nil, fmt.Errorf("error while evaluating headers %w", err)
+			}
+		}
+		cfg.Headers = headers
+		clientCreator := &http.HttpClientCreatorStruct{}
+		metadataCl, err := http.NewHTTPClient(&cfg.HTTPClientConfig, clientCreator, "AppealCustomSteps")
+		if err != nil {
+			return nil, fmt.Errorf(" error in http request %w", err)
+		}
+
+		res, err := metadataCl.MakeRequest(ctx)
+		if err != nil || (res.StatusCode < 200 || res.StatusCode > 300) {
+			if cfg.AllowFailed {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("error fetching resource: %w", err)
+		}
+
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return nil, fmt.Errorf("error reading response body: %w", err)
+		}
+		defer res.Body.Close()
+
+		customStepResponse := &domain.CustomStepsResponse{}
+		s.logger.Info(ctx, "custom policy steps request and response ", "request", cfg.URL, "customStepResponse", string(body))
+		err = json.Unmarshal(body, &customStepResponse)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshaling response body: %w", err)
+		}
+
+		return customStepResponse.ApprovalSteps, nil
+	default:
+		return nil, fmt.Errorf("invalid custom steps source type: %q", p.CustomSteps.Type)
+	}
 }
 
 func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, p *domain.Policy) error {

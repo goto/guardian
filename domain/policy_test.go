@@ -464,6 +464,76 @@ func TestPolicy_GetStepByNames(t *testing.T) {
 	}
 }
 
+func TestStep_ToApproval(t *testing.T) {
+	t.Run("should copy DontAllowSelfApproval and AllowFailed fields", func(t *testing.T) {
+		step := domain.Step{
+			Name:                  "test-step",
+			Strategy:              domain.ApprovalStepStrategyManual,
+			Approvers:             []string{"approver@example.com"},
+			DontAllowSelfApproval: true,
+			AllowFailed:           true,
+		}
+
+		appeal := &domain.Appeal{
+			Revision: 1,
+		}
+		policy := &domain.Policy{
+			ID:      "test-policy",
+			Version: 1,
+		}
+
+		approval, err := step.ToApproval(appeal, policy, 0)
+
+		assert.NoError(t, err)
+		assert.Equal(t, step.Name, approval.Name)
+		assert.Equal(t, step.DontAllowSelfApproval, approval.DontAllowSelfApproval)
+		assert.Equal(t, step.AllowFailed, approval.AllowFailed)
+		assert.Equal(t, policy.ID, approval.PolicyID)
+		assert.Equal(t, policy.Version, approval.PolicyVersion)
+		assert.Equal(t, domain.ApprovalStatusPending, approval.Status)
+	})
+
+	t.Run("should set first approval as pending and rest as blocked", func(t *testing.T) {
+		step := domain.Step{
+			Name:      "test-step",
+			Strategy:  domain.ApprovalStepStrategyManual,
+			Approvers: []string{"approver@example.com"},
+		}
+
+		appeal := &domain.Appeal{Revision: 1}
+		policy := &domain.Policy{ID: "test-policy", Version: 1}
+
+		// First approval (index 0)
+		approval0, err := step.ToApproval(appeal, policy, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, domain.ApprovalStatusPending, approval0.Status)
+
+		// Second approval (index 1)
+		approval1, err := step.ToApproval(appeal, policy, 1)
+		assert.NoError(t, err)
+		assert.Equal(t, domain.ApprovalStatusBlocked, approval1.Status)
+	})
+
+	t.Run("should handle false values for DontAllowSelfApproval and AllowFailed", func(t *testing.T) {
+		step := domain.Step{
+			Name:                  "test-step",
+			Strategy:              domain.ApprovalStepStrategyManual,
+			Approvers:             []string{"approver@example.com"},
+			DontAllowSelfApproval: false,
+			AllowFailed:           false,
+		}
+
+		appeal := &domain.Appeal{Revision: 1}
+		policy := &domain.Policy{ID: "test-policy", Version: 1}
+
+		approval, err := step.ToApproval(appeal, policy, 0)
+
+		assert.NoError(t, err)
+		assert.False(t, approval.DontAllowSelfApproval)
+		assert.False(t, approval.AllowFailed)
+	})
+}
+
 type brokenType struct{}
 
 func (c *brokenType) MarshalJSON() ([]byte, error) {

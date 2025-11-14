@@ -798,6 +798,66 @@ func TestAppeal_AdvanceApproval(t *testing.T) {
 				},
 				Approvals: []*domain.Approval{
 					{
+						Name:        "step-1",
+						Status:      domain.ApprovalStatusPending,
+						Index:       0,
+						AllowFailed: true,
+					},
+					{
+						Name:        "step-2",
+						Status:      domain.ApprovalStatusBlocked,
+						Index:       1,
+						AllowFailed: true,
+					},
+				},
+			},
+			wantErr: false,
+			wantApprovals: []*domain.Approval{
+				{
+					Name:        "step-1",
+					Status:      domain.ApprovalStatusSkipped,
+					Index:       0,
+					AllowFailed: true,
+				},
+				{
+					Name:        "step-2",
+					Status:      domain.ApprovalStatusPending,
+					Index:       1,
+					AllowFailed: true,
+				},
+			},
+		},
+		{
+			name: "should handle mix of policy steps and custom steps",
+			appeal: &domain.Appeal{
+				PolicyID:      "test-id",
+				PolicyVersion: 1,
+				Resource: &domain.Resource{
+					Details: map[string]interface{}{
+						"owner": "test-owner",
+					},
+				},
+				Policy: &domain.Policy{
+					ID:      "test-id",
+					Version: 1,
+					Steps: []*domain.Step{
+						{
+							Name:      "step-1",
+							Strategy:  "auto",
+							ApproveIf: `$appeal.resource.details.owner == "test-owner"`,
+						},
+						{
+							Name:      "step-2",
+							Strategy:  "manual",
+							Approvers: []string{"admin@example.com"},
+						},
+					},
+					CustomSteps: &domain.CustomSteps{
+						Type: "http",
+					},
+				},
+				Approvals: []*domain.Approval{
+					{
 						Name:   "step-1",
 						Status: domain.ApprovalStatusPending,
 						Index:  0,
@@ -806,6 +866,183 @@ func TestAppeal_AdvanceApproval(t *testing.T) {
 						Name:   "step-2",
 						Status: domain.ApprovalStatusBlocked,
 						Index:  1,
+					},
+					{
+						Name:   "custom-step-1",
+						Status: domain.ApprovalStatusBlocked,
+						Index:  2,
+					},
+					{
+						Name:   "custom-step-2",
+						Status: domain.ApprovalStatusBlocked,
+						Index:  3,
+					},
+				},
+			},
+			wantErr: false,
+			wantApprovals: []*domain.Approval{
+				{
+					Name:   "step-1",
+					Status: domain.ApprovalStatusApproved,
+					Index:  0,
+				},
+				{
+					Name:   "step-2",
+					Status: domain.ApprovalStatusPending,
+					Index:  1,
+				},
+				{
+					Name:   "custom-step-1",
+					Status: domain.ApprovalStatusBlocked,
+					Index:  2,
+				},
+				{
+					Name:   "custom-step-2",
+					Status: domain.ApprovalStatusBlocked,
+					Index:  3,
+				},
+			},
+		},
+		{
+			name: "should not apply auto conditions to custom steps",
+			appeal: &domain.Appeal{
+				PolicyID:      "test-id",
+				PolicyVersion: 1,
+				Policy: &domain.Policy{
+					ID:      "test-id",
+					Version: 1,
+					Steps: []*domain.Step{
+						{
+							Name:      "step-1",
+							Strategy:  "auto",
+							ApproveIf: `false`, // Would reject if applied
+						},
+					},
+					CustomSteps: &domain.CustomSteps{
+						Type: "http",
+					},
+				},
+				Approvals: []*domain.Approval{
+					{
+						Name:   "step-1",
+						Status: domain.ApprovalStatusApproved,
+						Index:  0,
+					},
+					{
+						Name:   "custom-step-1",
+						Status: domain.ApprovalStatusPending,
+						Index:  1,
+					},
+					{
+						Name:   "custom-step-2",
+						Status: domain.ApprovalStatusBlocked,
+						Index:  2,
+					},
+				},
+			},
+			wantErr: false,
+			wantApprovals: []*domain.Approval{
+				{
+					Name:   "step-1",
+					Status: domain.ApprovalStatusApproved,
+					Index:  0,
+				},
+				{
+					Name:   "custom-step-1",
+					Status: domain.ApprovalStatusPending, // Should remain pending
+					Index:  1,
+				},
+				{
+					Name:   "custom-step-2",
+					Status: domain.ApprovalStatusBlocked,
+					Index:  2,
+				},
+			},
+		},
+		{
+			name: "should handle only custom steps without policy steps",
+			appeal: &domain.Appeal{
+				PolicyID:      "test-id",
+				PolicyVersion: 1,
+				Policy: &domain.Policy{
+					ID:      "test-id",
+					Version: 1,
+					Steps:   []*domain.Step{}, // No policy steps
+					CustomSteps: &domain.CustomSteps{
+						Type: "http",
+					},
+				},
+				Approvals: []*domain.Approval{
+					{
+						Name:   "custom-step-1",
+						Status: domain.ApprovalStatusPending,
+						Index:  0,
+					},
+					{
+						Name:   "custom-step-2",
+						Status: domain.ApprovalStatusBlocked,
+						Index:  1,
+					},
+				},
+			},
+			wantErr: false,
+			wantApprovals: []*domain.Approval{
+				{
+					Name:   "custom-step-1",
+					Status: domain.ApprovalStatusPending, // No auto-processing
+					Index:  0,
+				},
+				{
+					Name:   "custom-step-2",
+					Status: domain.ApprovalStatusBlocked,
+					Index:  1,
+				},
+			},
+		},
+		{
+			name: "should handle custom steps with skipped policy steps",
+			appeal: &domain.Appeal{
+				PolicyID:      "test-id",
+				PolicyVersion: 1,
+				Resource: &domain.Resource{
+					Details: map[string]interface{}{
+						"skip": true,
+					},
+				},
+				Policy: &domain.Policy{
+					ID:      "test-id",
+					Version: 1,
+					Steps: []*domain.Step{
+						{
+							Name:     "step-1",
+							Strategy: "manual",
+							When:     `!$appeal.resource.details.skip`, // Will be skipped
+						},
+						{
+							Name:      "step-2",
+							Strategy:  "auto",
+							ApproveIf: `true`,
+						},
+					},
+					CustomSteps: &domain.CustomSteps{
+						Type: "http",
+					},
+				},
+				Approvals: []*domain.Approval{
+					{
+						Name:   "step-1",
+						Status: domain.ApprovalStatusPending,
+						Index:  0,
+					},
+					{
+						Name:   "step-2",
+						Status: domain.ApprovalStatusBlocked,
+						Index:  1,
+					},
+					{
+						Name:   "custom-step-1",
+						Status: domain.ApprovalStatusBlocked,
+						Index:  2,
 					},
 				},
 			},
@@ -818,8 +1055,13 @@ func TestAppeal_AdvanceApproval(t *testing.T) {
 				},
 				{
 					Name:   "step-2",
-					Status: domain.ApprovalStatusPending,
+					Status: domain.ApprovalStatusApproved,
 					Index:  1,
+				},
+				{
+					Name:   "custom-step-1",
+					Status: domain.ApprovalStatusPending,
+					Index:  2,
 				},
 			},
 		},
@@ -953,6 +1195,54 @@ func TestAppeal_AdvanceApproval_UpdateApprovalStatuses(t *testing.T) {
 			},
 			expectedErrorStr: "evaluating expression ",
 		},
+		{
+			name: "custom steps - advance approval with multiple custom steps",
+			appeal: &domain.Appeal{
+				Status: domain.AppealStatusPending,
+				Policy: &domain.Policy{
+					ID:      "policy-1",
+					Version: 1,
+					CustomSteps: &domain.CustomSteps{
+						Type: "custom",
+					},
+				},
+			},
+			steps: []*domain.Step{},
+			existingApprovalStatuses: []string{
+				domain.ApprovalStatusApproved,
+				domain.ApprovalStatusPending,
+				domain.ApprovalStatusBlocked,
+			},
+			expectedApprovalStatuses: []string{
+				domain.ApprovalStatusApproved,
+				domain.ApprovalStatusPending, // Custom steps don't auto-advance
+				domain.ApprovalStatusBlocked, // Remains blocked
+			},
+		},
+		{
+			name: "custom steps - complete all approvals",
+			appeal: &domain.Appeal{
+				Status: domain.AppealStatusPending,
+				Policy: &domain.Policy{
+					ID:      "policy-1",
+					Version: 1,
+					CustomSteps: &domain.CustomSteps{
+						Type: "custom",
+					},
+				},
+			},
+			steps: []*domain.Step{},
+			existingApprovalStatuses: []string{
+				domain.ApprovalStatusApproved,
+				domain.ApprovalStatusApproved,
+				domain.ApprovalStatusApproved,
+			},
+			expectedApprovalStatuses: []string{
+				domain.ApprovalStatusApproved,
+				domain.ApprovalStatusApproved,
+				domain.ApprovalStatusApproved,
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -964,14 +1254,15 @@ func TestAppeal_AdvanceApproval_UpdateApprovalStatuses(t *testing.T) {
 					Index:  i,
 				})
 			}
-			appeal.Policy = &domain.Policy{
-				Steps: tc.steps,
+			if appeal.Policy == nil {
+				appeal.Policy = &domain.Policy{}
 			}
+			appeal.Policy.Steps = tc.steps
 			actualError := appeal.AdvanceApproval(appeal.Policy)
 			if tc.expectedErrorStr == "" {
 				assert.Nil(t, actualError)
 				for i, a := range appeal.Approvals {
-					assert.Equal(t, a.Status, tc.expectedApprovalStatuses[i])
+					assert.Equal(t, tc.expectedApprovalStatuses[i], a.Status)
 				}
 			} else {
 				assert.Contains(t, actualError.Error(), tc.expectedErrorStr)
