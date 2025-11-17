@@ -1334,6 +1334,16 @@
             "required": false,
             "type": "string",
             "format": "date-time"
+          },
+          {
+            "name": "summaryDistinctCounts",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -3285,6 +3295,13 @@
             "type": "object",
             "$ref": "#/definitions/RequirementAdditionalAppeal"
           }
+        },
+        "postHooks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/RequirementPostAppealHook"
+          }
         }
       }
     },
@@ -3357,6 +3374,26 @@
         }
       }
     },
+    "RequirementPostAppealHook": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "config": {
+          "type": "object"
+        },
+        "allowFailed": {
+          "type": "boolean"
+        }
+      }
+    },
     "RequirementRequirementTrigger": {
       "type": "object",
       "properties": {
@@ -3397,6 +3434,13 @@
         "count": {
           "type": "integer",
           "format": "int32"
+        },
+        "distinctCounts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "int32"
+          }
         }
       }
     },

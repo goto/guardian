@@ -1420,8 +1420,6 @@ func checkApprovalStatus(status string) error {
 
 func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal, p *domain.Policy) error {
 	if p.Requirements != nil && len(p.Requirements) > 0 {
-		g, ctx := errgroup.WithContext(ctx)
-
 		for reqIndex, r := range p.Requirements {
 			isAppealMatchesRequirement, err := r.On.IsMatch(a)
 			if err != nil {
@@ -1431,6 +1429,11 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 				continue
 			}
 
+			// Track created additional appeals for post hooks
+			createdAppeals := make([]*domain.Appeal, 0, len(r.Appeals))
+			var mu sync.Mutex
+
+			g, ctx := errgroup.WithContext(ctx)
 			for _, aa := range r.Appeals {
 				aa := aa // https://golang.org/doc/faq#closures_and_goroutines
 				g.Go(func() error {
@@ -1454,19 +1457,39 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 						additionalAppeal.PolicyID = aa.Policy.ID
 						additionalAppeal.PolicyVersion = uint(aa.Policy.Version)
 					}
+
 					if err := s.Create(ctx, []*domain.Appeal{additionalAppeal}, CreateWithAdditionalAppeal()); err != nil {
 						if errors.Is(err, ErrAppealDuplicate) {
 							s.logger.Warn(ctx, "creating additional appeals, duplicate appeal error log", "error", err)
+							// Still track the appeal even if duplicate
+							mu.Lock()
+							createdAppeals = append(createdAppeals, additionalAppeal)
+							mu.Unlock()
 							return nil
 						}
 						return fmt.Errorf("creating additional appeals: %w", err)
 					}
+
+					// Track successfully created appeal
+					mu.Lock()
+					createdAppeals = append(createdAppeals, additionalAppeal)
+					mu.Unlock()
+
 					return nil
 				})
 			}
-		}
-		if err := g.Wait(); err == nil {
-			return err
+
+			// Wait for all additional appeals to be created
+			if err := g.Wait(); err != nil {
+				return err
+			}
+
+			// Execute post hooks after appeals are created
+			if r.PostHooks != nil && len(r.PostHooks) > 0 {
+				if err := s.executePostAppealHooks(ctx, r.PostHooks, a, createdAppeals, r, p); err != nil {
+					return fmt.Errorf("executing post hooks for requirement[%d]: %w", reqIndex, err)
+				}
+			}
 		}
 	}
 	return nil
@@ -1910,4 +1933,194 @@ func evaluateExpressionWithAppeal(a *domain.Appeal, expression string) (string, 
 		return evaluatedStr, nil
 	}
 	return expression, nil
+}
+
+// executePostAppealHooks executes all post hooks for a requirement
+// Similar pattern to getAppealMetadataSources but doesn't store response
+func (s *Service) executePostAppealHooks(
+	ctx context.Context,
+	hooks []*domain.PostAppealHook,
+	originalAppeal *domain.Appeal,
+	additionalAppeals []*domain.Appeal,
+	requirement *domain.Requirement,
+	p *domain.Policy,
+) error {
+	if len(hooks) == 0 {
+		return nil
+	}
+
+	eg, egctx := errgroup.WithContext(ctx)
+
+	for _, hook := range hooks {
+		hook := hook
+		eg.Go(func() error {
+			switch hook.Type {
+			case "http":
+				var cfg policy.PostAppealHookConfigHTTP
+				if err := mapstructure.Decode(hook.Config, &cfg); err != nil {
+					return fmt.Errorf("error decoding hook %q config: %w", hook.Name, err)
+				}
+
+				if cfg.URL == "" {
+					return fmt.Errorf("URL cannot be empty for http type in hook %q", hook.Name)
+				}
+
+				// Build expression evaluation context
+				params := s.buildPostHookParams(originalAppeal, additionalAppeals, requirement, p)
+
+				// Evaluate URL expression
+				var err error
+				cfg.URL, err = evaluateExpressionWithParams(params, cfg.URL)
+				if err != nil {
+					if cfg.AllowFailed {
+						s.logger.Warn(egctx, "error evaluating URL for post hook (continuing due to allow_failed)",
+							"hook_name", hook.Name,
+							"error", err)
+						return nil
+					}
+					return fmt.Errorf("error evaluating URL for hook %q: %w", hook.Name, err)
+				}
+
+				// Evaluate body expression
+				if cfg.Body != "" {
+					cfg.Body, err = evaluateExpressionWithParams(params, cfg.Body)
+					if err != nil {
+						if cfg.AllowFailed {
+							s.logger.Warn(egctx, "error evaluating body for post hook (continuing due to allow_failed)",
+								"hook_name", hook.Name,
+								"error", err)
+							return nil
+						}
+						return fmt.Errorf("error evaluating body for hook %q: %w", hook.Name, err)
+					}
+				}
+
+				// Evaluate headers
+				for key, value := range cfg.Headers {
+					evaluatedValue, err := evaluateExpressionWithParams(params, value)
+					if err != nil {
+						if cfg.AllowFailed {
+							s.logger.Warn(egctx, "error evaluating header for post hook (continuing due to allow_failed)",
+								"hook_name", hook.Name,
+								"header", key,
+								"error", err)
+							return nil
+						}
+						return fmt.Errorf("error evaluating header %q for hook %q: %w", key, hook.Name, err)
+					}
+					cfg.Headers[key] = evaluatedValue
+				}
+
+				// Create HTTP client (same pattern as metadata sources)
+				clientCreator := &http.HttpClientCreatorStruct{}
+				httpClient, err := http.NewHTTPClient(&cfg.HTTPClientConfig, clientCreator, "PostAppealHook")
+				if err != nil {
+					if cfg.AllowFailed {
+						s.logger.Warn(egctx, "error creating http client for post hook (continuing due to allow_failed)",
+							"hook_name", hook.Name,
+							"error", err)
+						return nil
+					}
+					return fmt.Errorf("error creating http client for hook %q: %w", hook.Name, err)
+				}
+
+				s.logger.Info(egctx, "executing post appeal hook",
+					"hook_name", hook.Name,
+					"url", cfg.URL,
+					"method", cfg.Method,
+					"original_appeal_id", originalAppeal.ID,
+					"additional_appeals_count", len(additionalAppeals))
+
+				// Make HTTP request
+				res, err := httpClient.MakeRequest(egctx)
+				if err != nil {
+					if cfg.AllowFailed {
+						s.logger.Warn(egctx, "post hook request failed (continuing due to allow_failed)",
+							"hook_name", hook.Name,
+							"error", err)
+						return nil
+					}
+					return fmt.Errorf("error making request for hook %q: %w", hook.Name, err)
+				}
+
+				// Check status code
+				if res.StatusCode < 200 || res.StatusCode >= 300 {
+					body, _ := io.ReadAll(res.Body)
+					res.Body.Close()
+
+					if cfg.AllowFailed {
+						s.logger.Warn(egctx, "post hook returned error status (continuing due to allow_failed)",
+							"hook_name", hook.Name,
+							"status_code", res.StatusCode,
+							"response_body", string(body))
+						return nil
+					}
+					return fmt.Errorf("hook %q returned error status %d: %s", hook.Name, res.StatusCode, string(body))
+				}
+
+				s.logger.Info(egctx, "post appeal hook executed successfully",
+					"hook_name", hook.Name,
+					"status_code", res.StatusCode)
+
+				return nil
+
+			default:
+				return fmt.Errorf("invalid post hook type: %s", hook.Type)
+			}
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// buildPostHookParams builds expression evaluation parameters for post hooks
+func (s *Service) buildPostHookParams(
+	originalAppeal *domain.Appeal,
+	additionalAppeals []*domain.Appeal,
+	requirement *domain.Requirement,
+	p *domain.Policy,
+) map[string]interface{} {
+	// Convert additional appeals to interface{} for expression evaluation
+	appealsData := make([]interface{}, len(additionalAppeals))
+	for i, appeal := range additionalAppeals {
+		appealJSON, _ := json.Marshal(appeal)
+		var appealMap map[string]interface{}
+		json.Unmarshal(appealJSON, &appealMap)
+		appealsData[i] = appealMap
+	}
+
+	return map[string]interface{}{
+		"appeal":             originalAppeal,
+		"additional_appeals": appealsData,
+		"requirement":        requirement,
+		"policy":             p,
+	}
+}
+
+// evaluateExpressionWithParams evaluates an expression with given parameters
+// Similar to evaluateExpressionWithAppeal but with custom params
+func evaluateExpressionWithParams(params map[string]interface{}, expr string) (string, error) {
+	result, err := evaluator.Expression(expr).EvaluateWithVars(params)
+	if err != nil {
+		return "", err
+	}
+
+	// Convert result to string
+	switch v := result.(type) {
+	case string:
+		return v, nil
+	case []byte:
+		return string(v), nil
+	default:
+		// Marshal to JSON string for complex types
+		jsonBytes, err := json.Marshal(v)
+		if err != nil {
+			return "", fmt.Errorf("failed to convert result to string: %w", err)
+		}
+		return string(jsonBytes), nil
+	}
 }

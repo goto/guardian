@@ -114,6 +114,10 @@ func (s *Service) Create(ctx context.Context, p *domain.Policy) error {
 		}
 	}
 
+	if err := s.encryptRequirementPostHooks(p); err != nil {
+		return err
+	}
+
 	if !isDryRun(ctx) {
 		if err := s.repository.Create(ctx, p); err != nil {
 			return err
@@ -139,6 +143,10 @@ func (s *Service) Create(ctx context.Context, p *domain.Policy) error {
 		}
 	}
 
+	if err := s.decryptRequirementPostHooks(p); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -160,6 +168,10 @@ func (s *Service) Find(ctx context.Context) ([]*domain.Policy, error) {
 			if err := s.decryptAppealMetadata(p); err != nil {
 				return nil, err
 			}
+		}
+
+		if err := s.decryptRequirementPostHooks(p); err != nil {
+			return nil, err
 		}
 	}
 	return policies, nil
@@ -225,6 +237,10 @@ func (s *Service) Update(ctx context.Context, p *domain.Policy) error {
 		}
 	}
 
+	if err := s.encryptRequirementPostHooks(p); err != nil {
+		return err
+	}
+
 	p.Version = latestPolicy.Version + 1
 
 	if !isDryRun(ctx) {
@@ -250,6 +266,10 @@ func (s *Service) Update(ctx context.Context, p *domain.Policy) error {
 		if err := s.decryptAppealMetadata(p); err != nil {
 			return err
 		}
+	}
+
+	if err := s.decryptRequirementPostHooks(p); err != nil {
+		return err
 	}
 
 	return nil
@@ -280,6 +300,46 @@ func (s *Service) decryptAppealMetadata(p *domain.Policy) error {
 		}
 		if err := sourceCfg.DecryptConfig(s.crypto); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) encryptRequirementPostHooks(p *domain.Policy) error {
+	if p.Requirements == nil {
+		return nil
+	}
+	for _, req := range p.Requirements {
+		if req.PostHooks == nil {
+			continue
+		}
+		for _, hook := range req.PostHooks {
+			if hook.Config == nil {
+				continue
+			}
+			if err := hook.EncryptConfig(s.crypto); err != nil {
+				return fmt.Errorf("encrypting post hook %q config: %w", hook.Name, err)
+			}
+		}
+	}
+	return nil
+}
+
+func (s *Service) decryptRequirementPostHooks(p *domain.Policy) error {
+	if p.Requirements == nil {
+		return nil
+	}
+	for _, req := range p.Requirements {
+		if req.PostHooks == nil {
+			continue
+		}
+		for _, hook := range req.PostHooks {
+			if hook.Config == nil {
+				continue
+			}
+			if err := hook.DecryptConfig(s.crypto); err != nil {
+				return fmt.Errorf("decrypting post hook %q config: %w", hook.Name, err)
+			}
 		}
 	}
 	return nil
@@ -375,6 +435,11 @@ func (s *Service) validateAppealMetadataSource(ctx context.Context, metadataSour
 
 func (s *Service) validateRequirements(ctx context.Context, requirements []*domain.Requirement) error {
 	for i, r := range requirements {
+		// Validate that at least one of appeals or post_hooks is present
+		if len(r.Appeals) == 0 && len(r.PostHooks) == 0 {
+			return fmt.Errorf("requirement[%v]: at least one of 'appeals' or 'post_hooks' must be specified", i)
+		}
+
 		for j, aa := range r.Appeals {
 			resource, err := s.resourceService.Get(ctx, aa.Resource)
 			if err != nil {

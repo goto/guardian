@@ -318,9 +318,18 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 				}
 			}
 
+			var postHooks []*domain.PostAppealHook
+			if r.GetPostHooks() != nil {
+				for _, hookProto := range r.GetPostHooks() {
+					hook := a.fromPostAppealHookProto(hookProto)
+					postHooks = append(postHooks, hook)
+				}
+			}
+
 			requirements = append(requirements, &domain.Requirement{
-				On:      on,
-				Appeals: additionalAppeals,
+				On:        on,
+				Appeals:   additionalAppeals,
+				PostHooks: postHooks,
 			})
 			policy.Requirements = requirements
 		}
@@ -465,9 +474,21 @@ func (a *adapter) ToPolicyProto(p *domain.Policy) (*guardianv1beta1.Policy, erro
 				}
 			}
 
+			var postHooks []*guardianv1beta1.Policy_Requirement_PostAppealHook
+			if r.PostHooks != nil {
+				for _, hook := range r.PostHooks {
+					hookProto, err := a.toPostAppealHookProto(hook)
+					if err != nil {
+						return nil, fmt.Errorf("converting post hook %q: %w", hook.Name, err)
+					}
+					postHooks = append(postHooks, hookProto)
+				}
+			}
+
 			requirements = append(requirements, &guardianv1beta1.Policy_Requirement{
-				On:      on,
-				Appeals: additionalAppeals,
+				On:        on,
+				Appeals:   additionalAppeals,
+				PostHooks: postHooks,
 			})
 			policyProto.Requirements = requirements
 		}
@@ -1104,6 +1125,10 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 			GroupFields: groupFields,
 			Count:       group.Count,
 		}
+
+		if len(group.DistinctCounts) > 0 {
+			summaryProto.Groups[i].DistinctCounts = group.DistinctCounts
+		}
 	}
 
 	for i, unique := range s.SummaryUniques {
@@ -1150,6 +1175,52 @@ func (a *adapter) toConditionProto(c *domain.Condition) (*guardianv1beta1.Condit
 		Field: c.Field,
 		Match: match,
 	}, nil
+}
+
+func (a *adapter) toPostAppealHookProto(hook *domain.PostAppealHook) (*guardianv1beta1.Policy_Requirement_PostAppealHook, error) {
+	if hook == nil {
+		return nil, nil
+	}
+
+	var config *structpb.Struct
+	if hook.Config != nil {
+		configMap, ok := hook.Config.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("invalid hook config type: %T, expected map[string]interface{}", hook.Config)
+		}
+		var err error
+		config, err = structpb.NewStruct(configMap)
+		if err != nil {
+			return nil, fmt.Errorf("converting hook config to struct: %w", err)
+		}
+	}
+
+	return &guardianv1beta1.Policy_Requirement_PostAppealHook{
+		Name:        hook.Name,
+		Description: hook.Description,
+		Type:        hook.Type,
+		Config:      config,
+		AllowFailed: hook.AllowFailed,
+	}, nil
+}
+
+func (a *adapter) fromPostAppealHookProto(proto *guardianv1beta1.Policy_Requirement_PostAppealHook) *domain.PostAppealHook {
+	if proto == nil {
+		return nil
+	}
+
+	var config interface{}
+	if proto.Config != nil {
+		config = proto.Config.AsMap()
+	}
+
+	return &domain.PostAppealHook{
+		Name:        proto.Name,
+		Description: proto.Description,
+		Type:        proto.Type,
+		Config:      config,
+		AllowFailed: proto.AllowFailed,
+	}
 }
 
 func (a *adapter) fromAppealOptionsProto(o *guardianv1beta1.AppealOptions) *domain.AppealOptions {
