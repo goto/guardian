@@ -321,11 +321,7 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 			var postHooks []*domain.PostAppealHook
 			if r.GetPostHooks() != nil {
 				for _, hookProto := range r.GetPostHooks() {
-					hook, err := a.fromPostAppealHookProto(hookProto)
-					if err != nil {
-						// Log error but continue - don't break policy parsing
-						continue
-					}
+					hook := a.fromPostAppealHookProto(hookProto)
 					postHooks = append(postHooks, hook)
 				}
 			}
@@ -1208,9 +1204,9 @@ func (a *adapter) toPostAppealHookProto(hook *domain.PostAppealHook) (*guardianv
 	}, nil
 }
 
-func (a *adapter) fromPostAppealHookProto(proto *guardianv1beta1.Policy_Requirement_PostAppealHook) (*domain.PostAppealHook, error) {
+func (a *adapter) fromPostAppealHookProto(proto *guardianv1beta1.Policy_Requirement_PostAppealHook) *domain.PostAppealHook {
 	if proto == nil {
-		return nil, nil
+		return nil
 	}
 
 	var config interface{}
@@ -1224,7 +1220,7 @@ func (a *adapter) fromPostAppealHookProto(proto *guardianv1beta1.Policy_Requirem
 		Type:        proto.Type,
 		Config:      config,
 		AllowFailed: proto.AllowFailed,
-	}, nil
+	}
 }
 
 func (a *adapter) fromAppealOptionsProto(o *guardianv1beta1.AppealOptions) *domain.AppealOptions {
