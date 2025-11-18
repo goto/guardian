@@ -2063,6 +2063,16 @@ func (s *Service) executePostAppealHooks(
 				// Build expression evaluation context
 				params := s.buildPostHookParams(originalAppeal, additionalAppeals, requirement, p)
 
+				// Log appeal details for debugging
+				appealMap, _ := originalAppeal.ToMap()
+				s.logger.Info(egctx, "post hook appeal details",
+					"hook_name", hook.Name,
+					"appeal_id", originalAppeal.ID,
+					"resource_id", originalAppeal.ResourceID,
+					"group_id", originalAppeal.GroupID,
+					"group_type", originalAppeal.GroupType,
+					"appeal_map_has_group_id", appealMap["group_id"] != nil)
+
 				// Evaluate URL expression
 				var err error
 				cfg.URL, err = evaluateExpressionWithParams(params, cfg.URL)
@@ -2179,6 +2189,11 @@ func (s *Service) buildPostHookParams(
 	requirement *domain.Requirement,
 	p *domain.Policy,
 ) map[string]interface{} {
+	// Convert original appeal to map for expression evaluation
+	originalAppealJSON, _ := json.Marshal(originalAppeal)
+	var originalAppealMap map[string]interface{}
+	json.Unmarshal(originalAppealJSON, &originalAppealMap)
+
 	// Convert additional appeals to interface{} for expression evaluation
 	appealsData := make([]interface{}, len(additionalAppeals))
 	for i, appeal := range additionalAppeals {
@@ -2189,7 +2204,7 @@ func (s *Service) buildPostHookParams(
 	}
 
 	return map[string]interface{}{
-		"appeal":             originalAppeal,
+		"appeal":             originalAppealMap,
 		"additional_appeals": appealsData,
 		"requirement":        requirement,
 		"policy":             p,
