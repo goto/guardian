@@ -235,7 +235,7 @@ func (r *AppealRepository) Update(ctx context.Context, a *domain.Appeal) error {
 	}
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Omit("Approvals.Approvers").Session(&gorm.Session{FullSaveAssociations: true}).Save(&m).Error; err != nil {
+		if err := tx.Omit("Approvals.Approvers", "Resource", "Grant.Resource").Session(&gorm.Session{FullSaveAssociations: true}).Save(&m).Error; err != nil {
 			var pgError *pgconn.PgError
 			if errors.As(err, &pgError) && pgError.Code == pgUniqueViolationErrorCode && pgError.ConstraintName == grantUniqueConstraintName {
 				return domain.ErrDuplicateActiveGrant
