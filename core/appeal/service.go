@@ -1450,11 +1450,25 @@ func checkApprovalStatus(status string) error {
 
 func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal, p *domain.Policy) error {
 	if p.Requirements != nil && len(p.Requirements) > 0 {
+		s.logger.Info(ctx, "checking appeal requirements",
+			"policy_id", p.ID,
+			"appeal_id", a.ID,
+			"appeal_group_type", a.GroupType,
+			"appeal_group_id", a.GroupID,
+			"requirements_count", len(p.Requirements))
+
 		for reqIndex, r := range p.Requirements {
 			isAppealMatchesRequirement, err := r.On.IsMatch(a)
 			if err != nil {
 				return fmt.Errorf("evaluating requirements[%v]: %v", reqIndex, err)
 			}
+
+			s.logger.Info(ctx, "requirement match result",
+				"requirement_index", reqIndex,
+				"requirement_expression", r.On.Expression,
+				"matches", isAppealMatchesRequirement,
+				"has_post_hooks", r.PostHooks != nil && len(r.PostHooks) > 0)
+
 			if !isAppealMatchesRequirement {
 				continue
 			}
@@ -2044,7 +2058,12 @@ func (s *Service) executePostAppealHooks(
 		return nil
 	}
 
-	eg, egctx := errgroup.WithContext(ctx)
+	// Use context.WithoutCancel to prevent post-hooks from being canceled
+	// when the parent gRPC context times out. Post-hooks can be long-running
+	// (e.g., creating additional resources, calling external services) and
+	// should complete independently of the approval response timing.
+	detachedCtx := context.WithoutCancel(ctx)
+	eg, egctx := errgroup.WithContext(detachedCtx)
 
 	for _, hook := range hooks {
 		hook := hook
@@ -2062,6 +2081,16 @@ func (s *Service) executePostAppealHooks(
 
 				// Build expression evaluation context
 				params := s.buildPostHookParams(originalAppeal, additionalAppeals, requirement, p)
+
+				// Log appeal details for debugging
+				appealMap, _ := originalAppeal.ToMap()
+				s.logger.Info(egctx, "post hook appeal details",
+					"hook_name", hook.Name,
+					"appeal_id", originalAppeal.ID,
+					"resource_id", originalAppeal.ResourceID,
+					"group_id", originalAppeal.GroupID,
+					"group_type", originalAppeal.GroupType,
+					"appeal_map_has_group_id", appealMap["group_id"] != nil)
 
 				// Evaluate URL expression
 				var err error
@@ -2179,6 +2208,11 @@ func (s *Service) buildPostHookParams(
 	requirement *domain.Requirement,
 	p *domain.Policy,
 ) map[string]interface{} {
+	// Convert original appeal to map for expression evaluation
+	originalAppealJSON, _ := json.Marshal(originalAppeal)
+	var originalAppealMap map[string]interface{}
+	json.Unmarshal(originalAppealJSON, &originalAppealMap)
+
 	// Convert additional appeals to interface{} for expression evaluation
 	appealsData := make([]interface{}, len(additionalAppeals))
 	for i, appeal := range additionalAppeals {
@@ -2189,7 +2223,7 @@ func (s *Service) buildPostHookParams(
 	}
 
 	return map[string]interface{}{
-		"appeal":             originalAppeal,
+		"appeal":             originalAppealMap,
 		"additional_appeals": appealsData,
 		"requirement":        requirement,
 		"policy":             p,
