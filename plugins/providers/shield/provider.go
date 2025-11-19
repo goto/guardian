@@ -2,6 +2,7 @@ package shield
 
 import (
 	"context"
+	"fmt"
 
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
@@ -224,6 +225,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 	}
 
 	switch a.Resource.Type {
+
 	case ResourceTypeTeam:
 		t := new(Group)
 		if err := t.FromDomain(a.Resource); err != nil {
@@ -262,8 +264,9 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 		if err := r.FromDomain(a.Resource); err != nil {
 			return err
 		}
-		for _, p := range permissions {
-			if err := client.GrantResourceAccess(ctx, r, user.ID, p); err != nil {
+		for _, perm := range permissions {
+			p.logger.Warn(ctx, "Granting access", "resource_id", r.Namespace.ID, "namespace_id", r.Namespace.ID, " user: ", fmt.Sprintf("%s:%s", userNamespaceConst, user.ID), "permission", perm)
+			if err := client.GrantResourceAccess(ctx, r, user.ID, perm); err != nil {
 				return err
 			}
 		}
