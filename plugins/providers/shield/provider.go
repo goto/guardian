@@ -2,6 +2,7 @@ package shield
 
 import (
 	"context"
+	"fmt"
 
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
@@ -222,7 +223,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 	if user, err = client.GetSelfUser(ctx, a.AccountID); err != nil {
 		return nil
 	}
-	p.logger.Warn(ctx, "granting access ", a.Resource)
+	p.logger.Warn(ctx, "granting access ", fmt.Sprintf("%+v", a.Resource))
 
 	switch a.Resource.Type {
 	case ResourceTypeTeam:
