@@ -1948,8 +1948,12 @@ func (s *Service) executePostAppealHooks(
 	if len(hooks) == 0 {
 		return nil
 	}
-
-	eg, egctx := errgroup.WithContext(ctx)
+	// Use context.WithoutCancel to prevent post-hooks from being canceled
+	// when the parent gRPC context times out. Post-hooks can be long-running
+	// (e.g., creating additional resources, calling external services) and
+	// should complete independently of the approval response timing.
+	detachedCtx := context.WithoutCancel(ctx)
+	eg, egctx := errgroup.WithContext(detachedCtx)
 
 	for _, hook := range hooks {
 		hook := hook
@@ -2084,6 +2088,9 @@ func (s *Service) buildPostHookParams(
 	requirement *domain.Requirement,
 	p *domain.Policy,
 ) map[string]interface{} {
+	originalAppealJSON, _ := json.Marshal(originalAppeal)
+	var originalAppealMap map[string]interface{}
+	json.Unmarshal(originalAppealJSON, &originalAppealMap)
 	// Convert additional appeals to interface{} for expression evaluation
 	appealsData := make([]interface{}, len(additionalAppeals))
 	for i, appeal := range additionalAppeals {
@@ -2094,7 +2101,7 @@ func (s *Service) buildPostHookParams(
 	}
 
 	return map[string]interface{}{
-		"appeal":             originalAppeal,
+		"appeal":             originalAppealMap,
 		"additional_appeals": appealsData,
 		"requirement":        requirement,
 		"policy":             p,
