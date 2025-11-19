@@ -138,8 +138,7 @@ func (c *shieldNewclient) CreateRelation(ctx context.Context, objectId string, o
 		Subject:         subject,
 		RoleName:        role,
 	}
-	c.logger.Info(ctx, "Creating relation", "body", fmt.Sprintf("%+v", body))
-	c.logger.Warn(ctx, "Creating relation", "body", fmt.Sprintf("%+v", body))
+
 	req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
 	if err != nil {
 		return err
@@ -367,7 +366,11 @@ func (c *shieldNewclient) GrantOrganizationAccess(ctx context.Context, resource 
 }
 
 func (c *shieldNewclient) GrantResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error {
-	err := c.CreateRelation(ctx, resource.ID, resource.Namespace.ID, fmt.Sprintf("%s:%s", userNamespaceConst, userId), role)
+	shieldResourceId := resource.URN
+	if len(shieldResourceId) > 9 && shieldResourceId[:9] == "resource:" {
+		shieldResourceId = shieldResourceId[9:]
+	}
+	err := c.CreateRelation(ctx, resource.ID, shieldResourceId, fmt.Sprintf("%s:%s", userNamespaceConst, userId), role)
 	if err != nil {
 		return err
 	}
