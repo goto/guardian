@@ -223,7 +223,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 	if user, err = client.GetSelfUser(ctx, a.AccountID); err != nil {
 		return nil
 	}
-
+	p.logger.Warn(ctx, "resource type ", a.Resource.Type, "Granting access to user", "user_id", user.ID, "account_id", a.AccountID)
 	switch a.Resource.Type {
 
 	case ResourceTypeTeam:
