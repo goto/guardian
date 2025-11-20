@@ -1521,19 +1521,6 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 	appealCopy.Grant = nil
 	grantWithAppeal := *a.Grant
 	grantWithAppeal.Appeal = &appealCopy
-	s.logger.Warn(ctx, "grant details",
-		"grant_id", grantWithAppeal.ID,
-		"account_id", grantWithAppeal.AccountID,
-		"resource_id", grantWithAppeal.ResourceID,
-		"role", grantWithAppeal.Role,
-		"status", grantWithAppeal.Status,
-		"permissions", grantWithAppeal.Permissions,
-		"appeal_id", func() string {
-			if grantWithAppeal.Appeal != nil {
-				return grantWithAppeal.Appeal.ID
-			}
-			return ""
-		}())
 	// grant access dependencies (if any)
 	dependencyGrants, err := s.providerService.GetDependencyGrants(ctx, grantWithAppeal)
 	if err != nil {

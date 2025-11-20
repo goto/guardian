@@ -138,8 +138,6 @@ func (c *shieldNewclient) CreateRelation(ctx context.Context, objectId string, o
 		Subject:         subject,
 		RoleName:        role,
 	}
-	c.logger.Info(ctx, "Creating relation", "body", fmt.Sprintf("%+v", body))
-	c.logger.Warn(ctx, "Creating relation", "body", fmt.Sprintf("%+v", body))
 
 	req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
 	if err != nil {
