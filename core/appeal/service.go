@@ -304,11 +304,11 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		}
 
 		strPermissions, err := s.getPermissions(ctx, provider.Config, appeal.Resource.Type, appeal.Role)
+
 		if err != nil {
 			return fmt.Errorf("getting permissions list: %w", err)
 		}
 		appeal.Permissions = strPermissions
-
 		if err := validateAppealDurationConfig(appeal, policy); err != nil {
 			return err
 		}
@@ -323,6 +323,14 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 
 		if err := s.populateAppealMetadata(ctx, appeal, policy); err != nil {
 			return fmt.Errorf("getting appeal metadata: %w", err)
+		}
+
+		steps, err := s.GetCustomSteps(ctx, appeal, policy)
+		if err != nil {
+			return fmt.Errorf("getting custom steps : %w", err)
+		}
+		if steps != nil {
+			policy.Steps = append(policy.Steps, steps...)
 		}
 
 		appeal.Revision = 0
@@ -627,6 +635,14 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		return fmt.Errorf("getting appeal metadata: %w", err)
 	}
 
+	steps, err := s.GetCustomSteps(ctx, appeal, policy)
+	if err != nil {
+		return fmt.Errorf("getting custom steps : %w", err)
+	}
+	if steps != nil {
+		policy.Steps = append(policy.Steps, steps...)
+	}
+
 	if err := s.addCreatorDetails(ctx, appeal, policy); err != nil {
 		return fmt.Errorf("getting creator details: %w", err)
 	}
@@ -888,13 +904,27 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			}
 		}
 
+		isSelfApprovalNotAllowed := false
 		policyStep := appeal.Policy.GetStepByName(currentApproval.Name)
 		if policyStep == nil {
-			return nil, fmt.Errorf("%w: %q for appeal %q", ErrNoPolicyStepFound, approvalAction.ApprovalName, appeal.ID)
+			isStepValid := false
+			if appeal.Policy.HasCustomSteps() {
+				for _, ap := range appeal.Approvals {
+					if ap.Name == currentApproval.Name {
+						isStepValid = true
+						isSelfApprovalNotAllowed = ap.DontAllowSelfApproval
+					}
+				}
+			}
+			if !isStepValid {
+				return nil, fmt.Errorf("%w: %q for appeal %q", ErrNoPolicyStepFound, approvalAction.ApprovalName, appeal.ID)
+			}
+		} else {
+			isSelfApprovalNotAllowed = policyStep.DontAllowSelfApproval
 		}
 
 		// check if user is self approving the appeal
-		if policyStep.DontAllowSelfApproval {
+		if isSelfApprovalNotAllowed {
 			if approvalAction.Actor == appeal.CreatedBy {
 				return nil, ErrSelfApprovalNotAllowed
 			}
@@ -1658,6 +1688,71 @@ func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[
 		return nil, fmt.Errorf("couldn't find details for policy %q: %w", fmt.Sprintf("%s@%v", policyConfig.ID, policyConfig.Version), ErrPolicyNotFound)
 	}
 	return policy, nil
+}
+
+func (s *Service) GetCustomSteps(ctx context.Context, a *domain.Appeal, p *domain.Policy) ([]*domain.Step, error) {
+	if !p.HasCustomSteps() {
+		return nil, nil
+	}
+	switch p.CustomSteps.Type {
+	case "http":
+		var cfg policy.AppealMetadataSourceConfigHTTP
+		customStepsConfig := p.CustomSteps
+		if err := mapstructure.Decode(customStepsConfig.Config, &cfg); err != nil {
+			return nil, fmt.Errorf("error decoding metadata config: %w", err)
+		}
+
+		if cfg.URL == "" {
+			return nil, fmt.Errorf("URL cannot be empty for http type")
+		}
+		var err error
+		cfg.URL, err = evaluateExpressionWithAppeal(a, cfg.URL)
+		if err != nil {
+			return nil, fmt.Errorf("error while evaluating url %w", err)
+		}
+
+		cfg.Body, err = evaluateExpressionWithAppeal(a, cfg.Body)
+		if err != nil {
+			return nil, fmt.Errorf("error while evaluating body %w", err)
+		}
+		headers := make(map[string]string)
+		for key, value := range cfg.Headers {
+			if headers[key], err = evaluateExpressionWithAppeal(a, value); err != nil {
+				return nil, fmt.Errorf("error while evaluating headers %w", err)
+			}
+		}
+		cfg.Headers = headers
+		clientCreator := &http.HttpClientCreatorStruct{}
+		metadataCl, err := http.NewHTTPClient(&cfg.HTTPClientConfig, clientCreator, "AppealCustomSteps")
+		if err != nil {
+			return nil, fmt.Errorf(" error in http request %w", err)
+		}
+
+		res, err := metadataCl.MakeRequest(ctx)
+		if err != nil || (res.StatusCode < 200 || res.StatusCode > 300) {
+			if cfg.AllowFailed {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("error fetching resource: %w", err)
+		}
+
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return nil, fmt.Errorf("error reading response body: %w", err)
+		}
+		defer res.Body.Close()
+
+		customStepResponse := &domain.CustomStepsResponse{}
+		s.logger.Info(ctx, "custom policy steps request and response ", "request", cfg.URL, "customStepResponse", string(body))
+		err = json.Unmarshal(body, &customStepResponse)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshaling response body: %w", err)
+		}
+
+		return customStepResponse.ApprovalSteps, nil
+	default:
+		return nil, fmt.Errorf("invalid custom steps source type: %q", p.CustomSteps.Type)
+	}
 }
 
 func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, p *domain.Policy) error {
