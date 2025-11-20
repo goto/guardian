@@ -262,8 +262,8 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 		if err := r.FromDomain(a.Resource); err != nil {
 			return err
 		}
-		for _, p := range permissions {
-			if err := client.GrantResourceAccess(ctx, r, user.ID, p); err != nil {
+		for _, perm := range permissions {
+			if err := client.GrantResourceAccess(ctx, r, user.ID, perm); err != nil {
 				return err
 			}
 		}
