@@ -282,7 +282,7 @@ func (sr *Resource) FromDomain(r *domain.Resource) error {
 	if len(resourceId) > 9 && resourceId[:9] == "resource:" {
 		sr.ID = resourceId[9:]
 	}
-	
+
 	if nsMap, ok := resourceDetails["namespace"].(map[string]interface{}); ok {
 		ns := Namespace{}
 		if id, ok := nsMap["id"].(string); ok {

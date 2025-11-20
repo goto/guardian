@@ -368,11 +368,6 @@ func (c *shieldNewclient) GrantOrganizationAccess(ctx context.Context, resource 
 }
 
 func (c *shieldNewclient) GrantResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error {
-	resourceId := resource.URN
-	if len(resourceId) > 9 && resourceId[:9] == "resource:" {
-		resourceId = resourceId[9:]
-	}
-	c.logger.Warn(ctx, "resource ", resource)
 	err := c.CreateRelation(ctx, resource.ID, resource.Namespace.ID, fmt.Sprintf("%s:%s", userNamespaceConst, userId), role)
 	if err != nil {
 		return err
