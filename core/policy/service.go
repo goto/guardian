@@ -195,6 +195,10 @@ func (s *Service) GetOne(ctx context.Context, id string, version uint) (*domain.
 			return nil, err
 		}
 	}
+	
+	if err := s.decryptRequirementPostHooks(p); err != nil {
+		return nil, err
+	}
 
 	return p, nil
 }

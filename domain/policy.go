@@ -315,12 +315,12 @@ func (h *PostAppealHook) DecryptConfig(dec Decryptor) error {
 	}
 	decryptedConfig, err := dec.Decrypt(configStr)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decrypt config for hook %q: %w", h.Name, err)
 	}
 
 	var cfg interface{}
 	if err := json.Unmarshal([]byte(decryptedConfig), &cfg); err != nil {
-		return fmt.Errorf("failed to json.Unmarshal config: %w", err)
+		return fmt.Errorf("failed to json.Unmarshal config for hook %q (decrypted value: %q): %w", h.Name, decryptedConfig, err)
 	}
 	h.Config = cfg
 
