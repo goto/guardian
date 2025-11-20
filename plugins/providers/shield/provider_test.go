@@ -1008,7 +1008,7 @@ func TestRevokeAccess(t *testing.T) {
 	t.Run("given resource type", func(t *testing.T) {
 		expectedResource := &shield.Resource{
 			Name: "test-resource",
-			ID:   "test_id",
+			ID:   "test-id",
 			Namespace: shield.Namespace{
 				Name: "test-namespace",
 				ID:   "test_namespace_id",
@@ -1052,6 +1052,7 @@ func TestRevokeAccess(t *testing.T) {
 			Resource: &domain.Resource{
 				Type: "test-type",
 				Name: "test-resource",
+				URN:  "resource:test-id",
 				Details: map[string]interface{}{
 					"id": "test_id",
 					"namespace": map[string]interface{}{
