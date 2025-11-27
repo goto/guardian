@@ -118,6 +118,12 @@ func (s *Service) Create(ctx context.Context, p *domain.Policy) error {
 		return err
 	}
 
+	if p.HasCustomSteps() {
+		if err := s.encryptCustomSteps(p); err != nil {
+			return err
+		}
+	}
+
 	if !isDryRun(ctx) {
 		if err := s.repository.Create(ctx, p); err != nil {
 			return err
@@ -147,6 +153,12 @@ func (s *Service) Create(ctx context.Context, p *domain.Policy) error {
 		return err
 	}
 
+	if p.HasCustomSteps() {
+		if err := s.decryptCustomSteps(p); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -173,6 +185,12 @@ func (s *Service) Find(ctx context.Context) ([]*domain.Policy, error) {
 		if err := s.decryptRequirementPostHooks(p); err != nil {
 			return nil, err
 		}
+
+		if p.HasCustomSteps() {
+			if err := s.decryptCustomSteps(p); err != nil {
+				return nil, err
+			}
+		}
 	}
 	return policies, nil
 }
@@ -198,6 +216,12 @@ func (s *Service) GetOne(ctx context.Context, id string, version uint) (*domain.
 	
 	if err := s.decryptRequirementPostHooks(p); err != nil {
 		return nil, err
+	}
+
+	if p.HasCustomSteps() {
+		if err := s.decryptCustomSteps(p); err != nil {
+			return nil, err
+		}
 	}
 
 	return p, nil
@@ -244,6 +268,11 @@ func (s *Service) Update(ctx context.Context, p *domain.Policy) error {
 	if err := s.encryptRequirementPostHooks(p); err != nil {
 		return err
 	}
+	if p.HasCustomSteps() {
+		if err := s.encryptCustomSteps(p); err != nil {
+			return err
+		}
+	}
 
 	p.Version = latestPolicy.Version + 1
 
@@ -276,7 +305,20 @@ func (s *Service) Update(ctx context.Context, p *domain.Policy) error {
 		return err
 	}
 
+	if p.HasCustomSteps() {
+		if err := s.decryptCustomSteps(p); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func (s *Service) encryptCustomSteps(p *domain.Policy) error {
+	if p.CustomSteps.Config == nil {
+		return nil
+	}
+	return p.CustomSteps.EncryptConfig(s.crypto)
 }
 
 func (s *Service) encryptAppealMetadata(p *domain.Policy) error {
@@ -292,6 +334,13 @@ func (s *Service) encryptAppealMetadata(p *domain.Policy) error {
 		}
 	}
 	return nil
+}
+
+func (s *Service) decryptCustomSteps(p *domain.Policy) error {
+	if p.CustomSteps.Config == nil {
+		return nil
+	}
+	return p.CustomSteps.DecryptConfig(s.crypto)
 }
 
 func (s *Service) decryptAppealMetadata(p *domain.Policy) error {
@@ -412,6 +461,11 @@ func (s *Service) validatePolicy(ctx context.Context, p *domain.Policy, excluded
 		}
 	}
 
+	if p.HasCustomSteps() {
+		if err := p.CustomSteps.Validate(); err != nil {
+			return fmt.Errorf("invalid custom policy steps data: %w", err)
+		}
+	}
 	return nil
 }
 
