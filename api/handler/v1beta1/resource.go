@@ -53,7 +53,7 @@ func (s *GRPCServer) ListResources(ctx context.Context, req *guardianv1beta1.Lis
 	if req.GetDetails() != nil {
 		details = map[string]string{}
 		for _, d := range req.GetDetails() {
-			filter := strings.Split(d, ":")
+			filter := strings.SplitN(d, ":", 2)
 			if len(filter) == 2 {
 				path := filter[0]
 				value := filter[1]
