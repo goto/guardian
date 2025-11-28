@@ -8,7 +8,7 @@ ALTER TABLE
 ALTER TABLE
     "approvals"
     ADD
-        COLUMN IF NOT EXISTS "dont_allow_self_approval" string;
+        COLUMN IF NOT EXISTS "dont_allow_self_approval" boolean;
 
 ALTER TABLE
     "approvals"
