@@ -112,11 +112,18 @@ type CreateAppealOption func(*createAppealOptions)
 
 type createAppealOptions struct {
 	IsAdditionalAppeal bool
+	DryRun             bool
 }
 
 func CreateWithAdditionalAppeal() CreateAppealOption {
 	return func(opts *createAppealOptions) {
 		opts.IsAdditionalAppeal = true
+	}
+}
+
+func CreateWithDryRun() CreateAppealOption {
+	return func(opts *createAppealOptions) {
+		opts.DryRun = true
 	}
 }
 
@@ -267,9 +274,12 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	for _, appeal := range appeals {
 		appeal.SetDefaults()
 
-		if err := validateAppeal(appeal, pendingAppeals); err != nil {
-			return err
+		if !createAppealOpts.DryRun { // ignore multiple identical appeal creation check on dry-run
+			if err := validateAppeal(appeal, pendingAppeals); err != nil {
+				return err
+			}
 		}
+
 		if err := addResource(appeal, resources); err != nil {
 			return fmt.Errorf("couldn't find resource with id %q: %w", appeal.ResourceID, err)
 		}
@@ -288,14 +298,16 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			}
 		}
 
-		activeGrant, err := s.findActiveGrant(ctx, appeal)
-		if err != nil && err != ErrGrantNotFound {
-			return err
-		}
-
-		if activeGrant != nil {
-			if err := s.checkExtensionEligibility(appeal, provider, policy, activeGrant); err != nil {
+		if !createAppealOpts.DryRun { // ignore grant extension eligibility check on dry-run
+			activeGrant, err := s.findActiveGrant(ctx, appeal)
+			if err != nil && err != ErrGrantNotFound {
 				return err
+			}
+
+			if activeGrant != nil {
+				if err := s.checkExtensionEligibility(appeal, provider, policy, activeGrant); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -334,6 +346,10 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			return fmt.Errorf("initializing approvals: %w", err)
 		}
 		appeal.Policy = nil
+
+		if createAppealOpts.DryRun {
+			return nil
+		}
 
 		for _, approval := range appeal.Approvals {
 			// TODO: direcly check on appeal.Status==domain.AppealStatusApproved instead of manual looping through approvals
@@ -1496,6 +1512,15 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 }
 
 func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, opts ...CreateAppealOption) error {
+	createAppealOpts := &createAppealOptions{}
+	for _, opt := range opts {
+		opt(createAppealOpts)
+	}
+
+	if createAppealOpts.DryRun {
+		return nil
+	}
+
 	policy := a.Policy
 	if policy == nil {
 		p, err := s.policyService.GetOne(ctx, a.PolicyID, a.PolicyVersion)
@@ -1503,11 +1528,6 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 			return fmt.Errorf("retrieving policy: %w", err)
 		}
 		policy = p
-	}
-
-	createAppealOpts := &createAppealOptions{}
-	for _, opt := range opts {
-		opt(createAppealOpts)
 	}
 
 	isAdditionalAppealCreation := createAppealOpts.IsAdditionalAppeal

@@ -3,6 +3,7 @@ package grant
 type options struct {
 	skipNotification     bool
 	skipRevokeInProvider bool
+	dryRun               bool
 }
 
 type Option func(*options)
@@ -19,12 +20,14 @@ func SkipRevokeAccessInProvider() Option {
 	}
 }
 
-func (s *Service) getOptions(opts ...Option) options {
-	o := options{
-		skipNotification:     false,
-		skipRevokeInProvider: false,
+func DryRun() Option {
+	return func(opts *options) {
+		opts.dryRun = true
 	}
+}
 
+func (s *Service) getOptions(opts ...Option) options {
+	var o options
 	for _, fn := range opts {
 		fn(&o)
 	}

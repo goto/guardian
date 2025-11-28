@@ -256,7 +256,7 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 	if p.GetSteps() != nil {
 		var steps []*domain.Step
 		for _, s := range p.GetSteps() {
-			steps = append(steps, &domain.Step{
+			stepProto := &domain.Step{
 				Name:                  s.GetName(),
 				Description:           s.GetDescription(),
 				When:                  s.GetWhen(),
@@ -266,7 +266,11 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 				AllowFailed:           s.GetAllowFailed(),
 				Approvers:             s.GetApprovers(),
 				DontAllowSelfApproval: s.GetDontAllowSelfApproval(),
-			})
+			}
+			if s.Details != nil {
+				stepProto.Details = s.GetDetails().AsMap()
+			}
+			steps = append(steps, stepProto)
 		}
 		policy.Steps = steps
 	}
@@ -409,7 +413,7 @@ func (a *adapter) ToPolicyProto(p *domain.Policy) (*guardianv1beta1.Policy, erro
 	if p.Steps != nil {
 		var steps []*guardianv1beta1.Policy_ApprovalStep
 		for _, s := range p.Steps {
-			steps = append(steps, &guardianv1beta1.Policy_ApprovalStep{
+			approvalStepProto := &guardianv1beta1.Policy_ApprovalStep{
 				Name:                  s.Name,
 				Description:           s.Description,
 				When:                  s.When,
@@ -419,7 +423,15 @@ func (a *adapter) ToPolicyProto(p *domain.Policy) (*guardianv1beta1.Policy, erro
 				AllowFailed:           s.AllowFailed,
 				Approvers:             s.Approvers,
 				DontAllowSelfApproval: s.DontAllowSelfApproval,
-			})
+			}
+			if s.Details != nil {
+				details, err := structpb.NewStruct(s.Details)
+				if err != nil {
+					return nil, err
+				}
+				approvalStepProto.Details = details
+			}
+			steps = append(steps, approvalStepProto)
 		}
 		policyProto.Steps = steps
 	}
@@ -805,18 +817,27 @@ func (a *adapter) FromPatchAppealProto(ua *guardianv1beta1.PatchAppealRequest, a
 
 func (a *adapter) ToApprovalProto(approval *domain.Approval) (*guardianv1beta1.Approval, error) {
 	approvalProto := &guardianv1beta1.Approval{
-		Id:             approval.ID,
-		Name:           approval.Name,
-		AppealId:       approval.AppealID,
-		Status:         approval.Status,
-		Reason:         approval.Reason,
-		PolicyId:       approval.PolicyID,
-		PolicyVersion:  uint32(approval.PolicyVersion),
-		Approvers:      approval.Approvers,
-		CreatedAt:      timestamppb.New(approval.CreatedAt),
-		UpdatedAt:      timestamppb.New(approval.UpdatedAt),
-		IsStale:        approval.IsStale,
-		AppealRevision: uint32(approval.AppealRevision),
+		Id:                    approval.ID,
+		Name:                  approval.Name,
+		AppealId:              approval.AppealID,
+		Status:                approval.Status,
+		Reason:                approval.Reason,
+		PolicyId:              approval.PolicyID,
+		PolicyVersion:         uint32(approval.PolicyVersion),
+		Approvers:             approval.Approvers,
+		CreatedAt:             timestamppb.New(approval.CreatedAt),
+		UpdatedAt:             timestamppb.New(approval.UpdatedAt),
+		IsStale:               approval.IsStale,
+		AppealRevision:        uint32(approval.AppealRevision),
+		AllowFailed:           approval.AllowFailed,
+		DontAllowSelfApproval: approval.DontAllowSelfApproval,
+	}
+	if approval.Details != nil {
+		details, err := structpb.NewStruct(approval.Details)
+		if err != nil {
+			return nil, err
+		}
+		approvalProto.Details = details
 	}
 
 	if approval.Appeal != nil {

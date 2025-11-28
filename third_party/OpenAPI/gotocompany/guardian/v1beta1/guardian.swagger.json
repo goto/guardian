@@ -3256,6 +3256,9 @@
         },
         "dontAllowSelfApproval": {
           "type": "boolean"
+        },
+        "details": {
+          "type": "object"
         }
       }
     },
@@ -3777,6 +3780,15 @@
         "appealRevision": {
           "type": "integer",
           "format": "int64"
+        },
+        "allowFailed": {
+          "type": "boolean"
+        },
+        "dontAllowSelfApproval": {
+          "type": "boolean"
+        },
+        "details": {
+          "type": "object"
         }
       },
       "title": "Approval is an approval item that generated in an appeal based on the selected policy"
@@ -3826,6 +3838,9 @@
         },
         "description": {
           "type": "string"
+        },
+        "dryRun": {
+          "type": "boolean"
         }
       }
     },
@@ -3861,6 +3876,9 @@
             "type": "object",
             "$ref": "#/definitions/v1beta1Appeal"
           }
+        },
+        "dryRun": {
+          "type": "boolean"
         }
       }
     },

@@ -1,12 +1,15 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/goto/guardian/domain"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
+
+	"github.com/goto/guardian/domain"
 )
 
 // Approval database model
@@ -21,6 +24,10 @@ type Approval struct {
 	PolicyID      string
 	PolicyVersion uint
 
+	AllowFailed           bool
+	DontAllowSelfApproval bool
+	Details               datatypes.JSON
+
 	Approvers []Approver
 	Appeal    *Appeal
 
@@ -34,6 +41,11 @@ type Approval struct {
 
 // FromDomain transforms *domain.Approval values into the model
 func (m *Approval) FromDomain(a *domain.Approval) error {
+	details, err := json.Marshal(a.Details)
+	if err != nil {
+		return err
+	}
+
 	var approvers []Approver
 	if a.Approvers != nil {
 		for _, approver := range a.Approvers {
@@ -61,6 +73,7 @@ func (m *Approval) FromDomain(a *domain.Approval) error {
 		}
 		id = uuid
 	}
+
 	m.ID = id
 	m.Name = a.Name
 	m.Index = a.Index
@@ -70,6 +83,9 @@ func (m *Approval) FromDomain(a *domain.Approval) error {
 	m.Reason = a.Reason
 	m.PolicyID = a.PolicyID
 	m.PolicyVersion = a.PolicyVersion
+	m.AllowFailed = a.AllowFailed
+	m.DontAllowSelfApproval = a.DontAllowSelfApproval
+	m.Details = details
 	m.Approvers = approvers
 	m.IsStale = a.IsStale
 	m.AppealRevision = a.AppealRevision
@@ -81,6 +97,13 @@ func (m *Approval) FromDomain(a *domain.Approval) error {
 
 // ToDomain transforms model into *domain.Approval
 func (m *Approval) ToDomain() (*domain.Approval, error) {
+	var details map[string]interface{}
+	if m.Details != nil {
+		if err := json.Unmarshal(m.Details, &details); err != nil {
+			return nil, err
+		}
+	}
+
 	var approvers []string
 	if m.Approvers != nil {
 		for _, a := range m.Approvers {
@@ -99,20 +122,23 @@ func (m *Approval) ToDomain() (*domain.Approval, error) {
 	}
 
 	return &domain.Approval{
-		ID:             m.ID.String(),
-		Name:           m.Name,
-		Index:          m.Index,
-		AppealID:       m.AppealID,
-		Status:         m.Status,
-		Actor:          m.Actor,
-		Reason:         m.Reason,
-		PolicyID:       m.PolicyID,
-		PolicyVersion:  m.PolicyVersion,
-		Approvers:      approvers,
-		Appeal:         appeal,
-		AppealRevision: m.AppealRevision,
-		IsStale:        m.IsStale,
-		CreatedAt:      m.CreatedAt,
-		UpdatedAt:      m.UpdatedAt,
+		ID:                    m.ID.String(),
+		Name:                  m.Name,
+		Index:                 m.Index,
+		AppealID:              m.AppealID,
+		Status:                m.Status,
+		Actor:                 m.Actor,
+		Reason:                m.Reason,
+		PolicyID:              m.PolicyID,
+		PolicyVersion:         m.PolicyVersion,
+		AllowFailed:           m.AllowFailed,
+		DontAllowSelfApproval: m.DontAllowSelfApproval,
+		Details:               details,
+		Approvers:             approvers,
+		Appeal:                appeal,
+		IsStale:               m.IsStale,
+		AppealRevision:        m.AppealRevision,
+		CreatedAt:             m.CreatedAt,
+		UpdatedAt:             m.UpdatedAt,
 	}, nil
 }

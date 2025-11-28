@@ -26,6 +26,10 @@ type Approval struct {
 	PolicyID      string  `json:"policy_id" yaml:"policy_id"`
 	PolicyVersion uint    `json:"policy_version" yaml:"policy_version"`
 
+	AllowFailed           bool                   `json:"allow_failed" yaml:"allow_failed"`
+	DontAllowSelfApproval bool                   `json:"dont_allow_self_approval" yaml:"dont_allow_self_approval"`
+	Details               map[string]interface{} `json:"details" yaml:"details"`
+
 	Approvers []string `json:"approvers,omitempty" yaml:"approvers,omitempty"`
 	Appeal    *Appeal  `json:"appeal,omitempty" yaml:"appeal,omitempty"`
 
