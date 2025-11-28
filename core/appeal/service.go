@@ -274,9 +274,12 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	for _, appeal := range appeals {
 		appeal.SetDefaults()
 
-		if err := validateAppeal(appeal, pendingAppeals); err != nil {
-			return err
+		if !createAppealOpts.DryRun { // ignore multiple identical appeal creation check on dry-run
+			if err := validateAppeal(appeal, pendingAppeals); err != nil {
+				return err
+			}
 		}
+
 		if err := addResource(appeal, resources); err != nil {
 			return fmt.Errorf("couldn't find resource with id %q: %w", appeal.ResourceID, err)
 		}
