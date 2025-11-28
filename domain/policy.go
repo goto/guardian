@@ -10,10 +10,11 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/mcuadros/go-lookup"
+
 	"github.com/goto/guardian/pkg/evaluator"
 	"github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
-	"github.com/mcuadros/go-lookup"
 )
 
 const (
@@ -110,6 +111,9 @@ type Step struct {
 
 	// DontAllowSelfApproval is a boolean flag to detemine if the approver can approve their own request.
 	DontAllowSelfApproval bool `json:"dont_allow_self_approval,omitempty" yaml:"dont_allow_self_approval,omitempty"`
+
+	// Details storing the additional details of the step.
+	Details map[string]interface{} `json:"details,omitempty" yaml:"details,omitempty"`
 }
 
 func (s Step) ResolveApprovers(a *Appeal) ([]string, error) {
@@ -175,14 +179,17 @@ func (s Step) ToApproval(a *Appeal, p *Policy, index int) (*Approval, error) {
 	}
 
 	approval := &Approval{
-		Index:          index,
-		Name:           s.Name,
-		PolicyID:       p.ID,
-		PolicyVersion:  p.Version,
-		Approvers:      approvers,
-		Status:         ApprovalStatusPending,
-		AppealRevision: a.Revision,
-		IsStale:        false,
+		Index:                 index,
+		Name:                  s.Name,
+		PolicyID:              p.ID,
+		PolicyVersion:         p.Version,
+		Approvers:             approvers,
+		Status:                ApprovalStatusPending,
+		AppealRevision:        a.Revision,
+		IsStale:               false,
+		AllowFailed:           s.AllowFailed,
+		DontAllowSelfApproval: s.DontAllowSelfApproval,
+		Details:               s.Details,
 	}
 
 	if index > 0 {

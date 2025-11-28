@@ -5,14 +5,15 @@ import (
 	"errors"
 	"time"
 
-	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
-	"github.com/goto/guardian/core/policy"
-	"github.com/goto/guardian/domain"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
+	"github.com/goto/guardian/core/policy"
+	"github.com/goto/guardian/domain"
 )
 
 func (s *GrpcHandlersSuite) TestListPolicies() {
