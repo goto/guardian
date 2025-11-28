@@ -1515,7 +1515,7 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 		opt(createAppealOpts)
 	}
 
-	if !createAppealOpts.DryRun {
+	if createAppealOpts.DryRun {
 		return nil
 	}
 
