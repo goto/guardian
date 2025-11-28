@@ -298,14 +298,16 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			}
 		}
 
-		activeGrant, err := s.findActiveGrant(ctx, appeal)
-		if err != nil && err != ErrGrantNotFound {
-			return err
-		}
-
-		if activeGrant != nil {
-			if err := s.checkExtensionEligibility(appeal, provider, policy, activeGrant); err != nil {
+		if !createAppealOpts.DryRun { // ignore grant extension eligibility check on dry-run
+			activeGrant, err := s.findActiveGrant(ctx, appeal)
+			if err != nil && err != ErrGrantNotFound {
 				return err
+			}
+
+			if activeGrant != nil {
+				if err := s.checkExtensionEligibility(appeal, provider, policy, activeGrant); err != nil {
+					return err
+				}
 			}
 		}
 
