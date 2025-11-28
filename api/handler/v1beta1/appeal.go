@@ -115,7 +115,12 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 		return nil, s.internalError(ctx, "cannot deserialize payload: %v", err)
 	}
 
-	if err := s.appealService.Create(ctx, appeals); err != nil {
+	var createOpts []appeal.CreateAppealOption
+	if req.GetDryRun() {
+		createOpts = append(createOpts, appeal.CreateWithDryRun())
+	}
+
+	if err := s.appealService.Create(ctx, appeals, createOpts...); err != nil {
 		switch {
 		case errors.Is(err, provider.ErrAppealValidationInvalidAccountType),
 			errors.Is(err, provider.ErrAppealValidationInvalidRole),
@@ -158,6 +163,7 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 
 	return &guardianv1beta1.CreateAppealResponse{
 		Appeals: appealProtos,
+		DryRun:  req.GetDryRun(),
 	}, nil
 }
 

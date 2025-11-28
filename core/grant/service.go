@@ -375,6 +375,11 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 		return nil, fmt.Errorf("getting grant details: %w", err)
 	}
 
+	options := s.getOptions(opts...)
+	if options.dryRun {
+		return grant, nil
+	}
+
 	revokedGrant := &domain.Grant{}
 	*revokedGrant = *grant
 	if err := grant.Revoke(actor, reason); err != nil {
@@ -383,8 +388,6 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 	if err := s.repo.Update(ctx, grant); err != nil {
 		return nil, fmt.Errorf("updating grant record in db: %w", err)
 	}
-
-	options := s.getOptions(opts...)
 
 	if !options.skipRevokeInProvider {
 		if err := s.providerService.RevokeAccess(ctx, *grant); err != nil {

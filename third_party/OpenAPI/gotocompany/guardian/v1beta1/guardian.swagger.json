@@ -3826,6 +3826,9 @@
         },
         "description": {
           "type": "string"
+        },
+        "dryRun": {
+          "type": "boolean"
         }
       }
     },
@@ -3861,6 +3864,9 @@
             "type": "object",
             "$ref": "#/definitions/v1beta1Appeal"
           }
+        },
+        "dryRun": {
+          "type": "boolean"
         }
       }
     },

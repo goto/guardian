@@ -112,11 +112,18 @@ type CreateAppealOption func(*createAppealOptions)
 
 type createAppealOptions struct {
 	IsAdditionalAppeal bool
+	DryRun             bool
 }
 
 func CreateWithAdditionalAppeal() CreateAppealOption {
 	return func(opts *createAppealOptions) {
 		opts.IsAdditionalAppeal = true
+	}
+}
+
+func CreateWithDryRun() CreateAppealOption {
+	return func(opts *createAppealOptions) {
+		opts.DryRun = true
 	}
 }
 
@@ -335,6 +342,11 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		}
 		appeal.Policy = nil
 
+		var grantOpts []grant.Option
+		if createAppealOpts.DryRun {
+			grantOpts = append(grantOpts, grant.DryRun())
+		}
+
 		for _, approval := range appeal.Approvals {
 			// TODO: direcly check on appeal.Status==domain.AppealStatusApproved instead of manual looping through approvals
 			if approval.Index == len(appeal.Approvals)-1 && (approval.Status == domain.ApprovalStatusApproved || appeal.Status == domain.AppealStatusApproved) {
@@ -345,10 +357,10 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 				newGrant.Resource = appeal.Resource
 				appeal.Grant = newGrant
 				if prevGrant != nil {
-					if _, err := s.grantService.Revoke(ctx, prevGrant.ID, domain.SystemActorName, prevGrant.RevokeReason,
+					if _, err := s.grantService.Revoke(ctx, prevGrant.ID, domain.SystemActorName, prevGrant.RevokeReason, append(grantOpts,
 						grant.SkipNotifications(),
 						grant.SkipRevokeAccessInProvider(),
-					); err != nil {
+					)...); err != nil {
 						return fmt.Errorf("revoking previous grant: %w", err)
 					}
 				}
@@ -377,6 +389,10 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 				notifications = addOnBehalfApprovedNotification(appeal, notifications)
 			}
 		}
+	}
+
+	if createAppealOpts.DryRun {
+		return nil
 	}
 
 	if err := s.repo.BulkUpsert(ctx, appeals); err != nil {
@@ -1545,20 +1561,26 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 
 		dg.Status = domain.GrantStatusActive
 		dg.Appeal = &appealCopy
-		if err := s.providerService.GrantAccess(ctx, *dg); err != nil {
-			return fmt.Errorf("failed to grant an access dependency: %w", err)
+		if !createAppealOpts.DryRun {
+			if err := s.providerService.GrantAccess(ctx, *dg); err != nil {
+				return fmt.Errorf("failed to grant an access dependency: %w", err)
+			}
 		}
 		dg.Appeal = nil
 
 		dg.Owner = a.CreatedBy
-		if err := s.grantService.Create(ctx, dg); err != nil {
-			return fmt.Errorf("failed to store grant of access dependency: %w", err)
+		if !createAppealOpts.DryRun {
+			if err := s.grantService.Create(ctx, dg); err != nil {
+				return fmt.Errorf("failed to store grant of access dependency: %w", err)
+			}
 		}
 	}
 
 	// grant main access
-	if err := s.providerService.GrantAccess(ctx, grantWithAppeal); err != nil {
-		return fmt.Errorf("granting access: %w", err)
+	if !createAppealOpts.DryRun {
+		if err := s.providerService.GrantAccess(ctx, grantWithAppeal); err != nil {
+			return fmt.Errorf("granting access: %w", err)
+		}
 	}
 
 	grantWithAppeal.Appeal = nil
