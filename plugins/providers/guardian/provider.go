@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -126,8 +127,8 @@ func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
 }
 
 func (p *provider) ValidateResourceIdentifiers(ctx context.Context, r *domain.Resource) error {
-	if r.Type != resourceTypePackage {
-		return fmt.Errorf("only resource type %q is supported for provider type %q", resourceTypePackage, providerType)
+	if strings.HasPrefix(r.Type, resourceTypePackage) {
+		return fmt.Errorf("only resource type prefix %q is supported for provider type %q", resourceTypePackage, providerType)
 	}
 	if r.URN == "" {
 		return fmt.Errorf("resource urn is required")
