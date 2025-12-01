@@ -36,9 +36,8 @@ type Approval struct {
 	IsStale        bool `json:"is_stale,omitempty" yaml:"is_stale,omitempty"`
 	AppealRevision uint `json:"appeal_revision" yaml:"appeal_revision"`
 
-	CreatedAt             time.Time `json:"created_at,omitempty" yaml:"created_at,omitempty"`
-	UpdatedAt             time.Time `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
-	DontAllowSelfApproval bool      `json:"dont_allow_self_approval,omitempty" yaml:"dont_allow_self_approval,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty" yaml:"created_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
 }
 
 func (a *Approval) Approve() {
