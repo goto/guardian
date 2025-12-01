@@ -15,8 +15,8 @@ builds:
       - -X github.com/goto/guardian/core.Version={{.Tag}}
       - -X github.com/goto/guardian/core.BuildCommit={{.FullCommit}}
       - -X github.com/goto/guardian/core.BuildDate={{.Date}}
-    goos: [darwin, linux, windows]
-    goarch: [amd64, 386, arm, arm64]
+    goos: [linux]
+    goarch: [amd64]
     env:
       - CGO_ENABLED=0
 archives:
@@ -66,13 +66,6 @@ nfpms:
       {{ .ProjectName }}_
       {{- title .Os }}_
       {{- if eq .Arch "darwin" }}macos{{- else }}{{ .Arch }}{{ end }}
-scoop:
-  bucket:
-    owner: goto
-    name: scoop-bucket
-  homepage: "https://github.com/goto/guardian"
-  description: "Universal data access tool"
-  license: Apache 2.0
 brews:
   - name: guardian
     homepage: "https://github.com/goto/guardian"

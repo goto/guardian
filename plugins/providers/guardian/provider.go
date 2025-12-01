@@ -127,7 +127,7 @@ func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
 }
 
 func (p *provider) ValidateResourceIdentifiers(ctx context.Context, r *domain.Resource) error {
-	if strings.HasPrefix(r.Type, resourceTypePackage) {
+	if !strings.HasPrefix(r.Type, resourceTypePackage) {
 		return fmt.Errorf("only resource type prefix %q is supported for provider type %q", resourceTypePackage, providerType)
 	}
 	if r.URN == "" {
