@@ -3,6 +3,7 @@ package guardian
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/goto/guardian/domain"
 )
@@ -32,8 +33,8 @@ type config struct {
 
 func (c *config) validate() error {
 	resourceTypes := c.GetResourceTypes()
-	if len(resourceTypes) != 1 || resourceTypes[0] != resourceTypePackage {
-		return fmt.Errorf("resource type %q is required", resourceTypePackage)
+	if !strings.HasPrefix(resourceTypes[0], resourceTypePackage) {
+		return fmt.Errorf("resource type prefix %q is required", resourceTypePackage)
 	}
 
 	rc := c.Resources[0]
