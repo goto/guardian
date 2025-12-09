@@ -389,6 +389,7 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 			AllowActiveAccessExtensionIn: p.GetAppeal().GetAllowActiveAccessExtensionIn(),
 			AllowCreatorDetailsFailure:   p.GetAppeal().GetAllowCreatorDetailsFailure(),
 			MetadataSources:              metadataSources,
+			TermsAndConditions:           p.GetAppeal().GetTermsAndConditions(),
 		}
 	}
 
@@ -590,6 +591,7 @@ func (a *adapter) ToPolicyAppealConfigProto(p *domain.Policy) (*guardianv1beta1.
 			policyAppealConfigProto.MetadataSources[key].Value = value
 		}
 	}
+	policyAppealConfigProto.TermsAndConditions = p.AppealConfig.TermsAndConditions
 
 	return policyAppealConfigProto, nil
 }

@@ -48,6 +48,7 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 		RoleContains:    req.GetRoleContains(),
 		StartTime:       s.adapter.FromTimeProto(req.GetStartTime()),
 		EndTime:         s.adapter.FromTimeProto(req.GetEndTime()),
+		WithApprovals:   req.GetWithApprovals(),
 	}
 
 	appeals, total, summary, err := s.listAppeals(ctx, filters)
@@ -90,6 +91,7 @@ func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListA
 		RoleContains:    req.GetRoleContains(),
 		StartTime:       s.adapter.FromTimeProto(req.GetStartTime()),
 		EndTime:         s.adapter.FromTimeProto(req.GetEndTime()),
+		WithApprovals:   req.GetWithApprovals(),
 	}
 
 	appeals, total, summary, err := s.listAppeals(ctx, filters)

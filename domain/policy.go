@@ -396,6 +396,7 @@ type PolicyAppealConfig struct {
 	// proper nil checking to avoid accessing nil value.
 	AllowCreatorDetailsFailure bool                             `json:"allow_creator_details_failure" yaml:"allow_creator_details_failure"`
 	MetadataSources            map[string]*AppealMetadataSource `json:"metadata_sources,omitempty" yaml:"metadata_sources,omitempty"`
+	TermsAndConditions         string                           `json:"terms_and_conditions,omitempty" yaml:"terms_and_conditions,omitempty"`
 }
 
 type Question struct {
