@@ -377,6 +377,7 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 
 	if filters.WithApprovals {
 		db = db.Preload("Approvals")
+		db = db.Preload("Approvals.Approvers")
 	}
 
 	return db, nil
