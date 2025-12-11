@@ -31,11 +31,9 @@ const (
 
 	ExpirationDateReasonFromAppeal = "Expiration date is set based on the appeal options"
 
-	ReservedDetailsKeyProviderParameters           = "__provider_parameters"
-	ReservedDetailsKeyPolicyQuestions              = "__policy_questions"
-	ReservedDetailsKeyPolicyMetadata               = "__policy_metadata"
-	ReservedDetailsKeyAgreedTermsAndConditions     = "__agreed_terms_and_conditions"
-	ReservedDetailsKeyAgreedTermsAndConditionsData = "data"
+	ReservedDetailsKeyProviderParameters = "__provider_parameters"
+	ReservedDetailsKeyPolicyQuestions    = "__policy_questions"
+	ReservedDetailsKeyPolicyMetadata     = "__policy_metadata"
 )
 
 var (

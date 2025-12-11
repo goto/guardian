@@ -114,6 +114,9 @@ type Step struct {
 
 	// Details storing the additional details of the step.
 	Details map[string]interface{} `json:"details,omitempty" yaml:"details,omitempty"`
+
+	// TermsAndConditions optional fields for storing custom ste[ terms & conditions during approvals
+	TermsAndConditions string `json:"terms_and_conditions,omitempty" yaml:"terms_and_conditions,omitempty"`
 }
 
 func (s Step) ResolveApprovers(a *Appeal) ([]string, error) {

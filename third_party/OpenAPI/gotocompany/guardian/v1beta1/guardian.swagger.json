@@ -3271,6 +3271,9 @@
         },
         "details": {
           "type": "object"
+        },
+        "termsAndConditions": {
+          "type": "string"
         }
       }
     },

@@ -266,6 +266,7 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 				AllowFailed:           s.GetAllowFailed(),
 				Approvers:             s.GetApprovers(),
 				DontAllowSelfApproval: s.GetDontAllowSelfApproval(),
+				TermsAndConditions:    s.GetTermsAndConditions(),
 			}
 			if s.Details != nil {
 				stepProto.Details = s.GetDetails().AsMap()
@@ -424,6 +425,7 @@ func (a *adapter) ToPolicyProto(p *domain.Policy) (*guardianv1beta1.Policy, erro
 				AllowFailed:           s.AllowFailed,
 				Approvers:             s.Approvers,
 				DontAllowSelfApproval: s.DontAllowSelfApproval,
+				TermsAndConditions:    s.TermsAndConditions,
 			}
 			if s.Details != nil {
 				details, err := structpb.NewStruct(s.Details)
