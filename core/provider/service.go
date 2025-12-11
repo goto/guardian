@@ -8,14 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goto/guardian/pkg/evaluator"
-
 	"github.com/go-playground/validator/v10"
+	"github.com/goto/salt/audit"
+
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/evaluator"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/providers"
 	"github.com/goto/guardian/utils"
-	"github.com/goto/salt/audit"
 )
 
 const (
@@ -426,12 +426,27 @@ func (s *Service) ValidateAppeal(ctx context.Context, a *domain.Appeal, p *domai
 		return err
 	}
 
+	if err = s.validateAgreedTermsAndConditions(a); err != nil {
+		return err
+	}
+
 	if validator, ok := c.(appealValidator); ok {
 		if err := validator.ValidateAppeal(ctx, a); err != nil {
 			return err
 		}
 	}
 
+	return nil
+}
+
+func (*Service) validateAgreedTermsAndConditions(a *domain.Appeal) error {
+	if _, exist := a.Details[domain.ReservedDetailsKeyAgreedTermsAndConditions]; !exist {
+		return nil // expected returning nil for appeals that doesn't have agreed t&c
+	}
+	keys := getFilledKeys(a, domain.ReservedDetailsKeyAgreedTermsAndConditions)
+	if !utils.ContainsString(keys, domain.ReservedDetailsKeyAgreedTermsAndConditionsData) {
+		return fmt.Errorf("%w: %q", ErrAppealValidationMissingRequiredParameter, fmt.Sprintf("details.%s.%s", domain.ReservedDetailsKeyAgreedTermsAndConditions, domain.ReservedDetailsKeyAgreedTermsAndConditionsData))
+	}
 	return nil
 }
 
