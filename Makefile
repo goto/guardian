@@ -5,6 +5,7 @@ VERSION := "$(shell git describe --tags ${TAG})-next"
 BUILD_DIR=dist
 PROTON_COMMIT := "4b00c932f481a7d211420a1abf0a914355030b12"
 
+
 .PHONY: all build clean test tidy vet proto setup format generate
 
 all: clean test build format lint

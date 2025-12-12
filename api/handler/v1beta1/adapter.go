@@ -276,6 +276,13 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 		policy.Steps = steps
 	}
 
+	if cs := p.GetCustomSteps(); cs != nil {
+		policy.CustomSteps = &domain.CustomSteps{
+			Type:   cs.GetType(),
+			Config: cs.GetConfig(),
+		}
+	}
+
 	if p.GetRequirements() != nil {
 		var requirements []*domain.Requirement
 		for _, r := range p.GetRequirements() {
@@ -352,6 +359,7 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 		var durationOptions []domain.AppealDurationOption
 		var questions []domain.Question
 		var metadataSources map[string]*domain.AppealMetadataSource
+
 		for _, d := range p.GetAppeal().GetDurationOptions() {
 			option := domain.AppealDurationOption{
 				Name:  d.GetName(),

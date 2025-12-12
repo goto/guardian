@@ -349,6 +349,7 @@ type Policy struct {
 	Version      uint                `json:"version" yaml:"version" validate:"required"`
 	Description  string              `json:"description" yaml:"description"`
 	Steps        []*Step             `json:"steps" yaml:"steps" validate:"required,min=1,dive"`
+	CustomSteps  *CustomSteps        `json:"custom_steps" yaml:"custom_steps"`
 	AppealConfig *PolicyAppealConfig `json:"appeal" yaml:"appeal" validate:"omitempty,dive"`
 	Requirements []*Requirement      `json:"requirements,omitempty" yaml:"requirements,omitempty" validate:"omitempty,min=1,dive"`
 	Labels       map[string]string   `json:"labels,omitempty" yaml:"labels,omitempty"`
@@ -425,4 +426,8 @@ func (p *Policy) HasIAMConfig() bool {
 
 func (p *Policy) HasAppealMetadataSources() bool {
 	return p.AppealConfig != nil && p.AppealConfig.MetadataSources != nil
+}
+
+func (p *Policy) HasCustomSteps() bool {
+	return p.CustomSteps != nil
 }
