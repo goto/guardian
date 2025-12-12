@@ -114,6 +114,9 @@ type Step struct {
 
 	// Details storing the additional details of the step.
 	Details map[string]interface{} `json:"details,omitempty" yaml:"details,omitempty"`
+
+	// TermsAndConditions optional fields for storing custom ste[ terms & conditions during approvals
+	TermsAndConditions string `json:"terms_and_conditions,omitempty" yaml:"terms_and_conditions,omitempty"`
 }
 
 func (s Step) ResolveApprovers(a *Appeal) ([]string, error) {
@@ -396,6 +399,7 @@ type PolicyAppealConfig struct {
 	// proper nil checking to avoid accessing nil value.
 	AllowCreatorDetailsFailure bool                             `json:"allow_creator_details_failure" yaml:"allow_creator_details_failure"`
 	MetadataSources            map[string]*AppealMetadataSource `json:"metadata_sources,omitempty" yaml:"metadata_sources,omitempty"`
+	TermsAndConditions         string                           `json:"terms_and_conditions,omitempty" yaml:"terms_and_conditions,omitempty"`
 }
 
 type Question struct {

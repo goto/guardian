@@ -147,11 +147,12 @@ func (r *AppealRepository) GetAppealsTotalCount(ctx context.Context, filter *dom
 	db := r.db.WithContext(ctx)
 	db = applyAppealsJoins(db)
 
-	// omit offset & size & order_by
+	// omit offset & size & order_by & with_approvals
 	f := *filter
 	f.Size = 0
 	f.Offset = 0
 	f.OrderBy = nil
+	f.WithApprovals = false
 
 	var err error
 	db, err = applyAppealsFilter(db, &f)
@@ -372,6 +373,11 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		db = db.Where(`"appeals"."created_at" >= ?`, filters.StartTime)
 	} else if !filters.EndTime.IsZero() {
 		db = db.Where(`"appeals"."created_at" <= ?`, filters.EndTime)
+	}
+
+	if filters.WithApprovals {
+		db = db.Preload("Approvals")
+		db = db.Preload("Approvals.Approvers")
 	}
 
 	return db, nil

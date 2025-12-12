@@ -426,6 +426,7 @@ type ListAppealsFilter struct {
 	RoleContains              string    `mapstructure:"role_contains" validate:"omitempty"`
 	StartTime                 time.Time `mapstructure:"start_time" validate:"omitempty"`
 	EndTime                   time.Time `mapstructure:"end_time" validate:"omitempty"`
+	WithApprovals             bool      `mapstructure:"with_approvals" validate:"omitempty"`
 }
 
 func (af ListAppealsFilter) WithSummary() bool {

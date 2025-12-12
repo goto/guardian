@@ -8,14 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goto/guardian/pkg/evaluator"
-
 	"github.com/go-playground/validator/v10"
+	"github.com/goto/salt/audit"
+
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/evaluator"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/providers"
 	"github.com/goto/guardian/utils"
-	"github.com/goto/salt/audit"
 )
 
 const (

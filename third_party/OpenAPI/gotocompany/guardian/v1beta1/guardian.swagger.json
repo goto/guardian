@@ -396,6 +396,12 @@
             "required": false,
             "type": "string",
             "format": "date-time"
+          },
+          {
+            "name": "withApprovals",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -1810,6 +1816,12 @@
             "required": false,
             "type": "string",
             "format": "date-time"
+          },
+          {
+            "name": "withApprovals",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -3259,6 +3271,9 @@
         },
         "details": {
           "type": "object"
+        },
+        "termsAndConditions": {
+          "type": "string"
         }
       }
     },
@@ -4515,6 +4530,9 @@
           "additionalProperties": {
             "$ref": "#/definitions/PolicyAppealConfigMetadataSource"
           }
+        },
+        "termsAndConditions": {
+          "type": "string"
         }
       }
     },
