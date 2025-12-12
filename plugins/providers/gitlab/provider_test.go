@@ -278,15 +278,15 @@ func TestGrantAcccess(t *testing.T) {
 					groupMemberDetailsEndpoint("1", "99"): func(w http.ResponseWriter, r *http.Request) {
 						switch r.Method {
 						case http.MethodPut:
-							t.Run("should reset expires_at", func(t *testing.T) {
-								var reqBody map[string]any
-								err := json.NewDecoder(r.Body).Decode(&reqBody)
-								require.NoError(t, err)
-								expAt, keyExists := reqBody["expires_at"]
+							// Verify that expires_at is reset
+							var reqBody map[string]any
+							err := json.NewDecoder(r.Body).Decode(&reqBody)
+							require.NoError(t, err)
+							expAt, keyExists := reqBody["expires_at"]
 
-								assert.True(t, keyExists)
-								assert.Empty(t, expAt)
-							})
+							assert.True(t, keyExists)
+							assert.Empty(t, expAt)
+
 							w.WriteHeader(http.StatusOK)
 							w.Write([]byte("{}"))
 						default:
@@ -339,15 +339,14 @@ func TestGrantAcccess(t *testing.T) {
 					projectMemberDetailsEndpoint("1", "99"): func(w http.ResponseWriter, r *http.Request) {
 						switch r.Method {
 						case http.MethodPut:
-							t.Run("should reset expires_at", func(t *testing.T) {
-								var reqBody map[string]any
-								err := json.NewDecoder(r.Body).Decode(&reqBody)
-								require.NoError(t, err)
-								expAt, keyExists := reqBody["expires_at"]
+							// Verify that expires_at is reset
+							var reqBody map[string]any
+							err := json.NewDecoder(r.Body).Decode(&reqBody)
+							require.NoError(t, err)
+							expAt, keyExists := reqBody["expires_at"]
 
-								assert.True(t, keyExists)
-								assert.Empty(t, expAt)
-							})
+							assert.True(t, keyExists)
+							assert.Empty(t, expAt)
 
 							w.WriteHeader(http.StatusOK)
 							w.Write([]byte("{}"))
