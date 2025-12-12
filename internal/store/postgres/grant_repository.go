@@ -47,21 +47,7 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 	}
 
 	var models []model.Grant
-
-	query := db.Preload("Resource")
-
-	// Only preload appeal details if requested
-	if filter.WithApprovals {
-		query = query.Preload("Appeal").
-			Preload("Appeal.Approvals", func(db *gorm.DB) *gorm.DB {
-				return db.Order("index ASC")
-			}).
-			Preload("Appeal.Approvals.Approvers")
-	} else {
-		query = query.Joins("Appeal")
-	}
-
-	if err := query.Find(&models).Error; err != nil {
+	if err = db.Preload("Resource").Joins("Appeal").Find(&models).Error; err != nil {
 		return nil, err
 	}
 
