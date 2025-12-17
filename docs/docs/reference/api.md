@@ -851,3 +851,146 @@ $ curl --location --request DELETE '{{HOST}}/api/v1beta1/appeals/{{appeal_id}}/a
 | Name | Type | Description |
 | --- | --- | --- |
 | appeal | [Object(Appeal)](./appeal.md#appeal-1) | Appeal object |
+
+## Managing Grants
+
+A grant represents an active access assignment to a resource. Grants are typically created when appeals are approved, but can also be imported from external systems. Each grant contains information about who has access (account), what resource they can access, their role/permissions, and metadata about the access duration and management.
+
+### Get Grant
+
+You can retrieve details of a specific grant by calling **`GET /api/v1beta1/grants/:id`**
+
+##### Parameters
+
+| Name | Located in | Description | Required | Type |
+| --- | --- | --- | --- | --- |
+| id | path | Unique identifier of the grant | Yes | string(UUID) |
+| X-Auth-Email | header | Contains the user/service account email used for authorization | Yes | string |
+
+##### Responses
+
+| Code | Description | Type |
+| --- | --- | --- |
+| 200 | A successful response | [Grant](#grant) |
+| 404 | Grant not found | [rpcStatus](#rpcstatus) |
+| default | An unexpected error response | [rpcStatus](#rpcstatus) |
+
+**Example:**
+
+```bash
+$ curl --request GET '{{HOST}}/api/v1beta1/grants/{{grant_id}}' \
+--header 'X-Auth-Email: user@example.com'
+```
+
+**Response Example:**
+
+```json
+{
+  "grant": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "active",
+    "status_in_provider": "active",
+    "account_id": "user@example.com",
+    "account_type": "user",
+    "resource_id": "dataset-123",
+    "role": "viewer",
+    "permissions": ["read"],
+    "is_permanent": false,
+    "expiration_date": "2024-12-31T23:59:59Z",
+    "appeal_id": "appeal-456",
+    "source": "appeal",
+    "owner": "user@example.com",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z",
+    "resource": {
+      "id": "dataset-123",
+      "name": "Analytics Dataset",
+      "provider_type": "bigquery",
+      "provider_urn": "bigquery-production",
+      "type": "dataset",
+      "urn": "project:dataset",
+      "details": {
+        "project_id": "my-gcp-project",
+        "dataset_id": "analytics_data"
+      }
+    }
+  }
+}
+```
+
+### List Grants
+
+You can list grants with various filters by calling **`GET /api/v1beta1/grants`**
+
+##### Parameters
+
+| Name | Located in | Description | Required | Type |
+| --- | --- | --- | --- | --- |
+| q | query | Search query to filter grants | No | string |
+| statuses | query | Filter by grant status (active, inactive) | No | string[] |
+| account_ids | query | Filter by account IDs | No | string[] |
+| account_types | query | Filter by account types | No | string[] |
+| resource_ids | query | Filter by resource IDs | No | string[] |
+| roles | query | Filter by roles | No | string[] |
+| provider_types | query | Filter by provider types | No | string[] |
+| provider_urns | query | Filter by provider URNs | No | string[] |
+| resource_types | query | Filter by resource types | No | string[] |
+| created_by | query | Filter by creator | No | string |
+| owner | query | Filter by owner | No | string |
+| order_by | query | Sort order (e.g., "created_at:desc") | No | string[] |
+| size | query | Number of results per page | No | int32 |
+| offset | query | Number of results to skip | No | int32 |
+| X-Auth-Email | header | Contains the user/service account email used for authorization | Yes | string |
+
+##### Responses
+
+| Code | Description | Type |
+| --- | --- | --- |
+| 200 | A successful response | [ListGrantsResponse](#listgrantsresponse) |
+| default | An unexpected error response | [rpcStatus](#rpcstatus) |
+
+**Example:**
+
+```bash
+$ curl --request GET '{{HOST}}/api/v1beta1/grants?statuses=active&account_ids=user@example.com&size=10' \
+--header 'X-Auth-Email: admin@example.com'
+```
+
+#### Grant
+
+| Name | Type | Description |
+| --- | --- | --- |
+| id | string | Unique identifier for the grant |
+| status | string | Current status of the grant. Possible values: **`active`**, **`inactive`** |
+| status_in_provider | string | Status of the grant in the actual provider system |
+| account_id | string | The account/user ID that has been granted access |
+| account_type | string | Type of account (user, serviceAccount, etc.) |
+| group_id | string | Group ID if access is granted via group membership |
+| group_type | string | Type of group if applicable |
+| resource_id | string | ID of the resource to which access is granted |
+| role | string | Role assigned to the account for this resource |
+| permissions | string[] | List of specific permissions granted |
+| is_permanent | boolean | Whether this grant has no expiration |
+| expiration_date | dateTime | When the grant expires (null for permanent grants) |
+| expiration_date_reason | string | Reason for the expiration date |
+| appeal_id | string | ID of the appeal that created this grant |
+| pending_appeal_id | string | ID of any pending appeal for this grant |
+| source | string | How the grant was created. Possible values: **`appeal`**, **`import`** |
+| revoked_by | string | Who revoked the grant (if revoked) |
+| revoked_at | dateTime | When the grant was revoked |
+| revoke_reason | string | Reason for revocation |
+| restored_by | string | Who restored the grant (if previously revoked) |
+| restored_at | dateTime | When the grant was restored |
+| restore_reason | string | Reason for restoration |
+| owner | string | Current owner/manager of the grant |
+| created_at | dateTime | When the grant was created |
+| updated_at | dateTime | When the grant was last updated |
+| resource | [Object(Resource)](./resource.md#resource) | Details of the resource (included when expanded) |
+| appeal | [Object(Appeal)](./appeal.md#appeal-1) | Details of the originating appeal (included when expanded) |
+
+#### ListGrantsResponse
+
+| Name | Type | Description |
+| --- | --- | --- |
+| grants | [Grant[]](#grant) | List of grants |
+| total | int32 | Total number of grants matching the filter |
