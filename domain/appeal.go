@@ -328,6 +328,9 @@ func (a *Appeal) DryRunAdvanceApproval(policy *Policy) error {
 
 	for i := range a.Approvals {
 		approval := a.Approvals[i]
+		if slices.GenericsSliceContainsOne([]string{ApprovalStatusApproved, ApprovalStatusRejected}, approval.Status) {
+			continue
+		}
 		stepConfig := policy.Steps[approval.Index]
 		if stepConfig.When != "" {
 			v, err := evaluator.Expression(stepConfig.When).EvaluateWithVars(map[string]interface{}{
