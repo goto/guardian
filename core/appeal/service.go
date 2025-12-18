@@ -1755,18 +1755,23 @@ func (s *Service) GetCustomSteps(ctx context.Context, a *domain.Appeal, p *domai
 		}
 
 		res, err := metadataCl.MakeRequest(ctx)
-		if err != nil || (res.StatusCode < 200 || res.StatusCode > 300) {
+		if err != nil {
 			if cfg.AllowFailed {
 				return nil, nil
 			}
 			return nil, fmt.Errorf("error fetching resource: %w", err)
 		}
+		defer res.Body.Close()
 
 		body, err := io.ReadAll(res.Body)
 		if err != nil {
 			return nil, fmt.Errorf("error reading response body: %w", err)
 		}
-		defer res.Body.Close()
+
+		if res.StatusCode < 200 || res.StatusCode > 300 {
+			bodyAsErr := strings.ReplaceAll(strings.TrimSpace(string(body)), "\n", "")
+			return nil, fmt.Errorf("received unexpected status code %q. body: %q", fmt.Sprint(res.StatusCode), bodyAsErr)
+		}
 
 		customStepResponse := &domain.CustomStepsResponse{}
 		s.logger.Info(ctx, "custom policy steps request and response ", "request", cfg.URL, "customStepResponse", string(body))
@@ -1821,18 +1826,24 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 				}
 
 				res, err := metadataCl.MakeRequest(egctx)
-				if err != nil || (res.StatusCode < 200 || res.StatusCode > 300) {
+				if err != nil {
 					if cfg.AllowFailed {
 						return nil
 					}
 					return fmt.Errorf("error fetching resource: %w", err)
 				}
+				defer res.Body.Close()
 
 				body, err := io.ReadAll(res.Body)
 				if err != nil {
 					return fmt.Errorf("error reading response body: %w", err)
 				}
-				defer res.Body.Close()
+
+				if res.StatusCode < 200 || res.StatusCode > 300 {
+					bodyAsErr := strings.ReplaceAll(strings.TrimSpace(string(body)), "\n", "")
+					return fmt.Errorf("received unexpected status code %q. body: %q", fmt.Sprint(res.StatusCode), bodyAsErr)
+				}
+
 				var jsonBody interface{}
 				err = json.Unmarshal(body, &jsonBody)
 				if err != nil {
