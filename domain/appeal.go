@@ -316,6 +316,41 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 	return nil
 }
 
+func (a *Appeal) DryRunAdvanceApproval(policy *Policy) error {
+	if err := a.AdvanceApproval(policy); err != nil {
+		return err
+	}
+
+	appealMap, err := a.ToMap()
+	if err != nil {
+		return fmt.Errorf("parsing appeal struct to map: %w", err)
+	}
+
+	for i := range a.Approvals {
+		approval := a.Approvals[i]
+		if !slices.GenericsSliceContainsOne([]string{ApprovalStatusBlocked, ApprovalStatusPending}, approval.Status) {
+			continue
+		}
+		stepConfig := policy.Steps[approval.Index]
+		if stepConfig.When != "" {
+			v, err := evaluator.Expression(stepConfig.When).EvaluateWithVars(map[string]interface{}{
+				"appeal": appealMap,
+			})
+			if err != nil {
+				return err
+			}
+			isFalsy := reflect.ValueOf(v).IsZero()
+			if isFalsy {
+				// mark current as skipped
+				approval.Status = ApprovalStatusSkipped
+			}
+		}
+		a.Approvals[i] = approval
+	}
+
+	return nil
+}
+
 func (a *Appeal) ToMap() (map[string]interface{}, error) {
 	return utils.StructToMap(a)
 }

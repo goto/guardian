@@ -350,8 +350,14 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			return err
 		}
 
-		if err := appeal.AdvanceApproval(policy); err != nil {
-			return fmt.Errorf("initializing approvals: %w", err)
+		if createAppealOpts.DryRun {
+			if err := appeal.DryRunAdvanceApproval(policy); err != nil {
+				return fmt.Errorf("initializing dry-run approvals: %w", err)
+			}
+		} else {
+			if err := appeal.AdvanceApproval(policy); err != nil {
+				return fmt.Errorf("initializing approvals: %w", err)
+			}
 		}
 		appeal.Policy = nil
 
