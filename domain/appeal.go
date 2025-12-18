@@ -328,7 +328,7 @@ func (a *Appeal) DryRunAdvanceApproval(policy *Policy) error {
 
 	for i := range a.Approvals {
 		approval := a.Approvals[i]
-		if slices.GenericsSliceContainsOne([]string{ApprovalStatusApproved, ApprovalStatusRejected}, approval.Status) {
+		if !slices.GenericsSliceContainsOne([]string{ApprovalStatusBlocked, ApprovalStatusPending}, approval.Status) {
 			continue
 		}
 		stepConfig := policy.Steps[approval.Index]
