@@ -291,7 +291,11 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 							}
 						} else {
 							approval.Status = ApprovalStatusRejected
-							approval.Reason = stepConfig.RejectionReason
+							evaluatedRejectionReason, err := evaluateExpressionWithAppeal(a, stepConfig.RejectionReason)
+							if err != nil {
+								return err
+							}
+							approval.Reason = evaluatedRejectionReason
 							a.Status = AppealStatusRejected
 						}
 					} else {
@@ -494,4 +498,24 @@ type DiffItem struct {
 	Path     string `json:"path"`
 	OldValue any    `json:"old_value,omitempty"`
 	NewValue any    `json:"new_value,omitempty"`
+}
+
+func evaluateExpressionWithAppeal(a *Appeal, expression string) (string, error) {
+	if expression != "" && strings.Contains(expression, "$appeal") {
+		appealMap, err := a.ToMap()
+		if err != nil {
+			return "", fmt.Errorf("error converting appeal to map: %w", err)
+		}
+		params := map[string]interface{}{"appeal": appealMap}
+		evaluated, err := evaluator.Expression(expression).EvaluateWithVars(params)
+		if err != nil {
+			return "", fmt.Errorf("error evaluating expression %w", err)
+		}
+		evaluatedStr, ok := evaluated.(string)
+		if !ok {
+			return "", fmt.Errorf("expression must evaluate to a string")
+		}
+		return evaluatedStr, nil
+	}
+	return expression, nil
 }

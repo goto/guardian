@@ -1772,8 +1772,8 @@ func (s *Service) GetCustomSteps(ctx context.Context, a *domain.Appeal, p *domai
 			if cfg.AllowFailed {
 				return nil, nil
 			}
-			bodyAsErr := strings.ReplaceAll(strings.TrimSpace(string(body)), "\n", "")
-			return nil, fmt.Errorf("received unexpected status code %q. body: %q", fmt.Sprint(res.StatusCode), bodyAsErr)
+			bodyAsErr := strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(string(body)), "\n", ""), `\\`, "")
+			return nil, fmt.Errorf("unexpected status code '%s'. body: '%s'", fmt.Sprint(res.StatusCode), bodyAsErr)
 		}
 
 		customStepResponse := &domain.CustomStepsResponse{}
@@ -1846,8 +1846,8 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 					if cfg.AllowFailed {
 						return nil
 					}
-					bodyAsErr := strings.ReplaceAll(strings.TrimSpace(string(body)), "\n", "")
-					return fmt.Errorf("received unexpected status code %q. body: %q", fmt.Sprint(res.StatusCode), bodyAsErr)
+					bodyAsErr := strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(string(body)), "\n", ""), `\\`, "")
+					return fmt.Errorf("unexpected status code '%s'. body: '%s'", fmt.Sprint(res.StatusCode), bodyAsErr)
 				}
 
 				var jsonBody interface{}
