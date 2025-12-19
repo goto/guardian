@@ -1772,7 +1772,7 @@ func (s *Service) GetCustomSteps(ctx context.Context, a *domain.Appeal, p *domai
 			if cfg.AllowFailed {
 				return nil, nil
 			}
-			bodyAsErr := strings.ReplaceAll(strings.TrimSpace(string(body)), "\n", "")
+			bodyAsErr := strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(string(body)), "\n", ""), `\\`, "")
 			return nil, fmt.Errorf("unexpected status code '%s'. body: '%s'", fmt.Sprint(res.StatusCode), bodyAsErr)
 		}
 
@@ -1846,7 +1846,7 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 					if cfg.AllowFailed {
 						return nil
 					}
-					bodyAsErr := strings.ReplaceAll(strings.TrimSpace(string(body)), "\n", "")
+					bodyAsErr := strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(string(body)), "\n", ""), `\\`, "")
 					return fmt.Errorf("unexpected status code '%s'. body: '%s'", fmt.Sprint(res.StatusCode), bodyAsErr)
 				}
 
