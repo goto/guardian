@@ -14,6 +14,7 @@ import (
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres/model"
+	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
 
@@ -395,13 +396,21 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	if filter.Permissions != nil {
 		db = db.Where(`"grants"."permissions" @> ?`, pq.StringArray(filter.Permissions))
 	}
-	owner := strings.ToLower(filter.Owner)
+
+	createdBys := filter.CreatedBys
 	if filter.CreatedBy != "" {
-		owner = strings.ToLower(filter.CreatedBy)
+		createdBys = append(createdBys, filter.CreatedBy)
 	}
-	if owner != "" {
-		db = db.Where(`LOWER("grants"."owner") = ?`, owner)
+	if filter.Owner != "" {
+		createdBys = append(createdBys, filter.Owner)
 	}
+	createdBys = slicesUtil.GenericsStandardizeSliceNilAble(createdBys)
+	if len(createdBys) == 1 {
+		db = db.Where(`LOWER("grants"."owner") = ?`, createdBys[0])
+	} else if len(createdBys) > 1 {
+		db = db.Where(`LOWER("grants"."owner") IN ?`, createdBys)
+	}
+
 	if filter.IsPermanent != nil {
 		db = db.Where(`"grants"."is_permanent" = ?`, *filter.IsPermanent)
 	}
