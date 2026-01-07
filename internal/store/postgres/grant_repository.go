@@ -397,12 +397,12 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		db = db.Where(`"grants"."permissions" @> ?`, pq.StringArray(filter.Permissions))
 	}
 
-	createdBys := filter.CreatedBys
-	if filter.CreatedBy != "" {
-		createdBys = append(createdBys, filter.CreatedBy)
-	}
+	createdBys := filter.Owners
 	if filter.Owner != "" {
 		createdBys = append(createdBys, filter.Owner)
+	}
+	if filter.CreatedBy != "" {
+		createdBys = append(createdBys, filter.CreatedBy)
 	}
 	createdBys = slicesUtil.GenericsStandardizeSliceNilAble(createdBys)
 	if len(createdBys) == 1 {

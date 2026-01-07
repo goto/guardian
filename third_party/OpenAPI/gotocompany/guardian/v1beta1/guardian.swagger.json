@@ -1352,7 +1352,7 @@
             "collectionFormat": "multi"
           },
           {
-            "name": "createdBys",
+            "name": "owners",
             "in": "query",
             "required": false,
             "type": "array",

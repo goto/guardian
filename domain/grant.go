@@ -239,7 +239,7 @@ type ListGrantsFilter struct {
 	RoleStartsWith            string
 	RoleEndsWith              string
 	RoleContains              string
-	CreatedBys                []string
+	Owners                    []string
 
 	UserInactiveGrantPolicy guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy
 }
