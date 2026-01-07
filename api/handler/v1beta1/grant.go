@@ -46,6 +46,7 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		RoleContains:          req.GetRoleContains(),
 		StartTime:             s.adapter.FromTimeProto(req.GetStartTime()),
 		EndTime:               s.adapter.FromTimeProto(req.GetEndTime()),
+		Owners:                req.GetOwners(),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
