@@ -96,13 +96,6 @@ func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error)
 				return fmt.Errorf("%w. input: %q", domain.ErrInvalidUniqueInput, field)
 			}
 
-			jsonPath := vs[2:]
-			for _, p := range jsonPath {
-				if strings.TrimSpace(p) == "" {
-					return fmt.Errorf("%w. input: %q", domain.ErrInvalidUniqueInput, field)
-				}
-			}
-
 			tableName := strings.TrimSpace(vs[0])
 			if tableName == "" {
 				return fmt.Errorf("%w. input: %q", domain.ErrEmptyUniqueTableName, field)
@@ -119,6 +112,12 @@ func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error)
 
 			cm := fmt.Sprintf("%q.%q", tableName, columnName)
 			if len(vs) > 2 {
+				jsonPath := vs[2:]
+				for _, p := range jsonPath {
+					if strings.TrimSpace(p) == "" {
+						return fmt.Errorf("%w. input: %q", domain.ErrInvalidUniqueInput, field)
+					}
+				}
 				cm = buildJSONTextExpr(tableName, columnName, vs[2:])
 			}
 			db, err := dbGen()
