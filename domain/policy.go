@@ -511,6 +511,10 @@ func (p *Policy) HasCustomSteps() bool {
 	return p.CustomSteps != nil
 }
 
+func (p *Policy) HasLabelingConfig() bool {
+	return p.AppealConfig != nil && (len(p.AppealConfig.LabelingRules) > 0 || p.AppealConfig.ManualLabelConfig != nil)
+}
+
 func (p *Policy) HasLabelingRules() bool {
 	return p.AppealConfig != nil && len(p.AppealConfig.LabelingRules) > 0
 }
