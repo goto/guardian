@@ -118,7 +118,7 @@ func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error)
 						return fmt.Errorf("%w. input: %q", domain.ErrInvalidUniqueInput, field)
 					}
 				}
-				cm = buildJSONTextExpr(tableName, columnName, vs[2:])
+				cm = buildJSONTextExpr(tableName, columnName, jsonPath)
 			}
 			db, err := dbGen()
 			if err != nil {
