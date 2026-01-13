@@ -27,7 +27,7 @@ var (
 	grantEntityGroupKeyMapping = map[string]string{
 		"grant":    "grants",
 		"resource": "Resource",
-		"appeal":   "Appeal",
+		"appeal":   "_Appeal",
 	}
 )
 
@@ -339,7 +339,7 @@ func upsertResources(tx *gorm.DB, models []*model.Grant) error {
 
 func applyGrantsJoins(db *gorm.DB) *gorm.DB {
 	return db.Joins(`LEFT JOIN "resources" AS "Resource" ON "grants"."resource_id" = "Resource"."id"`).
-		Joins(`LEFT JOIN "appeals" AS "Appeal" ON "grants"."appeal_id" = "Appeal"."id"`)
+		Joins(`LEFT JOIN "appeals" AS "_Appeal" ON "grants"."appeal_id" = "_Appeal"."id"`)
 }
 
 func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, error) {
@@ -509,10 +509,10 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	}
 
 	if len(filter.AppealDurations) > 0 {
-		db = db.Where(`"Appeal"."options" #>> '{duration}' IN ?`, filter.AppealDurations)
+		db = db.Where(`"_Appeal"."options" #>> '{duration}' IN ?`, filter.AppealDurations)
 	}
 	if len(filter.NotAppealDurations) > 0 {
-		db = db.Where(`"Appeal"."options" #>> '{duration}' NOT IN ?`, filter.NotAppealDurations)
+		db = db.Where(`"_Appeal"."options" #>> '{duration}' NOT IN ?`, filter.NotAppealDurations)
 	}
 
 	for _, appealDetailsPath := range filter.AppealDetailsPaths {
@@ -522,10 +522,10 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		}
 		appealDetailsPath = strings.ReplaceAll(appealDetailsPath, ".", ",")
 		if len(filter.AppealDetails) > 0 {
-			db = db.Where(fmt.Sprintf(`"Appeal"."details" #>> '{%s}' IN ?`, appealDetailsPath), filter.AppealDurations)
+			db = db.Where(fmt.Sprintf(`"_Appeal"."details" #>> '{%s}' IN ?`, appealDetailsPath), filter.AppealDurations)
 		}
 		if len(filter.NotAppealDetails) > 0 {
-			db = db.Where(fmt.Sprintf(`"Appeal"."details" #>> '{%s}' NOT IN ?`, appealDetailsPath), filter.AppealDurations)
+			db = db.Where(fmt.Sprintf(`"_Appeal"."details" #>> '{%s}' NOT IN ?`, appealDetailsPath), filter.AppealDurations)
 		}
 	}
 
