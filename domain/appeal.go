@@ -478,6 +478,17 @@ type ListAppealsFilter struct {
 	StartTime                 time.Time `mapstructure:"start_time" validate:"omitempty"`
 	EndTime                   time.Time `mapstructure:"end_time" validate:"omitempty"`
 	WithApprovals             bool      `mapstructure:"with_approvals" validate:"omitempty"`
+	ProviderUrnStartsWith     string    `mapstructure:"provider_urn_starts_with" json:"provider_urn_starts_with,omitempty" validate:"omitempty"`
+	ProviderUrnEndsWith       string    `mapstructure:"provider_urn_ends_with" json:"provider_urn_ends_with,omitempty" validate:"omitempty"`
+	ProviderUrnContains       string    `mapstructure:"provider_urn_contains" json:"provider_urn_contains,omitempty" validate:"omitempty"`
+	ProviderUrnNotStartsWith  string    `mapstructure:"provider_urn_not_starts_with" json:"provider_urn_not_starts_with,omitempty" validate:"omitempty"`
+	ProviderUrnNotEndsWith    string    `mapstructure:"provider_urn_not_ends_with" json:"provider_urn_not_ends_with,omitempty" validate:"omitempty"`
+	ProviderUrnNotContains    string    `mapstructure:"provider_urn_not_contains" json:"provider_urn_not_contains,omitempty" validate:"omitempty"`
+	Durations                 []string  `mapstructure:"durations" json:"durations,omitempty" validate:"omitempty"`
+	NotDurations              []string  `mapstructure:"not_durations" json:"not_durations,omitempty" validate:"omitempty"`
+	DetailsPaths              []string  `mapstructure:"details_paths" json:"details_paths,omitempty" validate:"omitempty"`
+	Details                   []string  `mapstructure:"details" json:"details,omitempty" validate:"omitempty"`
+	NotDetails                []string  `mapstructure:"not_details" json:"not_details,omitempty" validate:"omitempty"`
 }
 
 func (af ListAppealsFilter) WithSummary() bool {

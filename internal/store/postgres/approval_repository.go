@@ -325,8 +325,9 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	if len(filter.Roles) > 0 {
 		rolePatterns = append(rolePatterns, filter.Roles...)
 	}
+	rolePatterns = slicesUtil.GenericsStandardizeSlice(rolePatterns)
 	if len(rolePatterns) > 0 {
-		db = db.Where(`"Appeal"."role" LIKE ANY (?)`, pq.Array(slicesUtil.GenericsStandardizeSlice(rolePatterns)))
+		db = db.Where(`"Appeal"."role" LIKE ANY (?)`, pq.Array(rolePatterns))
 	}
 
 	if (filter.ProviderUrnStartsWith != "" || filter.ProviderUrnEndsWith != "") && filter.ProviderUrnContains != "" {
@@ -345,8 +346,9 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	if len(filter.ProviderURNs) > 0 {
 		providerUrnPatterns = append(providerUrnPatterns, filter.ProviderURNs...)
 	}
+	providerUrnPatterns = slicesUtil.GenericsStandardizeSlice(providerUrnPatterns)
 	if len(providerUrnPatterns) > 0 {
-		db = db.Where(`"Appeal__Resource"."provider_urn" LIKE ANY (?)`, pq.Array(slicesUtil.GenericsStandardizeSlice(providerUrnPatterns)))
+		db = db.Where(`"Appeal__Resource"."provider_urn" LIKE ANY (?)`, pq.Array(providerUrnPatterns))
 	}
 
 	if (filter.ProviderUrnNotStartsWith != "" || filter.ProviderUrnNotEndsWith != "") && filter.ProviderUrnNotContains != "" {
@@ -362,19 +364,32 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	if filter.ProviderUrnNotContains != "" {
 		providerUrnNotPatterns = append(providerUrnNotPatterns, "%"+filter.ProviderUrnNotContains+"%")
 	}
+	providerUrnNotPatterns = slicesUtil.GenericsStandardizeSlice(providerUrnNotPatterns)
 	if len(providerUrnNotPatterns) > 0 {
-		db = db.Where(`"Appeal__Resource"."provider_urn" NOT LIKE ANY (?)`, pq.Array(slicesUtil.GenericsStandardizeSlice(providerUrnNotPatterns)))
+		db = db.Where(`"Appeal__Resource"."provider_urn" NOT LIKE ANY (?)`, pq.Array(providerUrnNotPatterns))
 	}
 
 	if len(filter.AppealDurations) > 0 {
-		db = db.Where(`"Appeal"."options"->>'duration' IN ?`, filter.AppealDurations)
+		db = db.Where(`"Appeal"."options" #>> '{duration}' IN ?`, filter.AppealDurations)
 	}
 	if len(filter.NotAppealDurations) > 0 {
-		db = db.Where(`"Appeal"."options"->>'duration' NOT IN ?`, filter.NotAppealDurations)
+		db = db.Where(`"Appeal"."options" #>> '{duration}' NOT IN ?`, filter.NotAppealDurations)
 	}
-	if len(filter.AppealCreatedBys) > 0 {
-		db = db.Where(`"Appeal"."created_by" IN ?`, filter.AppealCreatedBys)
+
+	for _, appealDetailsPath := range filter.AppealDetailsPaths {
+		appealDetailsPath = strings.TrimSpace(appealDetailsPath)
+		if len(appealDetailsPath) == 0 {
+			continue
+		}
+		appealDetailsPath = strings.ReplaceAll(appealDetailsPath, ".", ",")
+		if len(filter.AppealDetails) > 0 {
+			db = db.Where(fmt.Sprintf(`"Appeal"."details" #>> '{%s}' IN ?`, appealDetailsPath), filter.AppealDurations)
+		}
+		if len(filter.NotAppealDetails) > 0 {
+			db = db.Where(fmt.Sprintf(`"Appeal"."details" #>> '{%s}' NOT IN ?`, appealDetailsPath), filter.AppealDurations)
+		}
 	}
+
 	if len(filter.StepNames) > 0 {
 		db = db.Where(`"approvals"."name" IN ?`, filter.StepNames)
 	}

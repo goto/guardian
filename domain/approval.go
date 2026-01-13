@@ -102,7 +102,9 @@ type ListApprovalsFilter struct {
 	ProviderUrnNotContains   string    `mapstructure:"provider_urn_not_contains" json:"provider_urn_not_contains,omitempty" validate:"omitempty"`
 	AppealDurations          []string  `mapstructure:"appeal_durations" json:"appeal_durations,omitempty" validate:"omitempty"`
 	NotAppealDurations       []string  `mapstructure:"not_appeal_durations" json:"not_appeal_durations,omitempty" validate:"omitempty"`
-	AppealCreatedBys         []string  `mapstructure:"appeal_created_bys" json:"appeal_created_bys,omitempty" validate:"omitempty"`
+	AppealDetailsPaths       []string  `mapstructure:"appeal_details_paths" json:"appeal_details_paths,omitempty" validate:"omitempty"`
+	AppealDetails            []string  `mapstructure:"appeal_details" json:"appeal_details,omitempty" validate:"omitempty"`
+	NotAppealDetails         []string  `mapstructure:"not_appeal_details" json:"not_appeal_details,omitempty" validate:"omitempty"`
 }
 
 func (af ListApprovalsFilter) WithSummary() bool {
