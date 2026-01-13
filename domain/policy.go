@@ -401,6 +401,85 @@ type PolicyAppealConfig struct {
 	AllowCreatorDetailsFailure bool                             `json:"allow_creator_details_failure" yaml:"allow_creator_details_failure"`
 	MetadataSources            map[string]*AppealMetadataSource `json:"metadata_sources,omitempty" yaml:"metadata_sources,omitempty"`
 	TermsAndConditions         string                           `json:"terms_and_conditions,omitempty" yaml:"terms_and_conditions,omitempty"`
+
+	// LabelingRules defines automatic label application rules
+	LabelingRules []LabelingRule `json:"labeling_rules,omitempty" yaml:"labeling_rules,omitempty" validate:"omitempty,dive"`
+
+	// ManualLabelConfig defines validation rules for user-provided labels
+	ManualLabelConfig *ManualLabelConfig `json:"manual_label_config,omitempty" yaml:"manual_label_config,omitempty" validate:"omitempty"`
+}
+
+// LabelingRule defines a rule for automatically applying labels to appeals
+type LabelingRule struct {
+	// RuleName is the unique identifier for this rule
+	RuleName string `json:"rule_name" yaml:"rule_name" validate:"required"`
+
+	// Description explains what this rule detects/classifies
+	Description string `json:"description" yaml:"description"`
+
+	// When is an expression that evaluates to boolean
+	// If true, the labels are applied to the appeal
+	// Expression has access to $appeal context
+	When string `json:"when" yaml:"when" validate:"required"`
+
+	// Labels is a map of label keys to values
+	// Values can be:
+	//   1. Static strings: "environment": "production"
+	//   2. Expressions (detected by multiline or 'let'/'?' keywords): Evaluated dynamically
+	// Keys support namespacing: "category:key" or "key" for global
+	// Examples: "resource:pii", "account:type", "environment", "risk_level"
+	Labels map[string]string `json:"labels" yaml:"labels" validate:"required,min=1"`
+
+	// LabelMetadata defines optional rich metadata for specific labels
+	// Key must match a key in Labels map
+	LabelMetadata map[string]*LabelMetadataConfig `json:"label_metadata,omitempty" yaml:"label_metadata,omitempty"`
+
+	// Priority determines rule evaluation order (higher = evaluated first)
+	// Useful when multiple rules might set the same label key
+	Priority int `json:"priority,omitempty" yaml:"priority,omitempty"`
+
+	// AllowFailure when true, continues processing even if rule evaluation fails
+	// Default: false (failure stops appeal creation)
+	AllowFailure bool `json:"allow_failure,omitempty" yaml:"allow_failure,omitempty"`
+}
+
+// LabelMetadataConfig defines metadata to attach to a label
+type LabelMetadataConfig struct {
+	// Category groups labels (resource, account, requestor, etc.)
+	// If not set, extracted from namespaced key (e.g., "resource:pii" → "resource")
+	Category string `json:"category,omitempty" yaml:"category,omitempty"`
+
+	// Attributes contains arbitrary key-value metadata
+	Attributes map[string]interface{} `json:"attributes,omitempty" yaml:"attributes,omitempty"`
+}
+
+// ManualLabelConfig defines validation rules for user-provided labels
+type ManualLabelConfig struct {
+	// AllowUserLabels enables/disables manual label support
+	AllowUserLabels bool `json:"allow_user_labels" yaml:"allow_user_labels"`
+
+	// AllowedKeys is a whitelist of allowed label keys
+	// Supports glob patterns: "project:*", "team", "cost_center"
+	// If empty, all keys are allowed (not recommended)
+	AllowedKeys []string `json:"allowed_keys,omitempty" yaml:"allowed_keys,omitempty"`
+
+	// RequiredKeys lists label keys that must be provided by user
+	RequiredKeys []string `json:"required_keys,omitempty" yaml:"required_keys,omitempty"`
+
+	// MaxLabels limits the number of manual labels (default: 10)
+	MaxLabels int `json:"max_labels,omitempty" yaml:"max_labels,omitempty"`
+
+	// KeyPattern is a regex pattern for validating label keys
+	// Example: "^[a-z0-9_:]+$" (lowercase, numbers, underscore, colon)
+	KeyPattern string `json:"key_pattern,omitempty" yaml:"key_pattern,omitempty"`
+
+	// ValuePattern is a regex pattern for validating label values
+	// Example: "^[a-zA-Z0-9_\\- ]+$" (alphanumeric, underscore, hyphen, space)
+	ValuePattern string `json:"value_pattern,omitempty" yaml:"value_pattern,omitempty"`
+
+	// AllowOverride permits users to override policy-generated labels
+	// Default: false (policy rules always take precedence)
+	AllowOverride bool `json:"allow_override,omitempty" yaml:"allow_override,omitempty"`
 }
 
 type Question struct {
@@ -430,4 +509,12 @@ func (p *Policy) HasAppealMetadataSources() bool {
 
 func (p *Policy) HasCustomSteps() bool {
 	return p.CustomSteps != nil
+}
+
+func (p *Policy) HasLabelingRules() bool {
+	return p.AppealConfig != nil && len(p.AppealConfig.LabelingRules) > 0
+}
+
+func (p *Policy) AllowsManualLabels() bool {
+	return p.AppealConfig != nil && p.AppealConfig.ManualLabelConfig != nil && p.AppealConfig.ManualLabelConfig.AllowUserLabels
 }
