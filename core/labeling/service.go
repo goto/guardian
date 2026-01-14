@@ -53,10 +53,13 @@ func (s *service) ApplyLabels(ctx context.Context, appeal *domain.Appeal, resour
 		evalResource = appeal.Resource
 	}
 
+	appealMap, err := appeal.ToMap()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert appeal to map: %w", err)
+	}
+
 	evalContext := map[string]interface{}{
-		"appeal":   appeal,
-		"resource": evalResource,
-		"policy":   policy,
+		"appeal": appealMap,
 	}
 
 	for _, rule := range rules {
