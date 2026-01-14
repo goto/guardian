@@ -16,6 +16,7 @@ import (
 	"github.com/goto/guardian/core/comment"
 	"github.com/goto/guardian/core/event"
 	"github.com/goto/guardian/core/grant"
+	"github.com/goto/guardian/core/labeling"
 	"github.com/goto/guardian/core/policy"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/core/report"
@@ -190,6 +191,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		AuditLogger: auditLogger,
 	})
 	eventService := event.NewService(auditLogRepository, deps.Logger)
+	labelingService := labeling.NewService()
 	appealService := appeal.NewService(appeal.ServiceDeps{
 		Repository:      appealRepository,
 		ResourceService: resourceService,
@@ -199,6 +201,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		GrantService:    grantService,
 		CommentService:  commentService,
 		EventService:    eventService,
+		LabelingService: labelingService,
 		IAMManager:      iamManager,
 		Notifier:        deps.Notifier,
 		Validator:       deps.Validator,
