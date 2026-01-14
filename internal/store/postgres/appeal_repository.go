@@ -419,15 +419,15 @@ func applyLabelKeyFilters(db *gorm.DB, keys []string) *gorm.DB {
 
 	// Build OR condition for checking if any of the keys exist
 	// labels ? 'key' checks if the key exists in the JSONB object
-	conditions := make([]string, len(keys))
-	params := make([]interface{}, len(keys))
+	var orConditions []string
+	var params []interface{}
 
-	for i, key := range keys {
-		conditions[i] = `"appeals"."labels" ? ?`
-		params[i] = key
+	for _, key := range keys {
+		orConditions = append(orConditions, `"appeals"."labels" ? ?`)
+		params = append(params, key)
 	}
 
-	query := strings.Join(conditions, " OR ")
+	query := strings.Join(orConditions, " OR ")
 	db = db.Where(query, params...)
 
 	return db
