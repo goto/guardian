@@ -58,7 +58,7 @@ func (s *service) ApplyLabels(ctx context.Context, appeal *domain.Appeal, resour
 		return nil, fmt.Errorf("failed to convert appeal to map: %w", err)
 	}
 
-	evalContext := map[string]interface{}{
+	evalContext := map[string]any{
 		"appeal": appealMap,
 	}
 
@@ -258,7 +258,7 @@ func (s *service) evaluateLabelValue(value string, context map[string]interface{
 	result, err := expr.EvaluateWithVars(context)
 	if err != nil {
 		// If evaluation fails, return error
-		return "", err
+		return "", fmt.Errorf("failed to evaluate expression: %w", err)
 	}
 
 	// Convert result to string
