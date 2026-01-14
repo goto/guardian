@@ -92,7 +92,7 @@ func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error)
 		eg.Go(func() error {
 			sq := &domain.SummaryUnique{Field: field}
 			vs := strings.Split(field, ".")
-			if len(vs) != 2 {
+			if len(vs) < 2 {
 				return fmt.Errorf("%w. input: %q", domain.ErrInvalidUniqueInput, field)
 			}
 
@@ -109,9 +109,17 @@ func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error)
 			if columnName == "" {
 				return fmt.Errorf("%w. input: %q", domain.ErrEmptyUniqueColumnName, field)
 			}
-			// TODO add column validation. e,g. grants.unknown_column is not valid column.
 
 			cm := fmt.Sprintf("%q.%q", tableName, columnName)
+			if len(vs) > 2 {
+				jsonPath := vs[2:]
+				for _, p := range jsonPath {
+					if strings.TrimSpace(p) == "" {
+						return fmt.Errorf("%w. input: %q", domain.ErrInvalidUniqueInput, field)
+					}
+				}
+				cm = buildJSONTextExpr(tableName, columnName, jsonPath)
+			}
 			db, err := dbGen()
 			if err != nil {
 				return err
@@ -277,4 +285,17 @@ func generateSummaryResultCount(result *domain.SummaryResult) *domain.SummaryRes
 		GroupsCount:    groupsCount,
 		UniquesCount:   uniquesCount,
 	}
+}
+
+func buildJSONTextExpr(table, column string, path []string) string {
+	quotedPath := make([]string, 0, len(path))
+	for _, p := range path {
+		quotedPath = append(quotedPath, p)
+	}
+	return fmt.Sprintf(
+		"%q.%q #>> '{%s}'",
+		table,
+		column,
+		strings.Join(quotedPath, ","),
+	)
 }

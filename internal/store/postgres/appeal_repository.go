@@ -346,25 +346,86 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 	if filters.ProviderTypes != nil {
 		db = db.Where(`"Resource"."provider_type" IN ?`, filters.ProviderTypes)
 	}
-	if filters.ProviderURNs != nil {
-		db = db.Where(`"Resource"."provider_urn" IN ?`, filters.ProviderURNs)
-	}
 	if filters.ResourceURNs != nil {
 		db = db.Where(`"Resource"."urn" IN ?`, filters.ResourceURNs)
 	}
 
-	var patterns []string
+	var rolePatterns []string
 	if filters.RoleStartsWith != "" {
-		patterns = append(patterns, filters.RoleStartsWith+"%")
+		rolePatterns = append(rolePatterns, filters.RoleStartsWith+"%")
 	}
 	if filters.RoleEndsWith != "" {
-		patterns = append(patterns, "%"+filters.RoleEndsWith)
+		rolePatterns = append(rolePatterns, "%"+filters.RoleEndsWith)
 	}
 	if filters.RoleContains != "" {
-		patterns = append(patterns, "%"+filters.RoleContains+"%")
+		rolePatterns = append(rolePatterns, "%"+filters.RoleContains+"%")
 	}
-	if len(patterns) > 0 {
-		db = db.Where(`LOWER("appeals"."role") LIKE ANY (?)`, pq.Array(patterns))
+	if len(filters.Roles) > 0 {
+		rolePatterns = append(rolePatterns, filters.Roles...)
+	}
+	rolePatterns = slicesUtil.GenericsStandardizeSlice(rolePatterns)
+	if len(rolePatterns) > 0 {
+		db = db.Where(`LOWER("appeals"."role") LIKE ANY (?)`, pq.Array(rolePatterns))
+	}
+
+	if (filters.ProviderUrnStartsWith != "" || filters.ProviderUrnEndsWith != "") && filters.ProviderUrnContains != "" {
+		return nil, fmt.Errorf("invalid filter: provider_urn_contains cannot be used together with provider_urn_starts_with or provider_urn_ends_with")
+	}
+	var providerUrnPatterns []string
+	if filters.ProviderUrnStartsWith != "" {
+		providerUrnPatterns = append(providerUrnPatterns, filters.ProviderUrnStartsWith+"%")
+	}
+	if filters.ProviderUrnEndsWith != "" {
+		providerUrnPatterns = append(providerUrnPatterns, "%"+filters.ProviderUrnEndsWith)
+	}
+	if filters.ProviderUrnContains != "" {
+		providerUrnPatterns = append(providerUrnPatterns, "%"+filters.ProviderUrnContains+"%")
+	}
+	if len(filters.ProviderURNs) > 0 {
+		providerUrnPatterns = append(providerUrnPatterns, filters.ProviderURNs...)
+	}
+	providerUrnPatterns = slicesUtil.GenericsStandardizeSlice(providerUrnPatterns)
+	if len(providerUrnPatterns) > 0 {
+		db = db.Where(`"Resource"."provider_urn" LIKE ANY (?)`, pq.Array(providerUrnPatterns))
+	}
+
+	if (filters.ProviderUrnNotStartsWith != "" || filters.ProviderUrnNotEndsWith != "") && filters.ProviderUrnNotContains != "" {
+		return nil, fmt.Errorf("invalid filter: provider_urn_not_contains cannot be used together with provider_urn_not_starts_with or provider_urn_not_ends_with")
+	}
+	var providerUrnNotPatterns []string
+	if filters.ProviderUrnNotStartsWith != "" {
+		providerUrnNotPatterns = append(providerUrnNotPatterns, filters.ProviderUrnNotStartsWith+"%")
+	}
+	if filters.ProviderUrnNotEndsWith != "" {
+		providerUrnNotPatterns = append(providerUrnNotPatterns, "%"+filters.ProviderUrnNotEndsWith)
+	}
+	if filters.ProviderUrnNotContains != "" {
+		providerUrnNotPatterns = append(providerUrnNotPatterns, "%"+filters.ProviderUrnNotContains+"%")
+	}
+	providerUrnNotPatterns = slicesUtil.GenericsStandardizeSlice(providerUrnNotPatterns)
+	if len(providerUrnNotPatterns) > 0 {
+		db = db.Where(`"Resource"."provider_urn" NOT LIKE ANY (?)`, pq.Array(providerUrnNotPatterns))
+	}
+
+	if len(filters.Durations) > 0 {
+		db = db.Where(`"appeals"."options" #>> '{duration}' IN ?`, filters.Durations)
+	}
+	if len(filters.NotDurations) > 0 {
+		db = db.Where(`"appeals"."options" #>> '{duration}' NOT IN ?`, filters.NotDurations)
+	}
+
+	for _, detailsPath := range filters.DetailsPaths {
+		detailsPath = strings.TrimSpace(detailsPath)
+		if len(detailsPath) == 0 {
+			continue
+		}
+		detailsPath = strings.ReplaceAll(detailsPath, ".", ",")
+		if len(filters.Details) > 0 {
+			db = db.Where(fmt.Sprintf(`"appeals"."details" #>> '{%s}' IN ?`, detailsPath), filters.Durations)
+		}
+		if len(filters.NotDetails) > 0 {
+			db = db.Where(fmt.Sprintf(`"appeals"."details" #>> '{%s}' NOT IN ?`, detailsPath), filters.Durations)
+		}
 	}
 
 	if !filters.StartTime.IsZero() && !filters.EndTime.IsZero() {
