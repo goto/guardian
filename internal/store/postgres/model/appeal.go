@@ -15,23 +15,24 @@ import (
 
 // Appeal database model
 type Appeal struct {
-	ID            uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	ResourceID    string
-	PolicyID      string
-	PolicyVersion uint
-	Status        string
-	AccountID     string
-	AccountType   string
-	GroupID       sql.NullString
-	GroupType     sql.NullString
-	CreatedBy     string
-	Creator       datatypes.JSON
-	Role          string
-	Permissions   pq.StringArray `gorm:"type:text[]"`
-	Options       datatypes.JSON
-	Labels        datatypes.JSON
-	Details       datatypes.JSON
-	Description   string
+	ID             uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ResourceID     string
+	PolicyID       string
+	PolicyVersion  uint
+	Status         string
+	AccountID      string
+	AccountType    string
+	GroupID        sql.NullString
+	GroupType      sql.NullString
+	CreatedBy      string
+	Creator        datatypes.JSON
+	Role           string
+	Permissions    pq.StringArray `gorm:"type:text[]"`
+	Options        datatypes.JSON
+	Labels         datatypes.JSON
+	LabelsMetadata datatypes.JSON
+	Details        datatypes.JSON
+	Description    string
 
 	Resource  *Resource `gorm:"ForeignKey:ResourceID;References:ID"`
 	Policy    Policy    `gorm:"ForeignKey:PolicyID,PolicyVersion;References:ID,Version"`
@@ -48,6 +49,11 @@ type Appeal struct {
 // FromDomain transforms *domain.Appeal values into the model
 func (m *Appeal) FromDomain(a *domain.Appeal) error {
 	labels, err := json.Marshal(a.Labels)
+	if err != nil {
+		return err
+	}
+
+	labelsMetadata, err := json.Marshal(a.LabelsMetadata)
 	if err != nil {
 		return err
 	}
@@ -123,6 +129,7 @@ func (m *Appeal) FromDomain(a *domain.Appeal) error {
 	m.Permissions = pq.StringArray(a.Permissions)
 	m.Options = datatypes.JSON(options)
 	m.Labels = datatypes.JSON(labels)
+	m.LabelsMetadata = datatypes.JSON(labelsMetadata)
 	m.Details = datatypes.JSON(details)
 	m.Description = a.Description
 	m.Approvals = approvals
@@ -138,6 +145,13 @@ func (m *Appeal) ToDomain() (*domain.Appeal, error) {
 	var labels map[string]string
 	if err := json.Unmarshal(m.Labels, &labels); err != nil {
 		return nil, err
+	}
+
+	var labelsMetadata map[string]*domain.LabelMetadata
+	if m.LabelsMetadata != nil {
+		if err := json.Unmarshal(m.LabelsMetadata, &labelsMetadata); err != nil {
+			return nil, err
+		}
 	}
 
 	var options *domain.AppealOptions
@@ -201,28 +215,29 @@ func (m *Appeal) ToDomain() (*domain.Appeal, error) {
 	}
 
 	return &domain.Appeal{
-		ID:            m.ID.String(),
-		ResourceID:    m.ResourceID,
-		PolicyID:      m.PolicyID,
-		PolicyVersion: m.PolicyVersion,
-		Status:        m.Status,
-		AccountID:     m.AccountID,
-		AccountType:   m.AccountType,
-		GroupID:       groupID,
-		GroupType:     groupType,
-		CreatedBy:     m.CreatedBy,
-		Creator:       creator,
-		Role:          m.Role,
-		Permissions:   []string(m.Permissions),
-		Options:       options,
-		Details:       details,
-		Description:   m.Description,
-		Labels:        labels,
-		Approvals:     approvals,
-		Resource:      resource,
-		Revision:      m.Revision,
-		Grant:         grant,
-		CreatedAt:     m.CreatedAt,
-		UpdatedAt:     m.UpdatedAt,
+		ID:             m.ID.String(),
+		ResourceID:     m.ResourceID,
+		PolicyID:       m.PolicyID,
+		PolicyVersion:  m.PolicyVersion,
+		Status:         m.Status,
+		AccountID:      m.AccountID,
+		AccountType:    m.AccountType,
+		GroupID:        groupID,
+		GroupType:      groupType,
+		CreatedBy:      m.CreatedBy,
+		Creator:        creator,
+		Role:           m.Role,
+		Permissions:    []string(m.Permissions),
+		Options:        options,
+		Details:        details,
+		Description:    m.Description,
+		Labels:         labels,
+		LabelsMetadata: labelsMetadata,
+		Approvals:      approvals,
+		Resource:       resource,
+		Revision:       m.Revision,
+		Grant:          grant,
+		CreatedAt:      m.CreatedAt,
+		UpdatedAt:      m.UpdatedAt,
 	}, nil
 }
