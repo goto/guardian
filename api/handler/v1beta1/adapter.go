@@ -390,6 +390,45 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 			}
 		}
 
+		var labelingRules []domain.LabelingRule
+		if lrs := p.GetAppeal().GetLabelingRules(); lrs != nil {
+			for _, lr := range lrs {
+				rule := domain.LabelingRule{
+					RuleName:     lr.GetRuleName(),
+					Description:  lr.GetDescription(),
+					When:         lr.GetWhen(),
+					Labels:       lr.GetLabels(),
+					Priority:     int(lr.GetPriority()),
+					AllowFailure: lr.GetAllowFailure(),
+				}
+
+				if lm := lr.GetLabelMetadata(); lm != nil {
+					rule.LabelMetadata = make(map[string]*domain.LabelMetadataConfig)
+					for key, metadata := range lm {
+						rule.LabelMetadata[key] = &domain.LabelMetadataConfig{
+							Category:   metadata.GetCategory(),
+							Attributes: metadata.GetAttributes().AsMap(),
+						}
+					}
+				}
+
+				labelingRules = append(labelingRules, rule)
+			}
+		}
+
+		var manualLabelConfig *domain.ManualLabelConfig
+		if mlc := p.GetAppeal().GetManualLabelConfig(); mlc != nil {
+			manualLabelConfig = &domain.ManualLabelConfig{
+				AllowUserLabels: mlc.GetAllowUserLabels(),
+				AllowedKeys:     mlc.GetAllowedKeys(),
+				RequiredKeys:    mlc.GetRequiredKeys(),
+				MaxLabels:       int(mlc.GetMaxLabels()),
+				KeyPattern:      mlc.GetKeyPattern(),
+				ValuePattern:    mlc.GetValuePattern(),
+				AllowOverride:   mlc.GetAllowOverride(),
+			}
+		}
+
 		policy.AppealConfig = &domain.PolicyAppealConfig{
 			DurationOptions:              durationOptions,
 			AllowOnBehalf:                p.GetAppeal().GetAllowOnBehalf(),
@@ -399,6 +438,8 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 			AllowCreatorDetailsFailure:   p.GetAppeal().GetAllowCreatorDetailsFailure(),
 			MetadataSources:              metadataSources,
 			TermsAndConditions:           p.GetAppeal().GetTermsAndConditions(),
+			LabelingRules:                labelingRules,
+			ManualLabelConfig:            manualLabelConfig,
 		}
 	}
 
@@ -602,6 +643,47 @@ func (a *adapter) ToPolicyAppealConfigProto(p *domain.Policy) (*guardianv1beta1.
 		}
 	}
 	policyAppealConfigProto.TermsAndConditions = p.AppealConfig.TermsAndConditions
+
+	if p.AppealConfig.LabelingRules != nil {
+		for _, rule := range p.AppealConfig.LabelingRules {
+			ruleProto := &guardianv1beta1.LabelingRule{
+				RuleName:     rule.RuleName,
+				Description:  rule.Description,
+				When:         rule.When,
+				Labels:       rule.Labels,
+				Priority:     int32(rule.Priority),
+				AllowFailure: rule.AllowFailure,
+			}
+
+			if rule.LabelMetadata != nil {
+				ruleProto.LabelMetadata = make(map[string]*guardianv1beta1.LabelMetadataConfig)
+				for key, metadata := range rule.LabelMetadata {
+					attrs, err := structpb.NewStruct(metadata.Attributes)
+					if err != nil {
+						return nil, fmt.Errorf("converting label metadata attributes: %w", err)
+					}
+					ruleProto.LabelMetadata[key] = &guardianv1beta1.LabelMetadataConfig{
+						Category:   metadata.Category,
+						Attributes: attrs,
+					}
+				}
+			}
+
+			policyAppealConfigProto.LabelingRules = append(policyAppealConfigProto.LabelingRules, ruleProto)
+		}
+	}
+
+	if p.AppealConfig.ManualLabelConfig != nil {
+		policyAppealConfigProto.ManualLabelConfig = &guardianv1beta1.ManualLabelConfig{
+			AllowUserLabels: p.AppealConfig.ManualLabelConfig.AllowUserLabels,
+			AllowedKeys:     p.AppealConfig.ManualLabelConfig.AllowedKeys,
+			RequiredKeys:    p.AppealConfig.ManualLabelConfig.RequiredKeys,
+			MaxLabels:       int32(p.AppealConfig.ManualLabelConfig.MaxLabels),
+			KeyPattern:      p.AppealConfig.ManualLabelConfig.KeyPattern,
+			ValuePattern:    p.AppealConfig.ManualLabelConfig.ValuePattern,
+			AllowOverride:   p.AppealConfig.ManualLabelConfig.AllowOverride,
+		}
+	}
 
 	return policyAppealConfigProto, nil
 }
