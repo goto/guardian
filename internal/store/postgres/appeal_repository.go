@@ -380,5 +380,55 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		db = db.Preload("Approvals.Approvers")
 	}
 
+	// Label filtering
+	if len(filters.Labels) > 0 {
+		db = applyLabelFilters(db, filters.Labels)
+	}
+
+	if len(filters.LabelKeys) > 0 {
+		db = applyLabelKeyFilters(db, filters.LabelKeys)
+	}
+
 	return db, nil
+}
+
+// applyLabelFilters applies label key-value filtering with OR logic for multiple values
+func applyLabelFilters(db *gorm.DB, labels map[string][]string) *gorm.DB {
+	for key, values := range labels {
+		if len(values) == 0 {
+			continue
+		}
+
+		// Filter using PostgreSQL JSONB operators
+		// labels->>key checks if the key exists and returns its value
+		if len(values) == 1 {
+			db = db.Where(`"appeals"."labels"->>? = ?`, key, values[0])
+		} else {
+			// OR logic for multiple values for the same key
+			db = db.Where(`"appeals"."labels"->>? IN ?`, key, values)
+		}
+	}
+	return db
+}
+
+// applyLabelKeyFilters applies filtering by label keys (regardless of value) with OR logic
+func applyLabelKeyFilters(db *gorm.DB, keys []string) *gorm.DB {
+	if len(keys) == 0 {
+		return db
+	}
+
+	// Build OR condition for checking if any of the keys exist
+	// labels ? 'key' checks if the key exists in the JSONB object
+	conditions := make([]string, len(keys))
+	params := make([]interface{}, len(keys))
+
+	for i, key := range keys {
+		conditions[i] = `"appeals"."labels" ? ?`
+		params[i] = key
+	}
+
+	query := strings.Join(conditions, " OR ")
+	db = db.Where(query, params...)
+
+	return db
 }
