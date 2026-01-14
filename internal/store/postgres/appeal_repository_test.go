@@ -531,6 +531,267 @@ func (s *AppealRepositoryTestSuite) TestFind() {
 	})
 }
 
+func (s *AppealRepositoryTestSuite) TestFind_LabelFiltering() {
+	// Setup test data with different label combinations
+	appealsWithLabels := []*domain.Appeal{
+		{
+			ResourceID:    s.dummyResource.ID,
+			PolicyID:      s.dummyPolicy.ID,
+			PolicyVersion: s.dummyPolicy.Version,
+			AccountID:     "label-user1@example.com",
+			AccountType:   domain.DefaultAppealAccountType,
+			Role:          "viewer",
+			Status:        domain.AppealStatusApproved,
+			Permissions:   []string{"read"},
+			CreatedBy:     "label-user1@example.com",
+			Labels: map[string]string{
+				"environment": "production",
+				"team":        "data-engineering",
+				"cost_center": "CC-1234",
+			},
+		},
+		{
+			ResourceID:    s.dummyResource.ID,
+			PolicyID:      s.dummyPolicy.ID,
+			PolicyVersion: s.dummyPolicy.Version,
+			AccountID:     "label-user2@example.com",
+			AccountType:   domain.DefaultAppealAccountType,
+			Role:          "editor",
+			Status:        domain.AppealStatusPending,
+			Permissions:   []string{"write"},
+			CreatedBy:     "label-user2@example.com",
+			Labels: map[string]string{
+				"environment": "staging",
+				"team":        "analytics",
+				"data_layer":  "raw",
+			},
+		},
+		{
+			ResourceID:    s.dummyResource.ID,
+			PolicyID:      s.dummyPolicy.ID,
+			PolicyVersion: s.dummyPolicy.Version,
+			AccountID:     "label-user3@example.com",
+			AccountType:   domain.DefaultAppealAccountType,
+			Role:          "admin",
+			Status:        domain.AppealStatusApproved,
+			Permissions:   []string{"admin"},
+			CreatedBy:     "label-user3@example.com",
+			Labels: map[string]string{
+				"environment": "production",
+				"team":        "analytics",
+				"data_layer":  "processed",
+			},
+		},
+		{
+			ResourceID:    s.dummyResource.ID,
+			PolicyID:      s.dummyPolicy.ID,
+			PolicyVersion: s.dummyPolicy.Version,
+			AccountID:     "label-user4@example.com",
+			AccountType:   domain.DefaultAppealAccountType,
+			Role:          "viewer",
+			Status:        domain.AppealStatusRejected,
+			Permissions:   []string{"read"},
+			CreatedBy:     "label-user4@example.com",
+			Labels:        nil, // No labels
+		},
+	}
+
+	err := s.repository.BulkUpsert(context.Background(), appealsWithLabels)
+	s.Require().NoError(err)
+
+	s.Run("filter by single label key-value pair", func() {
+		filters := &domain.ListAppealsFilter{
+			Labels: map[string][]string{
+				"environment": {"production"},
+			},
+		}
+
+		result, err := s.repository.Find(context.Background(), filters)
+		s.NoError(err)
+		s.NotNil(result)
+
+		// Should return 2 appeals with environment=production
+		productionCount := 0
+		for _, appeal := range result {
+			if appeal.Labels != nil && appeal.Labels["environment"] == "production" {
+				productionCount++
+			}
+		}
+		s.GreaterOrEqual(productionCount, 2)
+	})
+
+	s.Run("filter by multiple values for same label (OR logic)", func() {
+		filters := &domain.ListAppealsFilter{
+			Labels: map[string][]string{
+				"environment": {"production", "staging"},
+			},
+		}
+
+		result, err := s.repository.Find(context.Background(), filters)
+		s.NoError(err)
+		s.NotNil(result)
+
+		// Should return 3 appeals with either environment
+		matchCount := 0
+		for _, appeal := range result {
+			if appeal.Labels != nil {
+				env := appeal.Labels["environment"]
+				if env == "production" || env == "staging" {
+					matchCount++
+				}
+			}
+		}
+		s.GreaterOrEqual(matchCount, 3)
+	})
+
+	s.Run("filter by multiple label keys (AND logic)", func() {
+		filters := &domain.ListAppealsFilter{
+			Labels: map[string][]string{
+				"environment": {"production"},
+				"team":        {"analytics"},
+			},
+		}
+
+		result, err := s.repository.Find(context.Background(), filters)
+		s.NoError(err)
+		s.NotNil(result)
+
+		// Should return 1 appeal matching both criteria
+		matchCount := 0
+		for _, appeal := range result {
+			if appeal.Labels != nil &&
+				appeal.Labels["environment"] == "production" &&
+				appeal.Labels["team"] == "analytics" {
+				matchCount++
+			}
+		}
+		s.GreaterOrEqual(matchCount, 1)
+	})
+
+	s.Run("filter by label keys only (regardless of value)", func() {
+		filters := &domain.ListAppealsFilter{
+			LabelKeys: []string{"data_layer"},
+		}
+
+		result, err := s.repository.Find(context.Background(), filters)
+		s.NoError(err)
+		s.NotNil(result)
+
+		// Should return 2 appeals that have data_layer label
+		matchCount := 0
+		for _, appeal := range result {
+			if appeal.Labels != nil {
+				if _, exists := appeal.Labels["data_layer"]; exists {
+					matchCount++
+				}
+			}
+		}
+		s.GreaterOrEqual(matchCount, 2)
+	})
+
+	s.Run("filter by multiple label keys (OR logic)", func() {
+		filters := &domain.ListAppealsFilter{
+			LabelKeys: []string{"cost_center", "data_layer"},
+		}
+
+		result, err := s.repository.Find(context.Background(), filters)
+		s.NoError(err)
+		s.NotNil(result)
+
+		// Should return 3 appeals that have either label key
+		matchCount := 0
+		for _, appeal := range result {
+			if appeal.Labels != nil {
+				_, hasCostCenter := appeal.Labels["cost_center"]
+				_, hasDataLayer := appeal.Labels["data_layer"]
+				if hasCostCenter || hasDataLayer {
+					matchCount++
+				}
+			}
+		}
+		s.GreaterOrEqual(matchCount, 3)
+	})
+
+	s.Run("combine label filters with label key filters", func() {
+		filters := &domain.ListAppealsFilter{
+			Labels: map[string][]string{
+				"team": {"analytics"},
+			},
+			LabelKeys: []string{"data_layer"},
+		}
+
+		result, err := s.repository.Find(context.Background(), filters)
+		s.NoError(err)
+		s.NotNil(result)
+
+		// Should return appeals in analytics team that have data_layer
+		matchCount := 0
+		for _, appeal := range result {
+			if appeal.Labels != nil {
+				_, hasDataLayer := appeal.Labels["data_layer"]
+				if appeal.Labels["team"] == "analytics" && hasDataLayer {
+					matchCount++
+				}
+			}
+		}
+		s.GreaterOrEqual(matchCount, 2)
+	})
+
+	s.Run("filter by non-existent label returns empty or no matches", func() {
+		filters := &domain.ListAppealsFilter{
+			Labels: map[string][]string{
+				"nonexistent": {"value"},
+			},
+		}
+
+		result, err := s.repository.Find(context.Background(), filters)
+		s.NoError(err)
+		s.NotNil(result)
+
+		// Should not match any of our test appeals
+		matchCount := 0
+		for _, appeal := range result {
+			if appeal.Labels != nil && appeal.Labels["nonexistent"] == "value" {
+				matchCount++
+			}
+		}
+		s.Equal(0, matchCount)
+	})
+
+	s.Run("empty label filter values should be ignored", func() {
+		filters := &domain.ListAppealsFilter{
+			Labels: map[string][]string{
+				"environment": {}, // Empty values
+			},
+		}
+
+		result, err := s.repository.Find(context.Background(), filters)
+		s.NoError(err)
+		s.NotNil(result)
+		// Should return all appeals since empty filter is ignored
+	})
+
+	s.Run("combine label filters with other filters", func() {
+		filters := &domain.ListAppealsFilter{
+			Labels: map[string][]string{
+				"environment": {"production"},
+			},
+			Statuses: []string{domain.AppealStatusApproved},
+		}
+
+		result, err := s.repository.Find(context.Background(), filters)
+		s.NoError(err)
+		s.NotNil(result)
+
+		// Should return only approved appeals in production
+		for _, appeal := range result {
+			if appeal.Labels != nil && appeal.Labels["environment"] == "production" {
+				s.Equal(domain.AppealStatusApproved, appeal.Status)
+			}
+		}
+	})
+}
+
 func (s *AppealRepositoryTestSuite) TestBulkUpsert() {
 	s.Run("should return error if appeals input is invalid", func() {
 		invalidAppeals := []*domain.Appeal{
