@@ -8,6 +8,7 @@ import (
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/domain"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestAdapter_FromCreateAppealProto_WithUserLabels(t *testing.T) {
@@ -381,5 +382,526 @@ func TestAdapter_ToAppealProto_WithLabelsMetadata(t *testing.T) {
 		assert.Empty(t, result.Labels)
 		assert.NotNil(t, result.LabelsMetadata)
 		assert.Empty(t, result.LabelsMetadata)
+	})
+}
+
+func TestAdapter_FromPolicyProto_WithLabelingConfig(t *testing.T) {
+	adapter := v1beta1.NewAdapter()
+
+	t.Run("should convert labeling_rules from proto to domain", func(t *testing.T) {
+		policyProto := &guardianv1beta1.Policy{
+			Id:          "test-policy",
+			Version:     1,
+			Description: "Test policy with labeling rules",
+			Steps: []*guardianv1beta1.Policy_ApprovalStep{
+				{
+					Name:      "auto_approval",
+					Strategy:  "auto",
+					ApproveIf: "true",
+				},
+			},
+			Appeal: &guardianv1beta1.PolicyAppealConfig{
+				LabelingRules: []*guardianv1beta1.LabelingRule{
+					{
+						RuleName:    "environment_rule",
+						Description: "Apply environment labels",
+						When:        "true",
+						Labels: map[string]string{
+							"environment": "production",
+							"tier":        "critical",
+						},
+						Priority:     10,
+						AllowFailure: false,
+					},
+					{
+						RuleName:    "team_rule",
+						Description: "Apply team labels",
+						When:        "$appeal.resource.type == 'dataset'",
+						Labels: map[string]string{
+							"team": "data-engineering",
+						},
+						Priority:     5,
+						AllowFailure: true,
+					},
+				},
+			},
+		}
+
+		result := adapter.FromPolicyProto(policyProto)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, "test-policy", result.ID)
+		assert.NotNil(t, result.AppealConfig)
+		assert.NotNil(t, result.AppealConfig.LabelingRules)
+		assert.Len(t, result.AppealConfig.LabelingRules, 2)
+
+		rule1 := result.AppealConfig.LabelingRules[0]
+		assert.Equal(t, "environment_rule", rule1.RuleName)
+		assert.Equal(t, "Apply environment labels", rule1.Description)
+		assert.Equal(t, "true", rule1.When)
+		assert.Equal(t, "production", rule1.Labels["environment"])
+		assert.Equal(t, "critical", rule1.Labels["tier"])
+		assert.Equal(t, 10, rule1.Priority)
+		assert.False(t, rule1.AllowFailure)
+
+		rule2 := result.AppealConfig.LabelingRules[1]
+		assert.Equal(t, "team_rule", rule2.RuleName)
+		assert.Equal(t, "data-engineering", rule2.Labels["team"])
+		assert.Equal(t, 5, rule2.Priority)
+		assert.True(t, rule2.AllowFailure)
+	})
+
+	t.Run("should convert manual_label_config from proto to domain", func(t *testing.T) {
+		policyProto := &guardianv1beta1.Policy{
+			Id:      "test-policy",
+			Version: 1,
+			Steps: []*guardianv1beta1.Policy_ApprovalStep{
+				{
+					Name:      "auto_approval",
+					Strategy:  "auto",
+					ApproveIf: "true",
+				},
+			},
+			Appeal: &guardianv1beta1.PolicyAppealConfig{
+				ManualLabelConfig: &guardianv1beta1.ManualLabelConfig{
+					AllowUserLabels: true,
+					AllowedKeys:     []string{"project", "cost_center", "owner"},
+					RequiredKeys:    []string{"cost_center"},
+					MaxLabels:       10,
+					KeyPattern:      "^[a-z_]+$",
+					ValuePattern:    "^[a-zA-Z0-9-]+$",
+					AllowOverride:   false,
+				},
+			},
+		}
+
+		result := adapter.FromPolicyProto(policyProto)
+
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.AppealConfig)
+		assert.NotNil(t, result.AppealConfig.ManualLabelConfig)
+
+		mlc := result.AppealConfig.ManualLabelConfig
+		assert.True(t, mlc.AllowUserLabels)
+		assert.Equal(t, []string{"project", "cost_center", "owner"}, mlc.AllowedKeys)
+		assert.Equal(t, []string{"cost_center"}, mlc.RequiredKeys)
+		assert.Equal(t, 10, mlc.MaxLabels)
+		assert.Equal(t, "^[a-z_]+$", mlc.KeyPattern)
+		assert.Equal(t, "^[a-zA-Z0-9-]+$", mlc.ValuePattern)
+		assert.False(t, mlc.AllowOverride)
+	})
+
+	t.Run("should convert label_metadata in labeling_rules", func(t *testing.T) {
+		attrs, err := structpb.NewStruct(map[string]interface{}{
+			"priority": 10.0,
+			"critical": true,
+		})
+		assert.NoError(t, err)
+
+		policyProto := &guardianv1beta1.Policy{
+			Id:      "test-policy",
+			Version: 1,
+			Steps: []*guardianv1beta1.Policy_ApprovalStep{
+				{
+					Name:      "auto_approval",
+					Strategy:  "auto",
+					ApproveIf: "true",
+				},
+			},
+			Appeal: &guardianv1beta1.PolicyAppealConfig{
+				LabelingRules: []*guardianv1beta1.LabelingRule{
+					{
+						RuleName: "env_rule",
+						When:     "true",
+						Labels: map[string]string{
+							"environment": "production",
+						},
+						LabelMetadata: map[string]*guardianv1beta1.LabelMetadataConfig{
+							"environment": {
+								Category:   "deployment",
+								Attributes: attrs,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		result := adapter.FromPolicyProto(policyProto)
+
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.AppealConfig.LabelingRules)
+		assert.Len(t, result.AppealConfig.LabelingRules, 1)
+
+		rule := result.AppealConfig.LabelingRules[0]
+		assert.NotNil(t, rule.LabelMetadata)
+		assert.Contains(t, rule.LabelMetadata, "environment")
+
+		metadata := rule.LabelMetadata["environment"]
+		assert.Equal(t, "deployment", metadata.Category)
+		assert.NotNil(t, metadata.Attributes)
+	})
+
+	t.Run("should handle nil labeling_rules", func(t *testing.T) {
+		policyProto := &guardianv1beta1.Policy{
+			Id:      "test-policy",
+			Version: 1,
+			Steps: []*guardianv1beta1.Policy_ApprovalStep{
+				{
+					Name:      "auto_approval",
+					Strategy:  "auto",
+					ApproveIf: "true",
+				},
+			},
+			Appeal: &guardianv1beta1.PolicyAppealConfig{
+				LabelingRules: nil,
+			},
+		}
+
+		result := adapter.FromPolicyProto(policyProto)
+
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.AppealConfig)
+		assert.Nil(t, result.AppealConfig.LabelingRules)
+	})
+
+	t.Run("should handle nil manual_label_config", func(t *testing.T) {
+		policyProto := &guardianv1beta1.Policy{
+			Id:      "test-policy",
+			Version: 1,
+			Steps: []*guardianv1beta1.Policy_ApprovalStep{
+				{
+					Name:      "auto_approval",
+					Strategy:  "auto",
+					ApproveIf: "true",
+				},
+			},
+			Appeal: &guardianv1beta1.PolicyAppealConfig{
+				ManualLabelConfig: nil,
+			},
+		}
+
+		result := adapter.FromPolicyProto(policyProto)
+
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.AppealConfig)
+		assert.Nil(t, result.AppealConfig.ManualLabelConfig)
+	})
+
+	t.Run("should handle nil appeal config", func(t *testing.T) {
+		policyProto := &guardianv1beta1.Policy{
+			Id:      "test-policy",
+			Version: 1,
+			Steps: []*guardianv1beta1.Policy_ApprovalStep{
+				{
+					Name:      "auto_approval",
+					Strategy:  "auto",
+					ApproveIf: "true",
+				},
+			},
+			Appeal: nil,
+		}
+
+		result := adapter.FromPolicyProto(policyProto)
+
+		assert.NotNil(t, result)
+		assert.Nil(t, result.AppealConfig)
+	})
+}
+
+func TestAdapter_ToPolicyProto_WithLabelingConfig(t *testing.T) {
+	adapter := v1beta1.NewAdapter()
+
+	t.Run("should convert labeling_rules from domain to proto", func(t *testing.T) {
+		policy := &domain.Policy{
+			ID:          "test-policy",
+			Version:     1,
+			Description: "Test policy with labeling rules",
+			Steps: []*domain.Step{
+				{
+					Name:      "auto_approval",
+					Strategy:  domain.ApprovalStepStrategyAuto,
+					ApproveIf: "true",
+				},
+			},
+			AppealConfig: &domain.PolicyAppealConfig{
+				LabelingRules: []domain.LabelingRule{
+					{
+						RuleName:    "environment_rule",
+						Description: "Apply environment labels",
+						When:        "true",
+						Labels: map[string]string{
+							"environment": "production",
+							"tier":        "critical",
+						},
+						Priority:     10,
+						AllowFailure: false,
+					},
+					{
+						RuleName:    "team_rule",
+						Description: "Apply team labels",
+						When:        "$appeal.resource.type == 'dataset'",
+						Labels: map[string]string{
+							"team": "data-engineering",
+						},
+						Priority:     5,
+						AllowFailure: true,
+					},
+				},
+			},
+		}
+
+		result, err := adapter.ToPolicyProto(policy)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "test-policy", result.Id)
+		assert.NotNil(t, result.Appeal)
+		assert.NotNil(t, result.Appeal.LabelingRules)
+		assert.Len(t, result.Appeal.LabelingRules, 2)
+
+		rule1 := result.Appeal.LabelingRules[0]
+		assert.Equal(t, "environment_rule", rule1.RuleName)
+		assert.Equal(t, "Apply environment labels", rule1.Description)
+		assert.Equal(t, "true", rule1.When)
+		assert.Equal(t, "production", rule1.Labels["environment"])
+		assert.Equal(t, "critical", rule1.Labels["tier"])
+		assert.Equal(t, int32(10), rule1.Priority)
+		assert.False(t, rule1.AllowFailure)
+
+		rule2 := result.Appeal.LabelingRules[1]
+		assert.Equal(t, "team_rule", rule2.RuleName)
+		assert.Equal(t, "data-engineering", rule2.Labels["team"])
+		assert.Equal(t, int32(5), rule2.Priority)
+		assert.True(t, rule2.AllowFailure)
+	})
+
+	t.Run("should convert manual_label_config from domain to proto", func(t *testing.T) {
+		policy := &domain.Policy{
+			ID:      "test-policy",
+			Version: 1,
+			Steps: []*domain.Step{
+				{
+					Name:      "auto_approval",
+					Strategy:  domain.ApprovalStepStrategyAuto,
+					ApproveIf: "true",
+				},
+			},
+			AppealConfig: &domain.PolicyAppealConfig{
+				ManualLabelConfig: &domain.ManualLabelConfig{
+					AllowUserLabels: true,
+					AllowedKeys:     []string{"project", "cost_center", "owner"},
+					RequiredKeys:    []string{"cost_center"},
+					MaxLabels:       10,
+					KeyPattern:      "^[a-z_]+$",
+					ValuePattern:    "^[a-zA-Z0-9-]+$",
+					AllowOverride:   false,
+				},
+			},
+		}
+
+		result, err := adapter.ToPolicyProto(policy)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.Appeal)
+		assert.NotNil(t, result.Appeal.ManualLabelConfig)
+
+		mlc := result.Appeal.ManualLabelConfig
+		assert.True(t, mlc.AllowUserLabels)
+		assert.Equal(t, []string{"project", "cost_center", "owner"}, mlc.AllowedKeys)
+		assert.Equal(t, []string{"cost_center"}, mlc.RequiredKeys)
+		assert.Equal(t, int32(10), mlc.MaxLabels)
+		assert.Equal(t, "^[a-z_]+$", mlc.KeyPattern)
+		assert.Equal(t, "^[a-zA-Z0-9-]+$", mlc.ValuePattern)
+		assert.False(t, mlc.AllowOverride)
+	})
+
+	t.Run("should convert label_metadata in labeling_rules", func(t *testing.T) {
+		policy := &domain.Policy{
+			ID:      "test-policy",
+			Version: 1,
+			Steps: []*domain.Step{
+				{
+					Name:      "auto_approval",
+					Strategy:  domain.ApprovalStepStrategyAuto,
+					ApproveIf: "true",
+				},
+			},
+			AppealConfig: &domain.PolicyAppealConfig{
+				LabelingRules: []domain.LabelingRule{
+					{
+						RuleName: "env_rule",
+						When:     "true",
+						Labels: map[string]string{
+							"environment": "production",
+						},
+						LabelMetadata: map[string]*domain.LabelMetadataConfig{
+							"environment": {
+								Category: "deployment",
+								Attributes: map[string]interface{}{
+									"priority": 10,
+									"critical": true,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		result, err := adapter.ToPolicyProto(policy)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.Appeal.LabelingRules)
+		assert.Len(t, result.Appeal.LabelingRules, 1)
+
+		rule := result.Appeal.LabelingRules[0]
+		assert.NotNil(t, rule.LabelMetadata)
+		assert.Contains(t, rule.LabelMetadata, "environment")
+
+		metadata := rule.LabelMetadata["environment"]
+		assert.Equal(t, "deployment", metadata.Category)
+		assert.NotNil(t, metadata.Attributes)
+		assert.NotNil(t, metadata.Attributes.AsMap())
+	})
+
+	t.Run("should handle nil labeling_rules", func(t *testing.T) {
+		policy := &domain.Policy{
+			ID:      "test-policy",
+			Version: 1,
+			Steps: []*domain.Step{
+				{
+					Name:      "auto_approval",
+					Strategy:  domain.ApprovalStepStrategyAuto,
+					ApproveIf: "true",
+				},
+			},
+			AppealConfig: &domain.PolicyAppealConfig{
+				LabelingRules: nil,
+			},
+		}
+
+		result, err := adapter.ToPolicyProto(policy)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.Appeal)
+		assert.Nil(t, result.Appeal.LabelingRules)
+	})
+
+	t.Run("should handle nil manual_label_config", func(t *testing.T) {
+		policy := &domain.Policy{
+			ID:      "test-policy",
+			Version: 1,
+			Steps: []*domain.Step{
+				{
+					Name:      "auto_approval",
+					Strategy:  domain.ApprovalStepStrategyAuto,
+					ApproveIf: "true",
+				},
+			},
+			AppealConfig: &domain.PolicyAppealConfig{
+				ManualLabelConfig: nil,
+			},
+		}
+
+		result, err := adapter.ToPolicyProto(policy)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.Appeal)
+		assert.Nil(t, result.Appeal.ManualLabelConfig)
+	})
+
+	t.Run("should handle empty labeling_rules", func(t *testing.T) {
+		policy := &domain.Policy{
+			ID:      "test-policy",
+			Version: 1,
+			Steps: []*domain.Step{
+				{
+					Name:      "auto_approval",
+					Strategy:  domain.ApprovalStepStrategyAuto,
+					ApproveIf: "true",
+				},
+			},
+			AppealConfig: &domain.PolicyAppealConfig{
+				LabelingRules: []domain.LabelingRule{},
+			},
+		}
+
+		result, err := adapter.ToPolicyProto(policy)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.Appeal)
+		// Empty slice results in nil for proto repeated fields
+		assert.Nil(t, result.Appeal.LabelingRules)
+	})
+
+	t.Run("should handle nil appeal config", func(t *testing.T) {
+		policy := &domain.Policy{
+			ID:      "test-policy",
+			Version: 1,
+			Steps: []*domain.Step{
+				{
+					Name:      "auto_approval",
+					Strategy:  domain.ApprovalStepStrategyAuto,
+					ApproveIf: "true",
+				},
+			},
+			AppealConfig: nil,
+		}
+
+		result, err := adapter.ToPolicyProto(policy)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Nil(t, result.Appeal)
+	})
+
+	t.Run("should roundtrip labeling config correctly", func(t *testing.T) {
+		originalPolicy := &domain.Policy{
+			ID:      "test-policy",
+			Version: 1,
+			Steps: []*domain.Step{
+				{
+					Name:      "auto_approval",
+					Strategy:  domain.ApprovalStepStrategyAuto,
+					ApproveIf: "true",
+				},
+			},
+			AppealConfig: &domain.PolicyAppealConfig{
+				LabelingRules: []domain.LabelingRule{
+					{
+						RuleName: "test_rule",
+						When:     "true",
+						Labels: map[string]string{
+							"environment": "production",
+						},
+						Priority: 10,
+					},
+				},
+				ManualLabelConfig: &domain.ManualLabelConfig{
+					AllowUserLabels: true,
+					MaxLabels:       5,
+				},
+			},
+		}
+
+		protoPolicy, err := adapter.ToPolicyProto(originalPolicy)
+		assert.NoError(t, err)
+
+		roundtrippedPolicy := adapter.FromPolicyProto(protoPolicy)
+
+		assert.Equal(t, originalPolicy.ID, roundtrippedPolicy.ID)
+		assert.NotNil(t, roundtrippedPolicy.AppealConfig)
+		assert.Len(t, roundtrippedPolicy.AppealConfig.LabelingRules, 1)
+		assert.Equal(t, "test_rule", roundtrippedPolicy.AppealConfig.LabelingRules[0].RuleName)
+		assert.Equal(t, "production", roundtrippedPolicy.AppealConfig.LabelingRules[0].Labels["environment"])
+		assert.NotNil(t, roundtrippedPolicy.AppealConfig.ManualLabelConfig)
+		assert.True(t, roundtrippedPolicy.AppealConfig.ManualLabelConfig.AllowUserLabels)
+		assert.Equal(t, 5, roundtrippedPolicy.AppealConfig.ManualLabelConfig.MaxLabels)
 	})
 }
