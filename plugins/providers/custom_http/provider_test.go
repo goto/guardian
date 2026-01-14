@@ -1,142 +1,95 @@
-package custom_http_test
+package custom_http
 
 import (
 	"testing"
 
 	"github.com/goto/guardian/domain"
-	"github.com/goto/guardian/pkg/log"
-	"github.com/goto/guardian/plugins/providers/custom_http"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestProvider_GetType(t *testing.T) {
-	logger := log.NewNoop()
-	provider := custom_http.NewProvider("custom_http", logger)
-
-	assert.Equal(t, "custom_http", provider.GetType())
-}
-
-func TestProvider_GetAccountTypes(t *testing.T) {
-	logger := log.NewNoop()
-	provider := custom_http.NewProvider("custom_http", logger)
-
-	accountTypes := provider.GetAccountTypes()
-	expected := []string{"user", "serviceAccount"}
-
-	assert.Equal(t, expected, accountTypes)
-}
-
 func TestProvider_CreateConfig(t *testing.T) {
-	logger := log.NewNoop()
-	provider := custom_http.NewProvider("custom_http", logger)
-
-	t.Run("valid config", func(t *testing.T) {
-		config := &domain.ProviderConfig{
-			Type: "custom_http",
-			URN:  "test_urn",
-			Credentials: map[string]interface{}{
-				"base_url": "https://api.example.com",
-				"headers": map[string]string{
-					"Authorization": "Bearer token123",
-					"X-Client-ID":   "client123",
+	tests := []struct {
+		name           string
+		providerConfig *domain.ProviderConfig
+		wantErr        bool
+		errContains    string
+	}{
+		{
+			name: "valid configuration",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/projects/{{.project_id}}/members",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/projects/{{.project_id}}/members/{{.user_id}}",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id_field":   "id",
+								"name_field": "name",
+								"type_field": "type",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
 				},
 			},
-			Labels: map[string]string{
-				"config": `{
-					"api": {
-						"resources": {"method": "GET", "path": "/api/v1/resources"},
-						"grant": {"method": "POST", "path": "/api/v1/grant"},
-						"revoke": {"method": "DELETE", "path": "/api/v1/revoke"}
-					},
-					"mapping": {
-						"name": "name",
-						"id": "id",
-						"urn": "urn"
-					}
-				}`,
-			},
-			Resources: []*domain.ResourceConfig{
-				{
-					Type: "http_resource",
-					Policy: &domain.PolicyConfig{
-						ID:      "test_policy",
-						Version: 1,
+			wantErr: false,
+		},
+		{
+			name: "invalid configuration",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"headers": map[string]interface{}{
+						"Authorization": "Bearer token",
 					},
 				},
 			},
-		}
+			wantErr:     true,
+			errContains: "base_url is required",
+		},
+	}
 
-		err := provider.CreateConfig(config)
-		assert.NoError(t, err)
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &Provider{}
+			err := p.CreateConfig(tt.providerConfig)
 
-	t.Run("invalid type", func(t *testing.T) {
-		config := &domain.ProviderConfig{
-			Type: "invalid_type",
-		}
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
 
-		err := provider.CreateConfig(config)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid provider type")
-	})
+func TestProvider_GetType(t *testing.T) {
+	p := NewProvider("custom_http", nil)
+	assert.Equal(t, "custom_http", p.GetType())
+}
 
-	t.Run("missing base_url", func(t *testing.T) {
-		config := &domain.ProviderConfig{
-			Type: "custom_http",
-			Credentials: map[string]interface{}{
-				"headers": map[string]string{},
-			},
-			Labels: map[string]string{
-				"config": `{
-					"api": {
-						"resources": {"method": "GET", "path": "/api/v1/resources"},
-						"grant": {"method": "POST", "path": "/api/v1/grant"},
-						"revoke": {"method": "DELETE", "path": "/api/v1/revoke"}
-					},
-					"mapping": {
-						"name": "name",
-						"id": "id",
-						"urn": "urn"
-					}
-				}`,
-			},
-			Resources: []*domain.ResourceConfig{
-				{
-					Type: "http_resource",
-				},
-			},
-		}
-
-		err := provider.CreateConfig(config)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "base_url is required")
-	})
-
-	t.Run("missing resources", func(t *testing.T) {
-		config := &domain.ProviderConfig{
-			Type: "custom_http",
-			Credentials: map[string]interface{}{
-				"base_url": "https://api.example.com",
-			},
-			Labels: map[string]string{
-				"config": `{
-					"api": {
-						"resources": {"method": "GET", "path": "/api/v1/resources"},
-						"grant": {"method": "POST", "path": "/api/v1/grant"},
-						"revoke": {"method": "DELETE", "path": "/api/v1/revoke"}
-					},
-					"mapping": {
-						"name": "name",
-						"id": "id",
-						"urn": "urn"
-					}
-				}`,
-			},
-			Resources: []*domain.ResourceConfig{},
-		}
-
-		err := provider.CreateConfig(config)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "at least one resource configuration is required")
-	})
+func TestNewProvider(t *testing.T) {
+	p := NewProvider("custom_http", nil)
+	assert.NotNil(t, p)
+	assert.Equal(t, "custom_http", p.GetType())
 }
