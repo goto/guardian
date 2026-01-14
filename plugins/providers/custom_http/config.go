@@ -12,32 +12,47 @@ type Config struct {
 }
 
 type Credentials struct {
-	BaseURL string            `mapstructure:"base_url" yaml:"base_url" validate:"required,url"`
-	Headers map[string]string `mapstructure:"headers" yaml:"headers"`
+	BaseURL        string                               `mapstructure:"base_url" yaml:"base_url" json:"base_url" validate:"required,url"`
+	Headers        map[string]string                    `mapstructure:"headers" yaml:"headers" json:"headers"`
+	ResourceRoutes map[string]ResourceTypeConfiguration `mapstructure:"resource_routes" yaml:"resource_routes" json:"resource_routes"`
+}
+
+// GetHeaders returns the headers map for HTTP requests
+func (c *Credentials) GetHeaders() map[string]string {
+	if c.Headers == nil {
+		return make(map[string]string)
+	}
+	return c.Headers
 }
 
 type ResourceMapping struct {
-	Name string `mapstructure:"name" yaml:"name" validate:"required"`
-	ID   string `mapstructure:"id" yaml:"id" validate:"required"`
-	URN  string `mapstructure:"urn" yaml:"urn" validate:"required"`
+	IDField       string   `mapstructure:"id_field" yaml:"id_field" json:"id_field" validate:"required"`
+	NameField     string   `mapstructure:"name_field" yaml:"name_field" json:"name_field" validate:"required"`
+	TypeField     string   `mapstructure:"type_field" yaml:"type_field" json:"type_field" validate:"required"`
+	DetailsFields []string `mapstructure:"details_fields" yaml:"details_fields" json:"details_fields"`
 }
 
 type APIEndpoint struct {
-	Path   string                 `mapstructure:"path" yaml:"path" validate:"required"`
-	Method string                 `mapstructure:"method" yaml:"method" validate:"required,oneof=GET POST PUT DELETE PATCH"`
-	Body   map[string]interface{} `mapstructure:"body" yaml:"body"`
+	Path   string                 `mapstructure:"path" yaml:"path" json:"path" validate:"required"`
+	Method string                 `mapstructure:"method" yaml:"method" json:"method" validate:"required,oneof=GET POST PUT DELETE PATCH"`
+	Body   map[string]interface{} `mapstructure:"body" yaml:"body" json:"body"`
 }
 
 type APIConfiguration struct {
-	Resources APIEndpoint `mapstructure:"resources" yaml:"resources" validate:"required"`
-	Grant     APIEndpoint `mapstructure:"grant" yaml:"grant" validate:"required"`
-	Revoke    APIEndpoint `mapstructure:"revoke" yaml:"revoke" validate:"required"`
-	Members   APIEndpoint `mapstructure:"members" yaml:"members"` // Optional: for fetching group members/approvers
+	Resources APIEndpoint `mapstructure:"resources" yaml:"resources" json:"resources" validate:"required"`
+	Grant     APIEndpoint `mapstructure:"grant" yaml:"grant" json:"grant" validate:"required"`
+	Revoke    APIEndpoint `mapstructure:"revoke" yaml:"revoke" json:"revoke" validate:"required"`
+}
+
+type ResourceTypeConfiguration struct {
+	API               APIConfiguration  `mapstructure:"api" yaml:"api" json:"api" validate:"required"`
+	ResourceMapping   ResourceMapping   `mapstructure:"resource_mapping" yaml:"resource_mapping" json:"resource_mapping" validate:"required"`
+	TemplateVariables map[string]string `mapstructure:"template_variables" yaml:"template_variables" json:"template_variables,omitempty"` // Custom template variables
 }
 
 type ProviderConfiguration struct {
-	Mapping ResourceMapping  `mapstructure:"mapping" yaml:"mapping" validate:"required"`
-	API     APIConfiguration `mapstructure:"api" yaml:"api" validate:"required"`
+	// Map of resource type -> its configuration
+	ResourceTypes map[string]ResourceTypeConfiguration
 }
 
 func NewConfig(pc *domain.ProviderConfig) *Config {
@@ -65,43 +80,34 @@ func (c *Config) validateProviderConfig() error {
 		return fmt.Errorf("base_url is required in credentials")
 	}
 
-	// Validate provider configuration exists in labels
-	if c.ProviderConfig.Labels == nil {
-		return fmt.Errorf("provider configuration is required in labels")
+	if len(creds.ResourceRoutes) == 0 {
+		return fmt.Errorf("no resource routes found in credentials.resource_routes")
 	}
 
-	configData, exists := c.ProviderConfig.Labels["config"]
-	if !exists {
-		return fmt.Errorf("provider configuration is required in labels.config")
-	}
+	// Validate that we have configurations for all resource types
+	for _, resource := range c.ProviderConfig.Resources {
+		resourceConfig, exists := creds.ResourceRoutes[resource.Type]
+		if !exists {
+			return fmt.Errorf("missing configuration for resource type: %s", resource.Type)
+		}
 
-	// Parse configuration from labels.config (should be JSON string)
-	var config ProviderConfiguration
-	if err := mapstructure.Decode(configData, &config); err != nil {
-		return fmt.Errorf("invalid provider configuration: %w", err)
-	}
+		// Validate mapping fields
+		if resourceConfig.ResourceMapping.IDField == "" || resourceConfig.ResourceMapping.NameField == "" || resourceConfig.ResourceMapping.TypeField == "" {
+			return fmt.Errorf("mapping fields (id_field, name_field, type_field) are required for resource type: %s", resource.Type)
+		}
 
-	// Validate mapping fields
-	if config.Mapping.Name == "" || config.Mapping.ID == "" || config.Mapping.URN == "" {
-		return fmt.Errorf("mapping fields (name, id, urn) are all required")
-	}
+		// Validate API endpoints
+		if resourceConfig.API.Resources.Path == "" || resourceConfig.API.Resources.Method == "" {
+			return fmt.Errorf("resources API endpoint (path, method) is required for resource type: %s", resource.Type)
+		}
 
-	// Validate API endpoints
-	if config.API.Resources.Path == "" || config.API.Resources.Method == "" {
-		return fmt.Errorf("resources API endpoint (path, method) is required")
-	}
+		if resourceConfig.API.Grant.Path == "" || resourceConfig.API.Grant.Method == "" {
+			return fmt.Errorf("grant API endpoint (path, method) is required for resource type: %s", resource.Type)
+		}
 
-	if config.API.Grant.Path == "" || config.API.Grant.Method == "" {
-		return fmt.Errorf("grant API endpoint (path, method) is required")
-	}
-
-	if config.API.Revoke.Path == "" || config.API.Revoke.Method == "" {
-		return fmt.Errorf("revoke API endpoint (path, method) is required")
-	}
-
-	// Validate that we have at least one resource configured
-	if len(c.ProviderConfig.Resources) == 0 {
-		return fmt.Errorf("at least one resource configuration is required")
+		if resourceConfig.API.Revoke.Path == "" || resourceConfig.API.Revoke.Method == "" {
+			return fmt.Errorf("revoke API endpoint (path, method) is required for resource type: %s", resource.Type)
+		}
 	}
 
 	return nil

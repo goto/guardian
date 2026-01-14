@@ -2,7 +2,6 @@ package custom_http
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	pv "github.com/goto/guardian/core/provider"
@@ -62,28 +61,10 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 	}
 
 	// Validate that we have the configuration in labels
-	if pc.Labels == nil || pc.Labels["config"] == "" {
-		return fmt.Errorf("provider configuration is required in labels")
-	}
-
-	// Try to parse the configuration to validate JSON format
-	var config ProviderConfiguration
-	if err := json.Unmarshal([]byte(pc.Labels["config"]), &config); err != nil {
-		return fmt.Errorf("invalid configuration JSON in labels.config: %w", err)
-	}
-
-	// Basic validation of the configuration structure
-	if config.API.Resources.Method == "" || config.API.Resources.Path == "" {
-		return fmt.Errorf("resources API configuration is incomplete")
-	}
-	if config.API.Grant.Method == "" || config.API.Grant.Path == "" {
-		return fmt.Errorf("grant API configuration is incomplete")
-	}
-	if config.API.Revoke.Method == "" || config.API.Revoke.Path == "" {
-		return fmt.Errorf("revoke API configuration is incomplete")
-	}
-	if config.Mapping.Name == "" || config.Mapping.ID == "" || config.Mapping.URN == "" {
-		return fmt.Errorf("field mapping configuration is incomplete")
+	// Validate provider configuration
+	config := NewConfig(pc)
+	if err := config.ParseAndValidate(); err != nil {
+		return err
 	}
 
 	return nil
@@ -95,21 +76,26 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 		return nil, err
 	}
 
-	resources, err := client.GetResources(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting resources from HTTP API: %w", err)
+	var allDomainResources []*domain.Resource
+
+	// Fetch resources for each configured resource type
+	for _, resourceConfig := range pc.Resources {
+		resources, err := client.GetResources(ctx, resourceConfig.Type)
+		if err != nil {
+			return nil, fmt.Errorf("getting resources of type %s from HTTP API: %w", resourceConfig.Type, err)
+		}
+
+		// Convert to domain resources
+		for _, res := range resources {
+			domainResource := res.ToDomain()
+			domainResource.ProviderType = pc.Type
+			domainResource.ProviderURN = pc.URN
+			domainResource.GlobalURN = fmt.Sprintf("custom_http:%s:%s:%s", pc.URN, res.Type, res.URN)
+			allDomainResources = append(allDomainResources, domainResource)
+		}
 	}
 
-	domainResources := make([]*domain.Resource, 0, len(resources))
-	for _, res := range resources {
-		domainResource := res.ToDomain()
-		domainResource.ProviderType = pc.Type
-		domainResource.ProviderURN = pc.URN
-		domainResource.GlobalURN = fmt.Sprintf("custom_http:%s:%s:%s", pc.URN, ResourceTypeHTTPResource, res.ID)
-		domainResources = append(domainResources, domainResource)
-	}
-
-	return domainResources, nil
+	return allDomainResources, nil
 }
 
 func (p *Provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*domain.Role, error) {
@@ -172,20 +158,9 @@ func (p *Provider) getClient(pc *domain.ProviderConfig) (HTTPClient, error) {
 		return nil, fmt.Errorf("invalid credentials: %w", err)
 	}
 
-	// Extract configuration from labels
-	if pc.Labels == nil {
-		return nil, fmt.Errorf("provider configuration not found in labels")
-	}
-
-	configString, exists := pc.Labels["config"]
-	if !exists {
-		return nil, fmt.Errorf("provider configuration not found in labels.config")
-	}
-
-	// Parse the JSON configuration string
-	var config ProviderConfiguration
-	if err := json.Unmarshal([]byte(configString), &config); err != nil {
-		return nil, fmt.Errorf("parsing configuration JSON: %w", err)
+	// Create configuration from credentials resource routes
+	config := ProviderConfiguration{
+		ResourceTypes: creds.ResourceRoutes,
 	}
 
 	client := NewClient(creds, config, p.logger)

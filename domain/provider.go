@@ -24,6 +24,7 @@ const (
 	ProviderTypeOss         = "oss"
 	ProviderTypeGoogleGroup = "google_group"
 	ProviderTypeGuardian    = "guardian"
+	ProviderTypeCustomHTTP  = "custom_http"
 )
 
 // Role is the configuration to define a role and mapping the permissions in the provider

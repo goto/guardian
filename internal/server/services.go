@@ -29,6 +29,7 @@ import (
 	"github.com/goto/guardian/plugins/providers/alicloud_ram"
 	"github.com/goto/guardian/plugins/providers/alicloud_sso"
 	"github.com/goto/guardian/plugins/providers/bigquery"
+	"github.com/goto/guardian/plugins/providers/custom_http"
 	"github.com/goto/guardian/plugins/providers/dataplex"
 	"github.com/goto/guardian/plugins/providers/gate"
 	"github.com/goto/guardian/plugins/providers/gcloudiam"
@@ -142,6 +143,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		oss.NewProvider(domain.ProviderTypeOss, deps.Crypto),
 		googlegroup.NewProvider(domain.ProviderTypeGoogleGroup, deps.Crypto, deps.Logger),
 		guardian.NewProvider(domain.ProviderTypeGuardian, resourceService, deps.Logger),
+		custom_http.NewProvider(domain.ProviderTypeCustomHTTP, deps.Logger),
 	}
 
 	iamManager := identities.NewManager(deps.Crypto, deps.Validator)
