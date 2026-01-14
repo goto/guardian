@@ -92,6 +92,8 @@ func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListA
 		StartTime:       s.adapter.FromTimeProto(req.GetStartTime()),
 		EndTime:         s.adapter.FromTimeProto(req.GetEndTime()),
 		WithApprovals:   req.GetWithApprovals(),
+		Labels:          s.adapter.FromLabelFiltersProto(req.GetLabels()),
+		LabelKeys:       req.GetLabelKeys(),
 	}
 
 	appeals, total, summary, err := s.listAppeals(ctx, filters)
@@ -133,10 +135,10 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 			errors.Is(err, provider.ErrAppealValidationMissingRequiredQuestion),
 			errors.Is(err, appeal.ErrDurationNotAllowed),
 			errors.Is(err, appeal.ErrCannotCreateAppealForOtherUser):
-			return nil, s.invalidArgument(ctx, err.Error())
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		case errors.Is(err, appeal.ErrAppealDuplicate):
 			s.logger.Error(ctx, err.Error())
-			return nil, status.Errorf(codes.AlreadyExists, err.Error())
+			return nil, status.Errorf(codes.AlreadyExists, "%s", err.Error())
 		case errors.Is(err, appeal.ErrResourceNotFound),
 			errors.Is(err, appeal.ErrResourceDeleted),
 			errors.Is(err, appeal.ErrProviderNotFound),
@@ -148,7 +150,7 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 			errors.Is(err, domain.ErrApproversNotFound),
 			errors.Is(err, domain.ErrUnexpectedApproverType),
 			errors.Is(err, domain.ErrInvalidApproverValue):
-			return nil, s.failedPrecondition(ctx, err.Error())
+			return nil, s.failedPrecondition(ctx, "%s", err.Error())
 		default:
 			return nil, s.internalError(ctx, "failed to create appeal(s): %v", err)
 		}
@@ -195,10 +197,10 @@ func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.Patch
 			errors.Is(err, provider.ErrAppealValidationMissingRequiredQuestion),
 			errors.Is(err, appeal.ErrDurationNotAllowed),
 			errors.Is(err, appeal.ErrCannotCreateAppealForOtherUser):
-			return nil, s.invalidArgument(ctx, err.Error())
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		case errors.Is(err, appeal.ErrAppealDuplicate):
 			s.logger.Error(ctx, err.Error())
-			return nil, status.Errorf(codes.AlreadyExists, err.Error())
+			return nil, status.Errorf(codes.AlreadyExists, "%s", err.Error())
 		case errors.Is(err, appeal.ErrResourceNotFound),
 			errors.Is(err, appeal.ErrResourceDeleted),
 			errors.Is(err, appeal.ErrProviderNotFound),
@@ -214,7 +216,7 @@ func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.Patch
 			errors.Is(err, domain.ErrUnexpectedApproverType),
 			errors.Is(err, domain.ErrInvalidApproverValue),
 			errors.Is(err, appeal.ErrNoChanges):
-			return nil, s.failedPrecondition(ctx, err.Error())
+			return nil, s.failedPrecondition(ctx, "%s", err.Error())
 		default:
 			return nil, s.internalError(ctx, "failed to update appeal: %v", err)
 		}
@@ -223,7 +225,7 @@ func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.Patch
 	responseAppeal, err := s.appealService.GetByID(ctx, req.Id)
 	if err != nil {
 		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
-			return nil, s.invalidArgument(ctx, err.Error())
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		}
 		return nil, s.internalError(ctx, "failed to retrieve appeal: %v", err)
 	}
@@ -244,7 +246,7 @@ func (s *GRPCServer) GetAppeal(ctx context.Context, req *guardianv1beta1.GetAppe
 	a, err := s.appealService.GetByID(ctx, id)
 	if err != nil {
 		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
-			return nil, s.invalidArgument(ctx, err.Error())
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		}
 		return nil, s.internalError(ctx, "failed to retrieve appeal: %v", err)
 	}
@@ -269,7 +271,7 @@ func (s *GRPCServer) CancelAppeal(ctx context.Context, req *guardianv1beta1.Canc
 	a, err := s.appealService.Cancel(ctx, id)
 	if err != nil {
 		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
-			return nil, s.invalidArgument(ctx, err.Error())
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		}
 
 		switch err {

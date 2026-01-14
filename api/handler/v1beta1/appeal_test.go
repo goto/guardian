@@ -458,6 +458,122 @@ func (s *GrpcHandlersSuite) TestListAppeals() {
 		s.appealService.AssertExpectations(s.T())
 	})
 
+	s.Run("should include label filters from request", func() {
+		s.setup()
+		timeNow := time.Now()
+
+		expectedUser := "user@example.com"
+		expectedFilters := &domain.ListAppealsFilter{
+			AccountID: expectedUser,
+			Labels: map[string][]string{
+				"environment": {"production"},
+				"team":        {"platform", "data"},
+			},
+			LabelKeys: []string{"cost_center", "project"},
+		}
+		expectedAppeals := []*domain.Appeal{
+			{
+				ID:         "appeal-1",
+				ResourceID: "resource-1",
+				Resource: &domain.Resource{
+					ID: "resource-1",
+				},
+				Status:    "pending",
+				AccountID: expectedUser,
+				CreatedBy: expectedUser,
+				Labels: map[string]string{
+					"environment": "production",
+					"team":        "platform",
+					"cost_center": "CC-12345",
+					"project":     "guardian",
+				},
+				CreatedAt: timeNow,
+				UpdatedAt: timeNow,
+			},
+		}
+
+		s.appealService.EXPECT().Find(mock.AnythingOfType("*context.cancelCtx"), expectedFilters).
+			Return(expectedAppeals, nil).Once()
+		s.appealService.EXPECT().GetAppealsTotalCount(mock.AnythingOfType("*context.cancelCtx"), expectedFilters).
+			Return(int64(1), nil).Once()
+
+		req := &guardianv1beta1.ListAppealsRequest{
+			AccountId: expectedUser,
+			Labels: map[string]*guardianv1beta1.LabelValues{
+				"environment": {
+					Values: []string{"production"},
+				},
+				"team": {
+					Values: []string{"platform", "data"},
+				},
+			},
+			LabelKeys: []string{"cost_center", "project"},
+		}
+		res, err := s.grpcServer.ListAppeals(context.Background(), req)
+
+		s.NoError(err)
+		s.NotNil(res)
+		s.Len(res.Appeals, 1)
+		s.Equal(int32(1), res.Total)
+		s.Equal("appeal-1", res.Appeals[0].Id)
+		s.appealService.AssertExpectations(s.T())
+	})
+
+	s.Run("should handle nil label filters", func() {
+		s.setup()
+
+		expectedUser := "user@example.com"
+		expectedFilters := &domain.ListAppealsFilter{
+			AccountID: expectedUser,
+			Labels:    nil,
+			LabelKeys: nil,
+		}
+
+		s.appealService.EXPECT().Find(mock.AnythingOfType("*context.cancelCtx"), expectedFilters).
+			Return([]*domain.Appeal{}, nil).Once()
+		s.appealService.EXPECT().GetAppealsTotalCount(mock.AnythingOfType("*context.cancelCtx"), expectedFilters).
+			Return(int64(0), nil).Once()
+
+		req := &guardianv1beta1.ListAppealsRequest{
+			AccountId: expectedUser,
+			Labels:    nil,
+			LabelKeys: nil,
+		}
+		res, err := s.grpcServer.ListAppeals(context.Background(), req)
+
+		s.NoError(err)
+		s.NotNil(res)
+		s.Empty(res.Appeals)
+		s.appealService.AssertExpectations(s.T())
+	})
+
+	s.Run("should handle empty label filters", func() {
+		s.setup()
+
+		expectedUser := "user@example.com"
+		expectedFilters := &domain.ListAppealsFilter{
+			AccountID: expectedUser,
+			Labels:    map[string][]string{},
+			LabelKeys: []string{},
+		}
+
+		s.appealService.EXPECT().Find(mock.AnythingOfType("*context.cancelCtx"), expectedFilters).
+			Return([]*domain.Appeal{}, nil).Once()
+		s.appealService.EXPECT().GetAppealsTotalCount(mock.AnythingOfType("*context.cancelCtx"), expectedFilters).
+			Return(int64(0), nil).Once()
+
+		req := &guardianv1beta1.ListAppealsRequest{
+			AccountId: expectedUser,
+			Labels:    map[string]*guardianv1beta1.LabelValues{},
+			LabelKeys: []string{},
+		}
+		res, err := s.grpcServer.ListAppeals(context.Background(), req)
+
+		s.NoError(err)
+		s.NotNil(res)
+		s.appealService.AssertExpectations(s.T())
+	})
+
 	s.Run("should return list of appeals filtered by group_id and group_type on success", func() {
 		s.setup()
 		timeNow := time.Now()

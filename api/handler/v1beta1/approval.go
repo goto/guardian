@@ -127,19 +127,19 @@ func (s *GRPCServer) UpdateApproval(ctx context.Context, req *guardianv1beta1.Up
 			errors.Is(err, appeal.ErrInvalidUpdateApprovalParameter),
 			errors.Is(err, appeal.ErrAppealIDEmptyParam),
 			errors.Is(err, appeal.ErrActionInvalidValue):
-			return nil, s.invalidArgument(ctx, err.Error())
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		case
 			errors.Is(err, appeal.ErrAppealNotEligibleForApproval),
 			errors.Is(err, appeal.ErrAppealStatusUnrecognized),
 			errors.Is(err, appeal.ErrApprovalNotEligibleForAction),
 			errors.Is(err, appeal.ErrApprovalStatusUnrecognized):
-			return nil, s.failedPrecondition(ctx, err.Error())
+			return nil, s.failedPrecondition(ctx, "%s", err.Error())
 		case errors.Is(err, appeal.ErrActionForbidden):
 			return nil, status.Error(codes.PermissionDenied, "permission denied")
 		case
 			errors.Is(err, appeal.ErrAppealNotFound),
 			errors.Is(err, appeal.ErrApprovalNotFound):
-			return nil, status.Errorf(codes.NotFound, err.Error())
+			return nil, status.Errorf(codes.NotFound, "%s", err.Error())
 		default:
 			return nil, s.internalError(ctx, "failed to update approval: %v", err)
 		}

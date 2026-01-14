@@ -39,6 +39,7 @@ type ProtoAdapter interface {
 	ToAppealProto(*domain.Appeal) (*guardianv1beta1.Appeal, error)
 	FromCreateAppealProto(*guardianv1beta1.CreateAppealRequest, string) ([]*domain.Appeal, error)
 	FromPatchAppealProto(*guardianv1beta1.PatchAppealRequest, string) (*domain.Appeal, error)
+	FromLabelFiltersProto(map[string]*guardianv1beta1.LabelValues) map[string][]string
 	ToApprovalProto(*domain.Approval) (*guardianv1beta1.Approval, error)
 
 	ToGrantProto(*domain.Grant) (*guardianv1beta1.Grant, error)
