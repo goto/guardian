@@ -3,7 +3,6 @@ package v1beta1
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 
 	"golang.org/x/sync/errgroup"
@@ -24,17 +23,17 @@ func (s *GRPCServer) CreateResource(ctx context.Context, req *guardianv1beta1.Cr
 	if err := s.providerService.CreateResource(ctx, r); err != nil {
 		switch {
 		case errors.Is(err, provider.ErrRecordNotFound):
-			return nil, s.notFound(ctx, fmt.Sprintf("provider with type %q and urn %q does not exist", r.ProviderType, r.ProviderURN))
+			return nil, s.notFound(ctx, "provider with type %q and urn %q does not exist", r.ProviderType, r.ProviderURN)
 		case errors.Is(err, provider.ErrInvalidResourceType),
 			errors.Is(err, provider.ErrInvalidResource),
 			errors.Is(err, resource.ErrInvalidResource):
-			return nil, s.invalidArgument(ctx, err.Error())
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		case errors.Is(err, provider.ErrCreateResourceNotSupported):
-			return nil, s.failedPrecondition(ctx, err.Error())
+			return nil, s.failedPrecondition(ctx, "%s", err.Error())
 		case errors.Is(err, resource.ErrResourceAlreadyExists):
-			return nil, s.alreadyExists(ctx, err.Error())
+			return nil, s.alreadyExists(ctx, "%s", err.Error())
 		default:
-			return nil, s.internalError(ctx, err.Error())
+			return nil, s.internalError(ctx, "%s", err.Error())
 		}
 	}
 

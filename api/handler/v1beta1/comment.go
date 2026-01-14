@@ -20,7 +20,7 @@ func (s *GRPCServer) ListAppealComments(ctx context.Context, req *guardianv1beta
 	if err != nil {
 		switch {
 		case errors.Is(err, appeal.ErrAppealNotFound):
-			return nil, status.Errorf(codes.NotFound, err.Error())
+			return nil, status.Errorf(codes.NotFound, "%s", err.Error())
 		default:
 			return nil, s.internalError(ctx, "failed to list comments: %s", err)
 		}
@@ -54,9 +54,9 @@ func (s *GRPCServer) CreateAppealComment(ctx context.Context, req *guardianv1bet
 			errors.Is(err, comment.ErrEmptyCommentParentID),
 			errors.Is(err, comment.ErrEmptyCommentCreator),
 			errors.Is(err, comment.ErrEmptyCommentBody):
-			return nil, s.invalidArgument(ctx, err.Error())
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		case errors.Is(err, appeal.ErrAppealNotFound):
-			return nil, status.Errorf(codes.NotFound, err.Error())
+			return nil, status.Errorf(codes.NotFound, "%s", err.Error())
 		default:
 			return nil, s.internalError(ctx, "failed to create comment: %s", err)
 		}

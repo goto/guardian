@@ -697,22 +697,23 @@ func (a *adapter) ToResourceProto(r *domain.Resource) (*guardianv1beta1.Resource
 
 func (a *adapter) ToAppealProto(appeal *domain.Appeal) (*guardianv1beta1.Appeal, error) {
 	appealProto := &guardianv1beta1.Appeal{
-		Id:            appeal.ID,
-		ResourceId:    appeal.ResourceID,
-		PolicyId:      appeal.PolicyID,
-		PolicyVersion: uint32(appeal.PolicyVersion),
-		Status:        appeal.Status,
-		AccountId:     appeal.AccountID,
-		AccountType:   appeal.AccountType,
-		GroupId:       appeal.GroupID,
-		GroupType:     appeal.GroupType,
-		CreatedBy:     appeal.CreatedBy,
-		Role:          appeal.Role,
-		Permissions:   appeal.Permissions,
-		Options:       a.toAppealOptionsProto(appeal.Options),
-		Labels:        appeal.Labels,
-		Description:   appeal.Description,
-		Revision:      uint32(appeal.Revision),
+		Id:             appeal.ID,
+		ResourceId:     appeal.ResourceID,
+		PolicyId:       appeal.PolicyID,
+		PolicyVersion:  uint32(appeal.PolicyVersion),
+		Status:         appeal.Status,
+		AccountId:      appeal.AccountID,
+		AccountType:    appeal.AccountType,
+		GroupId:        appeal.GroupID,
+		GroupType:      appeal.GroupType,
+		CreatedBy:      appeal.CreatedBy,
+		Role:           appeal.Role,
+		Permissions:    appeal.Permissions,
+		Options:        a.toAppealOptionsProto(appeal.Options),
+		Labels:         appeal.Labels,
+		LabelsMetadata: a.toLabelMetadataProto(appeal.LabelsMetadata),
+		Description:    appeal.Description,
+		Revision:       uint32(appeal.Revision),
 	}
 
 	if appeal.Resource != nil {
@@ -781,6 +782,7 @@ func (a *adapter) FromCreateAppealProto(ca *guardianv1beta1.CreateAppealRequest,
 			ResourceID:  r.GetId(),
 			Role:        r.GetRole(),
 			Description: ca.GetDescription(),
+			UserLabels:  ca.GetUserLabels(),
 		}
 
 		if r.GetOptions() != nil {
@@ -1341,4 +1343,51 @@ func toProtoList(in []interface{}) ([]*structpb.Value, error) {
 		out[k] = val
 	}
 	return out, nil
+}
+
+func (a *adapter) toLabelMetadataProto(metadata map[string]*domain.LabelMetadata) map[string]*guardianv1beta1.LabelMetadata {
+	if metadata == nil {
+		return nil
+	}
+
+	result := make(map[string]*guardianv1beta1.LabelMetadata, len(metadata))
+	for key, meta := range metadata {
+		protoMeta := &guardianv1beta1.LabelMetadata{
+			Value:       meta.Value,
+			DerivedFrom: meta.DerivedFrom,
+			Source:      string(meta.Source),
+			Category:    meta.Category,
+			AppliedBy:   meta.AppliedBy,
+		}
+
+		if meta.Attributes != nil {
+			attrs, err := structpb.NewStruct(meta.Attributes)
+			if err == nil {
+				protoMeta.Attributes = attrs
+			}
+		}
+
+		if !meta.AppliedAt.IsZero() {
+			protoMeta.AppliedAt = timestamppb.New(meta.AppliedAt)
+		}
+
+		result[key] = protoMeta
+	}
+
+	return result
+}
+
+func (a *adapter) FromLabelFiltersProto(labels map[string]*guardianv1beta1.LabelValues) map[string][]string {
+	if labels == nil {
+		return nil
+	}
+
+	result := make(map[string][]string, len(labels))
+	for key, values := range labels {
+		if values != nil && values.Values != nil {
+			result[key] = values.Values
+		}
+	}
+
+	return result
 }
