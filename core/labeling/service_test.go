@@ -21,7 +21,7 @@ func TestApplyLabels_NoRules(t *testing.T) {
 		AppealConfig: &domain.PolicyAppealConfig{LabelingRules: nil},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	assert.NoError(t, err)
 	assert.Empty(t, labels)
@@ -50,7 +50,7 @@ func TestApplyLabels_MatchingRule(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	require.NoError(t, err)
 	assert.Len(t, labels, 2)
@@ -88,7 +88,7 @@ func TestApplyLabels_PriorityOrdering(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	require.NoError(t, err)
 	assert.Equal(t, "high", labels["sensitivity"].Value)
@@ -120,7 +120,7 @@ func TestApplyLabels_DynamicValues(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	require.NoError(t, err)
 	assert.Equal(t, "database", labels["resource-type"].Value)
@@ -153,7 +153,7 @@ func TestApplyLabels_AllowFailure(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	assert.NoError(t, err)
 	assert.Len(t, labels, 1)
@@ -178,7 +178,7 @@ func TestApplyLabels_ErrorWhenNoAllowFailure(t *testing.T) {
 		},
 	}
 
-	_, err := svc.ApplyLabels(ctx, appeal, policy)
+	_, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to evaluate rule")
@@ -209,7 +209,7 @@ func TestApplyLabels_WithMetadata(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	require.NoError(t, err)
 	assert.Equal(t, "pci", labels["compliance"].Value)
@@ -229,7 +229,7 @@ func TestValidateManualLabels_NotAllowed(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not allowed")
@@ -250,7 +250,7 @@ func TestValidateManualLabels_MaxLabels(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "exceeds maximum")
@@ -271,7 +271,7 @@ func TestValidateManualLabels_AllowedKeys(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "forbidden")
@@ -292,7 +292,7 @@ func TestValidateManualLabels_RequiredKeys(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "missing")
@@ -313,7 +313,7 @@ func TestValidateManualLabels_KeyPattern(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not match")
@@ -334,7 +334,7 @@ func TestValidateManualLabels_ValuePattern(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not match")
@@ -356,7 +356,7 @@ func TestValidateManualLabels_Valid(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
 
 	assert.NoError(t, err)
 }
@@ -446,7 +446,7 @@ func TestApplyLabels_EmptyCondition(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	require.NoError(t, err)
 	assert.Len(t, labels, 1)
@@ -472,7 +472,7 @@ func TestApplyLabels_ConditionEvaluationError(t *testing.T) {
 		},
 	}
 
-	_, err := svc.ApplyLabels(ctx, appeal, policy)
+	_, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to evaluate rule")
@@ -497,7 +497,7 @@ func TestApplyLabels_NonBooleanConditionResult(t *testing.T) {
 		},
 	}
 
-	_, err := svc.ApplyLabels(ctx, appeal, policy)
+	_, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	assert.Error(t, err)
 	// expr library catches type mismatch during compilation
@@ -525,7 +525,7 @@ func TestApplyLabels_LabelValueEvaluationError(t *testing.T) {
 	}
 
 	// Should error when evaluation fails and AllowFailure=false
-	_, err := svc.ApplyLabels(ctx, appeal, policy)
+	_, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to evaluate label value")
@@ -550,7 +550,7 @@ func TestApplyLabels_StaticStringValue(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	require.NoError(t, err)
 	assert.Equal(t, "production", labels["env"].Value)
@@ -579,7 +579,7 @@ func TestApplyLabels_ComplexTypeExpressionValue(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	require.NoError(t, err)
 	// Complex types get formatted with %v
@@ -611,7 +611,7 @@ func TestApplyLabels_SkipLabelWhenAlreadySetByHigherPriority(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	require.NoError(t, err)
 	assert.Len(t, labels, 1)
@@ -632,7 +632,7 @@ func TestValidateManualLabels_EmptyUserLabels(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, map[string]string{}, policy)
+	err := svc.ValidateManualLabels(ctx, map[string]string{}, policy.AppealConfig.ManualLabelConfig)
 
 	assert.NoError(t, err)
 }
@@ -649,7 +649,7 @@ func TestValidateManualLabels_MissingConfig(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not allowed")
@@ -670,7 +670,7 @@ func TestValidateManualLabels_ZeroMaxLabels(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
 
 	assert.NoError(t, err)
 }
@@ -690,7 +690,7 @@ func TestValidateManualLabels_InvalidKeyPattern(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid regex pattern")
@@ -711,7 +711,7 @@ func TestValidateManualLabels_InvalidValuePattern(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid regex pattern")
@@ -732,7 +732,7 @@ func TestValidateManualLabels_NoAllowedKeysRestriction(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
 
 	assert.NoError(t, err)
 }
@@ -752,7 +752,7 @@ func TestValidateManualLabels_NoRequiredKeys(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
 
 	assert.NoError(t, err)
 }
@@ -777,7 +777,7 @@ func TestApplyLabels_TimestampSet(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 	after := time.Now()
 
 	require.NoError(t, err)
@@ -808,7 +808,7 @@ func TestApplyLabels_MultipleLabelsFromSameRule(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	require.NoError(t, err)
 	assert.Len(t, labels, 3)
@@ -868,7 +868,7 @@ func TestEvaluateCondition_CompilationError(t *testing.T) {
 		},
 	}
 
-	_, err := svc.ApplyLabels(ctx, appeal, policy)
+	_, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to evaluate") // Changed from "failed to compile"
@@ -893,7 +893,7 @@ func TestEvaluateLabelValue_CompilationFailureFallbackToStatic(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	require.NoError(t, err)
 	// Falls back to treating as static string when compilation fails
@@ -919,7 +919,7 @@ func TestEvaluateLabelValue_EvaluationFailureReturnsError(t *testing.T) {
 		},
 	}
 
-	_, err := svc.ApplyLabels(ctx, appeal, policy)
+	_, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to evaluate label value")
@@ -940,7 +940,7 @@ func TestValidatePattern_MatchSuccess(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
 
 	assert.NoError(t, err)
 }
@@ -971,7 +971,7 @@ func TestApplyLabels_LabelValueAllowFailureTrue(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	require.NoError(t, err)
 	// When AllowFailure=true, the rule should be skipped on error, only valid-rule applies
@@ -998,7 +998,7 @@ func TestApplyLabels_ConditionRunError(t *testing.T) {
 		},
 	}
 
-	_, err := svc.ApplyLabels(ctx, appeal, policy)
+	_, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to evaluate")
@@ -1025,7 +1025,7 @@ func TestApplyLabels_UpdateExistingLabelFromSameRule(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	require.NoError(t, err)
 	assert.Equal(t, "production", labels["env"].Value)
@@ -1037,12 +1037,8 @@ func TestValidateManualLabels_NoAppealConfig(t *testing.T) {
 	svc := labeling.NewService()
 
 	userLabels := map[string]string{"test": "value"}
-	policy := &domain.Policy{
-		ID:           "policy-1",
-		AppealConfig: nil, // No appeal config at all
-	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy)
+	err := svc.ValidateManualLabels(ctx, userLabels, nil)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not allowed")
@@ -1083,7 +1079,7 @@ func TestApplyLabels_ExistingLabelFromHigherPriorityRule(t *testing.T) {
 		},
 	}
 
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "critical", labels["priority"].Value, "Should keep value from higher priority rule")
@@ -1117,7 +1113,7 @@ func TestApplyLabels_LabelEvaluationFailureWithAllowFailureFalse(t *testing.T) {
 	}
 
 	// This should actually succeed because evaluateLabelValue falls back to static string
-	labels, err := svc.ApplyLabels(ctx, appeal, policy)
+	labels, err := svc.ApplyLabels(ctx, appeal, appeal.Resource, policy)
 
 	assert.NoError(t, err)
 	// The value should be the literal string since expression evaluation will fail gracefully
@@ -1138,7 +1134,7 @@ func TestValidateManualLabels_EmptyLabelsWithRequiredKeys(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, map[string]string{}, policy)
+	err := svc.ValidateManualLabels(ctx, map[string]string{}, policy.AppealConfig.ManualLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "required label keys missing")
@@ -1158,7 +1154,7 @@ func TestValidateManualLabels_NilLabelsWithRequiredKeys(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, nil, policy)
+	err := svc.ValidateManualLabels(ctx, nil, policy.AppealConfig.ManualLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "required label keys missing")

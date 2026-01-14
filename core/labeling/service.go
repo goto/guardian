@@ -14,10 +14,10 @@ import (
 
 type Service interface {
 	// ApplyLabels applies policy-based labeling rules to an appeal
-	ApplyLabels(ctx context.Context, appeal *domain.Appeal, policy *domain.Policy) (map[string]*domain.LabelMetadata, error)
+	ApplyLabels(ctx context.Context, appeal *domain.Appeal, resource *domain.Resource, policy *domain.Policy) (map[string]*domain.LabelMetadata, error)
 
 	// ValidateManualLabels validates user-provided labels against policy configuration
-	ValidateManualLabels(ctx context.Context, userLabels map[string]string, policy *domain.Policy) error
+	ValidateManualLabels(ctx context.Context, userLabels map[string]string, config *domain.ManualLabelConfig) error
 
 	// MergeLabels combines policy-based and manual labels with conflict resolution
 	MergeLabels(policyLabels, manualLabels map[string]*domain.LabelMetadata, allowOverride bool) map[string]*domain.LabelMetadata
@@ -32,7 +32,7 @@ func NewService() Service {
 }
 
 // ApplyLabels applies all matching labeling rules from the policy to an appeal
-func (s *service) ApplyLabels(ctx context.Context, appeal *domain.Appeal, policy *domain.Policy) (map[string]*domain.LabelMetadata, error) {
+func (s *service) ApplyLabels(ctx context.Context, appeal *domain.Appeal, resource *domain.Resource, policy *domain.Policy) (map[string]*domain.LabelMetadata, error) {
 	if !policy.HasLabelingRules() {
 		return make(map[string]*domain.LabelMetadata), nil
 	}
@@ -47,10 +47,15 @@ func (s *service) ApplyLabels(ctx context.Context, appeal *domain.Appeal, policy
 	labelsMetadata := make(map[string]*domain.LabelMetadata)
 	now := time.Now()
 
-	// Prepare evaluation context
+	// Prepare evaluation context - use the resource parameter if provided, otherwise use appeal.Resource
+	evalResource := resource
+	if evalResource == nil {
+		evalResource = appeal.Resource
+	}
+
 	evalContext := map[string]interface{}{
 		"appeal":   appeal,
-		"resource": appeal.Resource,
+		"resource": evalResource,
 		"policy":   policy,
 	}
 
@@ -113,17 +118,20 @@ func (s *service) ApplyLabels(ctx context.Context, appeal *domain.Appeal, policy
 }
 
 // ValidateManualLabels validates user-provided labels against policy configuration
-func (s *service) ValidateManualLabels(ctx context.Context, userLabels map[string]string, policy *domain.Policy) error {
-	if !policy.AllowsManualLabels() {
+func (s *service) ValidateManualLabels(ctx context.Context, userLabels map[string]string, config *domain.ManualLabelConfig) error {
+	if config == nil {
 		if len(userLabels) > 0 {
-			return fmt.Errorf("manual labels are not allowed by policy")
+			return fmt.Errorf("manual labels are not allowed (no configuration provided)")
 		}
 		return nil
 	}
 
-	config := policy.AppealConfig.ManualLabelConfig
-	if config == nil {
-		return fmt.Errorf("manual label configuration is missing")
+	// Check if manual labels are allowed
+	if !config.AllowUserLabels {
+		if len(userLabels) > 0 {
+			return fmt.Errorf("manual labels are not allowed by policy")
+		}
+		return nil
 	}
 
 	// Check max labels limit
