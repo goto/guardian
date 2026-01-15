@@ -481,10 +481,10 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	}
 
 	if len(filter.AppealDurations) > 0 {
-		db = db.Where(`"_Appeal"."options" #>> '{duration}' IN ?`, filter.AppealDurations)
+		db = db.Where(`COALESCE("_Appeal"."options" #>> '{duration}', 'null') IN ?`, filter.AppealDurations)
 	}
 	if len(filter.NotAppealDurations) > 0 {
-		db = db.Where(`"_Appeal"."options" #>> '{duration}' NOT IN ?`, filter.NotAppealDurations)
+		db = db.Where(`COALESCE("_Appeal"."options" #>> '{duration}', 'null') NOT IN ?`, filter.NotAppealDurations)
 	}
 
 	for _, appealDetailsPath := range filter.AppealDetailsPaths {
@@ -494,10 +494,10 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		}
 		appealDetailsPath = strings.ReplaceAll(appealDetailsPath, ".", ",")
 		if len(filter.AppealDetails) > 0 {
-			db = db.Where(fmt.Sprintf(`"_Appeal"."details" #>> '{%s}' IN ?`, appealDetailsPath), filter.AppealDetails)
+			db = db.Where(fmt.Sprintf(`COALESCE("_Appeal"."details" #>> '{%s}', 'null') IN ?`, appealDetailsPath), filter.AppealDetails)
 		}
 		if len(filter.NotAppealDetails) > 0 {
-			db = db.Where(fmt.Sprintf(`"_Appeal"."details" #>> '{%s}' NOT IN ?`, appealDetailsPath), filter.NotAppealDetails)
+			db = db.Where(fmt.Sprintf(`COALESCE("_Appeal"."details" #>> '{%s}', 'null') NOT IN ?`, appealDetailsPath), filter.NotAppealDetails)
 		}
 	}
 
