@@ -58,6 +58,9 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		AppealDetailsPaths:       req.GetAppealDetailsPaths(),
 		AppealDetails:            req.GetAppealDetails(),
 		NotAppealDetails:         req.GetNotAppealDetails(),
+		RoleNotStartsWith:        req.GetRoleNotStartsWith(),
+		RoleNotEndsWith:          req.GetRoleNotEndsWith(),
+		RoleNotContains:          req.GetRoleNotContains(),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
@@ -116,6 +119,9 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		AppealDetailsPaths:       req.GetAppealDetailsPaths(),
 		AppealDetails:            req.GetAppealDetails(),
 		NotAppealDetails:         req.GetNotAppealDetails(),
+		RoleNotStartsWith:        req.GetRoleNotStartsWith(),
+		RoleNotEndsWith:          req.GetRoleNotEndsWith(),
+		RoleNotContains:          req.GetRoleNotContains(),
 
 		UserInactiveGrantPolicy: req.GetInactiveGrantPolicy(),
 	}

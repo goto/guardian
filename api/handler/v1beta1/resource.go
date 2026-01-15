@@ -62,6 +62,7 @@ func (s *GRPCServer) ListResources(ctx context.Context, req *guardianv1beta1.Lis
 		}
 	}
 	filter := domain.ListResourcesFilter{
+		IDs:           req.GetIds(),
 		IsDeleted:     req.GetIsDeleted(),
 		ProviderType:  req.GetProviderType(),
 		ProviderURN:   req.GetProviderUrn(),
@@ -79,6 +80,8 @@ func (s *GRPCServer) ListResources(ctx context.Context, req *guardianv1beta1.Lis
 		Q:             req.GetQ(),
 		GroupIDs:      req.GetGroupIds(),
 		GroupTypes:    req.GetGroupTypes(),
+		GlobalURNs:    req.GetGlobalUrns(),
+		ParentIDs:     req.GetParentIds(),
 	}
 
 	resources, total, err := s.listResources(ctx, filter)
