@@ -203,7 +203,7 @@ func RunServer(config *Config) error {
 	baseMux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "pong")
 	})
-	baseMux.Handle("/api/", http.StripPrefix("/api", gwmux))
+	baseMux.Handle("/api/", http.StripPrefix("/api", labelQueryParser(gwmux)))
 
 	logger.Info(runtimeCtx, fmt.Sprintf("server running on %s", address))
 
@@ -257,7 +257,8 @@ func makeHeaderMatcher(c *Config) func(key string) (string, bool) {
 		switch strings.ToLower(key) {
 		case
 			strings.ToLower(c.Auth.Default.HeaderKey),
-			strings.ToLower(c.AuditLogTraceIDHeaderKey):
+			strings.ToLower(c.AuditLogTraceIDHeaderKey),
+			"x-guardian-labels":
 			return key, true
 		default:
 			return runtime.DefaultHeaderMatcher(key)

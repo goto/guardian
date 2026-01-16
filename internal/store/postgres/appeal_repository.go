@@ -460,8 +460,8 @@ func applyLabelFilters(db *gorm.DB, labels map[string][]string) *gorm.DB {
 			continue
 		}
 
-		// Filter using PostgreSQL JSONB operators
-		// labels->>key checks if the key exists and returns its value
+		// Filter using PostgreSQL JSONB operators on labels column (simple key-value pairs)
+		// labels->>key extracts the string value for the key
 		if len(values) == 1 {
 			db = db.Where(`"appeals"."labels"->>? = ?`, key, values[0])
 		} else {
@@ -478,18 +478,15 @@ func applyLabelKeyFilters(db *gorm.DB, keys []string) *gorm.DB {
 		return db
 	}
 
-	// Build OR condition for checking if any of the keys exist
-	// labels ? 'key' checks if the key exists in the JSONB object
+	// Build OR condition for checking if any of the keys exist in labels column
 	var orConditions []string
-	var params []interface{}
 
 	for _, key := range keys {
-		orConditions = append(orConditions, `"appeals"."labels" ? ?`)
-		params = append(params, key)
+		orConditions = append(orConditions, fmt.Sprintf(`jsonb_exists("appeals"."labels", '%s')`, key))
 	}
 
-	query := strings.Join(orConditions, " OR ")
-	db = db.Where(query, params...)
+	query := fmt.Sprintf("(%s)", strings.Join(orConditions, " OR "))
+	db = db.Where(query)
 
 	return db
 }
