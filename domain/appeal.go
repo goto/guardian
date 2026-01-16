@@ -489,6 +489,9 @@ type ListAppealsFilter struct {
 	DetailsPaths              []string  `mapstructure:"details_paths" json:"details_paths,omitempty" validate:"omitempty"`
 	Details                   []string  `mapstructure:"details" json:"details,omitempty" validate:"omitempty"`
 	NotDetails                []string  `mapstructure:"not_details" json:"not_details,omitempty" validate:"omitempty"`
+	RoleNotStartsWith         string    `mapstructure:"role_not_starts_with" json:"role_not_starts_with,omitempty" validate:"omitempty"`
+	RoleNotEndsWith           string    `mapstructure:"role_not_ends_with" json:"role_not_ends_with,omitempty" validate:"omitempty"`
+	RoleNotContains           string    `mapstructure:"role_not_contains" json:"role_not_contains,omitempty" validate:"omitempty"`
 }
 
 func (af ListAppealsFilter) WithSummary() bool {
