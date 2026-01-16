@@ -47,12 +47,6 @@ func (s *service) ApplyLabels(ctx context.Context, appeal *domain.Appeal, resour
 	labelsMetadata := make(map[string]*domain.LabelMetadata)
 	now := time.Now()
 
-	// Prepare evaluation context - use the resource parameter if provided, otherwise use appeal.Resource
-	evalResource := resource
-	if evalResource == nil {
-		evalResource = appeal.Resource
-	}
-
 	appealMap, err := appeal.ToMap()
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert appeal to map: %w", err)
