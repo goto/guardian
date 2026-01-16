@@ -42,7 +42,7 @@ func TestApplyLabels_MatchingRule(t *testing.T) {
 			LabelingRules: []domain.LabelingRule{
 				{
 					RuleName: "db-rule",
-					When:     "$appeal.Resource.Type == \"database\"",
+					When:     "$appeal.resource.type == \"database\"",
 					Labels:   map[string]string{"type": "db", "level": "read"},
 					Priority: 100,
 				},
@@ -80,7 +80,7 @@ func TestApplyLabels_PriorityOrdering(t *testing.T) {
 				},
 				{
 					RuleName: "high-priority",
-					When:     "$appeal.AccountID contains \"admin\"",
+					When:     "$appeal.account_id contains \"admin\"",
 					Labels:   map[string]string{"sensitivity": "high"},
 					Priority: 100,
 				},
@@ -111,8 +111,8 @@ func TestApplyLabels_DynamicValues(t *testing.T) {
 					RuleName: "dynamic",
 					When:     "true",
 					Labels: map[string]string{
-						"resource-type": "$appeal.Resource.Type",
-						"urn":           "$appeal.Resource.URN",
+						"resource-type": "$appeal.resource.type",
+						"urn":           "$appeal.resource.urn",
 					},
 					Priority: 100,
 				},
@@ -489,7 +489,7 @@ func TestApplyLabels_NonBooleanConditionResult(t *testing.T) {
 			LabelingRules: []domain.LabelingRule{
 				{
 					RuleName: "non-bool",
-					When:     "$appeal.AccountID", // Returns string, not bool
+					When:     "$appeal.account_id", // Returns string, not bool
 					Labels:   map[string]string{"test": "value"},
 					Priority: 100,
 				},
@@ -572,7 +572,7 @@ func TestApplyLabels_ComplexTypeExpressionValue(t *testing.T) {
 				{
 					RuleName: "complex-value",
 					When:     "true",
-					Labels:   map[string]string{"resource_obj": "$appeal.Resource"}, // Complex object
+					Labels:   map[string]string{"resource_obj": "$appeal.resource"}, // Complex object
 					Priority: 100,
 				},
 			},
@@ -1062,7 +1062,7 @@ func TestApplyLabels_ExistingLabelFromHigherPriorityRule(t *testing.T) {
 				{
 					RuleName: "high-priority-rule",
 					Priority: 100,
-					When:     "$resource.Type == 'database'",
+					When:     "$appeal.resource.type == 'database'",
 					Labels: map[string]string{
 						"priority": "critical",
 					},
@@ -1070,7 +1070,7 @@ func TestApplyLabels_ExistingLabelFromHigherPriorityRule(t *testing.T) {
 				{
 					RuleName: "low-priority-rule",
 					Priority: 10,
-					When:     "$resource.Type == 'database'",
+					When:     "$appeal.resource.type == 'database'",
 					Labels: map[string]string{
 						"priority": "normal", // Should be ignored, same key already set by higher priority
 					},
