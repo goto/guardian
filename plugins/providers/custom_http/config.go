@@ -26,10 +26,10 @@ func (c *Credentials) GetHeaders() map[string]string {
 }
 
 type ResourceMapping struct {
-	IDField       string   `mapstructure:"id_field" yaml:"id_field" json:"id_field" validate:"required"`
-	NameField     string   `mapstructure:"name_field" yaml:"name_field" json:"name_field" validate:"required"`
-	TypeField     string   `mapstructure:"type_field" yaml:"type_field" json:"type_field" validate:"required"`
-	DetailsFields []string `mapstructure:"details_fields" yaml:"details_fields" json:"details_fields"`
+	ID      string   `mapstructure:"id" yaml:"id" json:"id" validate:"required"`
+	Name    string   `mapstructure:"name" yaml:"name" json:"name" validate:"required"`
+	Type    string   `mapstructure:"type" yaml:"type" json:"type"` // Optional: type is inferred from configuration
+	Details []string `mapstructure:"details" yaml:"details" json:"details"`
 }
 
 type APIEndpoint struct {
@@ -91,9 +91,9 @@ func (c *Config) validateProviderConfig() error {
 			return fmt.Errorf("missing configuration for resource type: %s", resource.Type)
 		}
 
-		// Validate mapping fields
-		if resourceConfig.ResourceMapping.IDField == "" || resourceConfig.ResourceMapping.NameField == "" || resourceConfig.ResourceMapping.TypeField == "" {
-			return fmt.Errorf("mapping fields (id_field, name_field, type_field) are required for resource type: %s", resource.Type)
+		// Validate required mapping fields
+		if resourceConfig.ResourceMapping.ID == "" || resourceConfig.ResourceMapping.Name == "" {
+			return fmt.Errorf("mapping fields (id, name) are required for resource type: %s", resource.Type)
 		}
 
 		// Validate API endpoints

@@ -38,9 +38,9 @@ func TestProvider_CreateConfig(t *testing.T) {
 								},
 							},
 							"resource_mapping": map[string]interface{}{
-								"id_field":   "id",
-								"name_field": "name",
-								"type_field": "type",
+								"id":   "id",
+								"name": "name",
+								"type": "type",
 							},
 						},
 					},

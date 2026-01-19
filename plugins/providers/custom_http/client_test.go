@@ -27,14 +27,14 @@ func TestBasicTypes(t *testing.T) {
 
 func TestResourceMapping(t *testing.T) {
 	mapping := ResourceMapping{
-		IDField:   "id",
-		NameField: "name",
-		TypeField: "type",
+		ID:   "id",
+		Name: "name",
+		Type: "type",
 	}
 
-	assert.Equal(t, "id", mapping.IDField)
-	assert.Equal(t, "name", mapping.NameField)
-	assert.Equal(t, "type", mapping.TypeField)
+	assert.Equal(t, "id", mapping.ID)
+	assert.Equal(t, "name", mapping.Name)
+	assert.Equal(t, "type", mapping.Type)
 }
 
 func TestAPIEndpoint(t *testing.T) {

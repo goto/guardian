@@ -261,26 +261,20 @@ func (c *Client) mapToResource(rawResource map[string]interface{}, resourceType 
 	resource := &Resource{}
 
 	// Extract name using mapping
-	if nameValue, err := c.extractFieldValue(rawResource, resourceConfig.ResourceMapping.NameField); err == nil {
+	if nameValue, err := c.extractFieldValue(rawResource, resourceConfig.ResourceMapping.Name); err == nil {
 		resource.Name = fmt.Sprintf("%v", nameValue)
 	} else {
 		return nil, fmt.Errorf("extracting name field: %w", err)
 	}
 
-	// Extract ID using mapping
-	if idValue, err := c.extractFieldValue(rawResource, resourceConfig.ResourceMapping.IDField); err == nil {
+	if idValue, err := c.extractFieldValue(rawResource, resourceConfig.ResourceMapping.ID); err == nil {
 		resource.ID = fmt.Sprintf("%v", idValue)
 	} else {
 		return nil, fmt.Errorf("extracting id field: %w", err)
 	}
 
-	// Generate URN from ID if no specific URN field configured
 	resource.URN = resource.ID
-
-	// Set resource type from the resource type parameter
 	resource.Type = resourceType
-
-	// Store original data as details
 	resource.Details = rawResource
 
 	return resource, nil
