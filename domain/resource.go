@@ -63,6 +63,8 @@ type ListResourcesFilter struct {
 	Q             string            `mapstructure:"q" validate:"omitempty"`
 	GroupIDs      []string          `mapstructure:"group_ids" validate:"omitempty"`
 	GroupTypes    []string          `mapstructure:"group_types" validate:"omitempty"`
+	GlobalURNs    []string          `mapstructure:"global_urns" validate:"omitempty"`
+	ParentIDs     []string          `mapstructure:"parent_ids" validate:"omitempty"`
 }
 
 type Resources []*Resource

@@ -310,14 +310,6 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		db = db.Where(`"appeals"."resource_id" IN ?`, resourceIDs)
 	}
 
-	roles := slicesUtil.GenericsUniqueSliceValues(filters.Roles)
-	if filters.Role != "" {
-		roles = slicesUtil.GenericsUniqueSliceValues(append(roles, filters.Role))
-	}
-	if len(roles) != 0 {
-		db = db.Where(`LOWER("appeals"."role") IN ?`, roles)
-	}
-
 	if len(filters.GroupIDs) > 0 {
 		db = db.Where(`"appeals"."group_id" IN ?`, filters.GroupIDs)
 	}
@@ -350,68 +342,43 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		db = db.Where(`"Resource"."urn" IN ?`, filters.ResourceURNs)
 	}
 
-	var rolePatterns []string
-	if filters.RoleStartsWith != "" {
-		rolePatterns = append(rolePatterns, filters.RoleStartsWith+"%")
+	rolePatterns, err := buildLikePatterns(filters.RoleStartsWith, filters.RoleEndsWith, filters.RoleContains, filters.Roles, "role")
+	if err != nil {
+		return nil, err
 	}
-	if filters.RoleEndsWith != "" {
-		rolePatterns = append(rolePatterns, "%"+filters.RoleEndsWith)
-	}
-	if filters.RoleContains != "" {
-		rolePatterns = append(rolePatterns, "%"+filters.RoleContains+"%")
-	}
-	if len(filters.Roles) > 0 {
-		rolePatterns = append(rolePatterns, filters.Roles...)
-	}
-	rolePatterns = slicesUtil.GenericsStandardizeSlice(rolePatterns)
 	if len(rolePatterns) > 0 {
 		db = db.Where(`LOWER("appeals"."role") LIKE ANY (?)`, pq.Array(rolePatterns))
 	}
 
-	if (filters.ProviderUrnStartsWith != "" || filters.ProviderUrnEndsWith != "") && filters.ProviderUrnContains != "" {
-		return nil, fmt.Errorf("invalid filter: provider_urn_contains cannot be used together with provider_urn_starts_with or provider_urn_ends_with")
+	roleNotPatterns, err := buildLikePatterns(filters.RoleNotStartsWith, filters.RoleNotEndsWith, filters.RoleNotContains, nil, "role_not")
+	if err != nil {
+		return nil, err
 	}
-	var providerUrnPatterns []string
-	if filters.ProviderUrnStartsWith != "" {
-		providerUrnPatterns = append(providerUrnPatterns, filters.ProviderUrnStartsWith+"%")
+	if len(roleNotPatterns) > 0 {
+		db = db.Where(`LOWER("appeals"."role") NOT LIKE ANY (?)`, pq.Array(roleNotPatterns))
 	}
-	if filters.ProviderUrnEndsWith != "" {
-		providerUrnPatterns = append(providerUrnPatterns, "%"+filters.ProviderUrnEndsWith)
+
+	providerUrnPatterns, err := buildLikePatterns(filters.ProviderUrnStartsWith, filters.ProviderUrnEndsWith, filters.ProviderUrnContains, filters.ProviderURNs, "provider_urn")
+	if err != nil {
+		return nil, err
 	}
-	if filters.ProviderUrnContains != "" {
-		providerUrnPatterns = append(providerUrnPatterns, "%"+filters.ProviderUrnContains+"%")
-	}
-	if len(filters.ProviderURNs) > 0 {
-		providerUrnPatterns = append(providerUrnPatterns, filters.ProviderURNs...)
-	}
-	providerUrnPatterns = slicesUtil.GenericsStandardizeSlice(providerUrnPatterns)
 	if len(providerUrnPatterns) > 0 {
 		db = db.Where(`"Resource"."provider_urn" LIKE ANY (?)`, pq.Array(providerUrnPatterns))
 	}
 
-	if (filters.ProviderUrnNotStartsWith != "" || filters.ProviderUrnNotEndsWith != "") && filters.ProviderUrnNotContains != "" {
-		return nil, fmt.Errorf("invalid filter: provider_urn_not_contains cannot be used together with provider_urn_not_starts_with or provider_urn_not_ends_with")
+	providerUrnNotPatterns, err := buildLikePatterns(filters.ProviderUrnNotStartsWith, filters.ProviderUrnNotEndsWith, filters.ProviderUrnNotContains, nil, "provider_urn_not")
+	if err != nil {
+		return nil, err
 	}
-	var providerUrnNotPatterns []string
-	if filters.ProviderUrnNotStartsWith != "" {
-		providerUrnNotPatterns = append(providerUrnNotPatterns, filters.ProviderUrnNotStartsWith+"%")
-	}
-	if filters.ProviderUrnNotEndsWith != "" {
-		providerUrnNotPatterns = append(providerUrnNotPatterns, "%"+filters.ProviderUrnNotEndsWith)
-	}
-	if filters.ProviderUrnNotContains != "" {
-		providerUrnNotPatterns = append(providerUrnNotPatterns, "%"+filters.ProviderUrnNotContains+"%")
-	}
-	providerUrnNotPatterns = slicesUtil.GenericsStandardizeSlice(providerUrnNotPatterns)
 	if len(providerUrnNotPatterns) > 0 {
 		db = db.Where(`"Resource"."provider_urn" NOT LIKE ANY (?)`, pq.Array(providerUrnNotPatterns))
 	}
 
 	if len(filters.Durations) > 0 {
-		db = db.Where(`"appeals"."options" #>> '{duration}' IN ?`, filters.Durations)
+		db = db.Where(`COALESCE("appeals"."options" #>> '{duration}', 'null') IN ?`, filters.Durations)
 	}
 	if len(filters.NotDurations) > 0 {
-		db = db.Where(`"appeals"."options" #>> '{duration}' NOT IN ?`, filters.NotDurations)
+		db = db.Where(`COALESCE("appeals"."options" #>> '{duration}', 'null') NOT IN ?`, filters.NotDurations)
 	}
 
 	for _, detailsPath := range filters.DetailsPaths {
@@ -421,10 +388,10 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		}
 		detailsPath = strings.ReplaceAll(detailsPath, ".", ",")
 		if len(filters.Details) > 0 {
-			db = db.Where(fmt.Sprintf(`"appeals"."details" #>> '{%s}' IN ?`, detailsPath), filters.Durations)
+			db = db.Where(fmt.Sprintf(`COALESCE("appeals"."details" #>> '{%s}', 'null') IN ?`, detailsPath), filters.Details)
 		}
 		if len(filters.NotDetails) > 0 {
-			db = db.Where(fmt.Sprintf(`"appeals"."details" #>> '{%s}' NOT IN ?`, detailsPath), filters.Durations)
+			db = db.Where(fmt.Sprintf(`COALESCE("appeals"."details" #>> '{%s}', 'null') NOT IN ?`, detailsPath), filters.NotDetails)
 		}
 	}
 

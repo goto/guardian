@@ -88,7 +88,7 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) (*gorm.
 		)
 	}
 	if filter.IDs != nil {
-		db = db.Where(filter.IDs)
+		db = db.Where(`"id" IN ?`, filter.IDs)
 	}
 	if !filter.IsDeleted {
 		db = db.Where(`"is_deleted" = ?`, filter.IsDeleted)
@@ -134,6 +134,12 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) (*gorm.
 	}
 	if filter.Name != "" {
 		db = db.Where(`"name" = ?`, filter.Name)
+	}
+	if len(filter.GlobalURNs) > 0 {
+		db = db.Where(`"global_urn" IN ?`, filter.GlobalURNs)
+	}
+	if len(filter.ParentIDs) > 0 {
+		db = db.Where(`"parent_id" IN ?`, filter.ParentIDs)
 	}
 
 	if filter.Size > 0 {

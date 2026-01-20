@@ -61,6 +61,9 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		AppealDetailsPaths:       req.GetAppealDetailsPaths(),
 		AppealDetails:            req.GetAppealDetails(),
 		NotAppealDetails:         req.GetNotAppealDetails(),
+		RoleNotStartsWith:        req.GetRoleNotStartsWith(),
+		RoleNotEndsWith:          req.GetRoleNotEndsWith(),
+		RoleNotContains:          req.GetRoleNotContains(),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)
@@ -115,6 +118,9 @@ func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.Lis
 		AppealDetailsPaths:       req.GetAppealDetailsPaths(),
 		AppealDetails:            req.GetAppealDetails(),
 		NotAppealDetails:         req.GetNotAppealDetails(),
+		RoleNotStartsWith:        req.GetRoleNotStartsWith(),
+		RoleNotEndsWith:          req.GetRoleNotEndsWith(),
+		RoleNotContains:          req.GetRoleNotContains(),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)

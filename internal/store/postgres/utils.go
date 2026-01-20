@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/goto/guardian/domain"
+	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
 
@@ -162,7 +163,7 @@ func generateGroupSummaries(_ context.Context, dbGen func() (*gorm.DB, error), b
 
 	for i, field := range fields {
 		vs := strings.Split(field, ".")
-		if len(vs) != 2 {
+		if len(vs) < 2 {
 			return nil, fmt.Errorf("%w. input: %q", domain.ErrInvalidGroupInput, field)
 		}
 
@@ -184,6 +185,15 @@ func generateGroupSummaries(_ context.Context, dbGen func() (*gorm.DB, error), b
 		// Add validation for group bys. e,g. group by 'created_at' is not make sense.
 
 		cm := fmt.Sprintf("%q.%q", tableName, columnName)
+		if len(vs) > 2 {
+			jsonPath := vs[2:]
+			for _, p := range jsonPath {
+				if strings.TrimSpace(p) == "" {
+					return nil, fmt.Errorf("%w. input: %q", domain.ErrInvalidGroupInput, field)
+				}
+			}
+			cm = buildJSONTextExpr(tableName, columnName, jsonPath)
+		}
 		selectCols[i] = fmt.Sprintf("%s AS %q", cm, field)
 		groupCols[i] = fmt.Sprintf("%q", field)
 	}
@@ -298,4 +308,27 @@ func buildJSONTextExpr(table, column string, path []string) string {
 		column,
 		strings.Join(quotedPath, ","),
 	)
+}
+
+func buildLikePatterns(startsWith, endsWith, contains string, exact []string, filterName string) ([]string, error) {
+	if (startsWith != "" || endsWith != "") && contains != "" {
+		return nil, fmt.Errorf("invalid filter: %s_contains cannot be used together with %s_starts_with or %s_ends_with", filterName, filterName, filterName)
+	}
+
+	var patterns []string
+
+	if startsWith != "" {
+		patterns = append(patterns, startsWith+"%")
+	}
+	if endsWith != "" {
+		patterns = append(patterns, "%"+endsWith)
+	}
+	if contains != "" {
+		patterns = append(patterns, "%"+contains+"%")
+	}
+	if len(exact) > 0 {
+		patterns = append(patterns, exact...)
+	}
+
+	return slicesUtil.GenericsStandardizeSlice(patterns), nil
 }

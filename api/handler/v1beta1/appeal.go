@@ -77,6 +77,9 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 		NotDetails:               req.GetNotDetails(),
 		Labels:                   labels,
 		LabelKeys:                labelKeys,
+		RoleNotStartsWith:        req.GetRoleNotStartsWith(),
+		RoleNotEndsWith:          req.GetRoleNotEndsWith(),
+		RoleNotContains:          req.GetRoleNotContains(),
 	}
 
 	appeals, total, summary, err := s.listAppeals(ctx, filters)
@@ -150,6 +153,9 @@ func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListA
 		NotDetails:               req.GetNotDetails(),
 		Labels:                   labels,
 		LabelKeys:                req.GetLabelKeys(),
+		RoleNotStartsWith:        req.GetRoleNotStartsWith(),
+		RoleNotEndsWith:          req.GetRoleNotEndsWith(),
+		RoleNotContains:          req.GetRoleNotContains(),
 	}
 
 	appeals, total, summary, err := s.listAppeals(ctx, filters)

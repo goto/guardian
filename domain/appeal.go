@@ -550,6 +550,9 @@ type ListAppealsFilter struct {
 	// LabelKeys filters appeals that have ANY of these label keys (regardless of value)
 	// Example: ["pii_access", "compliance_required"]
 	LabelKeys []string `mapstructure:"label_keys" validate:"omitempty,min=1"`
+	RoleNotStartsWith         string    `mapstructure:"role_not_starts_with" json:"role_not_starts_with,omitempty" validate:"omitempty"`
+	RoleNotEndsWith           string    `mapstructure:"role_not_ends_with" json:"role_not_ends_with,omitempty" validate:"omitempty"`
+	RoleNotContains           string    `mapstructure:"role_not_contains" json:"role_not_contains,omitempty" validate:"omitempty"`
 }
 
 func (af ListAppealsFilter) WithSummary() bool {
