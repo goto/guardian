@@ -48,6 +48,7 @@ func (e Expression) EvaluateWithVars(params map[string]interface{}) (interface{}
 	}
 
 	env := make(ExprParam)
+	params["split"] = env.Split
 
 	for _, c := range program.Constants {
 		if reflect.TypeOf(c).Kind() == reflect.String {
