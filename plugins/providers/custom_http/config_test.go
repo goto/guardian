@@ -96,6 +96,614 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 			wantErr:     true,
 			errContains: "no resource routes found",
 		},
+		{
+			name: "missing configuration for resource type",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "unknown_type"},
+				},
+			},
+			wantErr:     true,
+			errContains: "missing configuration for resource type",
+		},
+		{
+			name: "missing mapping id field",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "mapping fields (id, name) are required",
+		},
+		{
+			name: "missing mapping name field",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id": "id",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "mapping fields (id, name) are required",
+		},
+		{
+			name: "missing resources API endpoint path",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "resources API endpoint (path, method) is required",
+		},
+		{
+			name: "missing resources API endpoint method",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"path": "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "resources API endpoint (path, method) is required",
+		},
+		{
+			name: "missing grant API endpoint path",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "grant API endpoint (path, method) is required",
+		},
+		{
+			name: "missing grant API endpoint method",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"path": "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "grant API endpoint (path, method) is required",
+		},
+		{
+			name: "missing revoke API endpoint path",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "revoke API endpoint (path, method) is required",
+		},
+		{
+			name: "missing revoke API endpoint method",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"path": "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "revoke API endpoint (path, method) is required",
+		},
+		{
+			name: "invalid credentials - cannot decode",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": []string{"not", "a", "string"}, // Invalid type
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "invalid credentials format",
+		},
+		{
+			name: "empty resource routes map",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url":        "https://api.example.com",
+					"resource_routes": map[string]interface{}{},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "no resource routes found",
+		},
+		{
+			name: "missing both id and name in mapping",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"type": "project",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "mapping fields (id, name) are required",
+		},
+		{
+			name: "missing both path and method in resources endpoint",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "resources API endpoint (path, method) is required",
+		},
+		{
+			name: "missing both path and method in grant endpoint",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "grant API endpoint (path, method) is required",
+		},
+		{
+			name: "missing both path and method in revoke endpoint",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "revoke API endpoint (path, method) is required",
+		},
+		{
+			name: "multiple resource types - one missing config",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+					{Type: "dataset"}, // This one is missing
+				},
+			},
+			wantErr:     true,
+			errContains: "missing configuration for resource type: dataset",
+		},
+		{
+			name: "valid config with multiple resource types",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+						"dataset": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/datasets",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/datasets/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/datasets/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+					{Type: "dataset"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid config with optional details field",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":      "id",
+								"name":    "name",
+								"details": []string{"description", "owner", "created_at"},
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
