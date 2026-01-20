@@ -241,6 +241,7 @@ func TestProvider_GetResources(t *testing.T) {
 			},
 			wantErr: false,
 			validateResult: func(t *testing.T, resources []*domain.Resource) {
+				t.Helper()
 				require.Len(t, resources, 2)
 				assert.Equal(t, "proj-1", resources[0].ID)
 				assert.Equal(t, "Project 1", resources[0].Name)
