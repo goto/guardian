@@ -132,6 +132,7 @@ func TestClient_GetResources(t *testing.T) {
 			},
 			wantErr: false,
 			validateResult: func(t *testing.T, resources []*Resource) {
+				t.Helper()
 				require.Len(t, resources, 2)
 				assert.Equal(t, "proj-1", resources[0].ID)
 				assert.Equal(t, "Project 1", resources[0].Name)
@@ -161,6 +162,7 @@ func TestClient_GetResources(t *testing.T) {
 			},
 			wantErr: false,
 			validateResult: func(t *testing.T, resources []*Resource) {
+				t.Helper()
 				require.Len(t, resources, 1)
 				assert.Equal(t, "proj-1", resources[0].ID)
 			},
@@ -283,6 +285,7 @@ func TestClient_GrantAccess(t *testing.T) {
 			},
 			wantErr: false,
 			validateReq: func(t *testing.T, r *http.Request) {
+				t.Helper()
 				assert.Equal(t, "POST", r.Method)
 				assert.Contains(t, r.URL.Path, "/projects/proj-1/members")
 			},
@@ -413,6 +416,7 @@ func TestClient_RevokeAccess(t *testing.T) {
 			},
 			wantErr: false,
 			validateReq: func(t *testing.T, r *http.Request) {
+				t.Helper()
 				assert.Equal(t, "DELETE", r.Method)
 				assert.Contains(t, r.URL.Path, "/projects/proj-1/members/user@example.com")
 			},
