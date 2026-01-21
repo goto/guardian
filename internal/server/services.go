@@ -191,7 +191,9 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		AuditLogger: auditLogger,
 	})
 	eventService := event.NewService(auditLogRepository, deps.Logger)
-	labelingService := labeling.NewService()
+	labelingService := labeling.NewService(labeling.ServiceDeps{
+		Logger: deps.Logger,
+	})
 	appealService := appeal.NewService(appeal.ServiceDeps{
 		Repository:      appealRepository,
 		ResourceService: resourceService,

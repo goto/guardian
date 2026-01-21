@@ -7,13 +7,14 @@ import (
 
 	"github.com/goto/guardian/core/labeling"
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestApplyLabels_NoRules(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1", AccountID: "user@example.com"}
 	policy := &domain.Policy{
@@ -29,7 +30,7 @@ func TestApplyLabels_NoRules(t *testing.T) {
 
 func TestApplyLabels_MatchingRule(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{
 		ID:        "test-1",
@@ -61,7 +62,7 @@ func TestApplyLabels_MatchingRule(t *testing.T) {
 
 func TestApplyLabels_PriorityOrdering(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{
 		ID:        "test-1",
@@ -96,7 +97,7 @@ func TestApplyLabels_PriorityOrdering(t *testing.T) {
 
 func TestApplyLabels_DynamicValues(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{
 		ID:        "test-1",
@@ -129,7 +130,7 @@ func TestApplyLabels_DynamicValues(t *testing.T) {
 
 func TestApplyLabels_AllowFailure(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1", AccountID: "user@example.com"}
 	policy := &domain.Policy{
@@ -162,7 +163,7 @@ func TestApplyLabels_AllowFailure(t *testing.T) {
 
 func TestApplyLabels_ErrorWhenNoAllowFailure(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1"}
 	policy := &domain.Policy{
@@ -186,7 +187,7 @@ func TestApplyLabels_ErrorWhenNoAllowFailure(t *testing.T) {
 
 func TestApplyLabels_WithMetadata(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1"}
 	policy := &domain.Policy{
@@ -219,7 +220,7 @@ func TestApplyLabels_WithMetadata(t *testing.T) {
 
 func TestValidateManualLabels_NotAllowed(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"custom": "value"}
 	policy := &domain.Policy{
@@ -237,7 +238,7 @@ func TestValidateManualLabels_NotAllowed(t *testing.T) {
 
 func TestValidateManualLabels_MaxLabels(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"a": "1", "b": "2", "c": "3"}
 	policy := &domain.Policy{
@@ -258,7 +259,7 @@ func TestValidateManualLabels_MaxLabels(t *testing.T) {
 
 func TestValidateManualLabels_AllowedKeys(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"env": "prod", "forbidden": "val"}
 	policy := &domain.Policy{
@@ -279,7 +280,7 @@ func TestValidateManualLabels_AllowedKeys(t *testing.T) {
 
 func TestValidateManualLabels_RequiredKeys(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"env": "prod"}
 	policy := &domain.Policy{
@@ -300,7 +301,7 @@ func TestValidateManualLabels_RequiredKeys(t *testing.T) {
 
 func TestValidateManualLabels_KeyPattern(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"Invalid-Key": "value"}
 	policy := &domain.Policy{
@@ -321,7 +322,7 @@ func TestValidateManualLabels_KeyPattern(t *testing.T) {
 
 func TestValidateManualLabels_ValuePattern(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"cost_center": "invalid@value"}
 	policy := &domain.Policy{
@@ -342,7 +343,7 @@ func TestValidateManualLabels_ValuePattern(t *testing.T) {
 
 func TestValidateManualLabels_Valid(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"env": "prod", "team": "backend"}
 	policy := &domain.Policy{
@@ -362,7 +363,7 @@ func TestValidateManualLabels_Valid(t *testing.T) {
 }
 
 func TestMergeLabels_NoConflict(t *testing.T) {
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	policyLabels := map[string]*domain.LabelMetadata{
 		"type": {Value: "db", Source: domain.LabelSourcePolicyRule},
@@ -379,7 +380,7 @@ func TestMergeLabels_NoConflict(t *testing.T) {
 }
 
 func TestMergeLabels_KeepPolicyWhenNoOverride(t *testing.T) {
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	policyLabels := map[string]*domain.LabelMetadata{
 		"env": {Value: "prod", Source: domain.LabelSourcePolicyRule, DerivedFrom: "rule1"},
@@ -396,7 +397,7 @@ func TestMergeLabels_KeepPolicyWhenNoOverride(t *testing.T) {
 }
 
 func TestMergeLabels_AllowOverride(t *testing.T) {
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	now := time.Now()
 	policyLabels := map[string]*domain.LabelMetadata{
@@ -414,7 +415,7 @@ func TestMergeLabels_AllowOverride(t *testing.T) {
 }
 
 func TestMergeLabels_EmptyMaps(t *testing.T) {
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	merged := svc.MergeLabels(
 		map[string]*domain.LabelMetadata{},
@@ -429,7 +430,7 @@ func TestMergeLabels_EmptyMaps(t *testing.T) {
 
 func TestApplyLabels_EmptyCondition(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1"}
 	policy := &domain.Policy{
@@ -455,7 +456,7 @@ func TestApplyLabels_EmptyCondition(t *testing.T) {
 
 func TestApplyLabels_ConditionEvaluationError(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1"}
 	policy := &domain.Policy{
@@ -480,7 +481,7 @@ func TestApplyLabels_ConditionEvaluationError(t *testing.T) {
 
 func TestApplyLabels_NonBooleanConditionResult(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1", AccountID: "user@example.com"}
 	policy := &domain.Policy{
@@ -506,7 +507,7 @@ func TestApplyLabels_NonBooleanConditionResult(t *testing.T) {
 
 func TestApplyLabels_LabelValueEvaluationError(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1"}
 	policy := &domain.Policy{
@@ -533,7 +534,7 @@ func TestApplyLabels_LabelValueEvaluationError(t *testing.T) {
 
 func TestApplyLabels_StaticStringValue(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1"}
 	policy := &domain.Policy{
@@ -558,7 +559,7 @@ func TestApplyLabels_StaticStringValue(t *testing.T) {
 
 func TestApplyLabels_ComplexTypeExpressionValue(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{
 		ID:        "test-1",
@@ -588,7 +589,7 @@ func TestApplyLabels_ComplexTypeExpressionValue(t *testing.T) {
 
 func TestApplyLabels_SkipLabelWhenAlreadySetByHigherPriority(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1"}
 	policy := &domain.Policy{
@@ -621,7 +622,7 @@ func TestApplyLabels_SkipLabelWhenAlreadySetByHigherPriority(t *testing.T) {
 
 func TestValidateManualLabels_EmptyUserLabels(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	policy := &domain.Policy{
 		ID: "policy-1",
@@ -639,7 +640,7 @@ func TestValidateManualLabels_EmptyUserLabels(t *testing.T) {
 
 func TestValidateManualLabels_MissingConfig(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"test": "value"}
 	policy := &domain.Policy{
@@ -657,7 +658,7 @@ func TestValidateManualLabels_MissingConfig(t *testing.T) {
 
 func TestValidateManualLabels_ZeroMaxLabels(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"a": "1"}
 	policy := &domain.Policy{
@@ -677,7 +678,7 @@ func TestValidateManualLabels_ZeroMaxLabels(t *testing.T) {
 
 func TestValidateManualLabels_InvalidKeyPattern(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"test_key": "value"}
 	policy := &domain.Policy{
@@ -698,7 +699,7 @@ func TestValidateManualLabels_InvalidKeyPattern(t *testing.T) {
 
 func TestValidateManualLabels_InvalidValuePattern(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"test": "value"}
 	policy := &domain.Policy{
@@ -719,7 +720,7 @@ func TestValidateManualLabels_InvalidValuePattern(t *testing.T) {
 
 func TestValidateManualLabels_NoAllowedKeysRestriction(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"any_key": "any_value", "another": "test"}
 	policy := &domain.Policy{
@@ -739,7 +740,7 @@ func TestValidateManualLabels_NoAllowedKeysRestriction(t *testing.T) {
 
 func TestValidateManualLabels_NoRequiredKeys(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"optional": "value"}
 	policy := &domain.Policy{
@@ -759,7 +760,7 @@ func TestValidateManualLabels_NoRequiredKeys(t *testing.T) {
 
 func TestApplyLabels_TimestampSet(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	before := time.Now()
 	appeal := &domain.Appeal{ID: "test-1"}
@@ -787,7 +788,7 @@ func TestApplyLabels_TimestampSet(t *testing.T) {
 
 func TestApplyLabels_MultipleLabelsFromSameRule(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1"}
 	policy := &domain.Policy{
@@ -818,7 +819,7 @@ func TestApplyLabels_MultipleLabelsFromSameRule(t *testing.T) {
 }
 
 func TestMergeLabels_OnlyPolicyLabels(t *testing.T) {
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	policyLabels := map[string]*domain.LabelMetadata{
 		"env":  {Value: "prod", Source: domain.LabelSourcePolicyRule},
@@ -833,7 +834,7 @@ func TestMergeLabels_OnlyPolicyLabels(t *testing.T) {
 }
 
 func TestMergeLabels_OnlyManualLabels(t *testing.T) {
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	manualLabels := map[string]*domain.LabelMetadata{
 		"custom1": {Value: "val1", Source: domain.LabelSourceUser},
@@ -851,7 +852,7 @@ func TestMergeLabels_OnlyManualLabels(t *testing.T) {
 
 func TestEvaluateCondition_CompilationError(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1"}
 	policy := &domain.Policy{
@@ -876,7 +877,7 @@ func TestEvaluateCondition_CompilationError(t *testing.T) {
 
 func TestEvaluateLabelValue_CompilationFailureFallbackToStatic(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1"}
 	policy := &domain.Policy{
@@ -902,7 +903,7 @@ func TestEvaluateLabelValue_CompilationFailureFallbackToStatic(t *testing.T) {
 
 func TestEvaluateLabelValue_EvaluationFailureReturnsError(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1"}
 	policy := &domain.Policy{
@@ -927,7 +928,7 @@ func TestEvaluateLabelValue_EvaluationFailureReturnsError(t *testing.T) {
 
 func TestValidatePattern_MatchSuccess(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"cost_center": "1234"}
 	policy := &domain.Policy{
@@ -947,7 +948,7 @@ func TestValidatePattern_MatchSuccess(t *testing.T) {
 
 func TestApplyLabels_LabelValueAllowFailureTrue(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1"}
 	policy := &domain.Policy{
@@ -981,7 +982,7 @@ func TestApplyLabels_LabelValueAllowFailureTrue(t *testing.T) {
 
 func TestApplyLabels_ConditionRunError(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1"}
 	policy := &domain.Policy{
@@ -1006,7 +1007,7 @@ func TestApplyLabels_ConditionRunError(t *testing.T) {
 
 func TestApplyLabels_UpdateExistingLabelFromSameRule(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{ID: "test-1"}
 	policy := &domain.Policy{
@@ -1034,7 +1035,7 @@ func TestApplyLabels_UpdateExistingLabelFromSameRule(t *testing.T) {
 
 func TestValidateManualLabels_NoAppealConfig(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"test": "value"}
 
@@ -1046,7 +1047,7 @@ func TestValidateManualLabels_NoAppealConfig(t *testing.T) {
 
 func TestApplyLabels_ExistingLabelFromHigherPriorityRule(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{
 		ID: "appeal-1",
@@ -1088,7 +1089,7 @@ func TestApplyLabels_ExistingLabelFromHigherPriorityRule(t *testing.T) {
 
 func TestApplyLabels_LabelEvaluationFailureWithAllowFailureFalse(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	appeal := &domain.Appeal{
 		ID:       "appeal-1",
@@ -1122,7 +1123,7 @@ func TestApplyLabels_LabelEvaluationFailureWithAllowFailureFalse(t *testing.T) {
 
 func TestValidateManualLabels_EmptyLabelsWithRequiredKeys(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	policy := &domain.Policy{
 		ID: "policy-1",
@@ -1142,7 +1143,7 @@ func TestValidateManualLabels_EmptyLabelsWithRequiredKeys(t *testing.T) {
 
 func TestValidateManualLabels_NilLabelsWithRequiredKeys(t *testing.T) {
 	ctx := context.Background()
-	svc := labeling.NewService()
+	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	policy := &domain.Policy{
 		ID: "policy-1",

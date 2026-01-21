@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goto/guardian/pkg/log"
+
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/evaluator"
 )
@@ -23,12 +25,19 @@ type Service interface {
 	MergeLabels(policyLabels, manualLabels map[string]*domain.LabelMetadata, allowOverride bool) map[string]*domain.LabelMetadata
 }
 
+type ServiceDeps struct {
+	Logger log.Logger
+}
+
 type service struct {
+	Logger log.Logger
 	// Dependencies can be added here if needed (e.g., logger, evaluator, etc.)
 }
 
-func NewService() Service {
-	return &service{}
+func NewService(deps ServiceDeps) Service {
+	return &service{
+		Logger: deps.Logger,
+	}
 }
 
 // ApplyLabels applies all matching labeling rules from the policy to an appeal
@@ -74,7 +83,7 @@ func (s *service) ApplyLabels(ctx context.Context, appeal *domain.Appeal, resour
 		// Apply labels from this rule
 		for key, value := range rule.Labels {
 			// Evaluate dynamic label values (expressions)
-			evaluatedValue, err := s.evaluateLabelValue(value, evalContext)
+			evaluatedValue, err := s.evaluateLabelValue(ctx, value, evalContext)
 			if err != nil {
 				if rule.AllowFailure {
 					continue
@@ -200,14 +209,11 @@ func (s *service) MergeLabels(policyLabels, manualLabels map[string]*domain.Labe
 
 	// Add or override with manual labels
 	for key, value := range manualLabels {
-		if existing, exists := merged[key]; exists {
+		if _, exists := merged[key]; exists {
 			// Label exists from policy
 			if allowOverride {
 				// Manual label overrides policy label
 				merged[key] = value
-			} else {
-				// Keep policy label, ignore manual
-				merged[key] = existing
 			}
 		} else {
 			// New label from user
@@ -239,7 +245,7 @@ func (s *service) evaluateCondition(condition string, context map[string]interfa
 }
 
 // evaluateLabelValue evaluates a label value which may be a static string or an expression
-func (s *service) evaluateLabelValue(value string, context map[string]interface{}) (string, error) {
+func (s *service) evaluateLabelValue(ctx context.Context, value string, context map[string]interface{}) (string, error) {
 	// Check if the value contains expression markers (similar to AppealMetadataSource.evaluateValue)
 	// Only evaluate if it contains variable references
 	if !strings.Contains(value, "$appeal") && !strings.Contains(value, "$resource") && !strings.Contains(value, "$policy") {
@@ -252,6 +258,7 @@ func (s *service) evaluateLabelValue(value string, context map[string]interface{
 	result, err := expr.EvaluateWithVars(context)
 	if err != nil {
 		// If evaluation fails, return error
+		s.Logger.Error(ctx, "Label value evaluation failed", "value", value, "context", context, "error", err)
 		return "", fmt.Errorf("failed to evaluate expression: %w", err)
 	}
 
