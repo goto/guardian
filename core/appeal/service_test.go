@@ -7358,7 +7358,7 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 					},
 				},
 				AppealConfig: &domain.PolicyAppealConfig{
-					ManualLabelConfig: &domain.ManualLabelConfig{
+					UserLabelConfig: &domain.UserLabelConfig{
 						AllowUserLabels: true,
 						AllowedKeys:     []string{"project", "cost_center"},
 						MaxLabels:       5,
@@ -7383,7 +7383,7 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 			},
 		}
 
-		expectedManualLabels := map[string]*domain.LabelMetadata{
+		expectedUserLabels := map[string]*domain.LabelMetadata{
 			"project": {
 				Value:  "alpha",
 				Source: domain.LabelSourceUser,
@@ -7418,14 +7418,14 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 
 		// Mock labeling service calls
 		mockLabelingService.EXPECT().
-			ValidateManualLabels(h.ctxMatcher, userLabels, policies[0].AppealConfig.ManualLabelConfig).
+			ValidateUserLabels(h.ctxMatcher, userLabels, policies[0].AppealConfig.UserLabelConfig).
 			Return(nil).Once()
 		mockLabelingService.EXPECT().
 			ApplyLabels(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
 			Return(map[string]*domain.LabelMetadata{}, nil).Once()
 		mockLabelingService.EXPECT().
 			MergeLabels(mock.Anything, mock.Anything, false).
-			Return(expectedManualLabels).Once()
+			Return(expectedUserLabels).Once()
 
 		h.mockRepository.EXPECT().
 			BulkUpsert(h.ctxMatcher, mock.MatchedBy(func(appeals []*domain.Appeal) bool {
@@ -7540,7 +7540,7 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 							},
 						},
 					},
-					ManualLabelConfig: &domain.ManualLabelConfig{
+					UserLabelConfig: &domain.UserLabelConfig{
 						AllowUserLabels: true,
 						AllowedKeys:     []string{"project", "owner"},
 						AllowOverride:   false,
@@ -7619,7 +7619,7 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 
 		// Mock labeling service calls
 		mockLabelingService.EXPECT().
-			ValidateManualLabels(h.ctxMatcher, userLabels, policies[0].AppealConfig.ManualLabelConfig).
+			ValidateUserLabels(h.ctxMatcher, userLabels, policies[0].AppealConfig.UserLabelConfig).
 			Return(nil).Once()
 		mockLabelingService.EXPECT().
 			ApplyLabels(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
@@ -7749,7 +7749,7 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 					},
 				},
 				AppealConfig: &domain.PolicyAppealConfig{
-					ManualLabelConfig: &domain.ManualLabelConfig{
+					UserLabelConfig: &domain.UserLabelConfig{
 						AllowUserLabels: true,
 						AllowedKeys:     []string{"project"},
 						MaxLabels:       2,
@@ -7798,7 +7798,7 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 		// Mock labeling service to return validation error
 		expectedError := errors.New("label key 'invalid_key' is not allowed")
 		mockLabelingService.EXPECT().
-			ValidateManualLabels(h.ctxMatcher, userLabels, policies[0].AppealConfig.ManualLabelConfig).
+			ValidateUserLabels(h.ctxMatcher, userLabels, policies[0].AppealConfig.UserLabelConfig).
 			Return(expectedError).Once()
 
 		// Inject mock labeling service
@@ -7829,7 +7829,7 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 		actualError := h.service.Create(context.Background(), appeals)
 
 		s.Error(actualError)
-		s.Contains(actualError.Error(), "validating manual labels")
+		s.Contains(actualError.Error(), "validating user labels")
 		mockLabelingService.AssertExpectations(s.T())
 	})
 

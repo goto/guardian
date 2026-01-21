@@ -18,11 +18,11 @@ type Service interface {
 	// ApplyLabels applies policy-based labeling rules to an appeal
 	ApplyLabels(ctx context.Context, appeal *domain.Appeal, resource *domain.Resource, policy *domain.Policy) (map[string]*domain.LabelMetadata, error)
 
-	// ValidateManualLabels validates user-provided labels against policy configuration
-	ValidateManualLabels(ctx context.Context, userLabels map[string]string, config *domain.ManualLabelConfig) error
+	// ValidateUserLabels validates user-provided labels against policy configuration
+	ValidateUserLabels(ctx context.Context, userLabels map[string]string, config *domain.UserLabelConfig) error
 
-	// MergeLabels combines policy-based and manual labels with conflict resolution
-	MergeLabels(policyLabels, manualLabels map[string]*domain.LabelMetadata, allowOverride bool) map[string]*domain.LabelMetadata
+	// MergeLabels combines policy-based and user labels with conflict resolution
+	MergeLabels(policyLabels, userLabels map[string]*domain.LabelMetadata, allowOverride bool) map[string]*domain.LabelMetadata
 }
 
 type ServiceDeps struct {
@@ -123,19 +123,19 @@ func (s *service) ApplyLabels(ctx context.Context, appeal *domain.Appeal, resour
 	return labelsMetadata, nil
 }
 
-// ValidateManualLabels validates user-provided labels against policy configuration
-func (s *service) ValidateManualLabels(ctx context.Context, userLabels map[string]string, config *domain.ManualLabelConfig) error {
+// ValidateUserLabels validates user-provided labels against policy configuration
+func (s *service) ValidateUserLabels(ctx context.Context, userLabels map[string]string, config *domain.UserLabelConfig) error {
 	if config == nil {
 		if len(userLabels) > 0 {
-			return fmt.Errorf("manual labels are not allowed (no configuration provided)")
+			return fmt.Errorf("user labels are not allowed (no configuration provided)")
 		}
 		return nil
 	}
 
-	// Check if manual labels are allowed
+	// Check if user labels are allowed
 	if !config.AllowUserLabels {
 		if len(userLabels) > 0 {
-			return fmt.Errorf("manual labels are not allowed by policy")
+			return fmt.Errorf("user labels are not allowed by policy")
 		}
 		return nil
 	}
@@ -198,8 +198,8 @@ func (s *service) ValidateManualLabels(ctx context.Context, userLabels map[strin
 	return nil
 }
 
-// MergeLabels combines policy-based and manual labels
-func (s *service) MergeLabels(policyLabels, manualLabels map[string]*domain.LabelMetadata, allowOverride bool) map[string]*domain.LabelMetadata {
+// MergeLabels combines policy-based and user labels
+func (s *service) MergeLabels(policyLabels, userLabels map[string]*domain.LabelMetadata, allowOverride bool) map[string]*domain.LabelMetadata {
 	merged := make(map[string]*domain.LabelMetadata)
 
 	// Start with policy labels
@@ -207,12 +207,12 @@ func (s *service) MergeLabels(policyLabels, manualLabels map[string]*domain.Labe
 		merged[key] = value
 	}
 
-	// Add or override with manual labels
-	for key, value := range manualLabels {
+	// Add or override with user labels
+	for key, value := range userLabels {
 		if _, exists := merged[key]; exists {
 			// Label exists from policy
 			if allowOverride {
-				// Manual label overrides policy label
+				// User label overrides policy label
 				merged[key] = value
 			}
 		} else {

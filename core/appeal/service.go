@@ -111,8 +111,8 @@ type auditLogger interface {
 //go:generate mockery --name=labelingService --exported --with-expecter
 type labelingService interface {
 	ApplyLabels(ctx context.Context, appeal *domain.Appeal, resource *domain.Resource, policy *domain.Policy) (map[string]*domain.LabelMetadata, error)
-	ValidateManualLabels(ctx context.Context, labels map[string]string, config *domain.ManualLabelConfig) error
-	MergeLabels(policyLabels, manualLabels map[string]*domain.LabelMetadata, allowOverride bool) map[string]*domain.LabelMetadata
+	ValidateUserLabels(ctx context.Context, labels map[string]string, config *domain.UserLabelConfig) error
+	MergeLabels(policyLabels, userLabels map[string]*domain.LabelMetadata, allowOverride bool) map[string]*domain.LabelMetadata
 }
 
 type CreateAppealOption func(*createAppealOptions)
@@ -1936,10 +1936,10 @@ func (s *Service) applyLabeling(ctx context.Context, a *domain.Appeal, p *domain
 		userLabels = make(map[string]string)
 	}
 
-	// Validate manual labels against policy configuration
-	if p.AllowsManualLabels() && len(userLabels) > 0 {
-		if err := s.labelingService.ValidateManualLabels(ctx, userLabels, p.AppealConfig.ManualLabelConfig); err != nil {
-			return fmt.Errorf("validating manual labels: %w", err)
+	// Validate user labels against policy configuration
+	if p.AllowsUserLabels() && len(userLabels) > 0 {
+		if err := s.labelingService.ValidateUserLabels(ctx, userLabels, p.AppealConfig.UserLabelConfig); err != nil {
+			return fmt.Errorf("validating user labels: %w", err)
 		}
 	}
 
@@ -1950,20 +1950,20 @@ func (s *Service) applyLabeling(ctx context.Context, a *domain.Appeal, p *domain
 	}
 
 	// Convert user labels to LabelMetadata format
-	manualLabels := make(map[string]*domain.LabelMetadata)
+	userLabelsMetadata := make(map[string]*domain.LabelMetadata)
 	for key, value := range userLabels {
-		manualLabels[key] = &domain.LabelMetadata{
+		userLabelsMetadata[key] = &domain.LabelMetadata{
 			Value:  value,
 			Source: domain.LabelSourceUser,
 		}
 	}
 
-	// Merge policy and manual labels
+	// Merge policy and user labels
 	allowOverride := false
-	if p.AllowsManualLabels() {
-		allowOverride = p.AppealConfig.ManualLabelConfig.AllowOverride
+	if p.AllowsUserLabels() {
+		allowOverride = p.AppealConfig.UserLabelConfig.AllowOverride
 	}
-	mergedLabels := s.labelingService.MergeLabels(policyLabels, manualLabels, allowOverride)
+	mergedLabels := s.labelingService.MergeLabels(policyLabels, userLabelsMetadata, allowOverride)
 
 	// Set both Labels (flat map) and LabelsMetadata (rich metadata)
 	a.Labels = make(map[string]string)

@@ -405,8 +405,8 @@ type PolicyAppealConfig struct {
 	// LabelingRules defines automatic label application rules
 	LabelingRules []LabelingRule `json:"labeling_rules,omitempty" yaml:"labeling_rules,omitempty" validate:"omitempty,dive"`
 
-	// ManualLabelConfig defines validation rules for user-provided labels
-	ManualLabelConfig *ManualLabelConfig `json:"manual_label_config,omitempty" yaml:"manual_label_config,omitempty" validate:"omitempty"`
+	// UserLabelConfig defines validation rules for user-provided labels
+	UserLabelConfig *UserLabelConfig `json:"user_label_config,omitempty" yaml:"user_label_config,omitempty" validate:"omitempty"`
 }
 
 // LabelingRule defines a rule for automatically applying labels to appeals
@@ -453,9 +453,9 @@ type LabelMetadataConfig struct {
 	Attributes map[string]interface{} `json:"attributes,omitempty" yaml:"attributes,omitempty"`
 }
 
-// ManualLabelConfig defines validation rules for user-provided labels
-type ManualLabelConfig struct {
-	// AllowUserLabels enables/disables manual label support
+// UserLabelConfig defines validation rules for user-provided labels
+type UserLabelConfig struct {
+	// AllowUserLabels enables/disables user label support
 	AllowUserLabels bool `json:"allow_user_labels" yaml:"allow_user_labels"`
 
 	// AllowedKeys is a whitelist of allowed label keys
@@ -512,13 +512,13 @@ func (p *Policy) HasCustomSteps() bool {
 }
 
 func (p *Policy) HasLabelingConfig() bool {
-	return p.AppealConfig != nil && (len(p.AppealConfig.LabelingRules) > 0 || p.AppealConfig.ManualLabelConfig != nil)
+	return p.AppealConfig != nil && (len(p.AppealConfig.LabelingRules) > 0 || p.AppealConfig.UserLabelConfig != nil)
 }
 
 func (p *Policy) HasLabelingRules() bool {
 	return p.AppealConfig != nil && len(p.AppealConfig.LabelingRules) > 0
 }
 
-func (p *Policy) AllowsManualLabels() bool {
-	return p.AppealConfig != nil && p.AppealConfig.ManualLabelConfig != nil && p.AppealConfig.ManualLabelConfig.AllowUserLabels
+func (p *Policy) AllowsUserLabels() bool {
+	return p.AppealConfig != nil && p.AppealConfig.UserLabelConfig != nil && p.AppealConfig.UserLabelConfig.AllowUserLabels
 }

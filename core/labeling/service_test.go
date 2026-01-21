@@ -218,7 +218,7 @@ func TestApplyLabels_WithMetadata(t *testing.T) {
 	assert.Equal(t, "high", labels["compliance"].Attributes["level"])
 }
 
-func TestValidateManualLabels_NotAllowed(t *testing.T) {
+func TestValidateUserLabels_NotAllowed(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
@@ -226,17 +226,17 @@ func TestValidateManualLabels_NotAllowed(t *testing.T) {
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{AllowUserLabels: false},
+			UserLabelConfig: &domain.UserLabelConfig{AllowUserLabels: false},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, userLabels, policy.AppealConfig.UserLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not allowed")
 }
 
-func TestValidateManualLabels_MaxLabels(t *testing.T) {
+func TestValidateUserLabels_MaxLabels(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
@@ -244,20 +244,20 @@ func TestValidateManualLabels_MaxLabels(t *testing.T) {
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 				MaxLabels:       2,
 			},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, userLabels, policy.AppealConfig.UserLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "exceeds maximum")
 }
 
-func TestValidateManualLabels_AllowedKeys(t *testing.T) {
+func TestValidateUserLabels_AllowedKeys(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
@@ -265,20 +265,20 @@ func TestValidateManualLabels_AllowedKeys(t *testing.T) {
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 				AllowedKeys:     []string{"env", "team"},
 			},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, userLabels, policy.AppealConfig.UserLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "forbidden")
 }
 
-func TestValidateManualLabels_RequiredKeys(t *testing.T) {
+func TestValidateUserLabels_RequiredKeys(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
@@ -286,20 +286,20 @@ func TestValidateManualLabels_RequiredKeys(t *testing.T) {
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 				RequiredKeys:    []string{"env", "team"},
 			},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, userLabels, policy.AppealConfig.UserLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "missing")
 }
 
-func TestValidateManualLabels_KeyPattern(t *testing.T) {
+func TestValidateUserLabels_KeyPattern(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
@@ -307,20 +307,20 @@ func TestValidateManualLabels_KeyPattern(t *testing.T) {
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 				KeyPattern:      "^[a-z_]+$", // lowercase and underscore only
 			},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, userLabels, policy.AppealConfig.UserLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not match")
 }
 
-func TestValidateManualLabels_ValuePattern(t *testing.T) {
+func TestValidateUserLabels_ValuePattern(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
@@ -328,20 +328,20 @@ func TestValidateManualLabels_ValuePattern(t *testing.T) {
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 				ValuePattern:    "^[a-zA-Z0-9]+$", // alphanumeric only
 			},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, userLabels, policy.AppealConfig.UserLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not match")
 }
 
-func TestValidateManualLabels_Valid(t *testing.T) {
+func TestValidateUserLabels_Valid(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
@@ -349,7 +349,7 @@ func TestValidateManualLabels_Valid(t *testing.T) {
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 				AllowedKeys:     []string{"env", "team"},
 				RequiredKeys:    []string{"env"},
@@ -357,7 +357,7 @@ func TestValidateManualLabels_Valid(t *testing.T) {
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, userLabels, policy.AppealConfig.UserLabelConfig)
 
 	assert.NoError(t, err)
 }
@@ -368,11 +368,11 @@ func TestMergeLabels_NoConflict(t *testing.T) {
 	policyLabels := map[string]*domain.LabelMetadata{
 		"type": {Value: "db", Source: domain.LabelSourcePolicyRule},
 	}
-	manualLabels := map[string]*domain.LabelMetadata{
+	userLabels := map[string]*domain.LabelMetadata{
 		"team": {Value: "backend", Source: domain.LabelSourceUser},
 	}
 
-	merged := svc.MergeLabels(policyLabels, manualLabels, false)
+	merged := svc.MergeLabels(policyLabels, userLabels, false)
 
 	assert.Len(t, merged, 2)
 	assert.Equal(t, "db", merged["type"].Value)
@@ -385,11 +385,11 @@ func TestMergeLabels_KeepPolicyWhenNoOverride(t *testing.T) {
 	policyLabels := map[string]*domain.LabelMetadata{
 		"env": {Value: "prod", Source: domain.LabelSourcePolicyRule, DerivedFrom: "rule1"},
 	}
-	manualLabels := map[string]*domain.LabelMetadata{
+	userLabels := map[string]*domain.LabelMetadata{
 		"env": {Value: "staging", Source: domain.LabelSourceUser},
 	}
 
-	merged := svc.MergeLabels(policyLabels, manualLabels, false)
+	merged := svc.MergeLabels(policyLabels, userLabels, false)
 
 	assert.Len(t, merged, 1)
 	assert.Equal(t, "prod", merged["env"].Value)
@@ -403,11 +403,11 @@ func TestMergeLabels_AllowOverride(t *testing.T) {
 	policyLabels := map[string]*domain.LabelMetadata{
 		"env": {Value: "prod", Source: domain.LabelSourcePolicyRule, DerivedFrom: "rule1"},
 	}
-	manualLabels := map[string]*domain.LabelMetadata{
+	userLabels := map[string]*domain.LabelMetadata{
 		"env": {Value: "staging", Source: domain.LabelSourceUser, AppliedAt: now},
 	}
 
-	merged := svc.MergeLabels(policyLabels, manualLabels, true)
+	merged := svc.MergeLabels(policyLabels, userLabels, true)
 
 	assert.Len(t, merged, 1)
 	assert.Equal(t, "staging", merged["env"].Value)
@@ -620,25 +620,25 @@ func TestApplyLabels_SkipLabelWhenAlreadySetByHigherPriority(t *testing.T) {
 	assert.Equal(t, "high-priority", labels["env"].DerivedFrom)
 }
 
-func TestValidateManualLabels_EmptyUserLabels(t *testing.T) {
+func TestValidateUserLabels_EmptyUserLabels(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 			},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, map[string]string{}, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, map[string]string{}, policy.AppealConfig.UserLabelConfig)
 
 	assert.NoError(t, err)
 }
 
-func TestValidateManualLabels_MissingConfig(t *testing.T) {
+func TestValidateUserLabels_MissingConfig(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
@@ -646,17 +646,17 @@ func TestValidateManualLabels_MissingConfig(t *testing.T) {
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: nil, // Config exists but allows manual labels
+			UserLabelConfig: nil, // Config exists but allows user labels
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, userLabels, policy.AppealConfig.UserLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not allowed")
 }
 
-func TestValidateManualLabels_ZeroMaxLabels(t *testing.T) {
+func TestValidateUserLabels_ZeroMaxLabels(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
@@ -664,19 +664,19 @@ func TestValidateManualLabels_ZeroMaxLabels(t *testing.T) {
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 				MaxLabels:       0, // 0 means no limit
 			},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, userLabels, policy.AppealConfig.UserLabelConfig)
 
 	assert.NoError(t, err)
 }
 
-func TestValidateManualLabels_InvalidKeyPattern(t *testing.T) {
+func TestValidateUserLabels_InvalidKeyPattern(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
@@ -684,20 +684,20 @@ func TestValidateManualLabels_InvalidKeyPattern(t *testing.T) {
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 				KeyPattern:      "[invalid(regex", // Invalid regex
 			},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, userLabels, policy.AppealConfig.UserLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid regex pattern")
 }
 
-func TestValidateManualLabels_InvalidValuePattern(t *testing.T) {
+func TestValidateUserLabels_InvalidValuePattern(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
@@ -705,20 +705,20 @@ func TestValidateManualLabels_InvalidValuePattern(t *testing.T) {
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 				ValuePattern:    "[invalid(regex", // Invalid regex
 			},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, userLabels, policy.AppealConfig.UserLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid regex pattern")
 }
 
-func TestValidateManualLabels_NoAllowedKeysRestriction(t *testing.T) {
+func TestValidateUserLabels_NoAllowedKeysRestriction(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
@@ -726,19 +726,19 @@ func TestValidateManualLabels_NoAllowedKeysRestriction(t *testing.T) {
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 				AllowedKeys:     nil, // nil means no restriction
 			},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, userLabels, policy.AppealConfig.UserLabelConfig)
 
 	assert.NoError(t, err)
 }
 
-func TestValidateManualLabels_NoRequiredKeys(t *testing.T) {
+func TestValidateUserLabels_NoRequiredKeys(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
@@ -746,14 +746,14 @@ func TestValidateManualLabels_NoRequiredKeys(t *testing.T) {
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 				RequiredKeys:    nil, // No required keys
 			},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, userLabels, policy.AppealConfig.UserLabelConfig)
 
 	assert.NoError(t, err)
 }
@@ -833,15 +833,15 @@ func TestMergeLabels_OnlyPolicyLabels(t *testing.T) {
 	assert.Equal(t, "backend", merged["team"].Value)
 }
 
-func TestMergeLabels_OnlyManualLabels(t *testing.T) {
+func TestMergeLabels_OnlyuserLabels(t *testing.T) {
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
-	manualLabels := map[string]*domain.LabelMetadata{
+	userLabels := map[string]*domain.LabelMetadata{
 		"custom1": {Value: "val1", Source: domain.LabelSourceUser},
 		"custom2": {Value: "val2", Source: domain.LabelSourceUser},
 	}
 
-	merged := svc.MergeLabels(map[string]*domain.LabelMetadata{}, manualLabels, false)
+	merged := svc.MergeLabels(map[string]*domain.LabelMetadata{}, userLabels, false)
 
 	assert.Len(t, merged, 2)
 	assert.Equal(t, "val1", merged["custom1"].Value)
@@ -934,14 +934,14 @@ func TestValidatePattern_MatchSuccess(t *testing.T) {
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 				ValuePattern:    "^[0-9]{4}$",
 			},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, userLabels, policy.AppealConfig.UserLabelConfig)
 
 	assert.NoError(t, err)
 }
@@ -1033,13 +1033,13 @@ func TestApplyLabels_UpdateExistingLabelFromSameRule(t *testing.T) {
 	assert.Equal(t, "same-rule-update", labels["env"].DerivedFrom)
 }
 
-func TestValidateManualLabels_NoAppealConfig(t *testing.T) {
+func TestValidateUserLabels_NoAppealConfig(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	userLabels := map[string]string{"test": "value"}
 
-	err := svc.ValidateManualLabels(ctx, userLabels, nil)
+	err := svc.ValidateUserLabels(ctx, userLabels, nil)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not allowed")
@@ -1121,41 +1121,41 @@ func TestApplyLabels_LabelEvaluationFailureWithAllowFailureFalse(t *testing.T) {
 	assert.Equal(t, "nonexistent.field.value", labels["invalid"].Value)
 }
 
-func TestValidateManualLabels_EmptyLabelsWithRequiredKeys(t *testing.T) {
+func TestValidateUserLabels_EmptyLabelsWithRequiredKeys(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 				RequiredKeys:    []string{"team"},
 			},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, map[string]string{}, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, map[string]string{}, policy.AppealConfig.UserLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "required label keys missing")
 }
 
-func TestValidateManualLabels_NilLabelsWithRequiredKeys(t *testing.T) {
+func TestValidateUserLabels_NilLabelsWithRequiredKeys(t *testing.T) {
 	ctx := context.Background()
 	svc := labeling.NewService(labeling.ServiceDeps{Logger: log.NewNoop()})
 
 	policy := &domain.Policy{
 		ID: "policy-1",
 		AppealConfig: &domain.PolicyAppealConfig{
-			ManualLabelConfig: &domain.ManualLabelConfig{
+			UserLabelConfig: &domain.UserLabelConfig{
 				AllowUserLabels: true,
 				RequiredKeys:    []string{"team"},
 			},
 		},
 	}
 
-	err := svc.ValidateManualLabels(ctx, nil, policy.AppealConfig.ManualLabelConfig)
+	err := svc.ValidateUserLabels(ctx, nil, policy.AppealConfig.UserLabelConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "required label keys missing")

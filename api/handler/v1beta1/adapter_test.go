@@ -451,7 +451,7 @@ func TestAdapter_FromPolicyProto_WithLabelingConfig(t *testing.T) {
 		assert.True(t, rule2.AllowFailure)
 	})
 
-	t.Run("should convert manual_label_config from proto to domain", func(t *testing.T) {
+	t.Run("should convert user_label_config from proto to domain", func(t *testing.T) {
 		policyProto := &guardianv1beta1.Policy{
 			Id:      "test-policy",
 			Version: 1,
@@ -463,7 +463,7 @@ func TestAdapter_FromPolicyProto_WithLabelingConfig(t *testing.T) {
 				},
 			},
 			Appeal: &guardianv1beta1.PolicyAppealConfig{
-				ManualLabelConfig: &guardianv1beta1.ManualLabelConfig{
+				UserLabelConfig: &guardianv1beta1.UserLabelConfig{
 					AllowUserLabels: true,
 					AllowedKeys:     []string{"project", "cost_center", "owner"},
 					RequiredKeys:    []string{"cost_center"},
@@ -479,9 +479,9 @@ func TestAdapter_FromPolicyProto_WithLabelingConfig(t *testing.T) {
 
 		assert.NotNil(t, result)
 		assert.NotNil(t, result.AppealConfig)
-		assert.NotNil(t, result.AppealConfig.ManualLabelConfig)
+		assert.NotNil(t, result.AppealConfig.UserLabelConfig)
 
-		mlc := result.AppealConfig.ManualLabelConfig
+		mlc := result.AppealConfig.UserLabelConfig
 		assert.True(t, mlc.AllowUserLabels)
 		assert.Equal(t, []string{"project", "cost_center", "owner"}, mlc.AllowedKeys)
 		assert.Equal(t, []string{"cost_center"}, mlc.RequiredKeys)
@@ -565,7 +565,7 @@ func TestAdapter_FromPolicyProto_WithLabelingConfig(t *testing.T) {
 		assert.Nil(t, result.AppealConfig.LabelingRules)
 	})
 
-	t.Run("should handle nil manual_label_config", func(t *testing.T) {
+	t.Run("should handle nil user_label_config", func(t *testing.T) {
 		policyProto := &guardianv1beta1.Policy{
 			Id:      "test-policy",
 			Version: 1,
@@ -577,7 +577,7 @@ func TestAdapter_FromPolicyProto_WithLabelingConfig(t *testing.T) {
 				},
 			},
 			Appeal: &guardianv1beta1.PolicyAppealConfig{
-				ManualLabelConfig: nil,
+				UserLabelConfig: nil,
 			},
 		}
 
@@ -585,7 +585,7 @@ func TestAdapter_FromPolicyProto_WithLabelingConfig(t *testing.T) {
 
 		assert.NotNil(t, result)
 		assert.NotNil(t, result.AppealConfig)
-		assert.Nil(t, result.AppealConfig.ManualLabelConfig)
+		assert.Nil(t, result.AppealConfig.UserLabelConfig)
 	})
 
 	t.Run("should handle nil appeal config", func(t *testing.T) {
@@ -676,7 +676,7 @@ func TestAdapter_ToPolicyProto_WithLabelingConfig(t *testing.T) {
 		assert.True(t, rule2.AllowFailure)
 	})
 
-	t.Run("should convert manual_label_config from domain to proto", func(t *testing.T) {
+	t.Run("should convert user_label_config from domain to proto", func(t *testing.T) {
 		policy := &domain.Policy{
 			ID:      "test-policy",
 			Version: 1,
@@ -688,7 +688,7 @@ func TestAdapter_ToPolicyProto_WithLabelingConfig(t *testing.T) {
 				},
 			},
 			AppealConfig: &domain.PolicyAppealConfig{
-				ManualLabelConfig: &domain.ManualLabelConfig{
+				UserLabelConfig: &domain.UserLabelConfig{
 					AllowUserLabels: true,
 					AllowedKeys:     []string{"project", "cost_center", "owner"},
 					RequiredKeys:    []string{"cost_center"},
@@ -705,9 +705,9 @@ func TestAdapter_ToPolicyProto_WithLabelingConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.NotNil(t, result.Appeal)
-		assert.NotNil(t, result.Appeal.ManualLabelConfig)
+		assert.NotNil(t, result.Appeal.UserLabelConfig)
 
-		mlc := result.Appeal.ManualLabelConfig
+		mlc := result.Appeal.UserLabelConfig
 		assert.True(t, mlc.AllowUserLabels)
 		assert.Equal(t, []string{"project", "cost_center", "owner"}, mlc.AllowedKeys)
 		assert.Equal(t, []string{"cost_center"}, mlc.RequiredKeys)
@@ -791,7 +791,7 @@ func TestAdapter_ToPolicyProto_WithLabelingConfig(t *testing.T) {
 		assert.Nil(t, result.Appeal.LabelingRules)
 	})
 
-	t.Run("should handle nil manual_label_config", func(t *testing.T) {
+	t.Run("should handle nil user_label_config", func(t *testing.T) {
 		policy := &domain.Policy{
 			ID:      "test-policy",
 			Version: 1,
@@ -803,7 +803,7 @@ func TestAdapter_ToPolicyProto_WithLabelingConfig(t *testing.T) {
 				},
 			},
 			AppealConfig: &domain.PolicyAppealConfig{
-				ManualLabelConfig: nil,
+				UserLabelConfig: nil,
 			},
 		}
 
@@ -812,7 +812,7 @@ func TestAdapter_ToPolicyProto_WithLabelingConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.NotNil(t, result.Appeal)
-		assert.Nil(t, result.Appeal.ManualLabelConfig)
+		assert.Nil(t, result.Appeal.UserLabelConfig)
 	})
 
 	t.Run("should handle empty labeling_rules", func(t *testing.T) {
@@ -883,7 +883,7 @@ func TestAdapter_ToPolicyProto_WithLabelingConfig(t *testing.T) {
 						Priority: 10,
 					},
 				},
-				ManualLabelConfig: &domain.ManualLabelConfig{
+				UserLabelConfig: &domain.UserLabelConfig{
 					AllowUserLabels: true,
 					MaxLabels:       5,
 				},
@@ -900,8 +900,8 @@ func TestAdapter_ToPolicyProto_WithLabelingConfig(t *testing.T) {
 		assert.Len(t, roundtrippedPolicy.AppealConfig.LabelingRules, 1)
 		assert.Equal(t, "test_rule", roundtrippedPolicy.AppealConfig.LabelingRules[0].RuleName)
 		assert.Equal(t, "production", roundtrippedPolicy.AppealConfig.LabelingRules[0].Labels["environment"])
-		assert.NotNil(t, roundtrippedPolicy.AppealConfig.ManualLabelConfig)
-		assert.True(t, roundtrippedPolicy.AppealConfig.ManualLabelConfig.AllowUserLabels)
-		assert.Equal(t, 5, roundtrippedPolicy.AppealConfig.ManualLabelConfig.MaxLabels)
+		assert.NotNil(t, roundtrippedPolicy.AppealConfig.UserLabelConfig)
+		assert.True(t, roundtrippedPolicy.AppealConfig.UserLabelConfig.AllowUserLabels)
+		assert.Equal(t, 5, roundtrippedPolicy.AppealConfig.UserLabelConfig.MaxLabels)
 	})
 }

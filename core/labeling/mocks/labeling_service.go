@@ -83,16 +83,16 @@ func (_c *LabelingService_ApplyLabels_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
-// ValidateManualLabels provides a mock function with given fields: ctx, labels, config
-func (_m *LabelingService) ValidateManualLabels(ctx context.Context, labels map[string]string, config *domain.ManualLabelConfig) error {
+// ValidateUserLabels provides a mock function with given fields: ctx, labels, config
+func (_m *LabelingService) ValidateUserLabels(ctx context.Context, labels map[string]string, config *domain.UserLabelConfig) error {
 	ret := _m.Called(ctx, labels, config)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ValidateManualLabels")
+		panic("no return value specified for ValidateUserLabels")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, map[string]string, *domain.ManualLabelConfig) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, map[string]string, *domain.UserLabelConfig) error); ok {
 		r0 = rf(ctx, labels, config)
 	} else {
 		r0 = ret.Error(0)
@@ -101,32 +101,32 @@ func (_m *LabelingService) ValidateManualLabels(ctx context.Context, labels map[
 	return r0
 }
 
-// LabelingService_ValidateManualLabels_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ValidateManualLabels'
-type LabelingService_ValidateManualLabels_Call struct {
+// LabelingService_ValidateUserLabels_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ValidateUserLabels'
+type LabelingService_ValidateUserLabels_Call struct {
 	*mock.Call
 }
 
-// ValidateManualLabels is a helper method to define mock.On call
+// ValidateUserLabels is a helper method to define mock.On call
 //   - ctx context.Context
 //   - labels map[string]string
-//   - config *domain.ManualLabelConfig
-func (_e *LabelingService_Expecter) ValidateManualLabels(ctx interface{}, labels interface{}, config interface{}) *LabelingService_ValidateManualLabels_Call {
-	return &LabelingService_ValidateManualLabels_Call{Call: _e.mock.On("ValidateManualLabels", ctx, labels, config)}
+//   - config *domain.UserLabelConfig
+func (_e *LabelingService_Expecter) ValidateUserLabels(ctx interface{}, labels interface{}, config interface{}) *LabelingService_ValidateUserLabels_Call {
+	return &LabelingService_ValidateUserLabels_Call{Call: _e.mock.On("ValidateUserLabels", ctx, labels, config)}
 }
 
-func (_c *LabelingService_ValidateManualLabels_Call) Run(run func(ctx context.Context, labels map[string]string, config *domain.ManualLabelConfig)) *LabelingService_ValidateManualLabels_Call {
+func (_c *LabelingService_ValidateUserLabels_Call) Run(run func(ctx context.Context, labels map[string]string, config *domain.UserLabelConfig)) *LabelingService_ValidateUserLabels_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(map[string]string), args[2].(*domain.ManualLabelConfig))
+		run(args[0].(context.Context), args[1].(map[string]string), args[2].(*domain.UserLabelConfig))
 	})
 	return _c
 }
 
-func (_c *LabelingService_ValidateManualLabels_Call) Return(_a0 error) *LabelingService_ValidateManualLabels_Call {
+func (_c *LabelingService_ValidateUserLabels_Call) Return(_a0 error) *LabelingService_ValidateUserLabels_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *LabelingService_ValidateManualLabels_Call) RunAndReturn(run func(context.Context, map[string]string, *domain.ManualLabelConfig) error) *LabelingService_ValidateManualLabels_Call {
+func (_c *LabelingService_ValidateUserLabels_Call) RunAndReturn(run func(context.Context, map[string]string, *domain.UserLabelConfig) error) *LabelingService_ValidateUserLabels_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -416,9 +416,9 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 			}
 		}
 
-		var manualLabelConfig *domain.ManualLabelConfig
-		if mlc := p.GetAppeal().GetManualLabelConfig(); mlc != nil {
-			manualLabelConfig = &domain.ManualLabelConfig{
+		var userLabelConfig *domain.UserLabelConfig
+		if mlc := p.GetAppeal().GetUserLabelConfig(); mlc != nil {
+			userLabelConfig = &domain.UserLabelConfig{
 				AllowUserLabels: mlc.GetAllowUserLabels(),
 				AllowedKeys:     mlc.GetAllowedKeys(),
 				RequiredKeys:    mlc.GetRequiredKeys(),
@@ -439,7 +439,7 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 			MetadataSources:              metadataSources,
 			TermsAndConditions:           p.GetAppeal().GetTermsAndConditions(),
 			LabelingRules:                labelingRules,
-			ManualLabelConfig:            manualLabelConfig,
+			UserLabelConfig:              userLabelConfig,
 		}
 	}
 
@@ -673,15 +673,15 @@ func (a *adapter) ToPolicyAppealConfigProto(p *domain.Policy) (*guardianv1beta1.
 		}
 	}
 
-	if p.AppealConfig.ManualLabelConfig != nil {
-		policyAppealConfigProto.ManualLabelConfig = &guardianv1beta1.ManualLabelConfig{
-			AllowUserLabels: p.AppealConfig.ManualLabelConfig.AllowUserLabels,
-			AllowedKeys:     p.AppealConfig.ManualLabelConfig.AllowedKeys,
-			RequiredKeys:    p.AppealConfig.ManualLabelConfig.RequiredKeys,
-			MaxLabels:       int32(p.AppealConfig.ManualLabelConfig.MaxLabels),
-			KeyPattern:      p.AppealConfig.ManualLabelConfig.KeyPattern,
-			ValuePattern:    p.AppealConfig.ManualLabelConfig.ValuePattern,
-			AllowOverride:   p.AppealConfig.ManualLabelConfig.AllowOverride,
+	if p.AppealConfig.UserLabelConfig != nil {
+		policyAppealConfigProto.UserLabelConfig = &guardianv1beta1.UserLabelConfig{
+			AllowUserLabels: p.AppealConfig.UserLabelConfig.AllowUserLabels,
+			AllowedKeys:     p.AppealConfig.UserLabelConfig.AllowedKeys,
+			RequiredKeys:    p.AppealConfig.UserLabelConfig.RequiredKeys,
+			MaxLabels:       int32(p.AppealConfig.UserLabelConfig.MaxLabels),
+			KeyPattern:      p.AppealConfig.UserLabelConfig.KeyPattern,
+			ValuePattern:    p.AppealConfig.UserLabelConfig.ValuePattern,
+			AllowOverride:   p.AppealConfig.UserLabelConfig.AllowOverride,
 		}
 	}
 

@@ -65,17 +65,17 @@ func TestPolicy_HasLabelingRules(t *testing.T) {
 	}
 }
 
-func TestPolicy_AllowsManualLabels(t *testing.T) {
+func TestPolicy_AllowsUserLabels(t *testing.T) {
 	tests := []struct {
 		name     string
 		policy   *domain.Policy
 		expected bool
 	}{
 		{
-			name: "should return true when manual labels are allowed",
+			name: "should return true when user labels are allowed",
 			policy: &domain.Policy{
 				AppealConfig: &domain.PolicyAppealConfig{
-					ManualLabelConfig: &domain.ManualLabelConfig{
+					UserLabelConfig: &domain.UserLabelConfig{
 						AllowUserLabels: true,
 					},
 				},
@@ -86,7 +86,7 @@ func TestPolicy_AllowsManualLabels(t *testing.T) {
 			name: "should return false when AllowUserLabels is false",
 			policy: &domain.Policy{
 				AppealConfig: &domain.PolicyAppealConfig{
-					ManualLabelConfig: &domain.ManualLabelConfig{
+					UserLabelConfig: &domain.UserLabelConfig{
 						AllowUserLabels: false,
 					},
 				},
@@ -97,7 +97,7 @@ func TestPolicy_AllowsManualLabels(t *testing.T) {
 			name: "should return false when manual label config is nil",
 			policy: &domain.Policy{
 				AppealConfig: &domain.PolicyAppealConfig{
-					ManualLabelConfig: nil,
+					UserLabelConfig: nil,
 				},
 			},
 			expected: false,
@@ -113,7 +113,7 @@ func TestPolicy_AllowsManualLabels(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.policy.AllowsManualLabels()
+			result := tt.policy.AllowsUserLabels()
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -195,14 +195,14 @@ func TestLabelingRule_Validation(t *testing.T) {
 	}
 }
 
-func TestManualLabelConfig_Structure(t *testing.T) {
+func TestUserLabelConfig_Structure(t *testing.T) {
 	tests := []struct {
 		name   string
-		config domain.ManualLabelConfig
+		config domain.UserLabelConfig
 	}{
 		{
 			name: "manual label config with all fields",
-			config: domain.ManualLabelConfig{
+			config: domain.UserLabelConfig{
 				AllowUserLabels: true,
 				AllowedKeys: []string{
 					"project:*",
@@ -220,13 +220,13 @@ func TestManualLabelConfig_Structure(t *testing.T) {
 		},
 		{
 			name: "minimal manual label config",
-			config: domain.ManualLabelConfig{
+			config: domain.UserLabelConfig{
 				AllowUserLabels: true,
 			},
 		},
 		{
 			name: "config with glob patterns",
-			config: domain.ManualLabelConfig{
+			config: domain.UserLabelConfig{
 				AllowUserLabels: true,
 				AllowedKeys: []string{
 					"*",         // Allow all
@@ -573,15 +573,15 @@ func TestLabelingRule_ComplexScenarios(t *testing.T) {
 	}
 }
 
-func TestManualLabelConfig_ValidationScenarios(t *testing.T) {
+func TestUserLabelConfig_ValidationScenarios(t *testing.T) {
 	tests := []struct {
 		name   string
-		config domain.ManualLabelConfig
+		config domain.UserLabelConfig
 		desc   string
 	}{
 		{
 			name: "strict validation config",
-			config: domain.ManualLabelConfig{
+			config: domain.UserLabelConfig{
 				AllowUserLabels: true,
 				AllowedKeys: []string{
 					"project:*",
@@ -601,7 +601,7 @@ func TestManualLabelConfig_ValidationScenarios(t *testing.T) {
 		},
 		{
 			name: "lenient validation config",
-			config: domain.ManualLabelConfig{
+			config: domain.UserLabelConfig{
 				AllowUserLabels: true,
 				AllowedKeys:     []string{"*"}, // Allow all keys
 				MaxLabels:       10,
@@ -611,7 +611,7 @@ func TestManualLabelConfig_ValidationScenarios(t *testing.T) {
 		},
 		{
 			name: "namespace-specific config",
-			config: domain.ManualLabelConfig{
+			config: domain.UserLabelConfig{
 				AllowUserLabels: true,
 				AllowedKeys: []string{
 					"project:*", // All project namespace
