@@ -8,13 +8,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/lib/pq"
+	_ "github.com/lib/pq"
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	"github.com/goto/guardian/domain"
-	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
 
@@ -309,34 +308,6 @@ func buildJSONTextExpr(table, column string, path []string) string {
 		column,
 		strings.Join(quotedPath, ","),
 	)
-}
-
-func applyLikePatterns(db *gorm.DB, q string, startsWith, endsWith, contains string, exact []string, filterName string) (*gorm.DB, error) {
-	if (startsWith != "" || endsWith != "") && contains != "" {
-		return nil, fmt.Errorf("invalid filter: %s_contains cannot be used together with %s_starts_with or %s_ends_with", filterName, filterName, filterName)
-	}
-
-	var patterns []string
-
-	if startsWith != "" {
-		patterns = append(patterns, startsWith+"%")
-	}
-	if endsWith != "" {
-		patterns = append(patterns, "%"+endsWith)
-	}
-	if contains != "" {
-		patterns = append(patterns, "%"+contains+"%")
-	}
-	if len(exact) > 0 {
-		patterns = append(patterns, exact...)
-	}
-
-	patterns = slicesUtil.GenericsStandardizeSlice(patterns)
-	if len(patterns) == 0 {
-		return db, nil
-	}
-
-	return db.Where(q, pq.Array(patterns)), nil
 }
 
 func applyLikeAndInFilter(
