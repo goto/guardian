@@ -429,10 +429,10 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		db = db.Where(fmt.Sprintf(`"grants"."expiration_date" BETWEEN NOW() AND NOW() + INTERVAL '%d day'`, filter.ExpiringInDays))
 	}
 	if len(filter.AppealDurations) > 0 {
-		db = db.Where(`COALESCE("_Appeal"."options" #>> '{duration}', 'null') IN ?`, filter.AppealDurations)
+		db = db.Where(`COALESCE(NULLIF("_Appeal"."options" #>> '{duration}', ''), 'null') IN ?`, filter.AppealDurations)
 	}
 	if len(filter.NotAppealDurations) > 0 {
-		db = db.Where(`COALESCE("_Appeal"."options" #>> '{duration}', 'null') NOT IN ?`, filter.NotAppealDurations)
+		db = db.Where(`COALESCE(NULLIF("_Appeal"."options" #>> '{duration}', ''), 'null') NOT IN ?`, filter.NotAppealDurations)
 	}
 
 	db, err = applyLikeAndInFilter(db, `"grants"."role"`,

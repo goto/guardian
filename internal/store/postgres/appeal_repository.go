@@ -324,10 +324,10 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		db = db.Where(`"Resource"."urn" IN ?`, filters.ResourceURNs)
 	}
 	if len(filters.Durations) > 0 {
-		db = db.Where(`COALESCE("appeals"."options" #>> '{duration}', 'null') IN ?`, filters.Durations)
+		db = db.Where(`COALESCE(NULLIF("appeals"."options" #>> '{duration}', ''), 'null') IN ?`, filters.Durations)
 	}
 	if len(filters.NotDurations) > 0 {
-		db = db.Where(`COALESCE("appeals"."options" #>> '{duration}', 'null') NOT IN ?`, filters.NotDurations)
+		db = db.Where(`COALESCE(NULLIF("appeals"."options" #>> '{duration}', ''), 'null') NOT IN ?`, filters.NotDurations)
 	}
 
 	db, err = applyLikeAndInFilter(db, `LOWER("appeals"."role")`,

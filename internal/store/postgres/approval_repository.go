@@ -306,10 +306,10 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		db = db.Where(`"Appeal"."group_id" IN ?`, filter.GroupIDs)
 	}
 	if len(filter.AppealDurations) > 0 {
-		db = db.Where(`COALESCE("Appeal"."options" #>> '{duration}', 'null') IN ?`, filter.AppealDurations)
+		db = db.Where(`COALESCE(NULLIF("Appeal"."options" #>> '{duration}', ''), 'null') IN ?`, filter.AppealDurations)
 	}
 	if len(filter.NotAppealDurations) > 0 {
-		db = db.Where(`COALESCE("Appeal"."options" #>> '{duration}', 'null') NOT IN ?`, filter.NotAppealDurations)
+		db = db.Where(`COALESCE(NULLIF("Appeal"."options" #>> '{duration}', ''), 'null') NOT IN ?`, filter.NotAppealDurations)
 	}
 
 	db, err = applyLikeAndInFilter(db, `"Appeal"."role"`,

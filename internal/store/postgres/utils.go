@@ -298,16 +298,7 @@ func generateSummaryResultCount(result *domain.SummaryResult) *domain.SummaryRes
 }
 
 func buildJSONTextExpr(table, column string, path []string) string {
-	quotedPath := make([]string, 0, len(path))
-	for _, p := range path {
-		quotedPath = append(quotedPath, p)
-	}
-	return fmt.Sprintf(
-		"%q.%q #>> '{%s}'",
-		table,
-		column,
-		strings.Join(quotedPath, ","),
-	)
+	return fmt.Sprintf("COALESCE(NULLIF(%q.%q #>> '{%s}', ''), 'null')", table, column, strings.Join(path, ","))
 }
 
 func applyLikeAndInFilter(
@@ -442,7 +433,7 @@ func applyJSONBPathsLikeAndInFilter(
 		for _, p := range normPaths {
 			posClauses = append(
 				posClauses,
-				fmt.Sprintf(`COALESCE(%s #>> '{%s}', 'null') %s ?`, column, p, op),
+				fmt.Sprintf(`COALESCE(NULLIF(%s #>> '{%s}', ''), 'null') %s ?`, column, p, op),
 			)
 			posArgs = append(posArgs, pattern)
 		}
@@ -462,7 +453,7 @@ func applyJSONBPathsLikeAndInFilter(
 		for _, p := range normPaths {
 			posClauses = append(
 				posClauses,
-				fmt.Sprintf(`COALESCE(%s #>> '{%s}', 'null') IN ?`, column, p),
+				fmt.Sprintf(`COALESCE(NULLIF(%s #>> '{%s}', ''), 'null') IN ?`, column, p),
 			)
 			posArgs = append(posArgs, in)
 		}
@@ -480,7 +471,7 @@ func applyJSONBPathsLikeAndInFilter(
 		for _, p := range normPaths {
 			negClauses = append(
 				negClauses,
-				fmt.Sprintf(`COALESCE(%s #>> '{%s}', 'null') %s ?`, column, p, op),
+				fmt.Sprintf(`COALESCE(NULLIF(%s #>> '{%s}', ''), 'null') %s ?`, column, p, op),
 			)
 			negArgs = append(negArgs, pattern)
 		}
@@ -500,7 +491,7 @@ func applyJSONBPathsLikeAndInFilter(
 		for _, p := range normPaths {
 			negClauses = append(
 				negClauses,
-				fmt.Sprintf(`COALESCE(%s #>> '{%s}', 'null') NOT IN ?`, column, p),
+				fmt.Sprintf(`COALESCE(NULLIF(%s #>> '{%s}', ''), 'null') NOT IN ?`, column, p),
 			)
 			negArgs = append(negArgs, notIn)
 		}
