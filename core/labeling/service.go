@@ -83,7 +83,7 @@ func (s *service) ApplyLabels(ctx context.Context, appeal *domain.Appeal, resour
 		// Apply labels from this rule
 		for key, value := range rule.Labels {
 			// Evaluate dynamic label values (expressions)
-			evaluatedValue, err := s.evaluateLabelValue(ctx, value, evalContext)
+			evaluatedValue, err := s.evaluateLabelValue(value, evalContext)
 			if err != nil {
 				if rule.AllowFailure {
 					continue
@@ -245,7 +245,7 @@ func (s *service) evaluateCondition(condition string, context map[string]interfa
 }
 
 // evaluateLabelValue evaluates a label value which may be a static string or an expression
-func (s *service) evaluateLabelValue(ctx context.Context, value string, context map[string]interface{}) (string, error) {
+func (s *service) evaluateLabelValue(value string, context map[string]interface{}) (string, error) {
 	// Check if the value contains expression markers (similar to AppealMetadataSource.evaluateValue)
 	// Only evaluate if it contains variable references
 	if !strings.Contains(value, "$appeal") && !strings.Contains(value, "$resource") && !strings.Contains(value, "$policy") {
@@ -258,8 +258,7 @@ func (s *service) evaluateLabelValue(ctx context.Context, value string, context 
 	result, err := expr.EvaluateWithVars(context)
 	if err != nil {
 		// If evaluation fails, return error
-		s.Logger.Error(ctx, "Label value evaluation failed", "value", value, "context", context, "error", err)
-		return "", fmt.Errorf("failed to evaluate expression: %w", err)
+		return "", fmt.Errorf("failed to evaluate label value expression '%s' with context %+v: %w", value, context, err)
 	}
 
 	// Convert result to string
@@ -281,7 +280,7 @@ func (s *service) evaluateLabelValue(ctx context.Context, value string, context 
 func (s *service) validatePattern(fieldType, value, pattern string) error {
 	matched, err := regexp.MatchString(pattern, value)
 	if err != nil {
-		return fmt.Errorf("invalid regex pattern for %s: %w", fieldType, err)
+		return fmt.Errorf("invalid regex pattern '%s' for %s '%s': %w", pattern, fieldType, value, err)
 	}
 	if !matched {
 		return fmt.Errorf("%s '%s' does not match required pattern '%s'", fieldType, value, pattern)
