@@ -55,7 +55,7 @@ type LabelMetadata struct {
 	Value string `json:"value" yaml:"value"`
 
 	// DerivedFrom is the rule name that applied this label (e.g., "rule_pii")
-	// For manual labels: "user" or "user:<email>"
+	// For user labels: "user" or "user:<email>"
 	DerivedFrom string `json:"derived_from" yaml:"derived_from"`
 
 	// Source identifies the label source
@@ -69,8 +69,8 @@ type LabelMetadata struct {
 	// Examples: {"risk": "sensitivity", "retention_policy": "90_days"}
 	Attributes map[string]interface{} `json:"attributes,omitempty" yaml:"attributes,omitempty"`
 
-	// AppliedBy is the user email who applied manual labels
-	// Only populated for manual labels
+	// AppliedBy is the user email who applied user labels
+	// Only populated for user labels
 	AppliedBy string `json:"applied_by,omitempty" yaml:"applied_by,omitempty"`
 
 	// AppliedAt timestamp when label was applied
@@ -82,7 +82,7 @@ type LabelSource string
 
 const (
 	LabelSourcePolicyRule LabelSource = "policy_rule" // From policy labeling rules
-	LabelSourceUser       LabelSource = "user"        // User-provided manual label
+	LabelSourceUser       LabelSource = "user"        // User-provided user label
 	LabelSourceProvider   LabelSource = "provider"    // Future: from provider
 	LabelSourceExternal   LabelSource = "external"    // Future: from external API
 )
@@ -549,10 +549,10 @@ type ListAppealsFilter struct {
 
 	// LabelKeys filters appeals that have ANY of these label keys (regardless of value)
 	// Example: ["pii_access", "compliance_required"]
-	LabelKeys []string `mapstructure:"label_keys" validate:"omitempty,min=1"`
-	RoleNotStartsWith         string    `mapstructure:"role_not_starts_with" json:"role_not_starts_with,omitempty" validate:"omitempty"`
-	RoleNotEndsWith           string    `mapstructure:"role_not_ends_with" json:"role_not_ends_with,omitempty" validate:"omitempty"`
-	RoleNotContains           string    `mapstructure:"role_not_contains" json:"role_not_contains,omitempty" validate:"omitempty"`
+	LabelKeys         []string `mapstructure:"label_keys" validate:"omitempty,min=1"`
+	RoleNotStartsWith string   `mapstructure:"role_not_starts_with" json:"role_not_starts_with,omitempty" validate:"omitempty"`
+	RoleNotEndsWith   string   `mapstructure:"role_not_ends_with" json:"role_not_ends_with,omitempty" validate:"omitempty"`
+	RoleNotContains   string   `mapstructure:"role_not_contains" json:"role_not_contains,omitempty" validate:"omitempty"`
 }
 
 func (af ListAppealsFilter) WithSummary() bool {

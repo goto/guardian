@@ -466,7 +466,7 @@ type UserLabelConfig struct {
 	// RequiredKeys lists label keys that must be provided by user
 	RequiredKeys []string `json:"required_keys,omitempty" yaml:"required_keys,omitempty"`
 
-	// MaxLabels limits the number of manual labels (default: 10)
+	// MaxLabels limits the number of user labels (default: 10)
 	MaxLabels int `json:"max_labels,omitempty" yaml:"max_labels,omitempty"`
 
 	// KeyPattern is a regex pattern for validating label keys

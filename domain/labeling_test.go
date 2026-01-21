@@ -94,7 +94,7 @@ func TestPolicy_AllowsUserLabels(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "should return false when manual label config is nil",
+			name: "should return false when user label config is nil",
 			policy: &domain.Policy{
 				AppealConfig: &domain.PolicyAppealConfig{
 					UserLabelConfig: nil,
@@ -201,7 +201,7 @@ func TestUserLabelConfig_Structure(t *testing.T) {
 		config domain.UserLabelConfig
 	}{
 		{
-			name: "manual label config with all fields",
+			name: "user label config with all fields",
 			config: domain.UserLabelConfig{
 				AllowUserLabels: true,
 				AllowedKeys: []string{
