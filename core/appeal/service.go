@@ -689,6 +689,10 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		return err
 	}
 
+	if err := s.applyLabeling(ctx, appeal, policy); err != nil {
+		return fmt.Errorf("applying labels: %w", err)
+	}
+
 	if err := appeal.AdvanceApproval(policy); err != nil {
 		return fmt.Errorf("initializing approvals: %w", err)
 	}
