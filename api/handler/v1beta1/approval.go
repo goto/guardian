@@ -64,6 +64,23 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		RoleNotStartsWith:        req.GetRoleNotStartsWith(),
 		RoleNotEndsWith:          req.GetRoleNotEndsWith(),
 		RoleNotContains:          req.GetRoleNotContains(),
+		GroupIDs:                 req.GetGroupIds(),
+		GroupTypes:               req.GetGroupTypes(),
+
+		AppealDetailsStartsWith:      req.GetAppealDetailsStartsWith(),
+		AppealDetailsEndsWith:        req.GetAppealDetailsEndsWith(),
+		AppealDetailsContains:        req.GetAppealDetailsContains(),
+		AppealDetailsNotStartsWith:   req.GetAppealDetailsNotStartsWith(),
+		AppealDetailsNotEndsWith:     req.GetAppealDetailsNotEndsWith(),
+		AppealDetailsNotContains:     req.GetAppealDetailsNotContains(),
+		GroupTypeStartsWith:          req.GetGroupTypeStartsWith(),
+		GroupTypeEndsWith:            req.GetGroupTypeEndsWith(),
+		GroupTypeContains:            req.GetGroupTypeContains(),
+		GroupTypeNotStartsWith:       req.GetGroupTypeNotStartsWith(),
+		GroupTypeNotEndsWith:         req.GetGroupTypeNotEndsWith(),
+		GroupTypeNotContains:         req.GetGroupTypeNotContains(),
+		AppealForSelf:                req.GetAppealForSelf(),
+		AppealDetailsForSelfCriteria: req.GetAppealDetailsForSelfCriteria(),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)
@@ -121,6 +138,23 @@ func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.Lis
 		RoleNotStartsWith:        req.GetRoleNotStartsWith(),
 		RoleNotEndsWith:          req.GetRoleNotEndsWith(),
 		RoleNotContains:          req.GetRoleNotContains(),
+		GroupIDs:                 req.GetGroupIds(),
+		GroupTypes:               req.GetGroupTypes(),
+
+		AppealDetailsStartsWith:      req.GetAppealDetailsStartsWith(),
+		AppealDetailsEndsWith:        req.GetAppealDetailsEndsWith(),
+		AppealDetailsContains:        req.GetAppealDetailsContains(),
+		AppealDetailsNotStartsWith:   req.GetAppealDetailsNotStartsWith(),
+		AppealDetailsNotEndsWith:     req.GetAppealDetailsNotEndsWith(),
+		AppealDetailsNotContains:     req.GetAppealDetailsNotContains(),
+		GroupTypeStartsWith:          req.GetGroupTypeStartsWith(),
+		GroupTypeEndsWith:            req.GetGroupTypeEndsWith(),
+		GroupTypeContains:            req.GetGroupTypeContains(),
+		GroupTypeNotStartsWith:       req.GetGroupTypeNotStartsWith(),
+		GroupTypeNotEndsWith:         req.GetGroupTypeNotEndsWith(),
+		GroupTypeNotContains:         req.GetGroupTypeNotContains(),
+		AppealForSelf:                req.GetAppealForSelf(),
+		AppealDetailsForSelfCriteria: req.GetAppealDetailsForSelfCriteria(),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)

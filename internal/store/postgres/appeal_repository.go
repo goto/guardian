@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/lib/pq"
+	_ "github.com/lib/pq"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -260,6 +260,8 @@ func applyAppealsJoins(db *gorm.DB) *gorm.DB {
 }
 
 func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.DB, error) {
+	var err error
+
 	if filters.Q != "" {
 		// NOTE: avoid adding conditions before this grouped where clause.
 		// Otherwise, it will be wrapped in parentheses and the query will be invalid.
@@ -270,6 +272,7 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 			Or(`"Resource"."name" LIKE ?`, fmt.Sprintf("%%%s%%", filters.Q)),
 		)
 	}
+
 	if filters.Statuses != nil {
 		db = db.Where(`"appeals"."status" IN ?`, filters.Statuses)
 	}
@@ -279,21 +282,18 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 	if filters.ResourceTypes != nil {
 		db = db.Where(`"Resource"."type" IN ?`, filters.ResourceTypes)
 	}
-
 	if filters.Size > 0 {
 		db = db.Limit(filters.Size)
 	}
 	if filters.Offset > 0 {
 		db = db.Offset(filters.Offset)
 	}
-
 	if filters.CreatedBy != "" {
 		db = db.Where(`LOWER("appeals"."created_by") = ?`, strings.ToLower(filters.CreatedBy))
 	}
 	if filters.Statuses != nil {
 		db = db.Where(`"appeals"."status" IN ?`, filters.Statuses)
 	}
-
 	accountIDs := slicesUtil.GenericsUniqueSliceValues(filters.AccountIDs)
 	if filters.AccountID != "" {
 		accountIDs = slicesUtil.GenericsUniqueSliceValues(append(accountIDs, filters.AccountID))
@@ -301,7 +301,6 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 	if len(accountIDs) > 0 {
 		db = db.Where(`LOWER("appeals"."account_id") IN ?`, slicesUtil.ToLowerStringSlice(accountIDs))
 	}
-
 	resourceIDs := slicesUtil.GenericsUniqueSliceValues(filters.ResourceIDs)
 	if filters.ResourceID != "" {
 		resourceIDs = slicesUtil.GenericsUniqueSliceValues(append(resourceIDs, filters.ResourceID))
@@ -309,12 +308,8 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 	if len(resourceIDs) != 0 {
 		db = db.Where(`"appeals"."resource_id" IN ?`, resourceIDs)
 	}
-
 	if len(filters.GroupIDs) > 0 {
 		db = db.Where(`"appeals"."group_id" IN ?`, filters.GroupIDs)
-	}
-	if len(filters.GroupTypes) > 0 {
-		db = db.Where(`"appeals"."group_type" IN ?`, filters.GroupTypes)
 	}
 	if !filters.ExpirationDateLessThan.IsZero() {
 		db = db.Where(`"options" -> 'expiration_date' < ?`, filters.ExpirationDateLessThan)
@@ -322,58 +317,12 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 	if !filters.ExpirationDateGreaterThan.IsZero() {
 		db = db.Where(`"options" -> 'expiration_date' > ?`, filters.ExpirationDateGreaterThan)
 	}
-	if filters.OrderBy != nil {
-		var err error
-		db, err = addOrderByClause(db, filters.OrderBy, addOrderByClauseOptions{
-			statusColumnName: `"appeals"."status"`,
-			statusesOrder:    AppealStatusDefaultSort,
-		},
-			[]string{"updated_at", "created_at"})
-
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	if filters.ProviderTypes != nil {
 		db = db.Where(`"Resource"."provider_type" IN ?`, filters.ProviderTypes)
 	}
 	if filters.ResourceURNs != nil {
 		db = db.Where(`"Resource"."urn" IN ?`, filters.ResourceURNs)
 	}
-
-	rolePatterns, err := buildLikePatterns(filters.RoleStartsWith, filters.RoleEndsWith, filters.RoleContains, filters.Roles, "role")
-	if err != nil {
-		return nil, err
-	}
-	if len(rolePatterns) > 0 {
-		db = db.Where(`LOWER("appeals"."role") LIKE ANY (?)`, pq.Array(rolePatterns))
-	}
-
-	roleNotPatterns, err := buildLikePatterns(filters.RoleNotStartsWith, filters.RoleNotEndsWith, filters.RoleNotContains, nil, "role_not")
-	if err != nil {
-		return nil, err
-	}
-	if len(roleNotPatterns) > 0 {
-		db = db.Where(`LOWER("appeals"."role") NOT LIKE ANY (?)`, pq.Array(roleNotPatterns))
-	}
-
-	providerUrnPatterns, err := buildLikePatterns(filters.ProviderUrnStartsWith, filters.ProviderUrnEndsWith, filters.ProviderUrnContains, filters.ProviderURNs, "provider_urn")
-	if err != nil {
-		return nil, err
-	}
-	if len(providerUrnPatterns) > 0 {
-		db = db.Where(`"Resource"."provider_urn" LIKE ANY (?)`, pq.Array(providerUrnPatterns))
-	}
-
-	providerUrnNotPatterns, err := buildLikePatterns(filters.ProviderUrnNotStartsWith, filters.ProviderUrnNotEndsWith, filters.ProviderUrnNotContains, nil, "provider_urn_not")
-	if err != nil {
-		return nil, err
-	}
-	if len(providerUrnNotPatterns) > 0 {
-		db = db.Where(`"Resource"."provider_urn" NOT LIKE ANY (?)`, pq.Array(providerUrnNotPatterns))
-	}
-
 	if len(filters.Durations) > 0 {
 		db = db.Where(`COALESCE("appeals"."options" #>> '{duration}', 'null') IN ?`, filters.Durations)
 	}
@@ -381,18 +330,37 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		db = db.Where(`COALESCE("appeals"."options" #>> '{duration}', 'null') NOT IN ?`, filters.NotDurations)
 	}
 
-	for _, detailsPath := range filters.DetailsPaths {
-		detailsPath = strings.TrimSpace(detailsPath)
-		if len(detailsPath) == 0 {
-			continue
-		}
-		detailsPath = strings.ReplaceAll(detailsPath, ".", ",")
-		if len(filters.Details) > 0 {
-			db = db.Where(fmt.Sprintf(`COALESCE("appeals"."details" #>> '{%s}', 'null') IN ?`, detailsPath), filters.Details)
-		}
-		if len(filters.NotDetails) > 0 {
-			db = db.Where(fmt.Sprintf(`COALESCE("appeals"."details" #>> '{%s}', 'null') NOT IN ?`, detailsPath), filters.NotDetails)
-		}
+	db, err = applyLikeAndInFilter(db, `LOWER("appeals"."role")`,
+		filters.RoleStartsWith, filters.RoleEndsWith, filters.RoleContains,
+		filters.RoleNotStartsWith, filters.RoleNotEndsWith, filters.RoleNotContains,
+		filters.Roles, nil, "role",
+	)
+	if err != nil {
+		return nil, err
+	}
+	db, err = applyLikeAndInFilter(db, `"Resource"."provider_urn"`,
+		filters.ProviderUrnStartsWith, filters.ProviderUrnEndsWith, filters.ProviderUrnContains,
+		filters.ProviderUrnNotStartsWith, filters.ProviderUrnNotEndsWith, filters.ProviderUrnNotContains,
+		filters.ProviderURNs, nil, "provider_urn",
+	)
+	if err != nil {
+		return nil, err
+	}
+	db, err = applyLikeAndInFilter(db, `"appeals"."group_type"`,
+		filters.GroupTypeStartsWith, filters.GroupTypeEndsWith, filters.GroupTypeContains,
+		filters.GroupTypeNotStartsWith, filters.GroupTypeNotEndsWith, filters.GroupTypeNotContains,
+		filters.GroupTypes, nil, "group_type",
+	)
+	if err != nil {
+		return nil, err
+	}
+	db, err = applyJSONBPathsLikeAndInFilter(db, `"appeals"."details"`, filters.DetailsPaths,
+		filters.DetailsStartsWith, filters.DetailsEndsWith, filters.DetailsContains,
+		filters.DetailsNotStartsWith, filters.DetailsNotEndsWith, filters.DetailsNotContains,
+		filters.Details, filters.NotDetails, "details",
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	if !filters.StartTime.IsZero() && !filters.EndTime.IsZero() {
@@ -401,6 +369,16 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		db = db.Where(`"appeals"."created_at" >= ?`, filters.StartTime)
 	} else if !filters.EndTime.IsZero() {
 		db = db.Where(`"appeals"."created_at" <= ?`, filters.EndTime)
+	}
+
+	if filters.OrderBy != nil {
+		db, err = addOrderByClause(db, filters.OrderBy, addOrderByClauseOptions{
+			statusColumnName: `"appeals"."status"`,
+			statusesOrder:    AppealStatusDefaultSort,
+		}, []string{"updated_at", "created_at"})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if filters.WithApprovals {

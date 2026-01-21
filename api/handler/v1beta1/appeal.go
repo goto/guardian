@@ -80,6 +80,19 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 		RoleNotStartsWith:        req.GetRoleNotStartsWith(),
 		RoleNotEndsWith:          req.GetRoleNotEndsWith(),
 		RoleNotContains:          req.GetRoleNotContains(),
+
+		DetailsStartsWith:      req.GetDetailsStartsWith(),
+		DetailsEndsWith:        req.GetDetailsEndsWith(),
+		DetailsContains:        req.GetDetailsContains(),
+		DetailsNotStartsWith:   req.GetDetailsNotStartsWith(),
+		DetailsNotEndsWith:     req.GetDetailsNotEndsWith(),
+		DetailsNotContains:     req.GetDetailsNotContains(),
+		GroupTypeStartsWith:    req.GetGroupTypeStartsWith(),
+		GroupTypeEndsWith:      req.GetGroupTypeEndsWith(),
+		GroupTypeContains:      req.GetGroupTypeContains(),
+		GroupTypeNotStartsWith: req.GetGroupTypeNotStartsWith(),
+		GroupTypeNotEndsWith:   req.GetGroupTypeNotEndsWith(),
+		GroupTypeNotContains:   req.GetGroupTypeNotContains(),
 	}
 
 	appeals, total, summary, err := s.listAppeals(ctx, filters)
@@ -156,6 +169,19 @@ func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListA
 		RoleNotStartsWith:        req.GetRoleNotStartsWith(),
 		RoleNotEndsWith:          req.GetRoleNotEndsWith(),
 		RoleNotContains:          req.GetRoleNotContains(),
+
+		DetailsStartsWith:      req.GetDetailsStartsWith(),
+		DetailsEndsWith:        req.GetDetailsEndsWith(),
+		DetailsContains:        req.GetDetailsContains(),
+		DetailsNotStartsWith:   req.GetDetailsNotStartsWith(),
+		DetailsNotEndsWith:     req.GetDetailsNotEndsWith(),
+		DetailsNotContains:     req.GetDetailsNotContains(),
+		GroupTypeStartsWith:    req.GetGroupTypeStartsWith(),
+		GroupTypeEndsWith:      req.GetGroupTypeEndsWith(),
+		GroupTypeContains:      req.GetGroupTypeContains(),
+		GroupTypeNotStartsWith: req.GetGroupTypeNotStartsWith(),
+		GroupTypeNotEndsWith:   req.GetGroupTypeNotEndsWith(),
+		GroupTypeNotContains:   req.GetGroupTypeNotContains(),
 	}
 
 	appeals, total, summary, err := s.listAppeals(ctx, filters)

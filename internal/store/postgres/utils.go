@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/lib/pq"
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -310,7 +311,7 @@ func buildJSONTextExpr(table, column string, path []string) string {
 	)
 }
 
-func buildLikePatterns(startsWith, endsWith, contains string, exact []string, filterName string) ([]string, error) {
+func applyLikePatterns(db *gorm.DB, q string, startsWith, endsWith, contains string, exact []string, filterName string) (*gorm.DB, error) {
 	if (startsWith != "" || endsWith != "") && contains != "" {
 		return nil, fmt.Errorf("invalid filter: %s_contains cannot be used together with %s_starts_with or %s_ends_with", filterName, filterName, filterName)
 	}
@@ -330,5 +331,213 @@ func buildLikePatterns(startsWith, endsWith, contains string, exact []string, fi
 		patterns = append(patterns, exact...)
 	}
 
-	return slicesUtil.GenericsStandardizeSlice(patterns), nil
+	patterns = slicesUtil.GenericsStandardizeSlice(patterns)
+	if len(patterns) == 0 {
+		return db, nil
+	}
+
+	return db.Where(q, pq.Array(patterns)), nil
+}
+
+func applyLikeAndInFilter(
+	db *gorm.DB,
+	column string,
+
+	startsWith string,
+	endsWith string,
+	contains string,
+
+	notStartsWith string,
+	notEndsWith string,
+	notContains string,
+
+	in []string,
+	notIn []string,
+
+	filterName string,
+) (*gorm.DB, error) {
+	if (startsWith != "" || endsWith != "") && contains != "" {
+		return nil, fmt.Errorf("invalid filter: %s_contains cannot be used together with %s_starts_with or %s_ends_with", filterName, filterName, filterName)
+	}
+	if (notStartsWith != "" || notEndsWith != "") && notContains != "" {
+		return nil, fmt.Errorf("invalid filter: %s_not_contains cannot be used together with %s_not_starts_with or %s_not_ends_with", filterName, filterName, filterName)
+	}
+
+	// ---------- POSITIVE FILTERS (OR) ----------
+	var posClauses []string
+	var posArgs []interface{}
+
+	if startsWith != "" {
+		posClauses = append(posClauses, fmt.Sprintf(`%s LIKE ?`, column))
+		posArgs = append(posArgs, startsWith+"%")
+	}
+	if endsWith != "" {
+		posClauses = append(posClauses, fmt.Sprintf(`%s LIKE ?`, column))
+		posArgs = append(posArgs, "%"+endsWith)
+	}
+	if contains != "" {
+		posClauses = append(posClauses, fmt.Sprintf(`%s LIKE ?`, column))
+		posArgs = append(posArgs, "%"+contains+"%")
+	}
+	if len(in) > 0 {
+		posClauses = append(posClauses, fmt.Sprintf(`%s IN ?`, column))
+		posArgs = append(posArgs, in)
+	}
+
+	if len(posClauses) > 0 {
+		db = db.Where("("+strings.Join(posClauses, " OR ")+")", posArgs...)
+	}
+
+	// ---------- NEGATIVE FILTERS (AND) ----------
+	var negClauses []string
+	var negArgs []interface{}
+
+	if notStartsWith != "" {
+		negClauses = append(negClauses, fmt.Sprintf(`%s NOT LIKE ?`, column))
+		negArgs = append(negArgs, notStartsWith+"%")
+	}
+	if notEndsWith != "" {
+		negClauses = append(negClauses, fmt.Sprintf(`%s NOT LIKE ?`, column))
+		negArgs = append(negArgs, "%"+notEndsWith)
+	}
+	if notContains != "" {
+		negClauses = append(negClauses, fmt.Sprintf(`%s NOT LIKE ?`, column))
+		negArgs = append(negArgs, "%"+notContains+"%")
+	}
+	if len(notIn) > 0 {
+		negClauses = append(negClauses, fmt.Sprintf(`%s NOT IN ?`, column))
+		negArgs = append(negArgs, notIn)
+	}
+
+	if len(negClauses) > 0 {
+		db = db.Where("("+strings.Join(negClauses, " AND ")+")", negArgs...)
+	}
+
+	return db, nil
+}
+
+func applyJSONBPathsLikeAndInFilter(
+	db *gorm.DB,
+	column string,
+	paths []string,
+
+	startsWith string,
+	endsWith string,
+	contains string,
+
+	notStartsWith string,
+	notEndsWith string,
+	notContains string,
+
+	in []string,
+	notIn []string,
+
+	filterName string,
+) (*gorm.DB, error) {
+	if len(paths) == 0 {
+		return db, nil
+	}
+	if (startsWith != "" || endsWith != "") && contains != "" {
+		return nil, fmt.Errorf("invalid filter: %s_contains cannot be used together with %s_starts_with or %s_ends_with", filterName, filterName, filterName)
+	}
+	if (notStartsWith != "" || notEndsWith != "") && notContains != "" {
+		return nil, fmt.Errorf("invalid filter: %s_not_contains cannot be used together with %s_not_starts_with or %s_not_ends_with", filterName, filterName, filterName)
+	}
+
+	// ---- Normalize & deduplicate paths
+	pathSet := make(map[string]struct{})
+	for _, p := range paths {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		p = strings.ReplaceAll(p, ".", ",")
+		pathSet[p] = struct{}{}
+	}
+
+	var normPaths []string
+	for p := range pathSet {
+		normPaths = append(normPaths, p)
+	}
+	if len(normPaths) == 0 {
+		return db, nil
+	}
+
+	// ---------- POSITIVE FILTERS (OR) ----------
+	var posClauses []string
+	var posArgs []interface{}
+
+	buildLike := func(op, pattern string) {
+		for _, p := range normPaths {
+			posClauses = append(
+				posClauses,
+				fmt.Sprintf(`COALESCE(%s #>> '{%s}', 'null') %s ?`, column, p, op),
+			)
+			posArgs = append(posArgs, pattern)
+		}
+	}
+
+	if startsWith != "" {
+		buildLike("LIKE", startsWith+"%")
+	}
+	if endsWith != "" {
+		buildLike("LIKE", "%"+endsWith)
+	}
+	if contains != "" {
+		buildLike("LIKE", "%"+contains+"%")
+	}
+
+	if len(in) > 0 {
+		for _, p := range normPaths {
+			posClauses = append(
+				posClauses,
+				fmt.Sprintf(`COALESCE(%s #>> '{%s}', 'null') IN ?`, column, p),
+			)
+			posArgs = append(posArgs, in)
+		}
+	}
+
+	if len(posClauses) > 0 {
+		db = db.Where("("+strings.Join(posClauses, " OR ")+")", posArgs...)
+	}
+
+	// ---------- NEGATIVE FILTERS (AND) ----------
+	var negClauses []string
+	var negArgs []interface{}
+
+	buildNotLike := func(op, pattern string) {
+		for _, p := range normPaths {
+			negClauses = append(
+				negClauses,
+				fmt.Sprintf(`COALESCE(%s #>> '{%s}', 'null') %s ?`, column, p, op),
+			)
+			negArgs = append(negArgs, pattern)
+		}
+	}
+
+	if notStartsWith != "" {
+		buildNotLike("NOT LIKE", notStartsWith+"%")
+	}
+	if notEndsWith != "" {
+		buildNotLike("NOT LIKE", "%"+notEndsWith)
+	}
+	if notContains != "" {
+		buildNotLike("NOT LIKE", "%"+notContains+"%")
+	}
+
+	if len(notIn) > 0 {
+		for _, p := range normPaths {
+			negClauses = append(
+				negClauses,
+				fmt.Sprintf(`COALESCE(%s #>> '{%s}', 'null') NOT IN ?`, column, p),
+			)
+			negArgs = append(negArgs, notIn)
+		}
+	}
+
+	if len(negClauses) > 0 {
+		db = db.Where("("+strings.Join(negClauses, " AND ")+")", negArgs...)
+	}
+
+	return db, nil
 }
