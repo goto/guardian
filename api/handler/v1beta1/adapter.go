@@ -390,6 +390,45 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 			}
 		}
 
+		var labelingRules []domain.LabelingRule
+		if lrs := p.GetAppeal().GetLabelingRules(); lrs != nil {
+			for _, lr := range lrs {
+				rule := domain.LabelingRule{
+					RuleName:     lr.GetRuleName(),
+					Description:  lr.GetDescription(),
+					When:         lr.GetWhen(),
+					Labels:       lr.GetLabels(),
+					Priority:     int(lr.GetPriority()),
+					AllowFailure: lr.GetAllowFailure(),
+				}
+
+				if lm := lr.GetLabelMetadata(); lm != nil {
+					rule.LabelMetadata = make(map[string]*domain.LabelMetadataConfig)
+					for key, metadata := range lm {
+						rule.LabelMetadata[key] = &domain.LabelMetadataConfig{
+							Category:   metadata.GetCategory(),
+							Attributes: metadata.GetAttributes().AsMap(),
+						}
+					}
+				}
+
+				labelingRules = append(labelingRules, rule)
+			}
+		}
+
+		var userLabelConfig *domain.UserLabelConfig
+		if mlc := p.GetAppeal().GetUserLabelConfig(); mlc != nil {
+			userLabelConfig = &domain.UserLabelConfig{
+				AllowUserLabels: mlc.GetAllowUserLabels(),
+				AllowedKeys:     mlc.GetAllowedKeys(),
+				RequiredKeys:    mlc.GetRequiredKeys(),
+				MaxLabels:       int(mlc.GetMaxLabels()),
+				KeyPattern:      mlc.GetKeyPattern(),
+				ValuePattern:    mlc.GetValuePattern(),
+				AllowOverride:   mlc.GetAllowOverride(),
+			}
+		}
+
 		policy.AppealConfig = &domain.PolicyAppealConfig{
 			DurationOptions:              durationOptions,
 			AllowOnBehalf:                p.GetAppeal().GetAllowOnBehalf(),
@@ -399,6 +438,8 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 			AllowCreatorDetailsFailure:   p.GetAppeal().GetAllowCreatorDetailsFailure(),
 			MetadataSources:              metadataSources,
 			TermsAndConditions:           p.GetAppeal().GetTermsAndConditions(),
+			LabelingRules:                labelingRules,
+			UserLabelConfig:              userLabelConfig,
 		}
 	}
 
@@ -603,6 +644,47 @@ func (a *adapter) ToPolicyAppealConfigProto(p *domain.Policy) (*guardianv1beta1.
 	}
 	policyAppealConfigProto.TermsAndConditions = p.AppealConfig.TermsAndConditions
 
+	if p.AppealConfig.LabelingRules != nil {
+		for _, rule := range p.AppealConfig.LabelingRules {
+			ruleProto := &guardianv1beta1.LabelingRule{
+				RuleName:     rule.RuleName,
+				Description:  rule.Description,
+				When:         rule.When,
+				Labels:       rule.Labels,
+				Priority:     int32(rule.Priority),
+				AllowFailure: rule.AllowFailure,
+			}
+
+			if rule.LabelMetadata != nil {
+				ruleProto.LabelMetadata = make(map[string]*guardianv1beta1.LabelMetadataConfig)
+				for key, metadata := range rule.LabelMetadata {
+					attrs, err := structpb.NewStruct(metadata.Attributes)
+					if err != nil {
+						return nil, fmt.Errorf("converting label metadata attributes: %w", err)
+					}
+					ruleProto.LabelMetadata[key] = &guardianv1beta1.LabelMetadataConfig{
+						Category:   metadata.Category,
+						Attributes: attrs,
+					}
+				}
+			}
+
+			policyAppealConfigProto.LabelingRules = append(policyAppealConfigProto.LabelingRules, ruleProto)
+		}
+	}
+
+	if p.AppealConfig.UserLabelConfig != nil {
+		policyAppealConfigProto.UserLabelConfig = &guardianv1beta1.UserLabelConfig{
+			AllowUserLabels: p.AppealConfig.UserLabelConfig.AllowUserLabels,
+			AllowedKeys:     p.AppealConfig.UserLabelConfig.AllowedKeys,
+			RequiredKeys:    p.AppealConfig.UserLabelConfig.RequiredKeys,
+			MaxLabels:       int32(p.AppealConfig.UserLabelConfig.MaxLabels),
+			KeyPattern:      p.AppealConfig.UserLabelConfig.KeyPattern,
+			ValuePattern:    p.AppealConfig.UserLabelConfig.ValuePattern,
+			AllowOverride:   p.AppealConfig.UserLabelConfig.AllowOverride,
+		}
+	}
+
 	return policyAppealConfigProto, nil
 }
 
@@ -697,22 +779,23 @@ func (a *adapter) ToResourceProto(r *domain.Resource) (*guardianv1beta1.Resource
 
 func (a *adapter) ToAppealProto(appeal *domain.Appeal) (*guardianv1beta1.Appeal, error) {
 	appealProto := &guardianv1beta1.Appeal{
-		Id:            appeal.ID,
-		ResourceId:    appeal.ResourceID,
-		PolicyId:      appeal.PolicyID,
-		PolicyVersion: uint32(appeal.PolicyVersion),
-		Status:        appeal.Status,
-		AccountId:     appeal.AccountID,
-		AccountType:   appeal.AccountType,
-		GroupId:       appeal.GroupID,
-		GroupType:     appeal.GroupType,
-		CreatedBy:     appeal.CreatedBy,
-		Role:          appeal.Role,
-		Permissions:   appeal.Permissions,
-		Options:       a.toAppealOptionsProto(appeal.Options),
-		Labels:        appeal.Labels,
-		Description:   appeal.Description,
-		Revision:      uint32(appeal.Revision),
+		Id:             appeal.ID,
+		ResourceId:     appeal.ResourceID,
+		PolicyId:       appeal.PolicyID,
+		PolicyVersion:  uint32(appeal.PolicyVersion),
+		Status:         appeal.Status,
+		AccountId:      appeal.AccountID,
+		AccountType:    appeal.AccountType,
+		GroupId:        appeal.GroupID,
+		GroupType:      appeal.GroupType,
+		CreatedBy:      appeal.CreatedBy,
+		Role:           appeal.Role,
+		Permissions:    appeal.Permissions,
+		Options:        a.toAppealOptionsProto(appeal.Options),
+		Labels:         appeal.Labels,
+		LabelsMetadata: a.toLabelMetadataProto(appeal.LabelsMetadata),
+		Description:    appeal.Description,
+		Revision:       uint32(appeal.Revision),
 	}
 
 	if appeal.Resource != nil {
@@ -781,6 +864,7 @@ func (a *adapter) FromCreateAppealProto(ca *guardianv1beta1.CreateAppealRequest,
 			ResourceID:  r.GetId(),
 			Role:        r.GetRole(),
 			Description: ca.GetDescription(),
+			UserLabels:  ca.GetUserLabels(),
 		}
 
 		if r.GetOptions() != nil {
@@ -1341,4 +1425,51 @@ func toProtoList(in []interface{}) ([]*structpb.Value, error) {
 		out[k] = val
 	}
 	return out, nil
+}
+
+func (a *adapter) toLabelMetadataProto(metadata map[string]*domain.LabelMetadata) map[string]*guardianv1beta1.LabelMetadata {
+	if metadata == nil {
+		return nil
+	}
+
+	result := make(map[string]*guardianv1beta1.LabelMetadata, len(metadata))
+	for key, meta := range metadata {
+		protoMeta := &guardianv1beta1.LabelMetadata{
+			Value:       meta.Value,
+			DerivedFrom: meta.DerivedFrom,
+			Source:      string(meta.Source),
+			Category:    meta.Category,
+			AppliedBy:   meta.AppliedBy,
+		}
+
+		if meta.Attributes != nil {
+			attrs, err := structpb.NewStruct(meta.Attributes)
+			if err == nil {
+				protoMeta.Attributes = attrs
+			}
+		}
+
+		if !meta.AppliedAt.IsZero() {
+			protoMeta.AppliedAt = timestamppb.New(meta.AppliedAt)
+		}
+
+		result[key] = protoMeta
+	}
+
+	return result
+}
+
+func (a *adapter) FromLabelFiltersProto(labels map[string]*guardianv1beta1.LabelValues) map[string][]string {
+	if labels == nil {
+		return nil
+	}
+
+	result := make(map[string][]string, len(labels))
+	for key, values := range labels {
+		if values != nil && values.Values != nil {
+			result[key] = values.Values
+		}
+	}
+
+	return result
 }

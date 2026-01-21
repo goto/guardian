@@ -21,6 +21,7 @@ import (
 	commentmocks "github.com/goto/guardian/core/comment/mocks"
 	"github.com/goto/guardian/core/event"
 	eventmocks "github.com/goto/guardian/core/event/mocks"
+	labelingmocks "github.com/goto/guardian/core/labeling/mocks"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/mocks"
@@ -95,19 +96,20 @@ func newServiceTestHelper() *serviceTestHelper {
 	h.ctxMatcher = mock.MatchedBy(func(ctx context.Context) bool { return true })
 
 	service := appeal.NewService(appeal.ServiceDeps{
-		h.mockRepository,
-		h.mockApprovalService,
-		h.mockResourceService,
-		h.mockProviderService,
-		h.mockPolicyService,
-		h.mockGrantService,
-		commentService,
-		eventService,
-		h.mockIAMManager,
-		h.mockNotifier,
-		validator.New(),
-		logger,
-		h.mockAuditLogger,
+		Repository:      h.mockRepository,
+		ApprovalService: h.mockApprovalService,
+		ResourceService: h.mockResourceService,
+		ProviderService: h.mockProviderService,
+		PolicyService:   h.mockPolicyService,
+		GrantService:    h.mockGrantService,
+		CommentService:  commentService,
+		EventService:    eventService,
+		IAMManager:      h.mockIAMManager,
+		LabelingService: nil,
+		Notifier:        h.mockNotifier,
+		Validator:       validator.New(),
+		Logger:          logger,
+		AuditLogger:     h.mockAuditLogger,
 	})
 	service.TimeNow = func() time.Time {
 		return h.now
@@ -6919,5 +6921,1480 @@ func grantArgMatcher(expected domain.Grant) any {
 			cmpopts.EquateApproxTime(time.Millisecond),
 			cmpopts.IgnoreFields(domain.Grant{}, "Appeal"),
 		)
+	})
+}
+
+func (s *ServiceTestSuite) TestCreate__WithLabeling() {
+	s.Run("should return error if labeling config present but service is nil", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		resources := []*domain.Resource{
+			{
+				ID:           "1",
+				Type:         "resource_type_1",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider1",
+			},
+		}
+		providers := []*domain.Provider{
+			{
+				ID:   "1",
+				Type: "provider_type",
+				URN:  "provider1",
+				Config: &domain.ProviderConfig{
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess: true,
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "resource_type_1",
+							Policy: &domain.PolicyConfig{
+								ID:      "policy_1",
+								Version: 1,
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "role_id",
+									Permissions: []interface{}{"test-permission-1"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		policies := []*domain.Policy{
+			{
+				ID:      "policy_1",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:      "step_1",
+						Strategy:  "auto",
+						ApproveIf: "true",
+					},
+				},
+				AppealConfig: &domain.PolicyAppealConfig{
+					LabelingRules: []domain.LabelingRule{
+						{
+							RuleName: "test_rule",
+							When:     "true",
+							Labels: map[string]string{
+								"environment": "production",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		accountID := "test@email.com"
+		appeals := []*domain.Appeal{
+			{
+				ResourceID:  resources[0].ID,
+				AccountID:   accountID,
+				Role:        "role_id",
+				AccountType: domain.DefaultAppealAccountType,
+				CreatedBy:   accountID,
+			},
+		}
+
+		h.mockResourceService.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return(resources, nil).Once()
+		h.mockProviderService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(providers, nil).Once()
+		h.mockPolicyService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(policies, nil).Once()
+		h.mockRepository.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return([]*domain.Appeal{}, nil).Once()
+		h.mockGrantService.EXPECT().
+			List(h.ctxMatcher, mock.Anything).
+			Return([]domain.Grant{}, nil).Once()
+		h.mockProviderService.EXPECT().
+			ValidateAppeal(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil).Once()
+		h.mockProviderService.EXPECT().
+			GetPermissions(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return([]interface{}{"test-permission-1"}, nil).Once()
+
+		actualError := h.service.Create(context.Background(), appeals)
+
+		s.Error(actualError)
+		s.Contains(actualError.Error(), "labeling service is required but not configured")
+	})
+
+	s.Run("should skip labeling if policy has no labeling config", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		resources := []*domain.Resource{
+			{
+				ID:           "1",
+				Type:         "resource_type_1",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider1",
+			},
+		}
+		providers := []*domain.Provider{
+			{
+				ID:   "1",
+				Type: "provider_type",
+				URN:  "provider1",
+				Config: &domain.ProviderConfig{
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess: true,
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "resource_type_1",
+							Policy: &domain.PolicyConfig{
+								ID:      "policy_1",
+								Version: 1,
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "role_id",
+									Permissions: []interface{}{"test-permission-1"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		policies := []*domain.Policy{
+			{
+				ID:      "policy_1",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:      "step_1",
+						Strategy:  "manual",
+						Approvers: []string{"approver@email.com"},
+					},
+				},
+				// No AppealConfig or LabelingRules
+			},
+		}
+
+		accountID := "test@email.com"
+		appeals := []*domain.Appeal{
+			{
+				ResourceID:  resources[0].ID,
+				AccountID:   accountID,
+				Role:        "role_id",
+				AccountType: domain.DefaultAppealAccountType,
+				CreatedBy:   accountID,
+			},
+		}
+
+		h.mockResourceService.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return(resources, nil).Once()
+		h.mockProviderService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(providers, nil).Once()
+		h.mockPolicyService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(policies, nil).Once()
+		h.mockRepository.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return([]*domain.Appeal{}, nil).Once()
+		h.mockGrantService.EXPECT().
+			List(h.ctxMatcher, mock.Anything).
+			Return([]domain.Grant{}, nil).Once()
+		h.mockProviderService.EXPECT().
+			ValidateAppeal(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil).Once()
+		h.mockProviderService.EXPECT().
+			GetPermissions(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return([]interface{}{"test-permission-1"}, nil).Once()
+		h.mockRepository.EXPECT().
+			BulkUpsert(h.ctxMatcher, mock.MatchedBy(func(appeals []*domain.Appeal) bool {
+				// Verify no labels were set
+				return appeals[0].Labels == nil && appeals[0].LabelsMetadata == nil
+			})).
+			Return(nil).Once()
+		h.mockAuditLogger.EXPECT().
+			Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).
+			Return(nil).Maybe()
+		h.mockNotifier.EXPECT().
+			Notify(mock.Anything, mock.Anything).
+			Return(nil).Maybe()
+
+		actualError := h.service.Create(context.Background(), appeals)
+
+		s.NoError(actualError)
+	})
+
+	s.Run("should apply policy-based labels successfully", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		// Create a manual mock for labeling service
+		mockLabelingService := labelingmocks.NewLabelingService(s.T())
+
+		resources := []*domain.Resource{
+			{
+				ID:           "1",
+				Type:         "resource_type_1",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider1",
+				Details: map[string]interface{}{
+					"owner": "resource.owner@email.com",
+				},
+			},
+		}
+		providers := []*domain.Provider{
+			{
+				ID:   "1",
+				Type: "provider_type",
+				URN:  "provider1",
+				Config: &domain.ProviderConfig{
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess: true,
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "resource_type_1",
+							Policy: &domain.PolicyConfig{
+								ID:      "policy_1",
+								Version: 1,
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "role_id",
+									Permissions: []interface{}{"test-permission-1"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		policies := []*domain.Policy{
+			{
+				ID:      "policy_1",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:      "step_1",
+						Strategy:  "manual",
+						Approvers: []string{"approver@email.com"},
+					},
+				},
+				AppealConfig: &domain.PolicyAppealConfig{
+					LabelingRules: []domain.LabelingRule{
+						{
+							RuleName: "classify_environment",
+							When:     "true",
+							Labels: map[string]string{
+								"environment": "production",
+								"team":        "platform",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		accountID := "test@email.com"
+		appeals := []*domain.Appeal{
+			{
+				ResourceID:  resources[0].ID,
+				AccountID:   accountID,
+				Role:        "role_id",
+				AccountType: domain.DefaultAppealAccountType,
+				CreatedBy:   accountID,
+			},
+		}
+
+		expectedPolicyLabels := map[string]*domain.LabelMetadata{
+			"environment": {
+				Value:  "production",
+				Source: domain.LabelSourcePolicyRule,
+			},
+			"team": {
+				Value:  "platform",
+				Source: domain.LabelSourcePolicyRule,
+			},
+		}
+
+		h.mockResourceService.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return(resources, nil).Once()
+		h.mockProviderService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(providers, nil).Once()
+		h.mockPolicyService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(policies, nil).Once()
+		h.mockRepository.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return([]*domain.Appeal{}, nil).Once()
+		h.mockGrantService.EXPECT().
+			List(h.ctxMatcher, mock.Anything).
+			Return([]domain.Grant{}, nil).Once()
+		h.mockProviderService.EXPECT().
+			ValidateAppeal(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil).Once()
+		h.mockProviderService.EXPECT().
+			GetPermissions(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return([]interface{}{"test-permission-1"}, nil).Once()
+
+		// Mock labeling service calls
+		mockLabelingService.EXPECT().
+			ApplyLabels(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(expectedPolicyLabels, nil).Once()
+		mockLabelingService.EXPECT().
+			MergeLabels(expectedPolicyLabels, mock.Anything, false).
+			Return(expectedPolicyLabels).Once()
+
+		h.mockRepository.EXPECT().
+			BulkUpsert(h.ctxMatcher, mock.MatchedBy(func(appeals []*domain.Appeal) bool {
+				// Verify policy labels were set correctly
+				if appeals[0].Labels == nil || appeals[0].LabelsMetadata == nil {
+					return false
+				}
+				return appeals[0].Labels["environment"] == "production" &&
+					appeals[0].Labels["team"] == "platform" &&
+					appeals[0].LabelsMetadata["environment"].Source == domain.LabelSourcePolicyRule &&
+					appeals[0].LabelsMetadata["team"].Source == domain.LabelSourcePolicyRule
+			})).
+			Return(nil).Once()
+		h.mockAuditLogger.EXPECT().
+			Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).
+			Return(nil).Maybe()
+		h.mockNotifier.EXPECT().
+			Notify(mock.Anything, mock.Anything).
+			Return(nil).Maybe()
+
+		// Inject mock labeling service
+		h.service = appeal.NewService(appeal.ServiceDeps{
+			Repository:      h.mockRepository,
+			ApprovalService: h.mockApprovalService,
+			ResourceService: h.mockResourceService,
+			ProviderService: h.mockProviderService,
+			PolicyService:   h.mockPolicyService,
+			GrantService:    h.mockGrantService,
+			CommentService: comment.NewService(comment.ServiceDeps{
+				Repository:  h.mockCommentRepo,
+				Logger:      log.NewNoop(),
+				AuditLogger: h.mockAuditLogger,
+			}),
+			EventService:    event.NewService(h.mockAuditLogRepo, log.NewNoop()),
+			IAMManager:      h.mockIAMManager,
+			LabelingService: mockLabelingService,
+			Notifier:        h.mockNotifier,
+			Validator:       validator.New(),
+			Logger:          log.NewNoop(),
+			AuditLogger:     h.mockAuditLogger,
+		})
+		h.service.TimeNow = func() time.Time {
+			return h.now
+		}
+
+		actualError := h.service.Create(context.Background(), appeals)
+
+		s.NoError(actualError)
+		mockLabelingService.AssertExpectations(s.T())
+	})
+
+	s.Run("should apply and validate user-provided labels", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		mockLabelingService := labelingmocks.NewLabelingService(s.T())
+
+		resources := []*domain.Resource{
+			{
+				ID:           "1",
+				Type:         "resource_type_1",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider1",
+			},
+		}
+		providers := []*domain.Provider{
+			{
+				ID:   "1",
+				Type: "provider_type",
+				URN:  "provider1",
+				Config: &domain.ProviderConfig{
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess: true,
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "resource_type_1",
+							Policy: &domain.PolicyConfig{
+								ID:      "policy_1",
+								Version: 1,
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "role_id",
+									Permissions: []interface{}{"test-permission-1"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		policies := []*domain.Policy{
+			{
+				ID:      "policy_1",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:      "step_1",
+						Strategy:  "manual",
+						Approvers: []string{"approver@email.com"},
+					},
+				},
+				AppealConfig: &domain.PolicyAppealConfig{
+					UserLabelConfig: &domain.UserLabelConfig{
+						AllowUserLabels: true,
+						AllowedKeys:     []string{"project", "cost_center"},
+						MaxLabels:       5,
+					},
+				},
+			},
+		}
+
+		accountID := "test@email.com"
+		userLabels := map[string]string{
+			"project":     "alpha",
+			"cost_center": "engineering",
+		}
+		appeals := []*domain.Appeal{
+			{
+				ResourceID:  resources[0].ID,
+				AccountID:   accountID,
+				Role:        "role_id",
+				AccountType: domain.DefaultAppealAccountType,
+				CreatedBy:   accountID,
+				UserLabels:  userLabels,
+			},
+		}
+
+		expectedUserLabels := map[string]*domain.LabelMetadata{
+			"project": {
+				Value:  "alpha",
+				Source: domain.LabelSourceUser,
+			},
+			"cost_center": {
+				Value:  "engineering",
+				Source: domain.LabelSourceUser,
+			},
+		}
+
+		h.mockResourceService.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return(resources, nil).Once()
+		h.mockProviderService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(providers, nil).Once()
+		h.mockPolicyService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(policies, nil).Once()
+		h.mockRepository.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return([]*domain.Appeal{}, nil).Once()
+		h.mockGrantService.EXPECT().
+			List(h.ctxMatcher, mock.Anything).
+			Return([]domain.Grant{}, nil).Once()
+		h.mockProviderService.EXPECT().
+			ValidateAppeal(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil).Once()
+		h.mockProviderService.EXPECT().
+			GetPermissions(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return([]interface{}{"test-permission-1"}, nil).Once()
+
+		// Mock labeling service calls
+		mockLabelingService.EXPECT().
+			ValidateUserLabels(h.ctxMatcher, userLabels, policies[0].AppealConfig.UserLabelConfig).
+			Return(nil).Once()
+		mockLabelingService.EXPECT().
+			ApplyLabels(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(map[string]*domain.LabelMetadata{}, nil).Once()
+		mockLabelingService.EXPECT().
+			MergeLabels(mock.Anything, mock.Anything, false).
+			Return(expectedUserLabels).Once()
+
+		h.mockRepository.EXPECT().
+			BulkUpsert(h.ctxMatcher, mock.MatchedBy(func(appeals []*domain.Appeal) bool {
+				// Verify user labels were set correctly
+				if appeals[0].Labels == nil || appeals[0].LabelsMetadata == nil {
+					return false
+				}
+				return appeals[0].Labels["project"] == "alpha" &&
+					appeals[0].Labels["cost_center"] == "engineering" &&
+					appeals[0].LabelsMetadata["project"].Source == domain.LabelSourceUser &&
+					appeals[0].LabelsMetadata["cost_center"].Source == domain.LabelSourceUser
+			})).
+			Return(nil).Once()
+		h.mockAuditLogger.EXPECT().
+			Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).
+			Return(nil).Maybe()
+		h.mockNotifier.EXPECT().
+			Notify(mock.Anything, mock.Anything).
+			Return(nil).Maybe()
+
+		// Inject mock labeling service
+		h.service = appeal.NewService(appeal.ServiceDeps{
+			Repository:      h.mockRepository,
+			ApprovalService: h.mockApprovalService,
+			ResourceService: h.mockResourceService,
+			ProviderService: h.mockProviderService,
+			PolicyService:   h.mockPolicyService,
+			GrantService:    h.mockGrantService,
+			CommentService: comment.NewService(comment.ServiceDeps{
+				Repository:  h.mockCommentRepo,
+				Logger:      log.NewNoop(),
+				AuditLogger: h.mockAuditLogger,
+			}),
+			EventService:    event.NewService(h.mockAuditLogRepo, log.NewNoop()),
+			IAMManager:      h.mockIAMManager,
+			LabelingService: mockLabelingService,
+			Notifier:        h.mockNotifier,
+			Validator:       validator.New(),
+			Logger:          log.NewNoop(),
+			AuditLogger:     h.mockAuditLogger,
+		})
+		h.service.TimeNow = func() time.Time {
+			return h.now
+		}
+
+		actualError := h.service.Create(context.Background(), appeals)
+
+		s.NoError(actualError)
+		mockLabelingService.AssertExpectations(s.T())
+	})
+
+	s.Run("should merge policy and user labels correctly", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		mockLabelingService := labelingmocks.NewLabelingService(s.T())
+
+		resources := []*domain.Resource{
+			{
+				ID:           "1",
+				Type:         "resource_type_1",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider1",
+			},
+		}
+		providers := []*domain.Provider{
+			{
+				ID:   "1",
+				Type: "provider_type",
+				URN:  "provider1",
+				Config: &domain.ProviderConfig{
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess: true,
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "resource_type_1",
+							Policy: &domain.PolicyConfig{
+								ID:      "policy_1",
+								Version: 1,
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "role_id",
+									Permissions: []interface{}{"test-permission-1"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		policies := []*domain.Policy{
+			{
+				ID:      "policy_1",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:      "step_1",
+						Strategy:  "manual",
+						Approvers: []string{"approver@email.com"},
+					},
+				},
+				AppealConfig: &domain.PolicyAppealConfig{
+					LabelingRules: []domain.LabelingRule{
+						{
+							RuleName: "classify_environment",
+							When:     "true",
+							Labels: map[string]string{
+								"environment": "production",
+								"compliance":  "required",
+							},
+						},
+					},
+					UserLabelConfig: &domain.UserLabelConfig{
+						AllowUserLabels: true,
+						AllowedKeys:     []string{"project", "owner"},
+						AllowOverride:   false,
+					},
+				},
+			},
+		}
+
+		accountID := "test@email.com"
+		userLabels := map[string]string{
+			"project": "alpha",
+			"owner":   "team-a",
+		}
+		appeals := []*domain.Appeal{
+			{
+				ResourceID:  resources[0].ID,
+				AccountID:   accountID,
+				Role:        "role_id",
+				AccountType: domain.DefaultAppealAccountType,
+				CreatedBy:   accountID,
+				UserLabels:  userLabels,
+			},
+		}
+
+		expectedPolicyLabels := map[string]*domain.LabelMetadata{
+			"environment": {
+				Value:  "production",
+				Source: domain.LabelSourcePolicyRule,
+			},
+			"compliance": {
+				Value:  "required",
+				Source: domain.LabelSourcePolicyRule,
+			},
+		}
+
+		expectedMergedLabels := map[string]*domain.LabelMetadata{
+			"environment": {
+				Value:  "production",
+				Source: domain.LabelSourcePolicyRule,
+			},
+			"compliance": {
+				Value:  "required",
+				Source: domain.LabelSourcePolicyRule,
+			},
+			"project": {
+				Value:  "alpha",
+				Source: domain.LabelSourceUser,
+			},
+			"owner": {
+				Value:  "team-a",
+				Source: domain.LabelSourceUser,
+			},
+		}
+
+		h.mockResourceService.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return(resources, nil).Once()
+		h.mockProviderService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(providers, nil).Once()
+		h.mockPolicyService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(policies, nil).Once()
+		h.mockRepository.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return([]*domain.Appeal{}, nil).Once()
+		h.mockGrantService.EXPECT().
+			List(h.ctxMatcher, mock.Anything).
+			Return([]domain.Grant{}, nil).Once()
+		h.mockProviderService.EXPECT().
+			ValidateAppeal(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil).Once()
+		h.mockProviderService.EXPECT().
+			GetPermissions(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return([]interface{}{"test-permission-1"}, nil).Once()
+
+		// Mock labeling service calls
+		mockLabelingService.EXPECT().
+			ValidateUserLabels(h.ctxMatcher, userLabels, policies[0].AppealConfig.UserLabelConfig).
+			Return(nil).Once()
+		mockLabelingService.EXPECT().
+			ApplyLabels(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(expectedPolicyLabels, nil).Once()
+		mockLabelingService.EXPECT().
+			MergeLabels(expectedPolicyLabels, mock.Anything, false).
+			Return(expectedMergedLabels).Once()
+
+		h.mockRepository.EXPECT().
+			BulkUpsert(h.ctxMatcher, mock.MatchedBy(func(appeals []*domain.Appeal) bool {
+				// Verify merged labels were set correctly
+				if appeals[0].Labels == nil || appeals[0].LabelsMetadata == nil {
+					return false
+				}
+				if len(appeals[0].Labels) != 4 || len(appeals[0].LabelsMetadata) != 4 {
+					return false
+				}
+				// Check policy labels
+				if appeals[0].Labels["environment"] != "production" ||
+					appeals[0].LabelsMetadata["environment"].Source != domain.LabelSourcePolicyRule {
+					return false
+				}
+				if appeals[0].Labels["compliance"] != "required" ||
+					appeals[0].LabelsMetadata["compliance"].Source != domain.LabelSourcePolicyRule {
+					return false
+				}
+				// Check user labels
+				if appeals[0].Labels["project"] != "alpha" ||
+					appeals[0].LabelsMetadata["project"].Source != domain.LabelSourceUser {
+					return false
+				}
+				if appeals[0].Labels["owner"] != "team-a" ||
+					appeals[0].LabelsMetadata["owner"].Source != domain.LabelSourceUser {
+					return false
+				}
+				return true
+			})).
+			Return(nil).Once()
+		h.mockAuditLogger.EXPECT().
+			Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).
+			Return(nil).Maybe()
+		h.mockNotifier.EXPECT().
+			Notify(mock.Anything, mock.Anything).
+			Return(nil).Maybe()
+
+		// Inject mock labeling service
+		h.service = appeal.NewService(appeal.ServiceDeps{
+			Repository:      h.mockRepository,
+			ApprovalService: h.mockApprovalService,
+			ResourceService: h.mockResourceService,
+			ProviderService: h.mockProviderService,
+			PolicyService:   h.mockPolicyService,
+			GrantService:    h.mockGrantService,
+			CommentService: comment.NewService(comment.ServiceDeps{
+				Repository:  h.mockCommentRepo,
+				Logger:      log.NewNoop(),
+				AuditLogger: h.mockAuditLogger,
+			}),
+			EventService:    event.NewService(h.mockAuditLogRepo, log.NewNoop()),
+			IAMManager:      h.mockIAMManager,
+			LabelingService: mockLabelingService,
+			Notifier:        h.mockNotifier,
+			Validator:       validator.New(),
+			Logger:          log.NewNoop(),
+			AuditLogger:     h.mockAuditLogger,
+		})
+		h.service.TimeNow = func() time.Time {
+			return h.now
+		}
+
+		actualError := h.service.Create(context.Background(), appeals)
+
+		s.NoError(actualError)
+		mockLabelingService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return error when user label validation fails", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		mockLabelingService := labelingmocks.NewLabelingService(s.T())
+
+		resources := []*domain.Resource{
+			{
+				ID:           "1",
+				Type:         "resource_type_1",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider1",
+			},
+		}
+		providers := []*domain.Provider{
+			{
+				ID:   "1",
+				Type: "provider_type",
+				URN:  "provider1",
+				Config: &domain.ProviderConfig{
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess: true,
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "resource_type_1",
+							Policy: &domain.PolicyConfig{
+								ID:      "policy_1",
+								Version: 1,
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "role_id",
+									Permissions: []interface{}{"test-permission-1"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		policies := []*domain.Policy{
+			{
+				ID:      "policy_1",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:      "step_1",
+						Strategy:  "manual",
+						Approvers: []string{"approver@email.com"},
+					},
+				},
+				AppealConfig: &domain.PolicyAppealConfig{
+					UserLabelConfig: &domain.UserLabelConfig{
+						AllowUserLabels: true,
+						AllowedKeys:     []string{"project"},
+						MaxLabels:       2,
+					},
+				},
+			},
+		}
+
+		accountID := "test@email.com"
+		userLabels := map[string]string{
+			"invalid_key": "value",
+		}
+		appeals := []*domain.Appeal{
+			{
+				ResourceID:  resources[0].ID,
+				AccountID:   accountID,
+				Role:        "role_id",
+				AccountType: domain.DefaultAppealAccountType,
+				CreatedBy:   accountID,
+				UserLabels:  userLabels,
+			},
+		}
+
+		h.mockResourceService.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return(resources, nil).Once()
+		h.mockProviderService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(providers, nil).Once()
+		h.mockPolicyService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(policies, nil).Once()
+		h.mockRepository.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return([]*domain.Appeal{}, nil).Once()
+		h.mockGrantService.EXPECT().
+			List(h.ctxMatcher, mock.Anything).
+			Return([]domain.Grant{}, nil).Once()
+		h.mockProviderService.EXPECT().
+			ValidateAppeal(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil).Once()
+		h.mockProviderService.EXPECT().
+			GetPermissions(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return([]interface{}{"test-permission-1"}, nil).Once()
+
+		// Mock labeling service to return validation error
+		expectedError := errors.New("label key 'invalid_key' is not allowed")
+		mockLabelingService.EXPECT().
+			ValidateUserLabels(h.ctxMatcher, userLabels, policies[0].AppealConfig.UserLabelConfig).
+			Return(expectedError).Once()
+
+		// Inject mock labeling service
+		h.service = appeal.NewService(appeal.ServiceDeps{
+			Repository:      h.mockRepository,
+			ApprovalService: h.mockApprovalService,
+			ResourceService: h.mockResourceService,
+			ProviderService: h.mockProviderService,
+			PolicyService:   h.mockPolicyService,
+			GrantService:    h.mockGrantService,
+			CommentService: comment.NewService(comment.ServiceDeps{
+				Repository:  h.mockCommentRepo,
+				Logger:      log.NewNoop(),
+				AuditLogger: h.mockAuditLogger,
+			}),
+			EventService:    event.NewService(h.mockAuditLogRepo, log.NewNoop()),
+			IAMManager:      h.mockIAMManager,
+			LabelingService: mockLabelingService,
+			Notifier:        h.mockNotifier,
+			Validator:       validator.New(),
+			Logger:          log.NewNoop(),
+			AuditLogger:     h.mockAuditLogger,
+		})
+		h.service.TimeNow = func() time.Time {
+			return h.now
+		}
+
+		actualError := h.service.Create(context.Background(), appeals)
+
+		s.Error(actualError)
+		s.Contains(actualError.Error(), "validating user labels")
+		mockLabelingService.AssertExpectations(s.T())
+	})
+
+	s.Run("should_resolve_complex_when_condition_and_apply_labels_conditionally", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		mockLabelingService := labelingmocks.NewLabelingService(s.T())
+
+		resources := []*domain.Resource{
+			{
+				ID:           "1",
+				Type:         "resource_type_1",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider1",
+				Details: map[string]interface{}{
+					"owner":       "resource.owner@email.com",
+					"environment": "production",
+				},
+			},
+		}
+		providers := []*domain.Provider{
+			{
+				ID:   "1",
+				Type: "provider_type",
+				URN:  "provider1",
+				Config: &domain.ProviderConfig{
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess: true,
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "resource_type_1",
+							Policy: &domain.PolicyConfig{
+								ID:      "policy_1",
+								Version: 1,
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "role_id",
+									Permissions: []interface{}{"test-permission-1"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		policies := []*domain.Policy{
+			{
+				ID:      "policy_1",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:      "step_1",
+						Strategy:  "manual",
+						Approvers: []string{"approver@email.com"},
+					},
+				},
+				AppealConfig: &domain.PolicyAppealConfig{
+					LabelingRules: []domain.LabelingRule{
+						{
+							RuleName: "critical_access",
+							When:     "$resource.Details.environment == 'production' && $appeal.Role == 'role_id'",
+							Labels: map[string]string{
+								"criticality": "high",
+								"alert":       "yes",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		appeals := []*domain.Appeal{
+			{
+				ResourceID:    "1",
+				PolicyID:      "policy_1",
+				PolicyVersion: 1,
+				AccountID:     "user@email.com",
+				Role:          "role_id",
+				AccountType:   domain.DefaultAppealAccountType,
+				CreatedBy:     "user@email.com",
+			},
+		}
+
+		expectedLabelsMetadata := map[string]*domain.LabelMetadata{
+			"criticality": {
+				Value:  "high",
+				Source: domain.LabelSourcePolicyRule,
+			},
+			"alert": {
+				Value:  "yes",
+				Source: domain.LabelSourcePolicyRule,
+			},
+		}
+
+		h.mockResourceService.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return(resources, nil).Once()
+		h.mockProviderService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(providers, nil).Once()
+		h.mockPolicyService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(policies, nil).Once()
+		h.mockRepository.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return([]*domain.Appeal{}, nil).Once()
+		h.mockGrantService.EXPECT().
+			List(h.ctxMatcher, mock.Anything).
+			Return([]domain.Grant{}, nil).Once()
+		h.mockProviderService.EXPECT().
+			ValidateAppeal(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil).Once()
+		h.mockProviderService.EXPECT().
+			GetPermissions(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return([]interface{}{"test-permission-1"}, nil).Once()
+
+		mockLabelingService.EXPECT().
+			ApplyLabels(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(expectedLabelsMetadata, nil).Once()
+		mockLabelingService.EXPECT().
+			MergeLabels(expectedLabelsMetadata, mock.Anything, false).
+			Return(expectedLabelsMetadata).Once()
+
+		h.mockRepository.EXPECT().
+			BulkUpsert(h.ctxMatcher, mock.MatchedBy(func(appeals []*domain.Appeal) bool {
+				if appeals[0].Labels == nil || appeals[0].LabelsMetadata == nil {
+					return false
+				}
+				return appeals[0].Labels["criticality"] == "high" &&
+					appeals[0].Labels["alert"] == "yes" &&
+					appeals[0].LabelsMetadata["criticality"].Source == domain.LabelSourcePolicyRule &&
+					appeals[0].LabelsMetadata["alert"].Source == domain.LabelSourcePolicyRule
+			})).
+			Return(nil).Once()
+		h.mockAuditLogger.EXPECT().
+			Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).
+			Return(nil).Maybe()
+		h.mockNotifier.EXPECT().
+			Notify(mock.Anything, mock.Anything).
+			Return(nil).Maybe()
+
+		h.service = appeal.NewService(appeal.ServiceDeps{
+			Repository:      h.mockRepository,
+			ApprovalService: h.mockApprovalService,
+			ResourceService: h.mockResourceService,
+			ProviderService: h.mockProviderService,
+			PolicyService:   h.mockPolicyService,
+			GrantService:    h.mockGrantService,
+			CommentService: comment.NewService(comment.ServiceDeps{
+				Repository:  h.mockCommentRepo,
+				Logger:      log.NewNoop(),
+				AuditLogger: h.mockAuditLogger,
+			}),
+			EventService:    event.NewService(h.mockAuditLogRepo, log.NewNoop()),
+			IAMManager:      h.mockIAMManager,
+			LabelingService: mockLabelingService,
+			Notifier:        h.mockNotifier,
+			Validator:       validator.New(),
+			Logger:          log.NewNoop(),
+			AuditLogger:     h.mockAuditLogger,
+		})
+		h.service.TimeNow = func() time.Time {
+			return h.now
+		}
+
+		actualError := h.service.Create(context.Background(), appeals)
+
+		s.NoError(actualError)
+		mockLabelingService.AssertExpectations(s.T())
+	})
+
+	s.Run("should_resolve_dynamic_label_values_with_expressions", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		mockLabelingService := labelingmocks.NewLabelingService(s.T())
+
+		resources := []*domain.Resource{
+			{
+				ID:           "1",
+				Type:         "resource_type_1",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider1",
+				Details: map[string]interface{}{
+					"owner":       "john.doe@company.com",
+					"project":     "web-platform",
+					"cost_center": "eng-123",
+				},
+			},
+		}
+		providers := []*domain.Provider{
+			{
+				ID:   "1",
+				Type: "provider_type",
+				URN:  "provider1",
+				Config: &domain.ProviderConfig{
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess: true,
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "resource_type_1",
+							Policy: &domain.PolicyConfig{
+								ID:      "policy_1",
+								Version: 1,
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "viewer",
+									Permissions: []interface{}{"read"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		policies := []*domain.Policy{
+			{
+				ID:      "policy_1",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:      "step_1",
+						Strategy:  "manual",
+						Approvers: []string{"approver@email.com"},
+					},
+				},
+				AppealConfig: &domain.PolicyAppealConfig{
+					LabelingRules: []domain.LabelingRule{
+						{
+							RuleName: "extract_metadata",
+							When:     "true",
+							Labels: map[string]string{
+								"owner":       "$resource.Details.owner",
+								"project":     "$resource.Details.project",
+								"cost_center": "$resource.Details.cost_center",
+								"requester":   "$appeal.AccountID",
+								"role":        "$appeal.Role",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		appeals := []*domain.Appeal{
+			{
+				ResourceID:    "1",
+				PolicyID:      "policy_1",
+				PolicyVersion: 1,
+				AccountID:     "requester@company.com",
+				Role:          "viewer",
+				AccountType:   domain.DefaultAppealAccountType,
+				CreatedBy:     "requester@company.com",
+			},
+		}
+
+		expectedLabelsMetadata := map[string]*domain.LabelMetadata{
+			"owner": {
+				Value:  "john.doe@company.com",
+				Source: domain.LabelSourcePolicyRule,
+			},
+			"project": {
+				Value:  "web-platform",
+				Source: domain.LabelSourcePolicyRule,
+			},
+			"cost_center": {
+				Value:  "eng-123",
+				Source: domain.LabelSourcePolicyRule,
+			},
+			"requester": {
+				Value:  "requester@company.com",
+				Source: domain.LabelSourcePolicyRule,
+			},
+			"role": {
+				Value:  "viewer",
+				Source: domain.LabelSourcePolicyRule,
+			},
+		}
+
+		h.mockResourceService.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return(resources, nil).Once()
+		h.mockProviderService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(providers, nil).Once()
+		h.mockPolicyService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(policies, nil).Once()
+		h.mockRepository.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return([]*domain.Appeal{}, nil).Once()
+		h.mockGrantService.EXPECT().
+			List(h.ctxMatcher, mock.Anything).
+			Return([]domain.Grant{}, nil).Once()
+		h.mockProviderService.EXPECT().
+			ValidateAppeal(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil).Once()
+		h.mockProviderService.EXPECT().
+			GetPermissions(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return([]interface{}{"read"}, nil).Once()
+
+		mockLabelingService.EXPECT().
+			ApplyLabels(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(expectedLabelsMetadata, nil).Once()
+		mockLabelingService.EXPECT().
+			MergeLabels(expectedLabelsMetadata, mock.Anything, false).
+			Return(expectedLabelsMetadata).Once()
+
+		h.mockRepository.EXPECT().
+			BulkUpsert(mock.Anything, mock.MatchedBy(func(appeals []*domain.Appeal) bool {
+				if appeals[0].Labels == nil || appeals[0].LabelsMetadata == nil {
+					return false
+				}
+				return len(appeals[0].Labels) == 5 &&
+					appeals[0].Labels["owner"] == "john.doe@company.com" &&
+					appeals[0].Labels["project"] == "web-platform" &&
+					appeals[0].Labels["cost_center"] == "eng-123" &&
+					appeals[0].Labels["requester"] == "requester@company.com" &&
+					appeals[0].Labels["role"] == "viewer" &&
+					appeals[0].LabelsMetadata["owner"].Source == domain.LabelSourcePolicyRule
+			})).
+			Return(nil).Once()
+		h.mockNotifier.EXPECT().
+			Notify(mock.Anything, mock.Anything).
+			Return(nil).Maybe()
+		h.mockAuditLogger.EXPECT().
+			Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).
+			Return(nil).Maybe()
+
+		h.service = appeal.NewService(appeal.ServiceDeps{
+			Repository:      h.mockRepository,
+			ApprovalService: h.mockApprovalService,
+			ResourceService: h.mockResourceService,
+			ProviderService: h.mockProviderService,
+			PolicyService:   h.mockPolicyService,
+			GrantService:    h.mockGrantService,
+			CommentService: comment.NewService(comment.ServiceDeps{
+				Repository:  h.mockCommentRepo,
+				Logger:      log.NewNoop(),
+				AuditLogger: h.mockAuditLogger,
+			}),
+			EventService:    event.NewService(h.mockAuditLogRepo, log.NewNoop()),
+			IAMManager:      h.mockIAMManager,
+			LabelingService: mockLabelingService,
+			Notifier:        h.mockNotifier,
+			Validator:       validator.New(),
+			Logger:          log.NewNoop(),
+			AuditLogger:     h.mockAuditLogger,
+		})
+		h.service.TimeNow = func() time.Time {
+			return h.now
+		}
+
+		actualError := h.service.Create(context.Background(), appeals)
+
+		s.NoError(actualError)
+		mockLabelingService.AssertExpectations(s.T())
+	})
+
+	s.Run("should_handle_multiple_rules_with_different_when_conditions", func() {
+		h := newServiceTestHelper()
+		defer h.assertExpectations(s.T())
+
+		mockLabelingService := labelingmocks.NewLabelingService(s.T())
+
+		resources := []*domain.Resource{
+			{
+				ID:           "1",
+				Type:         "database",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider1",
+				Details: map[string]interface{}{
+					"tier":        "premium",
+					"environment": "production",
+					"region":      "us-east-1",
+				},
+			},
+		}
+		providers := []*domain.Provider{
+			{
+				ID:   "1",
+				Type: "provider_type",
+				URN:  "provider1",
+				Config: &domain.ProviderConfig{
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess: true,
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "database",
+							Policy: &domain.PolicyConfig{
+								ID:      "policy_1",
+								Version: 1,
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "admin",
+									Permissions: []interface{}{"full-access"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		policies := []*domain.Policy{
+			{
+				ID:      "policy_1",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:      "step_1",
+						Strategy:  "manual",
+						Approvers: []string{"approver@email.com"},
+					},
+				},
+				AppealConfig: &domain.PolicyAppealConfig{
+					LabelingRules: []domain.LabelingRule{
+						{
+							RuleName: "production_tag",
+							When:     "$resource.Details.environment == 'production'",
+							Labels: map[string]string{
+								"env": "prod",
+							},
+						},
+						{
+							RuleName: "premium_tier",
+							When:     "$resource.Details.tier == 'premium'",
+							Labels: map[string]string{
+								"billing": "premium",
+								"sla":     "99.99",
+							},
+						},
+						{
+							RuleName: "admin_role_tag",
+							When:     "$appeal.Role == 'admin'",
+							Labels: map[string]string{
+								"access_level": "privileged",
+							},
+						},
+						{
+							RuleName: "never_match",
+							When:     "$resource.Type == 'non-existent'",
+							Labels: map[string]string{
+								"should_not": "appear",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		appeals := []*domain.Appeal{
+			{
+				ResourceID:    "1",
+				PolicyID:      "policy_1",
+				PolicyVersion: 1,
+				AccountID:     "admin@company.com",
+				Role:          "admin",
+				AccountType:   domain.DefaultAppealAccountType,
+				CreatedBy:     "admin@company.com",
+			},
+		}
+
+		// Only labels from matching conditions should be present
+		expectedLabelsMetadata := map[string]*domain.LabelMetadata{
+			"env": {
+				Value:  "prod",
+				Source: domain.LabelSourcePolicyRule,
+			},
+			"billing": {
+				Value:  "premium",
+				Source: domain.LabelSourcePolicyRule,
+			},
+			"sla": {
+				Value:  "99.99",
+				Source: domain.LabelSourcePolicyRule,
+			},
+			"access_level": {
+				Value:  "privileged",
+				Source: domain.LabelSourcePolicyRule,
+			},
+		}
+
+		h.mockResourceService.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return(resources, nil).Once()
+		h.mockProviderService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(providers, nil).Once()
+		h.mockPolicyService.EXPECT().
+			Find(h.ctxMatcher).
+			Return(policies, nil).Once()
+		h.mockRepository.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).
+			Return([]*domain.Appeal{}, nil).Once()
+		h.mockGrantService.EXPECT().
+			List(h.ctxMatcher, mock.Anything).
+			Return([]domain.Grant{}, nil).Once()
+		h.mockProviderService.EXPECT().
+			ValidateAppeal(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil).Once()
+		h.mockProviderService.EXPECT().
+			GetPermissions(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return([]interface{}{"full-access"}, nil).Once()
+
+		mockLabelingService.EXPECT().
+			ApplyLabels(h.ctxMatcher, mock.Anything, mock.Anything, mock.Anything).
+			Return(expectedLabelsMetadata, nil).Once()
+		mockLabelingService.EXPECT().
+			MergeLabels(expectedLabelsMetadata, mock.Anything, false).
+			Return(expectedLabelsMetadata).Once()
+
+		h.mockRepository.EXPECT().
+			BulkUpsert(h.ctxMatcher, mock.MatchedBy(func(appeals []*domain.Appeal) bool {
+				if appeals[0].Labels == nil || appeals[0].LabelsMetadata == nil {
+					return false
+				}
+				// Verify matching conditions applied, non-matching did not
+				return len(appeals[0].Labels) == 4 &&
+					appeals[0].Labels["env"] == "prod" &&
+					appeals[0].Labels["billing"] == "premium" &&
+					appeals[0].Labels["access_level"] == "privileged" &&
+					appeals[0].Labels["should_not"] == "" // should not exist
+			})).
+			Return(nil).Once()
+		h.mockAuditLogger.EXPECT().
+			Log(mock.Anything, appeal.AuditKeyBulkInsert, mock.Anything).
+			Return(nil).Maybe()
+		h.mockNotifier.EXPECT().
+			Notify(mock.Anything, mock.Anything).
+			Return(nil).Maybe()
+
+		h.service = appeal.NewService(appeal.ServiceDeps{
+			Repository:      h.mockRepository,
+			ApprovalService: h.mockApprovalService,
+			ResourceService: h.mockResourceService,
+			ProviderService: h.mockProviderService,
+			PolicyService:   h.mockPolicyService,
+			GrantService:    h.mockGrantService,
+			CommentService: comment.NewService(comment.ServiceDeps{
+				Repository:  h.mockCommentRepo,
+				Logger:      log.NewNoop(),
+				AuditLogger: h.mockAuditLogger,
+			}),
+			EventService:    event.NewService(h.mockAuditLogRepo, log.NewNoop()),
+			IAMManager:      h.mockIAMManager,
+			LabelingService: mockLabelingService,
+			Notifier:        h.mockNotifier,
+			Validator:       validator.New(),
+			Logger:          log.NewNoop(),
+			AuditLogger:     h.mockAuditLogger,
+		})
+		h.service.TimeNow = func() time.Time {
+			return h.now
+		}
+
+		actualError := h.service.Create(context.Background(), appeals)
+
+		s.NoError(actualError)
+		mockLabelingService.AssertExpectations(s.T())
 	})
 }

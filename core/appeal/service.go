@@ -108,6 +108,13 @@ type auditLogger interface {
 	Log(ctx context.Context, action string, data interface{}) error
 }
 
+//go:generate mockery --name=labelingService --exported --with-expecter
+type labelingService interface {
+	ApplyLabels(ctx context.Context, appeal *domain.Appeal, resource *domain.Resource, policy *domain.Policy) (map[string]*domain.LabelMetadata, error)
+	ValidateUserLabels(ctx context.Context, labels map[string]string, config *domain.UserLabelConfig) error
+	MergeLabels(policyLabels, userLabels map[string]*domain.LabelMetadata, allowOverride bool) map[string]*domain.LabelMetadata
+}
+
 type CreateAppealOption func(*createAppealOptions)
 
 type createAppealOptions struct {
@@ -137,6 +144,7 @@ type ServiceDeps struct {
 	CommentService  *comment.Service
 	EventService    *event.Service
 	IAMManager      iamManager
+	LabelingService labelingService
 
 	Notifier    notifier
 	Validator   *validator.Validate
@@ -155,6 +163,7 @@ type Service struct {
 	commentService  *comment.Service
 	eventService    *event.Service
 	iam             domain.IAMManager
+	labelingService labelingService
 
 	notifier    notifier
 	validator   *validator.Validate
@@ -176,6 +185,7 @@ func NewService(deps ServiceDeps) *Service {
 		deps.CommentService,
 		deps.EventService,
 		deps.IAMManager,
+		deps.LabelingService,
 
 		deps.Notifier,
 		deps.Validator,
@@ -348,6 +358,10 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		appeal.Revision = 0
 		if err := appeal.ApplyPolicy(policy); err != nil {
 			return err
+		}
+
+		if err := s.applyLabeling(ctx, appeal, policy); err != nil {
+			return fmt.Errorf("applying labels: %w", err)
 		}
 
 		if createAppealOpts.DryRun {
@@ -673,6 +687,10 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	appeal.Revision = existingAppeal.Revision + 1
 	if err := appeal.ApplyPolicy(policy); err != nil {
 		return err
+	}
+
+	if err := s.applyLabeling(ctx, appeal, policy); err != nil {
+		return fmt.Errorf("applying labels: %w", err)
 	}
 
 	if err := appeal.AdvanceApproval(policy); err != nil {
@@ -1899,6 +1917,62 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 		a.Details = map[string]interface{}{}
 	}
 	a.Details[domain.ReservedDetailsKeyPolicyMetadata] = appealMetadata
+
+	return nil
+}
+
+func (s *Service) applyLabeling(ctx context.Context, a *domain.Appeal, p *domain.Policy) error {
+	if !p.HasLabelingConfig() {
+		return nil
+	}
+
+	if s.labelingService == nil {
+		return fmt.Errorf("labeling service is required but not configured")
+	}
+
+	// Extract user-provided labels from appeal.UserLabels
+	userLabels := a.UserLabels
+	if userLabels == nil {
+		userLabels = make(map[string]string)
+	}
+
+	// Validate user labels against policy configuration
+	if p.AllowsUserLabels() && len(userLabels) > 0 {
+		if err := s.labelingService.ValidateUserLabels(ctx, userLabels, p.AppealConfig.UserLabelConfig); err != nil {
+			return fmt.Errorf("validating user labels: %w", err)
+		}
+	}
+
+	// Apply policy-based labels
+	policyLabels, err := s.labelingService.ApplyLabels(ctx, a, a.Resource, p)
+	if err != nil {
+		return fmt.Errorf("applying policy labels: %w", err)
+	}
+
+	// Convert user labels to LabelMetadata format
+	userLabelsMetadata := make(map[string]*domain.LabelMetadata)
+	for key, value := range userLabels {
+		userLabelsMetadata[key] = &domain.LabelMetadata{
+			Value:  value,
+			Source: domain.LabelSourceUser,
+		}
+	}
+
+	// Merge policy and user labels
+	allowOverride := false
+	if p.AllowsUserLabels() {
+		allowOverride = p.AppealConfig.UserLabelConfig.AllowOverride
+	}
+	mergedLabels := s.labelingService.MergeLabels(policyLabels, userLabelsMetadata, allowOverride)
+
+	// Set both Labels (flat map) and LabelsMetadata (rich metadata)
+	a.Labels = make(map[string]string)
+	a.LabelsMetadata = mergedLabels
+	for key, metadata := range mergedLabels {
+		if metadata != nil {
+			a.Labels[key] = metadata.Value
+		}
+	}
 
 	return nil
 }

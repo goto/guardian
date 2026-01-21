@@ -49,6 +49,44 @@ type AppealOptions struct {
 	Duration       string     `json:"duration" yaml:"duration"`
 }
 
+// LabelMetadata contains rich information about how a label was derived
+type LabelMetadata struct {
+	// Value is the label value (duplicate from Labels map for convenience)
+	Value string `json:"value" yaml:"value"`
+
+	// DerivedFrom is the rule name that applied this label (e.g., "rule_pii")
+	// For user labels: "user" or "user:<email>"
+	DerivedFrom string `json:"derived_from" yaml:"derived_from"`
+
+	// Source identifies the label source
+	Source LabelSource `json:"source" yaml:"source"`
+
+	// Category groups labels (resource, account, requestor, environment, etc.)
+	// Extracted from namespaced key or defined in rule
+	Category string `json:"category,omitempty" yaml:"category,omitempty"`
+
+	// Attributes contains arbitrary metadata about the label
+	// Examples: {"risk": "sensitivity", "retention_policy": "90_days"}
+	Attributes map[string]interface{} `json:"attributes,omitempty" yaml:"attributes,omitempty"`
+
+	// AppliedBy is the user email who applied user labels
+	// Only populated for user labels
+	AppliedBy string `json:"applied_by,omitempty" yaml:"applied_by,omitempty"`
+
+	// AppliedAt timestamp when label was applied
+	AppliedAt time.Time `json:"applied_at" yaml:"applied_at"`
+}
+
+// LabelSource identifies where a label originated
+type LabelSource string
+
+const (
+	LabelSourcePolicyRule LabelSource = "policy_rule" // From policy labeling rules
+	LabelSourceUser       LabelSource = "user"        // User-provided user label
+	LabelSourceProvider   LabelSource = "provider"    // Future: from provider
+	LabelSourceExternal   LabelSource = "external"    // Future: from external API
+)
+
 // Appeal struct
 type Appeal struct {
 	ID            string                 `json:"id" yaml:"id"`
@@ -66,8 +104,21 @@ type Appeal struct {
 	Permissions   []string               `json:"permissions" yaml:"permissions"`
 	Options       *AppealOptions         `json:"options" yaml:"options"`
 	Details       map[string]interface{} `json:"details" yaml:"details"`
-	Labels        map[string]string      `json:"labels" yaml:"labels"`
-	Description   string                 `json:"description" yaml:"description"`
+
+	// UserLabels are user-provided labels (input field, not persisted as-is)
+	UserLabels map[string]string `json:"user_labels,omitempty" yaml:"user_labels,omitempty"`
+
+	// Labels: Flat key-value map for efficient filtering and backward compatibility
+	// Keys use namespaced format for categorization: "category:key" or "key" for global
+	// Examples: "resource:pii", "account:type", "environment", "risk_level"
+	Labels map[string]string `json:"labels" yaml:"labels"`
+
+	// LabelsMetadata: Rich metadata about each label (optional, for audit/reporting)
+	// Only populated if policy rules define metadata
+	// Key matches the key in Labels map
+	LabelsMetadata map[string]*LabelMetadata `json:"labels_metadata,omitempty" yaml:"labels_metadata,omitempty"`
+
+	Description string `json:"description" yaml:"description"`
 
 	Policy    *Policy     `json:"-" yaml:"-"`
 	Resource  *Resource   `json:"resource,omitempty" yaml:"resource,omitempty"`
@@ -489,9 +540,19 @@ type ListAppealsFilter struct {
 	DetailsPaths              []string  `mapstructure:"details_paths" json:"details_paths,omitempty" validate:"omitempty"`
 	Details                   []string  `mapstructure:"details" json:"details,omitempty" validate:"omitempty"`
 	NotDetails                []string  `mapstructure:"not_details" json:"not_details,omitempty" validate:"omitempty"`
-	RoleNotStartsWith         string    `mapstructure:"role_not_starts_with" json:"role_not_starts_with,omitempty" validate:"omitempty"`
-	RoleNotEndsWith           string    `mapstructure:"role_not_ends_with" json:"role_not_ends_with,omitempty" validate:"omitempty"`
-	RoleNotContains           string    `mapstructure:"role_not_contains" json:"role_not_contains,omitempty" validate:"omitempty"`
+
+	// Labels filters appeals by label key-value pairs
+	// Format: map[key][]values (OR within values, AND across keys)
+	// Example: {"environment": ["production", "staging"], "data_layer": ["raw"]}
+	// Matches: (environment=production OR environment=staging) AND data_layer=raw
+	Labels map[string][]string `mapstructure:"labels" validate:"omitempty"`
+
+	// LabelKeys filters appeals that have ANY of these label keys (regardless of value)
+	// Example: ["pii_access", "compliance_required"]
+	LabelKeys         []string `mapstructure:"label_keys" validate:"omitempty,min=1"`
+	RoleNotStartsWith string   `mapstructure:"role_not_starts_with" json:"role_not_starts_with,omitempty" validate:"omitempty"`
+	RoleNotEndsWith   string   `mapstructure:"role_not_ends_with" json:"role_not_ends_with,omitempty" validate:"omitempty"`
+	RoleNotContains   string   `mapstructure:"role_not_contains" json:"role_not_contains,omitempty" validate:"omitempty"`
 }
 
 func (af ListAppealsFilter) WithSummary() bool {

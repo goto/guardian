@@ -2,10 +2,12 @@ package v1beta1
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
@@ -20,6 +22,19 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 	user, err := s.getUser(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+
+	var labels map[string][]string
+	var labelKeys []string
+
+	// Extract labels from gRPC metadata (from custom header set by middleware)
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if headerValues := md.Get("x-guardian-labels"); len(headerValues) > 0 {
+			var labelsMap map[string][]string
+			if err := json.Unmarshal([]byte(headerValues[0]), &labelsMap); err == nil {
+				labels = labelsMap
+			}
+		}
 	}
 
 	filters := &domain.ListAppealsFilter{
@@ -60,6 +75,8 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 		DetailsPaths:             req.GetDetailsPaths(),
 		Details:                  req.GetDetails(),
 		NotDetails:               req.GetNotDetails(),
+		Labels:                   labels,
+		LabelKeys:                labelKeys,
 		RoleNotStartsWith:        req.GetRoleNotStartsWith(),
 		RoleNotEndsWith:          req.GetRoleNotEndsWith(),
 		RoleNotContains:          req.GetRoleNotContains(),
@@ -78,6 +95,23 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 }
 
 func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListAppealsRequest) (*guardianv1beta1.ListAppealsResponse, error) {
+	var labels map[string][]string
+
+	// Try to extract labels from gRPC metadata (from custom header set by middleware)
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if headerValues := md.Get("x-guardian-labels"); len(headerValues) > 0 {
+			var labelsMap map[string][]string
+			if err := json.Unmarshal([]byte(headerValues[0]), &labelsMap); err == nil {
+				labels = labelsMap
+			}
+		}
+	}
+
+	// Fallback to proto labels if no metadata labels found
+	if len(labels) == 0 {
+		labels = s.adapter.FromLabelFiltersProto(req.GetLabels())
+	}
+
 	filters := &domain.ListAppealsFilter{
 		Q:                        req.GetQ(),
 		AccountTypes:             req.GetAccountTypes(),
@@ -117,6 +151,8 @@ func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListA
 		DetailsPaths:             req.GetDetailsPaths(),
 		Details:                  req.GetDetails(),
 		NotDetails:               req.GetNotDetails(),
+		Labels:                   labels,
+		LabelKeys:                req.GetLabelKeys(),
 		RoleNotStartsWith:        req.GetRoleNotStartsWith(),
 		RoleNotEndsWith:          req.GetRoleNotEndsWith(),
 		RoleNotContains:          req.GetRoleNotContains(),
@@ -161,10 +197,10 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 			errors.Is(err, provider.ErrAppealValidationMissingRequiredQuestion),
 			errors.Is(err, appeal.ErrDurationNotAllowed),
 			errors.Is(err, appeal.ErrCannotCreateAppealForOtherUser):
-			return nil, s.invalidArgument(ctx, err.Error())
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		case errors.Is(err, appeal.ErrAppealDuplicate):
 			s.logger.Error(ctx, err.Error())
-			return nil, status.Errorf(codes.AlreadyExists, err.Error())
+			return nil, status.Errorf(codes.AlreadyExists, "%s", err.Error())
 		case errors.Is(err, appeal.ErrResourceNotFound),
 			errors.Is(err, appeal.ErrResourceDeleted),
 			errors.Is(err, appeal.ErrProviderNotFound),
@@ -176,7 +212,7 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 			errors.Is(err, domain.ErrApproversNotFound),
 			errors.Is(err, domain.ErrUnexpectedApproverType),
 			errors.Is(err, domain.ErrInvalidApproverValue):
-			return nil, s.failedPrecondition(ctx, err.Error())
+			return nil, s.failedPrecondition(ctx, "%s", err.Error())
 		default:
 			return nil, s.internalError(ctx, "failed to create appeal(s): %v", err)
 		}
@@ -223,10 +259,10 @@ func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.Patch
 			errors.Is(err, provider.ErrAppealValidationMissingRequiredQuestion),
 			errors.Is(err, appeal.ErrDurationNotAllowed),
 			errors.Is(err, appeal.ErrCannotCreateAppealForOtherUser):
-			return nil, s.invalidArgument(ctx, err.Error())
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		case errors.Is(err, appeal.ErrAppealDuplicate):
 			s.logger.Error(ctx, err.Error())
-			return nil, status.Errorf(codes.AlreadyExists, err.Error())
+			return nil, status.Errorf(codes.AlreadyExists, "%s", err.Error())
 		case errors.Is(err, appeal.ErrResourceNotFound),
 			errors.Is(err, appeal.ErrResourceDeleted),
 			errors.Is(err, appeal.ErrProviderNotFound),
@@ -242,7 +278,7 @@ func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.Patch
 			errors.Is(err, domain.ErrUnexpectedApproverType),
 			errors.Is(err, domain.ErrInvalidApproverValue),
 			errors.Is(err, appeal.ErrNoChanges):
-			return nil, s.failedPrecondition(ctx, err.Error())
+			return nil, s.failedPrecondition(ctx, "%s", err.Error())
 		default:
 			return nil, s.internalError(ctx, "failed to update appeal: %v", err)
 		}
@@ -251,7 +287,7 @@ func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.Patch
 	responseAppeal, err := s.appealService.GetByID(ctx, req.Id)
 	if err != nil {
 		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
-			return nil, s.invalidArgument(ctx, err.Error())
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		}
 		return nil, s.internalError(ctx, "failed to retrieve appeal: %v", err)
 	}
@@ -272,7 +308,7 @@ func (s *GRPCServer) GetAppeal(ctx context.Context, req *guardianv1beta1.GetAppe
 	a, err := s.appealService.GetByID(ctx, id)
 	if err != nil {
 		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
-			return nil, s.invalidArgument(ctx, err.Error())
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		}
 		return nil, s.internalError(ctx, "failed to retrieve appeal: %v", err)
 	}
@@ -297,7 +333,7 @@ func (s *GRPCServer) CancelAppeal(ctx context.Context, req *guardianv1beta1.Canc
 	a, err := s.appealService.Cancel(ctx, id)
 	if err != nil {
 		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
-			return nil, s.invalidArgument(ctx, err.Error())
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		}
 
 		switch err {
