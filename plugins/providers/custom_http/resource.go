@@ -19,10 +19,11 @@ type Resource struct {
 }
 
 func (r *Resource) ToDomain() *domain.Resource {
+	resource_id, _ := r.Details["id"].(string)
 	return &domain.Resource{
 		ID:       r.ID,
 		Name:     r.Name,
-		URN:      fmt.Sprintf("custom_http:%s:%s", r.Type, r.ID),
+		URN:      fmt.Sprintf("custom_http:%s:%s", r.Type, resource_id),
 		Type:     r.Type,
 		Details:  r.Details,
 		Children: []*domain.Resource{},

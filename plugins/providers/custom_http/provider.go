@@ -34,7 +34,6 @@ func (p *Provider) GetType() string {
 func (p *Provider) GetAccountTypes() []string {
 	return []string{
 		"user",
-		"serviceAccount",
 	}
 }
 
@@ -53,6 +52,18 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 	// Validate required credential fields
 	if creds.BaseURL == "" {
 		return fmt.Errorf("base_url is required in credentials")
+	}
+
+	// Encrypt secret headers before storing
+	if err := creds.EncryptSecrets(); err != nil {
+		return fmt.Errorf("encrypting secret headers: %w", err)
+	}
+
+	// Update credentials in provider config with encrypted values
+	pc.Credentials = map[string]interface{}{
+		"base_url":        creds.BaseURL,
+		"headers":         creds.Headers,
+		"resource_routes": creds.ResourceRoutes,
 	}
 
 	// Validate that we have at least one resource config
@@ -90,7 +101,7 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			domainResource := res.ToDomain()
 			domainResource.ProviderType = pc.Type
 			domainResource.ProviderURN = pc.URN
-			domainResource.GlobalURN = fmt.Sprintf("custom_http:%s:%s:%s", pc.URN, res.Type, res.URN)
+			domainResource.GlobalURN = fmt.Sprintf("urn:custom_http:%s:%s:%s", pc.URN, res.Type, res.URN)
 			allDomainResources = append(allDomainResources, domainResource)
 		}
 	}

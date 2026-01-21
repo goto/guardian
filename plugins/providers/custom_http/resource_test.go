@@ -64,17 +64,21 @@ func TestResource_ToDomain(t *testing.T) {
 		{
 			name: "resource with empty details",
 			resource: Resource{
-				ID:      "empty-1",
-				Name:    "Empty Resource",
-				Type:    "empty",
-				Details: nil,
+				ID:   "empty-1",
+				Name: "Empty Resource",
+				Type: "empty",
+				Details: map[string]interface{}{
+					"id": "empty-1",
+				},
 			},
 			expected: &domain.Resource{
-				ID:       "empty-1",
-				Name:     "Empty Resource",
-				Type:     "empty",
-				URN:      "custom_http:empty:empty-1",
-				Details:  nil,
+				ID:   "empty-1",
+				Name: "Empty Resource",
+				Type: "empty",
+				URN:  "custom_http:empty:empty-1",
+				Details: map[string]interface{}{
+					"id": "empty-1",
+				},
 				Children: []*domain.Resource{},
 			},
 		},

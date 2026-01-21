@@ -576,6 +576,114 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 			errContains: "revoke API endpoint (path, method) is required",
 		},
 		{
+			name: "invalid HTTP method in resources endpoint",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "INVALID",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "invalid method \"INVALID\" for resources API endpoint",
+		},
+		{
+			name: "invalid HTTP method in grant endpoint",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "CONNECT",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "DELETE",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "invalid method \"CONNECT\" for grant API endpoint",
+		},
+		{
+			name: "invalid HTTP method in revoke endpoint",
+			providerConfig: &domain.ProviderConfig{
+				Type: "custom_http",
+				Credentials: map[string]interface{}{
+					"base_url": "https://api.example.com",
+					"resource_routes": map[string]interface{}{
+						"project": map[string]interface{}{
+							"api": map[string]interface{}{
+								"resources": map[string]interface{}{
+									"method": "GET",
+									"path":   "/projects",
+								},
+								"grant": map[string]interface{}{
+									"method": "POST",
+									"path":   "/grant",
+								},
+								"revoke": map[string]interface{}{
+									"method": "OPTIONS",
+									"path":   "/revoke",
+								},
+							},
+							"resource_mapping": map[string]interface{}{
+								"id":   "id",
+								"name": "name",
+							},
+						},
+					},
+				},
+				Resources: []*domain.ResourceConfig{
+					{Type: "project"},
+				},
+			},
+			wantErr:     true,
+			errContains: "invalid method \"OPTIONS\" for revoke API endpoint",
+		},
+		{
 			name: "multiple resource types - one missing config",
 			providerConfig: &domain.ProviderConfig{
 				Type: "custom_http",
@@ -732,7 +840,7 @@ func TestCredentials_GetHeaders(t *testing.T) {
 		{
 			name: "returns headers when set",
 			creds: Credentials{
-				Headers: map[string]string{
+				Headers: map[string]interface{}{
 					"Authorization": "Bearer token",
 					"Content-Type":  "application/json",
 				},

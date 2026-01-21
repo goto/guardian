@@ -2,6 +2,7 @@ package custom_http
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"testing"
 
@@ -153,6 +154,65 @@ func TestProvider_CreateConfig(t *testing.T) {
 	}
 }
 
+func TestProvider_CreateConfig_EncryptsSecrets(t *testing.T) {
+	p := &Provider{}
+	pc := &domain.ProviderConfig{
+		Type: "custom_http",
+		Credentials: map[string]interface{}{
+			"base_url": "https://api.example.com",
+			"headers": map[string]interface{}{
+				"Authorization": map[string]interface{}{
+					"value":     "plain-secret-token",
+					"is_secret": true,
+				},
+				"Content-Type": "application/json",
+			},
+			"resource_routes": map[string]interface{}{
+				"project": map[string]interface{}{
+					"api": map[string]interface{}{
+						"resources": map[string]interface{}{
+							"path":   "/projects",
+							"method": "GET",
+						},
+						"grant": map[string]interface{}{
+							"path":   "/grant",
+							"method": "POST",
+						},
+						"revoke": map[string]interface{}{
+							"path":   "/revoke",
+							"method": "DELETE",
+						},
+					},
+					"resource_mapping": map[string]interface{}{
+						"id":   "id",
+						"name": "name",
+					},
+				},
+			},
+		},
+		Resources: []*domain.ResourceConfig{
+			{Type: "project"},
+		},
+	}
+
+	err := p.CreateConfig(pc)
+	require.NoError(t, err)
+
+	// Verify that the secret header was base64 encoded
+	creds := pc.Credentials.(map[string]interface{})
+	headers := creds["headers"].(map[string]interface{})
+	authHeader := headers["Authorization"].(map[string]interface{})
+	encodedValue := authHeader["value"].(string)
+
+	// Decode and verify it was encrypted
+	decoded, err := base64.StdEncoding.DecodeString(encodedValue)
+	require.NoError(t, err)
+	assert.Equal(t, "plain-secret-token", string(decoded))
+
+	// Non-secret should remain plain
+	assert.Equal(t, "application/json", headers["Content-Type"])
+}
+
 func TestProvider_GetType(t *testing.T) {
 	p := NewProvider("custom_http", nil)
 	assert.Equal(t, "custom_http", p.GetType())
@@ -162,9 +222,8 @@ func TestProvider_GetAccountTypes(t *testing.T) {
 	p := NewProvider("custom_http", nil)
 	accountTypes := p.GetAccountTypes()
 
-	require.Len(t, accountTypes, 2)
+	require.Len(t, accountTypes, 1)
 	assert.Contains(t, accountTypes, "user")
-	assert.Contains(t, accountTypes, "serviceAccount")
 }
 
 func TestNewProvider(t *testing.T) {

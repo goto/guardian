@@ -62,14 +62,13 @@ func (c *Client) GetResources(ctx context.Context, resourceType string) ([]*Reso
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
-	}
-
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("reading response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	// Handle both direct array and wrapped response formats
@@ -276,6 +275,12 @@ func (c *Client) mapToResource(rawResource map[string]interface{}, resourceType 
 	resource.URN = resource.ID
 	resource.Type = resourceType
 	resource.Details = rawResource
+
+	// Ensure ID is stored in Details["id"]
+	if resource.Details == nil {
+		resource.Details = make(map[string]interface{})
+	}
+	resource.Details["id"] = resource.ID
 
 	return resource, nil
 }

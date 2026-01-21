@@ -2,6 +2,7 @@ package custom_http
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -13,14 +14,80 @@ import (
 )
 
 func TestBasicTypes(t *testing.T) {
-	t.Run("Credentials GetHeaders", func(t *testing.T) {
+	t.Run("Credentials GetHeaders with string values", func(t *testing.T) {
 		creds := Credentials{
-			Headers: map[string]string{
+			Headers: map[string]interface{}{
 				"Authorization": "Bearer token",
+				"X-API-Key":     "simple-key",
 			},
 		}
 		headers := creds.GetHeaders()
 		assert.Equal(t, "Bearer token", headers["Authorization"])
+		assert.Equal(t, "simple-key", headers["X-API-Key"])
+	})
+
+	t.Run("Credentials GetHeaders with secret header", func(t *testing.T) {
+		// Simulate a base64-encoded secret stored in the database
+		encodedSecret := base64.StdEncoding.EncodeToString([]byte("my-secret-token"))
+		creds := Credentials{
+			Headers: map[string]interface{}{
+				"Authorization": map[string]interface{}{
+					"value":     encodedSecret,
+					"is_secret": true,
+				},
+			},
+		}
+		headers := creds.GetHeaders()
+		// Should be decoded back to original value
+		assert.Equal(t, "my-secret-token", headers["Authorization"])
+	})
+
+	t.Run("Credentials GetHeaders with non-secret header config", func(t *testing.T) {
+		creds := Credentials{
+			Headers: map[string]interface{}{
+				"X-API-Key": map[string]interface{}{
+					"value":     "plain-key",
+					"is_secret": false,
+				},
+			},
+		}
+		headers := creds.GetHeaders()
+		assert.Equal(t, "plain-key", headers["X-API-Key"])
+	})
+
+	t.Run("Credentials GetHeaders with mixed header types", func(t *testing.T) {
+		// Simulate a base64-encoded secret stored in the database
+		encodedSecret := base64.StdEncoding.EncodeToString([]byte("secret-token"))
+		creds := Credentials{
+			Headers: map[string]interface{}{
+				"Authorization": map[string]interface{}{
+					"value":     encodedSecret,
+					"is_secret": true,
+				},
+				"X-API-Key":    "plain-key",
+				"Content-Type": "application/json",
+			},
+		}
+		headers := creds.GetHeaders()
+		// Secret should be decoded back to original value
+		assert.Equal(t, "secret-token", headers["Authorization"])
+		assert.Equal(t, "plain-key", headers["X-API-Key"])
+		assert.Equal(t, "application/json", headers["Content-Type"])
+	})
+
+	t.Run("Credentials GetHeaders with invalid base64 secret", func(t *testing.T) {
+		// If decoding fails, should use value as-is
+		creds := Credentials{
+			Headers: map[string]interface{}{
+				"Authorization": map[string]interface{}{
+					"value":     "not-valid-base64!@#",
+					"is_secret": true,
+				},
+			},
+		}
+		headers := creds.GetHeaders()
+		// Should fallback to the original value
+		assert.Equal(t, "not-valid-base64!@#", headers["Authorization"])
 	})
 
 	t.Run("Credentials GetHeaders nil", func(t *testing.T) {
@@ -28,6 +95,78 @@ func TestBasicTypes(t *testing.T) {
 		headers := creds.GetHeaders()
 		assert.NotNil(t, headers)
 		assert.Empty(t, headers)
+	})
+}
+
+func TestCredentials_EncryptSecrets(t *testing.T) {
+	t.Run("should encrypt plain text secrets", func(t *testing.T) {
+		creds := Credentials{
+			Headers: map[string]interface{}{
+				"Authorization": map[string]interface{}{
+					"value":     "plain-secret-token",
+					"is_secret": true,
+				},
+				"X-API-Key": "plain-value",
+			},
+		}
+
+		err := creds.EncryptSecrets()
+		require.NoError(t, err)
+
+		// Check that secret was encoded
+		authHeader := creds.Headers["Authorization"].(map[string]interface{})
+		encodedValue := authHeader["value"].(string)
+
+		// Decode and verify
+		decoded, err := base64.StdEncoding.DecodeString(encodedValue)
+		require.NoError(t, err)
+		assert.Equal(t, "plain-secret-token", string(decoded))
+
+		// Non-secret should remain unchanged
+		assert.Equal(t, "plain-value", creds.Headers["X-API-Key"])
+	})
+
+	t.Run("should not re-encode already base64 encoded secrets", func(t *testing.T) {
+		alreadyEncoded := base64.StdEncoding.EncodeToString([]byte("my-secret"))
+		creds := Credentials{
+			Headers: map[string]interface{}{
+				"Authorization": map[string]interface{}{
+					"value":     alreadyEncoded,
+					"is_secret": true,
+				},
+			},
+		}
+
+		err := creds.EncryptSecrets()
+		require.NoError(t, err)
+
+		// Should remain the same
+		authHeader := creds.Headers["Authorization"].(map[string]interface{})
+		assert.Equal(t, alreadyEncoded, authHeader["value"])
+	})
+
+	t.Run("should handle nil headers", func(t *testing.T) {
+		creds := Credentials{}
+		err := creds.EncryptSecrets()
+		assert.NoError(t, err)
+	})
+
+	t.Run("should handle non-secret headers", func(t *testing.T) {
+		creds := Credentials{
+			Headers: map[string]interface{}{
+				"Content-Type": map[string]interface{}{
+					"value":     "application/json",
+					"is_secret": false,
+				},
+			},
+		}
+
+		err := creds.EncryptSecrets()
+		require.NoError(t, err)
+
+		// Should not be encoded
+		header := creds.Headers["Content-Type"].(map[string]interface{})
+		assert.Equal(t, "application/json", header["value"])
 	})
 }
 
@@ -211,7 +350,7 @@ func TestClient_GetResources(t *testing.T) {
 
 			creds := Credentials{
 				BaseURL: server.URL,
-				Headers: map[string]string{
+				Headers: map[string]interface{}{
 					"Authorization": "Bearer test-token",
 				},
 			}
@@ -685,6 +824,8 @@ func TestClient_MapToResource(t *testing.T) {
 				assert.Equal(t, tt.expected.ID, resource.ID)
 				assert.Equal(t, tt.expected.Name, resource.Name)
 				assert.Equal(t, tt.expected.Type, resource.Type)
+				// Verify ID is stored in Details["id"]
+				assert.Equal(t, resource.ID, resource.Details["id"])
 				if tt.expected.Details != nil {
 					for key, value := range tt.expected.Details {
 						assert.Equal(t, value, resource.Details[key])
