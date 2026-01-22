@@ -1,0 +1,1 @@
+CREATE INDEX CONCURRENTLY IF NOT EXISTS approvals_appeal_id_idx ON approvals (appeal_id);
