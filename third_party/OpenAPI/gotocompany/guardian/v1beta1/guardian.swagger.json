@@ -506,6 +506,88 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "labelKeys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "detailsStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "detailsEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "detailsContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "detailsNotStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "detailsNotEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "detailsNotContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -1259,6 +1341,114 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "appealDetailsStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsNotStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsNotEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsNotContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "groupTypes",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "groupTypeStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealForSelf",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "appealDetailsForSelfCriteria",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -1669,6 +1859,78 @@
           },
           {
             "name": "roleNotContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsNotStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsNotEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsNotContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotContains",
             "in": "query",
             "required": false,
             "type": "string"
@@ -2248,6 +2510,78 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "detailsStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "detailsEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "detailsContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "detailsNotStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "detailsNotEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "detailsNotContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -2600,6 +2934,114 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "appealDetailsStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsNotStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsNotEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsNotContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "groupTypes",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "groupTypeStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealForSelf",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "appealDetailsForSelfCriteria",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -2985,6 +3427,78 @@
           },
           {
             "name": "roleNotContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsNotStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsNotEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appealDetailsNotContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "groupTypeNotContains",
             "in": "query",
             "required": false,
             "type": "string"
@@ -4345,6 +4859,12 @@
         },
         "groupType": {
           "type": "string"
+        },
+        "labelsMetadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1beta1LabelMetadata"
+          }
         }
       },
       "title": "Appeal is created by user to get access to one or more resources"
@@ -4520,6 +5040,12 @@
         },
         "dryRun": {
           "type": "boolean"
+        },
+        "userLabels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
@@ -4886,6 +5412,98 @@
         }
       }
     },
+    "v1beta1LabelMetadata": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "derivedFrom": {
+          "type": "string",
+          "title": "Rule name or \"user\""
+        },
+        "source": {
+          "type": "string",
+          "description": "\"policy_rule\", \"user\", etc."
+        },
+        "category": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object"
+        },
+        "appliedBy": {
+          "type": "string",
+          "title": "User email for user labels"
+        },
+        "appliedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "title": "LabelMetadata contains rich information about label derivation"
+    },
+    "v1beta1LabelMetadataConfig": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object",
+          "title": "Arbitrary key-value metadata"
+        }
+      },
+      "title": "LabelMetadataConfig defines metadata to attach to labels"
+    },
+    "v1beta1LabelValues": {
+      "type": "object",
+      "properties": {
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "LabelValues for filtering (OR within values)"
+    },
+    "v1beta1LabelingRule": {
+      "type": "object",
+      "properties": {
+        "ruleName": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "when": {
+          "type": "string",
+          "title": "Expression for condition"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Static or dynamic label values"
+        },
+        "labelMetadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1beta1LabelMetadataConfig"
+          }
+        },
+        "priority": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "allowFailure": {
+          "type": "boolean"
+        }
+      },
+      "title": "LabelingRule defines automatic label application rules"
+    },
     "v1beta1ListActivitiesResponse": {
       "type": "object",
       "properties": {
@@ -5197,6 +5815,16 @@
         },
         "termsAndConditions": {
           "type": "string"
+        },
+        "labelingRules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1beta1LabelingRule"
+          }
+        },
+        "userLabelConfig": {
+          "$ref": "#/definitions/v1beta1UserLabelConfig"
         }
       }
     },
@@ -5543,6 +6171,43 @@
           "$ref": "#/definitions/guardianv1beta1Resource"
         }
       }
+    },
+    "v1beta1UserLabelConfig": {
+      "type": "object",
+      "properties": {
+        "allowUserLabels": {
+          "type": "boolean"
+        },
+        "allowedKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Whitelist with glob support"
+        },
+        "requiredKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "maxLabels": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "keyPattern": {
+          "type": "string",
+          "title": "Regex for key validation"
+        },
+        "valuePattern": {
+          "type": "string",
+          "title": "Regex for value validation"
+        },
+        "allowOverride": {
+          "type": "boolean"
+        }
+      },
+      "title": "UserLabelConfig defines validation rules for user-provided labels"
     }
   }
 }

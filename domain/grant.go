@@ -255,6 +255,19 @@ type ListGrantsFilter struct {
 	RoleNotEndsWith           string
 	RoleNotContains           string
 
+	AppealDetailsStartsWith    string
+	AppealDetailsEndsWith      string
+	AppealDetailsContains      string
+	AppealDetailsNotStartsWith string
+	AppealDetailsNotEndsWith   string
+	AppealDetailsNotContains   string
+	GroupTypeStartsWith        string
+	GroupTypeEndsWith          string
+	GroupTypeContains          string
+	GroupTypeNotStartsWith     string
+	GroupTypeNotEndsWith       string
+	GroupTypeNotContains       string
+
 	UserInactiveGrantPolicy guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy
 }
 

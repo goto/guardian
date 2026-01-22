@@ -343,6 +343,8 @@ func applyGrantsJoins(db *gorm.DB) *gorm.DB {
 }
 
 func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, error) {
+	var err error
+
 	if filter.Q != "" {
 		// NOTE: avoid adding conditions before this grouped where clause.
 		// Otherwise, it will be wrapped in parentheses and the query will be invalid.
@@ -364,7 +366,6 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	if len(filter.NotIDs) > 0 {
 		db = db.Where(`"grants"."id" NOT IN ?`, filter.NotIDs)
 	}
-
 	accounts := make([]string, 0)
 	if filter.AccountIDs != nil {
 		for _, account := range filter.AccountIDs {
@@ -377,15 +378,9 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	if filter.AccountTypes != nil {
 		db = db.Where(`"grants"."account_type" IN ?`, filter.AccountTypes)
 	}
-
 	if len(filter.GroupIDs) > 0 {
 		db = db.Where(`"grants"."group_id" IN ?`, filter.GroupIDs)
 	}
-
-	if len(filter.GroupTypes) > 0 {
-		db = db.Where(`"grants"."group_type" IN ?`, filter.GroupTypes)
-	}
-
 	if filter.ResourceIDs != nil {
 		db = db.Where(`"grants"."resource_id" IN ?`, filter.ResourceIDs)
 	}
@@ -395,7 +390,6 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	if filter.Permissions != nil {
 		db = db.Where(`"grants"."permissions" @> ?`, pq.StringArray(filter.Permissions))
 	}
-
 	owners := filter.Owners
 	if filter.Owner != "" {
 		owners = append(owners, filter.Owner)
@@ -409,24 +403,11 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	} else if len(owners) > 1 {
 		db = db.Where(`LOWER("grants"."owner") IN ?`, owners)
 	}
-
 	if filter.IsPermanent != nil {
 		db = db.Where(`"grants"."is_permanent" = ?`, *filter.IsPermanent)
 	}
 	if !filter.CreatedAtLte.IsZero() {
 		db = db.Where(`"grants"."created_at" <= ?`, filter.CreatedAtLte)
-	}
-	if len(filter.OrderBy) > 0 {
-		var err error
-		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
-			statusColumnName: `"grants"."status"`,
-			statusesOrder:    GrantStatusDefaultSort,
-		},
-			[]string{"updated_at", "created_at"})
-
-		if err != nil {
-			return nil, err
-		}
 	}
 	if !filter.ExpirationDateLessThan.IsZero() {
 		db = db.Where(`"grants"."expiration_date" < ?`, filter.ExpirationDateLessThan)
@@ -447,58 +428,44 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		db = db.Where(`"grants"."expiration_date" IS NOT NULL`)
 		db = db.Where(fmt.Sprintf(`"grants"."expiration_date" BETWEEN NOW() AND NOW() + INTERVAL '%d day'`, filter.ExpiringInDays))
 	}
-
-	rolePatterns, err := buildLikePatterns(filter.RoleStartsWith, filter.RoleEndsWith, filter.RoleContains, filter.Roles, "role")
-	if err != nil {
-		return nil, err
-	}
-	if len(rolePatterns) > 0 {
-		db = db.Where(`"grants"."role" LIKE ANY (?)`, pq.Array(rolePatterns))
-	}
-
-	roleNotPatterns, err := buildLikePatterns(filter.RoleNotStartsWith, filter.RoleNotEndsWith, filter.RoleNotContains, nil, "role_not")
-	if err != nil {
-		return nil, err
-	}
-	if len(roleNotPatterns) > 0 {
-		db = db.Where(`"grants"."role" NOT LIKE ANY (?)`, pq.Array(roleNotPatterns))
-	}
-
-	providerUrnPatterns, err := buildLikePatterns(filter.ProviderUrnStartsWith, filter.ProviderUrnEndsWith, filter.ProviderUrnContains, filter.ProviderURNs, "provider_urn")
-	if err != nil {
-		return nil, err
-	}
-	if len(providerUrnPatterns) > 0 {
-		db = db.Where(`"Resource"."provider_urn" LIKE ANY (?)`, pq.Array(providerUrnPatterns))
-	}
-
-	providerUrnNotPatterns, err := buildLikePatterns(filter.ProviderUrnNotStartsWith, filter.ProviderUrnNotEndsWith, filter.ProviderUrnNotContains, nil, "provider_urn_not")
-	if err != nil {
-		return nil, err
-	}
-	if len(providerUrnNotPatterns) > 0 {
-		db = db.Where(`"Resource"."provider_urn" NOT LIKE ANY (?)`, pq.Array(providerUrnNotPatterns))
-	}
-
 	if len(filter.AppealDurations) > 0 {
-		db = db.Where(`COALESCE("_Appeal"."options" #>> '{duration}', 'null') IN ?`, filter.AppealDurations)
+		db = db.Where(`COALESCE(NULLIF("_Appeal"."options" #>> '{duration}', ''), 'null') IN ?`, filter.AppealDurations)
 	}
 	if len(filter.NotAppealDurations) > 0 {
-		db = db.Where(`COALESCE("_Appeal"."options" #>> '{duration}', 'null') NOT IN ?`, filter.NotAppealDurations)
+		db = db.Where(`COALESCE(NULLIF("_Appeal"."options" #>> '{duration}', ''), 'null') NOT IN ?`, filter.NotAppealDurations)
 	}
 
-	for _, appealDetailsPath := range filter.AppealDetailsPaths {
-		appealDetailsPath = strings.TrimSpace(appealDetailsPath)
-		if len(appealDetailsPath) == 0 {
-			continue
-		}
-		appealDetailsPath = strings.ReplaceAll(appealDetailsPath, ".", ",")
-		if len(filter.AppealDetails) > 0 {
-			db = db.Where(fmt.Sprintf(`COALESCE("_Appeal"."details" #>> '{%s}', 'null') IN ?`, appealDetailsPath), filter.AppealDetails)
-		}
-		if len(filter.NotAppealDetails) > 0 {
-			db = db.Where(fmt.Sprintf(`COALESCE("_Appeal"."details" #>> '{%s}', 'null') NOT IN ?`, appealDetailsPath), filter.NotAppealDetails)
-		}
+	db, err = applyLikeAndInFilter(db, `"grants"."role"`,
+		filter.RoleStartsWith, filter.RoleEndsWith, filter.RoleContains,
+		filter.RoleNotStartsWith, filter.RoleNotEndsWith, filter.RoleNotContains,
+		filter.Roles, nil, "role",
+	)
+	if err != nil {
+		return nil, err
+	}
+	db, err = applyLikeAndInFilter(db, `"Resource"."provider_urn"`,
+		filter.ProviderUrnStartsWith, filter.ProviderUrnEndsWith, filter.ProviderUrnContains,
+		filter.ProviderUrnNotStartsWith, filter.ProviderUrnNotEndsWith, filter.ProviderUrnNotContains,
+		filter.ProviderURNs, nil, "provider_urn",
+	)
+	if err != nil {
+		return nil, err
+	}
+	db, err = applyLikeAndInFilter(db, `"grants"."group_type"`,
+		filter.GroupTypeStartsWith, filter.GroupTypeEndsWith, filter.GroupTypeContains,
+		filter.GroupTypeNotStartsWith, filter.GroupTypeNotEndsWith, filter.GroupTypeNotContains,
+		filter.GroupTypes, nil, "group_type",
+	)
+	if err != nil {
+		return nil, err
+	}
+	db, err = applyJSONBPathsLikeAndInFilter(db, `"_Appeal"."details"`, filter.AppealDetailsPaths,
+		filter.AppealDetailsStartsWith, filter.AppealDetailsEndsWith, filter.AppealDetailsContains,
+		filter.AppealDetailsNotStartsWith, filter.AppealDetailsNotEndsWith, filter.AppealDetailsNotContains,
+		filter.AppealDetails, filter.NotAppealDetails, "appeal_details",
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	if !filter.StartTime.IsZero() && !filter.EndTime.IsZero() {
@@ -507,6 +474,16 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		db = db.Where(`"grants"."created_at" >= ?`, filter.StartTime)
 	} else if !filter.EndTime.IsZero() {
 		db = db.Where(`"grants"."created_at" <= ?`, filter.EndTime)
+	}
+
+	if len(filter.OrderBy) > 0 {
+		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
+			statusColumnName: `"grants"."status"`,
+			statusesOrder:    GrantStatusDefaultSort,
+		}, []string{"updated_at", "created_at"})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return db, nil

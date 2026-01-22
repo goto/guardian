@@ -61,6 +61,19 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		RoleNotStartsWith:        req.GetRoleNotStartsWith(),
 		RoleNotEndsWith:          req.GetRoleNotEndsWith(),
 		RoleNotContains:          req.GetRoleNotContains(),
+
+		AppealDetailsStartsWith:    req.GetAppealDetailsStartsWith(),
+		AppealDetailsEndsWith:      req.GetAppealDetailsEndsWith(),
+		AppealDetailsContains:      req.GetAppealDetailsContains(),
+		AppealDetailsNotStartsWith: req.GetAppealDetailsNotStartsWith(),
+		AppealDetailsNotEndsWith:   req.GetAppealDetailsNotEndsWith(),
+		AppealDetailsNotContains:   req.GetAppealDetailsNotContains(),
+		GroupTypeStartsWith:        req.GetGroupTypeStartsWith(),
+		GroupTypeEndsWith:          req.GetGroupTypeEndsWith(),
+		GroupTypeContains:          req.GetGroupTypeContains(),
+		GroupTypeNotStartsWith:     req.GetGroupTypeNotStartsWith(),
+		GroupTypeNotEndsWith:       req.GetGroupTypeNotEndsWith(),
+		GroupTypeNotContains:       req.GetGroupTypeNotContains(),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
@@ -122,6 +135,19 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		RoleNotStartsWith:        req.GetRoleNotStartsWith(),
 		RoleNotEndsWith:          req.GetRoleNotEndsWith(),
 		RoleNotContains:          req.GetRoleNotContains(),
+
+		AppealDetailsStartsWith:    req.GetAppealDetailsStartsWith(),
+		AppealDetailsEndsWith:      req.GetAppealDetailsEndsWith(),
+		AppealDetailsContains:      req.GetAppealDetailsContains(),
+		AppealDetailsNotStartsWith: req.GetAppealDetailsNotStartsWith(),
+		AppealDetailsNotEndsWith:   req.GetAppealDetailsNotEndsWith(),
+		AppealDetailsNotContains:   req.GetAppealDetailsNotContains(),
+		GroupTypeStartsWith:        req.GetGroupTypeStartsWith(),
+		GroupTypeEndsWith:          req.GetGroupTypeEndsWith(),
+		GroupTypeContains:          req.GetGroupTypeContains(),
+		GroupTypeNotStartsWith:     req.GetGroupTypeNotStartsWith(),
+		GroupTypeNotEndsWith:       req.GetGroupTypeNotEndsWith(),
+		GroupTypeNotContains:       req.GetGroupTypeNotContains(),
 
 		UserInactiveGrantPolicy: req.GetInactiveGrantPolicy(),
 	}
