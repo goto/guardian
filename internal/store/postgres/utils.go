@@ -355,19 +355,22 @@ func applyLikeAndInFilter(
 	var negArgs []interface{}
 
 	if notStartsWith != "" {
-		negClauses = append(negClauses, fmt.Sprintf(`%s NOT LIKE ?`, column))
+		negClauses = append(negClauses, fmt.Sprintf(`(%s IS NULL OR %s NOT LIKE ?)`, column, column))
 		negArgs = append(negArgs, notStartsWith+"%")
 	}
 	if notEndsWith != "" {
-		negClauses = append(negClauses, fmt.Sprintf(`%s NOT LIKE ?`, column))
+		negClauses = append(negClauses, fmt.Sprintf(`(%s IS NULL OR %s NOT LIKE ?)`, column, column))
 		negArgs = append(negArgs, "%"+notEndsWith)
 	}
 	if notContains != "" {
-		negClauses = append(negClauses, fmt.Sprintf(`%s NOT LIKE ?`, column))
+		negClauses = append(
+			negClauses,
+			fmt.Sprintf(`(%s IS NULL OR %s NOT LIKE ?)`, column, column),
+		)
 		negArgs = append(negArgs, "%"+notContains+"%")
 	}
 	if len(notIn) > 0 {
-		negClauses = append(negClauses, fmt.Sprintf(`%s NOT IN ?`, column))
+		negClauses = append(negClauses, fmt.Sprintf(`(%s IS NULL OR %s NOT IN ?)`, column, column))
 		negArgs = append(negArgs, notIn)
 	}
 
@@ -399,11 +402,19 @@ func applyJSONBPathsLikeAndInFilter(
 	if len(paths) == 0 {
 		return db, nil
 	}
+
+	// ---- Validation
 	if (startsWith != "" || endsWith != "") && contains != "" {
-		return nil, fmt.Errorf("invalid filter: %s_contains cannot be used together with %s_starts_with or %s_ends_with", filterName, filterName, filterName)
+		return nil, fmt.Errorf(
+			"invalid filter: %s_contains cannot be used together with %s_starts_with or %s_ends_with",
+			filterName, filterName, filterName,
+		)
 	}
 	if (notStartsWith != "" || notEndsWith != "") && notContains != "" {
-		return nil, fmt.Errorf("invalid filter: %s_not_contains cannot be used together with %s_not_starts_with or %s_not_ends_with", filterName, filterName, filterName)
+		return nil, fmt.Errorf(
+			"invalid filter: %s_not_contains cannot be used together with %s_not_starts_with or %s_not_ends_with",
+			filterName, filterName, filterName,
+		)
 	}
 
 	// ---- Normalize & deduplicate paths
