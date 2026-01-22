@@ -345,17 +345,36 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		return nil, err
 	}
 
-	if filter.AppealForSelf {
-		var clauses = []string{`"Appeal"."created_by" = "Appeal"."account_id"`}
+	if len(filter.AppealDetailsForSelfCriteria) != 0 && len(filter.NotAppealDetailsForSelfCriteria) != 0 {
+		return nil, fmt.Errorf("cannot use both appeal_details_for_self_criteria and not_appeal_details_for_self_criteria filters")
+	}
+	if len(filter.AppealDetailsForSelfCriteria) != 0 {
+		var exprs []string
 		for _, p := range filter.AppealDetailsForSelfCriteria {
 			p = strings.TrimSpace(p)
 			if p == "" {
 				continue
 			}
 			p = strings.ReplaceAll(p, ".", ",")
-			clauses = append(clauses, fmt.Sprintf(`"Appeal"."created_by" = ("Appeal"."details" #>> '{%s}')`, p))
+			exprs = append(exprs, fmt.Sprintf(`"Appeal"."details" #>> '{%s}'`, p))
 		}
-		db = db.Where("(" + strings.Join(clauses, " OR ") + ")")
+		if len(exprs) > 0 {
+			db = db.Where(fmt.Sprintf(`"Appeal"."created_by" = ANY (ARRAY[%s])`, strings.Join(exprs, ",")))
+		}
+	}
+	if len(filter.NotAppealDetailsForSelfCriteria) != 0 {
+		var exprs []string
+		for _, p := range filter.NotAppealDetailsForSelfCriteria {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			p = strings.ReplaceAll(p, ".", ",")
+			exprs = append(exprs, fmt.Sprintf(`"Appeal"."details" #>> '{%s}'`, p))
+		}
+		if len(exprs) > 0 {
+			db = db.Where(fmt.Sprintf(`NOT ("Appeal"."created_by" = ANY (ARRAY[%s]))`, strings.Join(exprs, ",")))
+		}
 	}
 
 	if !filter.StartTime.IsZero() && !filter.EndTime.IsZero() {

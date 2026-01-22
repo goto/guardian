@@ -400,7 +400,11 @@ func applyJSONBPathsLikeAndInFilter(
 	filterName string,
 ) (*gorm.DB, error) {
 	if len(paths) == 0 {
-		return db, nil
+		return applyJSONBKeyValueFilter(db, column,
+			startsWith, endsWith, contains,
+			notStartsWith, notEndsWith, notContains,
+			in, notIn, filterName,
+		)
 	}
 
 	// ---- Validation
@@ -510,6 +514,190 @@ func applyJSONBPathsLikeAndInFilter(
 
 	if len(negClauses) > 0 {
 		db = db.Where("("+strings.Join(negClauses, " AND ")+")", negArgs...)
+	}
+
+	return db, nil
+}
+
+func applyJSONBKeyValueFilter(
+	db *gorm.DB,
+	column string,
+
+	startsWith string,
+	endsWith string,
+	contains string,
+
+	notStartsWith string,
+	notEndsWith string,
+	notContains string,
+
+	in []string,
+	notIn []string,
+
+	filterName string,
+) (*gorm.DB, error) {
+	// ---- Validation
+	if (startsWith != "" || endsWith != "") && contains != "" {
+		return nil, fmt.Errorf(
+			"invalid filter: %s_contains cannot be used with %s_starts_with or %s_ends_with",
+			filterName, filterName, filterName,
+		)
+	}
+	if (notStartsWith != "" || notEndsWith != "") && notContains != "" {
+		return nil, fmt.Errorf(
+			"invalid filter: %s_not_contains cannot be used with %s_not_starts_with or %s_not_ends_with",
+			filterName, filterName, filterName,
+		)
+	}
+
+	// ---- Parse k:v  →  path , value
+	parseKV := func(s string) (path string, value string, ok bool) {
+		parts := strings.SplitN(s, ":", 2)
+		if len(parts) != 2 {
+			return "", "", false
+		}
+		path = strings.ReplaceAll(strings.TrimSpace(parts[0]), ".", ",")
+		value = strings.TrimSpace(parts[1])
+		if path == "" || value == "" {
+			return "", "", false
+		}
+		return path, value, true
+	}
+
+	// =====================================================================
+	// POSITIVE FILTERS
+	// same key  → OR
+	// diff key  → AND
+	// =====================================================================
+	posClausesByPath := map[string][]string{}
+	posArgsByPath := map[string][]interface{}{}
+
+	addPos := func(path, clause string, arg interface{}) {
+		posClausesByPath[path] = append(posClausesByPath[path], clause)
+		posArgsByPath[path] = append(posArgsByPath[path], arg)
+	}
+
+	buildLike := func(op, raw string, pattern func(string) string) {
+		if p, v, ok := parseKV(raw); ok {
+			addPos(
+				p,
+				fmt.Sprintf(
+					`COALESCE(NULLIF(%s #>> '{%s}', ''), 'null') %s ?`,
+					column, p, op,
+				),
+				pattern(v),
+			)
+		}
+	}
+
+	if startsWith != "" {
+		buildLike("LIKE", startsWith, func(v string) string { return v + "%" })
+	}
+	if endsWith != "" {
+		buildLike("LIKE", endsWith, func(v string) string { return "%" + v })
+	}
+	if contains != "" {
+		buildLike("LIKE", contains, func(v string) string { return "%" + v + "%" })
+	}
+
+	if len(in) > 0 {
+		group := map[string][]string{}
+		for _, raw := range in {
+			if p, v, ok := parseKV(raw); ok {
+				group[p] = append(group[p], v)
+			}
+		}
+		for p, values := range group {
+			addPos(
+				p,
+				fmt.Sprintf(
+					`COALESCE(NULLIF(%s #>> '{%s}', ''), 'null') IN ?`,
+					column, p,
+				),
+				values,
+			)
+		}
+	}
+
+	// Assemble POSITIVE SQL
+	if len(posClausesByPath) > 0 {
+		var groups []string
+		var args []interface{}
+
+		for p, clauses := range posClausesByPath {
+			groups = append(groups, "("+strings.Join(clauses, " OR ")+")")
+			args = append(args, posArgsByPath[p]...)
+		}
+
+		db = db.Where(strings.Join(groups, " AND "), args...)
+	}
+
+	// =====================================================================
+	// NEGATIVE FILTERS
+	// same key  → AND
+	// diff key  → AND
+	// =====================================================================
+	negClausesByPath := map[string][]string{}
+	negArgsByPath := map[string][]interface{}{}
+
+	addNeg := func(path, clause string, arg interface{}) {
+		negClausesByPath[path] = append(negClausesByPath[path], clause)
+		negArgsByPath[path] = append(negArgsByPath[path], arg)
+	}
+
+	buildNotLike := func(op, raw string, pattern func(string) string) {
+		if p, v, ok := parseKV(raw); ok {
+			addNeg(
+				p,
+				fmt.Sprintf(
+					`COALESCE(NULLIF(%s #>> '{%s}', ''), 'null') %s ?`,
+					column, p, op,
+				),
+				pattern(v),
+			)
+		}
+	}
+
+	if notStartsWith != "" {
+		buildNotLike("NOT LIKE", notStartsWith, func(v string) string { return v + "%" })
+	}
+	if notEndsWith != "" {
+		buildNotLike("NOT LIKE", notEndsWith, func(v string) string { return "%" + v })
+	}
+	if notContains != "" {
+		buildNotLike("NOT LIKE", notContains, func(v string) string { return "%" + v + "%" })
+	}
+
+	if len(notIn) > 0 {
+		group := map[string][]string{}
+		for _, raw := range notIn {
+			if p, v, ok := parseKV(raw); ok {
+				group[p] = append(group[p], v)
+			}
+		}
+		for p, values := range group {
+			addNeg(
+				p,
+				fmt.Sprintf(
+					`COALESCE(NULLIF(%s #>> '{%s}', ''), 'null') NOT IN ?`,
+					column, p,
+				),
+				values,
+			)
+		}
+	}
+
+	// Assemble NEGATIVE SQL
+	if len(negClausesByPath) > 0 {
+		var groups []string
+		var args []interface{}
+
+		for p, clauses := range negClausesByPath {
+			groups = append(groups, "("+strings.Join(clauses, " AND ")+")")
+			args = append(args, negArgsByPath[p]...)
+		}
+
+		db = db.Where(strings.Join(groups, " AND "), args...)
 	}
 
 	return db, nil
