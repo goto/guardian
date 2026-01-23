@@ -370,7 +370,7 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 				continue
 			}
 			p = strings.ReplaceAll(p, ".", ",")
-			exprs = append(exprs, fmt.Sprintf(`"Appeal"."details" #>> '{%s}'`, p))
+			exprs = append(exprs, fmt.Sprintf(`COALESCE("Appeal"."details" #>> '{%s}', '')`, p))
 		}
 		if len(exprs) > 0 {
 			db = db.Where(fmt.Sprintf(`NOT ("Appeal"."created_by" = ANY (ARRAY[%s]))`, strings.Join(exprs, ",")))
