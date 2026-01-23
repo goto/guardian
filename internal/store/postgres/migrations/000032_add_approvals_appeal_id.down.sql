@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS approvals_appeal_id_idx;

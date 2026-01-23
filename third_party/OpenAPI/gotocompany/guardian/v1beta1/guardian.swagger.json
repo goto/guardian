@@ -1436,12 +1436,23 @@
           },
           {
             "name": "appealForSelf",
+            "description": "deprecated",
             "in": "query",
             "required": false,
             "type": "boolean"
           },
           {
             "name": "appealDetailsForSelfCriteria",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "notAppealDetailsForSelfCriteria",
             "in": "query",
             "required": false,
             "type": "array",
@@ -3029,12 +3040,23 @@
           },
           {
             "name": "appealForSelf",
+            "description": "deprecated",
             "in": "query",
             "required": false,
             "type": "boolean"
           },
           {
             "name": "appealDetailsForSelfCriteria",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "notAppealDetailsForSelfCriteria",
             "in": "query",
             "required": false,
             "type": "array",

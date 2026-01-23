@@ -109,22 +109,23 @@ type ListApprovalsFilter struct {
 	RoleNotEndsWith          string    `mapstructure:"role_not_ends_with" json:"role_not_ends_with,omitempty" validate:"omitempty"`
 	RoleNotContains          string    `mapstructure:"role_not_contains" json:"role_not_contains,omitempty" validate:"omitempty"`
 
-	AppealDetailsStartsWith      string   `mapstructure:"appeal_details_starts_with" json:"appeal_details_starts_with,omitempty" validate:"omitempty"`
-	AppealDetailsEndsWith        string   `mapstructure:"appeal_details_ends_with" json:"appeal_details_ends_with,omitempty" validate:"omitempty"`
-	AppealDetailsContains        string   `mapstructure:"appeal_details_contains" json:"appeal_details_contains,omitempty" validate:"omitempty"`
-	AppealDetailsNotStartsWith   string   `mapstructure:"appeal_details_not_starts_with" json:"appeal_details_not_starts_with,omitempty" validate:"omitempty"`
-	AppealDetailsNotEndsWith     string   `mapstructure:"appeal_details_not_ends_with" json:"appeal_details_not_ends_with,omitempty" validate:"omitempty"`
-	AppealDetailsNotContains     string   `mapstructure:"appeal_details_not_contains" json:"appeal_details_not_contains,omitempty" validate:"omitempty"`
-	GroupIDs                     []string `mapstructure:"group_ids" json:"group_ids,omitempty" validate:"omitempty"`
-	GroupTypes                   []string `mapstructure:"group_types" json:"group_types,omitempty" validate:"omitempty"`
-	GroupTypeStartsWith          string   `mapstructure:"group_type_starts_with" json:"group_type_starts_with,omitempty" validate:"omitempty"`
-	GroupTypeEndsWith            string   `mapstructure:"group_type_ends_with" json:"group_type_ends_with,omitempty" validate:"omitempty"`
-	GroupTypeContains            string   `mapstructure:"group_type_contains" json:"group_type_contains,omitempty" validate:"omitempty"`
-	GroupTypeNotStartsWith       string   `mapstructure:"group_type_not_starts_with" json:"group_type_not_starts_with,omitempty" validate:"omitempty"`
-	GroupTypeNotEndsWith         string   `mapstructure:"group_type_not_ends_with" json:"group_type_not_ends_with,omitempty" validate:"omitempty"`
-	GroupTypeNotContains         string   `mapstructure:"group_type_not_contains" json:"group_type_not_contains,omitempty" validate:"omitempty"`
-	AppealForSelf                bool     `mapstructure:"appeal_for_self" json:"appeal_for_self,omitempty"`
-	AppealDetailsForSelfCriteria []string `mapstructure:"appeal_details_for_self_criteria" json:"appeal_details_for_self_criteria,omitempty" validate:"omitempty"`
+	AppealDetailsStartsWith         string   `mapstructure:"appeal_details_starts_with" json:"appeal_details_starts_with,omitempty" validate:"omitempty"`
+	AppealDetailsEndsWith           string   `mapstructure:"appeal_details_ends_with" json:"appeal_details_ends_with,omitempty" validate:"omitempty"`
+	AppealDetailsContains           string   `mapstructure:"appeal_details_contains" json:"appeal_details_contains,omitempty" validate:"omitempty"`
+	AppealDetailsNotStartsWith      string   `mapstructure:"appeal_details_not_starts_with" json:"appeal_details_not_starts_with,omitempty" validate:"omitempty"`
+	AppealDetailsNotEndsWith        string   `mapstructure:"appeal_details_not_ends_with" json:"appeal_details_not_ends_with,omitempty" validate:"omitempty"`
+	AppealDetailsNotContains        string   `mapstructure:"appeal_details_not_contains" json:"appeal_details_not_contains,omitempty" validate:"omitempty"`
+	GroupIDs                        []string `mapstructure:"group_ids" json:"group_ids,omitempty" validate:"omitempty"`
+	GroupTypes                      []string `mapstructure:"group_types" json:"group_types,omitempty" validate:"omitempty"`
+	GroupTypeStartsWith             string   `mapstructure:"group_type_starts_with" json:"group_type_starts_with,omitempty" validate:"omitempty"`
+	GroupTypeEndsWith               string   `mapstructure:"group_type_ends_with" json:"group_type_ends_with,omitempty" validate:"omitempty"`
+	GroupTypeContains               string   `mapstructure:"group_type_contains" json:"group_type_contains,omitempty" validate:"omitempty"`
+	GroupTypeNotStartsWith          string   `mapstructure:"group_type_not_starts_with" json:"group_type_not_starts_with,omitempty" validate:"omitempty"`
+	GroupTypeNotEndsWith            string   `mapstructure:"group_type_not_ends_with" json:"group_type_not_ends_with,omitempty" validate:"omitempty"`
+	GroupTypeNotContains            string   `mapstructure:"group_type_not_contains" json:"group_type_not_contains,omitempty" validate:"omitempty"`
+	AppealForSelf                   bool     `mapstructure:"appeal_for_self" json:"appeal_for_self,omitempty"` // deprecated
+	AppealDetailsForSelfCriteria    []string `mapstructure:"appeal_details_for_self_criteria" json:"appeal_details_for_self_criteria,omitempty" validate:"omitempty"`
+	NotAppealDetailsForSelfCriteria []string `mapstructure:"not_appeal_details_for_self_criteria" json:"not_appeal_details_for_self_criteria,omitempty" validate:"omitempty"`
 }
 
 func (af ListApprovalsFilter) WithSummary() bool {
