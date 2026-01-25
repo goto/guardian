@@ -14,7 +14,10 @@ import (
 
 func (s *GRPCServer) ListPolicies(ctx context.Context, req *guardianv1beta1.ListPoliciesRequest) (*guardianv1beta1.ListPoliciesResponse, error) {
 	filter := domain.ListPoliciesFilter{
-		IDs: req.GetIds(),
+		Size:    int(req.GetSize()),
+		Offset:  int(req.GetOffset()),
+		OrderBy: req.GetOrderBy(),
+		IDs:     req.GetIds(),
 	}
 
 	policies, err := s.listPolicies(ctx, filter)
