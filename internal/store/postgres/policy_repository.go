@@ -56,7 +56,6 @@ func (r *PolicyRepository) Find(ctx context.Context, filter domain.ListPoliciesF
 	records := []*domain.Policy{}
 
 	db := r.db.WithContext(ctx)
-	db = applyApprovalsJoins(db)
 	var err error
 	db, err = applyPoliciesFilter(db, filter)
 	if err != nil {
