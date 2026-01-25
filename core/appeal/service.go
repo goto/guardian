@@ -68,7 +68,7 @@ type notifier interface {
 
 //go:generate mockery --name=policyService --exported --with-expecter
 type policyService interface {
-	Find(context.Context) ([]*domain.Policy, error)
+	Find(context.Context, domain.ListPoliciesFilter) ([]*domain.Policy, error)
 	GetOne(context.Context, string, uint) (*domain.Policy, error)
 }
 
@@ -1377,7 +1377,7 @@ func (s *Service) getProvidersMap(ctx context.Context) (map[string]map[string]*d
 }
 
 func (s *Service) getPoliciesMap(ctx context.Context) (map[string]map[uint]*domain.Policy, error) {
-	policies, err := s.policyService.Find(ctx)
+	policies, err := s.policyService.Find(ctx, domain.ListPoliciesFilter{})
 	if err != nil {
 		return nil, err
 	}

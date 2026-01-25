@@ -29,11 +29,11 @@ func (m *mockDecryptor) Decrypt(encryptedText string) (string, error) {
 
 func TestCustomSteps_EncryptConfig(t *testing.T) {
 	tests := []struct {
-		name            string
-		customSteps     *domain.CustomSteps
-		mockSetup       func(*mockEncryptor)
-		expectedConfig  interface{}
-		expectedError   string
+		name           string
+		customSteps    *domain.CustomSteps
+		mockSetup      func(*mockEncryptor)
+		expectedConfig interface{}
+		expectedError  string
 	}{
 		{
 			name: "successful encryption with map config",
@@ -110,11 +110,11 @@ func TestCustomSteps_EncryptConfig(t *testing.T) {
 
 func TestCustomSteps_DecryptConfig(t *testing.T) {
 	tests := []struct {
-		name            string
-		customSteps     *domain.CustomSteps
-		mockSetup       func(*mockDecryptor)
-		expectedConfig  interface{}
-		expectedError   string
+		name           string
+		customSteps    *domain.CustomSteps
+		mockSetup      func(*mockDecryptor)
+		expectedConfig interface{}
+		expectedError  string
 	}{
 		{
 			name: "successful decryption to map",
@@ -141,7 +141,7 @@ func TestCustomSteps_DecryptConfig(t *testing.T) {
 				dec.On("Decrypt", "encrypted_string").Return(`"simple_string_config"`, nil)
 			},
 			expectedConfig: "simple_string_config",
-			expectedError: "",
+			expectedError:  "",
 		},
 		{
 			name: "successful decryption to array",
@@ -226,8 +226,8 @@ func TestCustomSteps_DecryptConfig(t *testing.T) {
 func TestCustomSteps_EncryptDecryptRoundTrip(t *testing.T) {
 	// Test that encrypt followed by decrypt returns the original value
 	originalConfig := map[string]interface{}{
-		"url":     "https://api.example.com",
-		"method":  "POST",
+		"url":    "https://api.example.com",
+		"method": "POST",
 		"headers": map[string]interface{}{
 			"Content-Type": "application/json",
 			"X-API-Key":    "secret-key",
@@ -258,7 +258,7 @@ func TestCustomSteps_EncryptDecryptRoundTrip(t *testing.T) {
 	// Decrypt
 	err = customSteps.DecryptConfig(dec)
 	assert.NoError(t, err)
-	
+
 	// Verify the decrypted config matches the original
 	assert.Equal(t, originalConfig, customSteps.Config)
 

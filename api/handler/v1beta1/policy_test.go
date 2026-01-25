@@ -56,7 +56,7 @@ func (s *GrpcHandlersSuite) TestListPolicies() {
 				},
 			},
 		}
-		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(dummyPolicies, nil).Once()
+		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(dummyPolicies, nil).Once()
 
 		req := &guardianv1beta1.ListPoliciesRequest{}
 		res, err := s.grpcServer.ListPolicies(context.Background(), req)
@@ -77,7 +77,7 @@ func (s *GrpcHandlersSuite) TestListPolicies() {
 		dummyPolicies := []*domain.Policy{
 			{ID: "test-policy"}, // iam is nil
 		}
-		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(dummyPolicies, nil).Once()
+		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(dummyPolicies, nil).Once()
 
 		req := &guardianv1beta1.ListPoliciesRequest{}
 		res, err := s.grpcServer.ListPolicies(context.Background(), req)
@@ -91,7 +91,7 @@ func (s *GrpcHandlersSuite) TestListPolicies() {
 		s.setup()
 
 		expectedError := errors.New("random error")
-		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(nil, expectedError).Once()
+		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(nil, expectedError).Once()
 
 		req := &guardianv1beta1.ListPoliciesRequest{}
 		res, err := s.grpcServer.ListPolicies(context.Background(), req)

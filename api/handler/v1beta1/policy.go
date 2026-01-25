@@ -4,30 +4,26 @@ import (
 	"context"
 	"errors"
 
-	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
-	"github.com/goto/guardian/core/policy"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
+	"github.com/goto/guardian/core/policy"
+	"github.com/goto/guardian/domain"
 )
 
 func (s *GRPCServer) ListPolicies(ctx context.Context, req *guardianv1beta1.ListPoliciesRequest) (*guardianv1beta1.ListPoliciesResponse, error) {
-	policies, err := s.policyService.Find(ctx)
-	if err != nil {
-		return nil, s.internalError(ctx, "failed to get policy list: %v", err)
+	filter := domain.ListPoliciesFilter{
+		IDs: req.GetIds(),
 	}
 
-	policyProtos := []*guardianv1beta1.Policy{}
-	for _, p := range policies {
-		p.RemoveSensitiveValues()
-		policyProto, err := s.adapter.ToPolicyProto(p)
-		if err != nil {
-			return nil, s.internalError(ctx, "failed to parse policy %v: %v", p.ID, err)
-		}
-		policyProtos = append(policyProtos, policyProto)
+	policies, err := s.listPolicies(ctx, filter)
+	if err != nil {
+		return nil, err
 	}
 
 	return &guardianv1beta1.ListPoliciesResponse{
-		Policies: policyProtos,
+		Policies: policies,
 	}, nil
 }
 
@@ -121,4 +117,23 @@ func (s *GRPCServer) GetPolicyPreferences(ctx context.Context, req *guardianv1be
 	return &guardianv1beta1.GetPolicyPreferencesResponse{
 		Appeal: appealConfigProto,
 	}, nil
+}
+
+func (s *GRPCServer) listPolicies(ctx context.Context, filter domain.ListPoliciesFilter) ([]*guardianv1beta1.Policy, error) {
+	policies, err := s.policyService.Find(ctx, filter)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to get policy list: %v", err)
+	}
+
+	policiesProto := []*guardianv1beta1.Policy{}
+	for _, p := range policies {
+		p.RemoveSensitiveValues()
+		policyProto, err := s.adapter.ToPolicyProto(p)
+		if err != nil {
+			return nil, s.internalError(ctx, "failed to parse policy %v: %v", p.ID, err)
+		}
+		policiesProto = append(policiesProto, policyProto)
+	}
+
+	return policiesProto, nil
 }

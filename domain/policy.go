@@ -522,3 +522,10 @@ func (p *Policy) HasLabelingRules() bool {
 func (p *Policy) AllowsUserLabels() bool {
 	return p.AppealConfig != nil && p.AppealConfig.UserLabelConfig != nil && p.AppealConfig.UserLabelConfig.AllowUserLabels
 }
+
+type ListPoliciesFilter struct {
+	Size    int      `mapstructure:"size" json:"size,omitempty" validate:"omitempty"`
+	Offset  int      `mapstructure:"offset" json:"offset,omitempty" validate:"omitempty"`
+	OrderBy []string `mapstructure:"order_by" validate:"omitempty,min=1"`
+	IDs     []string `mapstructure:"ids" json:"ids,omitempty" validate:"omitempty"`
+}

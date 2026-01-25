@@ -8,13 +8,14 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
+	"github.com/ory/dockertest/v3"
+	"github.com/stretchr/testify/suite"
+
 	"github.com/goto/guardian/core/policy"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/pkg/postgrestest"
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/suite"
 )
 
 type PolicyRepositoryTestSuite struct {
@@ -134,7 +135,7 @@ func (s *PolicyRepositoryTestSuite) TestFind() {
 			s.Nil(err)
 		}
 
-		actualPolicies, actualError := s.repository.Find(ctx)
+		actualPolicies, actualError := s.repository.Find(ctx, domain.ListPoliciesFilter{})
 
 		if diff := cmp.Diff(expectedPolicies, actualPolicies, cmpopts.EquateApproxTime(time.Microsecond)); diff != "" {
 			s.T().Errorf("result not match, diff: %v", diff)

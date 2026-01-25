@@ -273,6 +273,14 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		)
 	}
 
+	if filters.IDs != nil {
+		db = db.Where(`"appeals"."id" IN ?`, filters.IDs)
+	}
+
+	if filters.NotIDs != nil {
+		db = db.Where(`"appeals"."id" NOT IN ?`, filters.NotIDs)
+	}
+
 	if filters.Statuses != nil {
 		db = db.Where(`"appeals"."status" IN ?`, filters.Statuses)
 	}

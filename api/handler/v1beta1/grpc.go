@@ -96,7 +96,7 @@ type providerService interface {
 //go:generate mockery --name=policyService --exported --with-expecter
 type policyService interface {
 	Create(context.Context, *domain.Policy) error
-	Find(context.Context) ([]*domain.Policy, error)
+	Find(context.Context, domain.ListPoliciesFilter) ([]*domain.Policy, error)
 	GetOne(ctx context.Context, id string, version uint) (*domain.Policy, error)
 	Update(context.Context, *domain.Policy) error
 }

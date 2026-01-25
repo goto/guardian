@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/goto/guardian/core/policy"
-
 	"testing"
 	"time"
+
+	"github.com/goto/guardian/core/policy"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -759,9 +759,9 @@ func (s *ServiceTestSuite) TestPolicyRequirements() {
 func (s *ServiceTestSuite) TestFind() {
 	s.Run("should return nil and error if got error from repository", func() {
 		expectedError := errors.New("error from repository")
-		s.mockPolicyRepository.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(nil, expectedError).Once()
+		s.mockPolicyRepository.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(nil, expectedError).Once()
 
-		actualResult, actualError := s.service.Find(context.Background())
+		actualResult, actualError := s.service.Find(context.Background(), domain.ListPoliciesFilter{})
 
 		s.Nil(actualResult)
 		s.EqualError(actualError, expectedError.Error())
@@ -801,7 +801,7 @@ func (s *ServiceTestSuite) TestFind() {
 			},
 		}
 		s.mockPolicyRepository.EXPECT().
-			Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).
+			Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).
 			Return(dummyPolicies, nil).Once()
 		expectedPassword := "test-password"
 		s.mockCrypto.EXPECT().Decrypt("encrypted-test-password").Return(expectedPassword, nil).Once()
@@ -809,7 +809,7 @@ func (s *ServiceTestSuite) TestFind() {
 		expectedConfigJSON, _ := json.Marshal(expectedConfig)
 		s.mockCrypto.EXPECT().Decrypt("encrypted-config").Return(string(expectedConfigJSON), nil).Once()
 
-		actualResult, actualError := s.service.Find(context.Background())
+		actualResult, actualError := s.service.Find(context.Background(), domain.ListPoliciesFilter{})
 
 		s.Len(actualResult, len(dummyPolicies))
 		s.Equal(actualResult[0].IAM.Config.(map[string]any)["auth"].(map[string]any)["password"], expectedPassword)
@@ -833,12 +833,12 @@ func (s *ServiceTestSuite) TestFind() {
 			},
 		}
 
-		s.mockPolicyRepository.EXPECT().Find(mock.Anything).Return(policiesWithCustomSteps, nil).Once()
+		s.mockPolicyRepository.EXPECT().Find(mock.Anything, mock.Anything).Return(policiesWithCustomSteps, nil).Once()
 
 		decryptedConfig := `{"url":"https://api.example.com/steps","method":"POST"}`
 		s.mockCrypto.EXPECT().Decrypt("encrypted-custom-steps-config").Return(decryptedConfig, nil).Once()
 
-		actualResult, actualError := s.service.Find(context.Background())
+		actualResult, actualError := s.service.Find(context.Background(), domain.ListPoliciesFilter{})
 
 		s.Nil(actualError)
 		s.Len(actualResult, 2)
@@ -862,12 +862,12 @@ func (s *ServiceTestSuite) TestFind() {
 			},
 		}
 
-		s.mockPolicyRepository.EXPECT().Find(mock.Anything).Return(policiesWithCustomSteps, nil).Once()
+		s.mockPolicyRepository.EXPECT().Find(mock.Anything, mock.Anything).Return(policiesWithCustomSteps, nil).Once()
 
 		expectedError := errors.New("decryption failed")
 		s.mockCrypto.EXPECT().Decrypt("encrypted-custom-steps-config").Return("", expectedError).Once()
 
-		actualResult, actualError := s.service.Find(context.Background())
+		actualResult, actualError := s.service.Find(context.Background(), domain.ListPoliciesFilter{})
 
 		s.Nil(actualResult)
 		s.EqualError(actualError, expectedError.Error())

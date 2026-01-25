@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/evaluator"
 	"github.com/goto/guardian/pkg/log"
@@ -23,7 +24,7 @@ const (
 //go:generate mockery --name=repository --exported --with-expecter
 type repository interface {
 	Create(context.Context, *domain.Policy) error
-	Find(context.Context) ([]*domain.Policy, error)
+	Find(context.Context, domain.ListPoliciesFilter) ([]*domain.Policy, error)
 	GetOne(ctx context.Context, id string, version uint) (*domain.Policy, error)
 }
 
@@ -163,8 +164,8 @@ func (s *Service) Create(ctx context.Context, p *domain.Policy) error {
 }
 
 // Find records
-func (s *Service) Find(ctx context.Context) ([]*domain.Policy, error) {
-	policies, err := s.repository.Find(ctx)
+func (s *Service) Find(ctx context.Context, filter domain.ListPoliciesFilter) ([]*domain.Policy, error) {
+	policies, err := s.repository.Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +214,7 @@ func (s *Service) GetOne(ctx context.Context, id string, version uint) (*domain.
 			return nil, err
 		}
 	}
-	
+
 	if err := s.decryptRequirementPostHooks(p); err != nil {
 		return nil, err
 	}

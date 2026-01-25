@@ -588,6 +588,26 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "notIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -2593,6 +2613,26 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "notIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -3570,6 +3610,19 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "ids",
+            "description": "List of policy IDs to include.\nYou can specify either:\n- \"\u003cid\u003e\" to retrieve the latest version, or\n- \"\u003cid\u003e:\u003cversion\u003e\" to retrieve a specific version.",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
         "tags": [
           "GuardianService"
         ]

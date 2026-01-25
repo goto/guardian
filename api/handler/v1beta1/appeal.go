@@ -93,6 +93,8 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 		GroupTypeNotStartsWith: req.GetGroupTypeNotStartsWith(),
 		GroupTypeNotEndsWith:   req.GetGroupTypeNotEndsWith(),
 		GroupTypeNotContains:   req.GetGroupTypeNotContains(),
+		IDs:                    req.GetIds(),
+		NotIDs:                 req.GetNotIds(),
 	}
 
 	appeals, total, summary, err := s.listAppeals(ctx, filters)
@@ -182,6 +184,8 @@ func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListA
 		GroupTypeNotStartsWith: req.GetGroupTypeNotStartsWith(),
 		GroupTypeNotEndsWith:   req.GetGroupTypeNotEndsWith(),
 		GroupTypeNotContains:   req.GetGroupTypeNotContains(),
+		IDs:                    req.GetIds(),
+		NotIDs:                 req.GetNotIds(),
 	}
 
 	appeals, total, summary, err := s.listAppeals(ctx, filters)

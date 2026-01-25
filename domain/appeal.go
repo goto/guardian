@@ -554,18 +554,20 @@ type ListAppealsFilter struct {
 	RoleNotEndsWith   string   `mapstructure:"role_not_ends_with" json:"role_not_ends_with,omitempty" validate:"omitempty"`
 	RoleNotContains   string   `mapstructure:"role_not_contains" json:"role_not_contains,omitempty" validate:"omitempty"`
 
-	DetailsStartsWith      string `mapstructure:"details_starts_with" validate:"omitempty"`
-	DetailsEndsWith        string `mapstructure:"details_ends_with" validate:"omitempty"`
-	DetailsContains        string `mapstructure:"details_contains" validate:"omitempty"`
-	DetailsNotStartsWith   string `mapstructure:"details_not_starts_with" validate:"omitempty"`
-	DetailsNotEndsWith     string `mapstructure:"details_not_ends_with" validate:"omitempty"`
-	DetailsNotContains     string `mapstructure:"details_not_contains" validate:"omitempty"`
-	GroupTypeStartsWith    string `mapstructure:"group_type_starts_with" validate:"omitempty"`
-	GroupTypeEndsWith      string `mapstructure:"group_type_ends_with" validate:"omitempty"`
-	GroupTypeContains      string `mapstructure:"group_type_contains" validate:"omitempty"`
-	GroupTypeNotStartsWith string `mapstructure:"group_type_not_starts_with" validate:"omitempty"`
-	GroupTypeNotEndsWith   string `mapstructure:"group_type_not_ends_with" validate:"omitempty"`
-	GroupTypeNotContains   string `mapstructure:"group_type_not_contains" validate:"omitempty"`
+	DetailsStartsWith      string   `mapstructure:"details_starts_with" validate:"omitempty"`
+	DetailsEndsWith        string   `mapstructure:"details_ends_with" validate:"omitempty"`
+	DetailsContains        string   `mapstructure:"details_contains" validate:"omitempty"`
+	DetailsNotStartsWith   string   `mapstructure:"details_not_starts_with" validate:"omitempty"`
+	DetailsNotEndsWith     string   `mapstructure:"details_not_ends_with" validate:"omitempty"`
+	DetailsNotContains     string   `mapstructure:"details_not_contains" validate:"omitempty"`
+	GroupTypeStartsWith    string   `mapstructure:"group_type_starts_with" validate:"omitempty"`
+	GroupTypeEndsWith      string   `mapstructure:"group_type_ends_with" validate:"omitempty"`
+	GroupTypeContains      string   `mapstructure:"group_type_contains" validate:"omitempty"`
+	GroupTypeNotStartsWith string   `mapstructure:"group_type_not_starts_with" validate:"omitempty"`
+	GroupTypeNotEndsWith   string   `mapstructure:"group_type_not_ends_with" validate:"omitempty"`
+	GroupTypeNotContains   string   `mapstructure:"group_type_not_contains" validate:"omitempty"`
+	IDs                    []string `mapstructure:"ids" validate:"omitempty"`
+	NotIDs                 []string `mapstructure:"not_ids" validate:"omitempty"`
 }
 
 func (af ListAppealsFilter) WithSummary() bool {

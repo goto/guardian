@@ -69,9 +69,9 @@ func (_c *PolicyService_Create_Call) RunAndReturn(run func(context.Context, *dom
 	return _c
 }
 
-// Find provides a mock function with given fields: _a0
-func (_m *PolicyService) Find(_a0 context.Context) ([]*domain.Policy, error) {
-	ret := _m.Called(_a0)
+// Find provides a mock function with given fields: _a0, _a1
+func (_m *PolicyService) Find(_a0 context.Context, _a1 domain.ListPoliciesFilter) ([]*domain.Policy, error) {
+	ret := _m.Called(_a0, _a1)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Find")
@@ -79,19 +79,19 @@ func (_m *PolicyService) Find(_a0 context.Context) ([]*domain.Policy, error) {
 
 	var r0 []*domain.Policy
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]*domain.Policy, error)); ok {
-		return rf(_a0)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListPoliciesFilter) ([]*domain.Policy, error)); ok {
+		return rf(_a0, _a1)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []*domain.Policy); ok {
-		r0 = rf(_a0)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListPoliciesFilter) []*domain.Policy); ok {
+		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*domain.Policy)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(_a0)
+	if rf, ok := ret.Get(1).(func(context.Context, domain.ListPoliciesFilter) error); ok {
+		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -106,13 +106,14 @@ type PolicyService_Find_Call struct {
 
 // Find is a helper method to define mock.On call
 //   - _a0 context.Context
-func (_e *PolicyService_Expecter) Find(_a0 interface{}) *PolicyService_Find_Call {
-	return &PolicyService_Find_Call{Call: _e.mock.On("Find", _a0)}
+//   - _a1 domain.ListPoliciesFilter
+func (_e *PolicyService_Expecter) Find(_a0 interface{}, _a1 interface{}) *PolicyService_Find_Call {
+	return &PolicyService_Find_Call{Call: _e.mock.On("Find", _a0, _a1)}
 }
 
-func (_c *PolicyService_Find_Call) Run(run func(_a0 context.Context)) *PolicyService_Find_Call {
+func (_c *PolicyService_Find_Call) Run(run func(_a0 context.Context, _a1 domain.ListPoliciesFilter)) *PolicyService_Find_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
+		run(args[0].(context.Context), args[1].(domain.ListPoliciesFilter))
 	})
 	return _c
 }
@@ -122,7 +123,7 @@ func (_c *PolicyService_Find_Call) Return(_a0 []*domain.Policy, _a1 error) *Poli
 	return _c
 }
 
-func (_c *PolicyService_Find_Call) RunAndReturn(run func(context.Context) ([]*domain.Policy, error)) *PolicyService_Find_Call {
+func (_c *PolicyService_Find_Call) RunAndReturn(run func(context.Context, domain.ListPoliciesFilter) ([]*domain.Policy, error)) *PolicyService_Find_Call {
 	_c.Call.Return(run)
 	return _c
 }
