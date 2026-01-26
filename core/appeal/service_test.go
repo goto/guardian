@@ -15,6 +15,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
+
 	"github.com/goto/guardian/core/appeal"
 	appealmocks "github.com/goto/guardian/core/appeal/mocks"
 	"github.com/goto/guardian/core/comment"
@@ -26,9 +30,6 @@ import (
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/mocks"
 	"github.com/goto/guardian/pkg/log"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
 )
 
 var (
@@ -55,6 +56,8 @@ type serviceTestHelper struct {
 }
 
 func (h *serviceTestHelper) assertExpectations(t *testing.T) {
+	// wait go routines to finish
+	time.Sleep(200 * time.Millisecond)
 	t.Helper()
 	h.mockRepository.AssertExpectations(t)
 	h.mockCommentRepo.AssertExpectations(t)
