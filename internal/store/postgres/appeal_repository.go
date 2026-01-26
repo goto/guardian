@@ -371,6 +371,38 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		return nil, err
 	}
 
+	if len(filters.DetailsForSelfCriteria) != 0 && len(filters.NotDetailsForSelfCriteria) != 0 {
+		return nil, fmt.Errorf("cannot use both details_for_self_criteria and not_details_for_self_criteria filters")
+	}
+	if len(filters.DetailsForSelfCriteria) != 0 {
+		var exprs []string
+		for _, p := range filters.DetailsForSelfCriteria {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			p = strings.ReplaceAll(p, ".", ",")
+			exprs = append(exprs, fmt.Sprintf(`"appeals"."details" #>> '{%s}'`, p))
+		}
+		if len(exprs) > 0 {
+			db = db.Where(fmt.Sprintf(`"appeals"."created_by" = ANY (ARRAY[%s])`, strings.Join(exprs, ",")))
+		}
+	}
+	if len(filters.NotDetailsForSelfCriteria) != 0 {
+		var exprs []string
+		for _, p := range filters.NotDetailsForSelfCriteria {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			p = strings.ReplaceAll(p, ".", ",")
+			exprs = append(exprs, fmt.Sprintf(`COALESCE("appeals"."details" #>> '{%s}', '')`, p))
+		}
+		if len(exprs) > 0 {
+			db = db.Where(fmt.Sprintf(`NOT ("appeals"."created_by" = ANY (ARRAY[%s]))`, strings.Join(exprs, ",")))
+		}
+	}
+
 	if !filters.StartTime.IsZero() && !filters.EndTime.IsZero() {
 		db = db.Where(`"appeals"."created_at" BETWEEN ? AND ?`, filters.StartTime, filters.EndTime)
 	} else if !filters.StartTime.IsZero() {

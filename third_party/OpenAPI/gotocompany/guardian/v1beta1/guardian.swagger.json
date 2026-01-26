@@ -608,6 +608,26 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "detailsForSelfCriteria",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "notDetailsForSelfCriteria",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -1965,6 +1985,26 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "appealDetailsForSelfCriteria",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "notAppealDetailsForSelfCriteria",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -2626,6 +2666,26 @@
           },
           {
             "name": "notIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "detailsForSelfCriteria",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "notDetailsForSelfCriteria",
             "in": "query",
             "required": false,
             "type": "array",
@@ -3564,6 +3624,26 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "appealDetailsForSelfCriteria",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "notAppealDetailsForSelfCriteria",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [

@@ -549,25 +549,27 @@ type ListAppealsFilter struct {
 
 	// LabelKeys filters appeals that have ANY of these label keys (regardless of value)
 	// Example: ["pii_access", "compliance_required"]
-	LabelKeys         []string `mapstructure:"label_keys" validate:"omitempty,min=1"`
-	RoleNotStartsWith string   `mapstructure:"role_not_starts_with" json:"role_not_starts_with,omitempty" validate:"omitempty"`
-	RoleNotEndsWith   string   `mapstructure:"role_not_ends_with" json:"role_not_ends_with,omitempty" validate:"omitempty"`
-	RoleNotContains   string   `mapstructure:"role_not_contains" json:"role_not_contains,omitempty" validate:"omitempty"`
+	LabelKeys []string `mapstructure:"label_keys" validate:"omitempty,min=1"`
 
-	DetailsStartsWith      string   `mapstructure:"details_starts_with" validate:"omitempty"`
-	DetailsEndsWith        string   `mapstructure:"details_ends_with" validate:"omitempty"`
-	DetailsContains        string   `mapstructure:"details_contains" validate:"omitempty"`
-	DetailsNotStartsWith   string   `mapstructure:"details_not_starts_with" validate:"omitempty"`
-	DetailsNotEndsWith     string   `mapstructure:"details_not_ends_with" validate:"omitempty"`
-	DetailsNotContains     string   `mapstructure:"details_not_contains" validate:"omitempty"`
-	GroupTypeStartsWith    string   `mapstructure:"group_type_starts_with" validate:"omitempty"`
-	GroupTypeEndsWith      string   `mapstructure:"group_type_ends_with" validate:"omitempty"`
-	GroupTypeContains      string   `mapstructure:"group_type_contains" validate:"omitempty"`
-	GroupTypeNotStartsWith string   `mapstructure:"group_type_not_starts_with" validate:"omitempty"`
-	GroupTypeNotEndsWith   string   `mapstructure:"group_type_not_ends_with" validate:"omitempty"`
-	GroupTypeNotContains   string   `mapstructure:"group_type_not_contains" validate:"omitempty"`
-	IDs                    []string `mapstructure:"ids" validate:"omitempty"`
-	NotIDs                 []string `mapstructure:"not_ids" validate:"omitempty"`
+	RoleNotStartsWith         string   `mapstructure:"role_not_starts_with" json:"role_not_starts_with,omitempty" validate:"omitempty"`
+	RoleNotEndsWith           string   `mapstructure:"role_not_ends_with" json:"role_not_ends_with,omitempty" validate:"omitempty"`
+	RoleNotContains           string   `mapstructure:"role_not_contains" json:"role_not_contains,omitempty" validate:"omitempty"`
+	DetailsStartsWith         string   `mapstructure:"details_starts_with" validate:"omitempty"`
+	DetailsEndsWith           string   `mapstructure:"details_ends_with" validate:"omitempty"`
+	DetailsContains           string   `mapstructure:"details_contains" validate:"omitempty"`
+	DetailsNotStartsWith      string   `mapstructure:"details_not_starts_with" validate:"omitempty"`
+	DetailsNotEndsWith        string   `mapstructure:"details_not_ends_with" validate:"omitempty"`
+	DetailsNotContains        string   `mapstructure:"details_not_contains" validate:"omitempty"`
+	GroupTypeStartsWith       string   `mapstructure:"group_type_starts_with" validate:"omitempty"`
+	GroupTypeEndsWith         string   `mapstructure:"group_type_ends_with" validate:"omitempty"`
+	GroupTypeContains         string   `mapstructure:"group_type_contains" validate:"omitempty"`
+	GroupTypeNotStartsWith    string   `mapstructure:"group_type_not_starts_with" validate:"omitempty"`
+	GroupTypeNotEndsWith      string   `mapstructure:"group_type_not_ends_with" validate:"omitempty"`
+	GroupTypeNotContains      string   `mapstructure:"group_type_not_contains" validate:"omitempty"`
+	IDs                       []string `mapstructure:"ids" validate:"omitempty"`
+	NotIDs                    []string `mapstructure:"not_ids" validate:"omitempty"`
+	DetailsForSelfCriteria    []string `mapstructure:"details_for_self_criteria" json:"details_for_self_criteria,omitempty" validate:"omitempty"`
+	NotDetailsForSelfCriteria []string `mapstructure:"not_details_for_self_criteria" json:"not_details_for_self_criteria,omitempty" validate:"omitempty"`
 }
 
 func (af ListAppealsFilter) WithSummary() bool {
