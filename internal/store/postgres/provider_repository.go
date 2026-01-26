@@ -215,7 +215,7 @@ func (r *ProviderRepository) Delete(ctx context.Context, id string) error {
 
 func applyProvidersFilter(db *gorm.DB, filter domain.ListProvidersFilter) *gorm.DB {
 	if len(filter.IDs) > 0 {
-		db = db.Where(`"providers"."id"" IN ?`, filter.IDs)
+		db = db.Where(`"providers"."id" IN ?`, filter.IDs)
 	}
 
 	if len(filter.URNs) > 0 {
