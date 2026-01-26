@@ -56,9 +56,9 @@ type serviceTestHelper struct {
 }
 
 func (h *serviceTestHelper) assertExpectations(t *testing.T) {
+	t.Helper()
 	// wait go routines to finish
 	time.Sleep(200 * time.Millisecond)
-	t.Helper()
 	h.mockRepository.AssertExpectations(t)
 	h.mockCommentRepo.AssertExpectations(t)
 	h.mockAuditLogRepo.AssertExpectations(t)
