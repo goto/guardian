@@ -103,7 +103,10 @@ func (tr *httpTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	elapsedTime := float64(time.Since(startAt)) / float64(time.Millisecond)
 	withAttribs := metric.WithAttributes(attribs...)
 	tr.metricClientDuration.Record(ctx, elapsedTime, withAttribs)
-	tr.metricClientRequestSize.Add(ctx, int64(bw.read), withAttribs)
+	bw.mu.Lock()
+	bytesRead := int64(bw.read)
+	bw.mu.Unlock()
+	tr.metricClientRequestSize.Add(ctx, bytesRead, withAttribs)
 	if resp != nil {
 		tr.metricClientResponseSize.Add(ctx, resp.ContentLength, withAttribs)
 	}
