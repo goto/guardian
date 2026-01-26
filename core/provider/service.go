@@ -28,11 +28,12 @@ const (
 type repository interface {
 	Create(context.Context, *domain.Provider) error
 	Update(context.Context, *domain.Provider) error
-	Find(context.Context) ([]*domain.Provider, error)
+	Find(context.Context, domain.ListProvidersFilter) ([]*domain.Provider, error)
 	GetByID(ctx context.Context, id string) (*domain.Provider, error)
 	GetTypes(context.Context) ([]domain.ProviderType, error)
 	GetOne(ctx context.Context, pType, urn string) (*domain.Provider, error)
 	Delete(ctx context.Context, id string) error
+	GetCount(context.Context, domain.ListProvidersFilter) (int64, error)
 }
 
 type Client interface {
@@ -189,13 +190,17 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 }
 
 // Find records
-func (s *Service) Find(ctx context.Context) ([]*domain.Provider, error) {
-	providers, err := s.repository.Find(ctx)
+func (s *Service) Find(ctx context.Context, filter domain.ListProvidersFilter) ([]*domain.Provider, error) {
+	providers, err := s.repository.Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
 
 	return providers, nil
+}
+
+func (s *Service) GetCount(ctx context.Context, filter domain.ListProvidersFilter) (int64, error) {
+	return s.repository.GetCount(ctx, filter)
 }
 
 func (s *Service) GetByID(ctx context.Context, id string) (*domain.Provider, error) {
@@ -267,7 +272,7 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 
 // FetchResources fetches all resources for all registered providers
 func (s *Service) FetchResources(ctx context.Context) error {
-	providers, err := s.repository.Find(ctx)
+	providers, err := s.repository.Find(ctx, domain.ListProvidersFilter{})
 	if err != nil {
 		return err
 	}

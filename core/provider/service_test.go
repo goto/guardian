@@ -169,11 +169,12 @@ func (s *ServiceTestSuite) TestCreate() {
 
 func (s *ServiceTestSuite) TestFind() {
 	mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
+	mockFilter := mock.AnythingOfType("domain.ListProvidersFilter")
 	s.Run("should return nil and error if got error from repository", func() {
 		expectedError := errors.New("error from repository")
-		s.mockProviderRepository.EXPECT().Find(mockCtx).Return(nil, expectedError).Once()
+		s.mockProviderRepository.EXPECT().Find(mockCtx, mockFilter).Return(nil, expectedError).Once()
 
-		actualResult, actualError := s.service.Find(context.Background())
+		actualResult, actualError := s.service.Find(context.Background(), domain.ListProvidersFilter{})
 
 		s.Nil(actualResult)
 		s.EqualError(actualError, expectedError.Error())
@@ -181,11 +182,103 @@ func (s *ServiceTestSuite) TestFind() {
 
 	s.Run("should return list of records on success", func() {
 		expectedResult := []*domain.Provider{}
-		s.mockProviderRepository.EXPECT().Find(mockCtx).Return(expectedResult, nil).Once()
+		s.mockProviderRepository.EXPECT().Find(mockCtx, mockFilter).Return(expectedResult, nil).Once()
 
-		actualResult, actualError := s.service.Find(context.Background())
+		actualResult, actualError := s.service.Find(context.Background(), domain.ListProvidersFilter{})
 
 		s.Equal(expectedResult, actualResult)
+		s.Nil(actualError)
+		s.mockProviderRepository.AssertExpectations(s.T())
+	})
+}
+
+func (s *ServiceTestSuite) TestGetCount() {
+	mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
+	mockFilter := mock.AnythingOfType("domain.ListProvidersFilter")
+
+	s.Run("should return count from repository", func() {
+		expectedCount := int64(10)
+		s.mockProviderRepository.EXPECT().GetCount(mockCtx, mockFilter).Return(expectedCount, nil).Once()
+
+		actualCount, actualError := s.service.GetCount(context.Background(), domain.ListProvidersFilter{})
+
+		s.Equal(expectedCount, actualCount)
+		s.Nil(actualError)
+		s.mockProviderRepository.AssertExpectations(s.T())
+	})
+
+	s.Run("should return error if repository returns error", func() {
+		expectedError := errors.New("repository error")
+		s.mockProviderRepository.EXPECT().GetCount(mockCtx, mockFilter).Return(int64(0), expectedError).Once()
+
+		actualCount, actualError := s.service.GetCount(context.Background(), domain.ListProvidersFilter{})
+
+		s.Equal(int64(0), actualCount)
+		s.EqualError(actualError, expectedError.Error())
+		s.mockProviderRepository.AssertExpectations(s.T())
+	})
+
+	s.Run("should return count with filter by IDs", func() {
+		filter := domain.ListProvidersFilter{
+			IDs: []string{"id-1", "id-2"},
+		}
+		expectedCount := int64(2)
+		s.mockProviderRepository.EXPECT().GetCount(mockCtx, mock.MatchedBy(func(f domain.ListProvidersFilter) bool {
+			return len(f.IDs) == 2
+		})).Return(expectedCount, nil).Once()
+
+		actualCount, actualError := s.service.GetCount(context.Background(), filter)
+
+		s.Equal(expectedCount, actualCount)
+		s.Nil(actualError)
+		s.mockProviderRepository.AssertExpectations(s.T())
+	})
+
+	s.Run("should return count with filter by Types", func() {
+		filter := domain.ListProvidersFilter{
+			Types: []string{"bigquery", "gcs"},
+		}
+		expectedCount := int64(5)
+		s.mockProviderRepository.EXPECT().GetCount(mockCtx, mock.MatchedBy(func(f domain.ListProvidersFilter) bool {
+			return len(f.Types) == 2
+		})).Return(expectedCount, nil).Once()
+
+		actualCount, actualError := s.service.GetCount(context.Background(), filter)
+
+		s.Equal(expectedCount, actualCount)
+		s.Nil(actualError)
+		s.mockProviderRepository.AssertExpectations(s.T())
+	})
+
+	s.Run("should return count with filter by URNs", func() {
+		filter := domain.ListProvidersFilter{
+			URNs: []string{"urn-1", "urn-2:bigquery"},
+		}
+		expectedCount := int64(2)
+		s.mockProviderRepository.EXPECT().GetCount(mockCtx, mock.MatchedBy(func(f domain.ListProvidersFilter) bool {
+			return len(f.URNs) == 2
+		})).Return(expectedCount, nil).Once()
+
+		actualCount, actualError := s.service.GetCount(context.Background(), filter)
+
+		s.Equal(expectedCount, actualCount)
+		s.Nil(actualError)
+		s.mockProviderRepository.AssertExpectations(s.T())
+	})
+
+	s.Run("should return count with pagination parameters", func() {
+		filter := domain.ListProvidersFilter{
+			Size:   10,
+			Offset: 20,
+		}
+		expectedCount := int64(100)
+		s.mockProviderRepository.EXPECT().GetCount(mockCtx, mock.MatchedBy(func(f domain.ListProvidersFilter) bool {
+			return f.Size == 10 && f.Offset == 20
+		})).Return(expectedCount, nil).Once()
+
+		actualCount, actualError := s.service.GetCount(context.Background(), filter)
+
+		s.Equal(expectedCount, actualCount)
 		s.Nil(actualError)
 		s.mockProviderRepository.AssertExpectations(s.T())
 	})
@@ -342,7 +435,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 	mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
 	s.Run("should return error if got any from provider repository", func() {
 		expectedError := errors.New("any error")
-		s.mockProviderRepository.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(nil, expectedError).Once()
+		s.mockProviderRepository.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("domain.ListProvidersFilter")).Return(nil, expectedError).Once()
 
 		actualError := s.service.FetchResources(context.Background())
 
@@ -359,7 +452,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 	}
 
 	s.Run("should return error if got any from resource service", func() {
-		s.mockProviderRepository.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(providers, nil).Once()
+		s.mockProviderRepository.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("domain.ListProvidersFilter")).Return(providers, nil).Once()
 		for _, p := range providers {
 			s.mockProvider.On("GetResources", mockCtx, p.Config).Return([]*domain.Resource{
 				{ID: "test"},
@@ -430,7 +523,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 		}
 
 		expectedProvider := providers[0]
-		s.mockProviderRepository.EXPECT().Find(mockCtx).Return([]*domain.Provider{expectedProvider}, nil).Once()
+		s.mockProviderRepository.EXPECT().Find(mockCtx, mock.AnythingOfType("domain.ListProvidersFilter")).Return([]*domain.Provider{expectedProvider}, nil).Once()
 		s.mockProvider.EXPECT().GetResources(mockCtx, expectedProvider.Config).Return(newResources, nil).Once()
 		s.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(existingResources, nil).Once()
 		actualError := s.service.FetchResources(context.Background())
@@ -542,7 +635,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 		}
 
 		expectedProvider := providers[0]
-		s.mockProviderRepository.EXPECT().Find(mockCtx).Return([]*domain.Provider{expectedProvider}, nil).Once()
+		s.mockProviderRepository.EXPECT().Find(mockCtx, mock.AnythingOfType("domain.ListProvidersFilter")).Return([]*domain.Provider{expectedProvider}, nil).Once()
 		s.mockProvider.EXPECT().GetResources(mockCtx, expectedProvider.Config).Return(newResources, nil).Once()
 		s.mockResourceService.EXPECT().BulkUpsert(mock.Anything, mock.AnythingOfType("[]*domain.Resource")).
 			Run(func(_a0 context.Context, resources []*domain.Resource) {
@@ -624,7 +717,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 		}
 
 		expectedProvider := providers[0]
-		s.mockProviderRepository.EXPECT().Find(mockCtx).Return([]*domain.Provider{expectedProvider}, nil).Once()
+		s.mockProviderRepository.EXPECT().Find(mockCtx, mock.AnythingOfType("domain.ListProvidersFilter")).Return([]*domain.Provider{expectedProvider}, nil).Once()
 		s.mockProvider.EXPECT().GetResources(mockCtx, expectedProvider.Config).Return(newResources, nil).Once()
 		s.mockResourceService.EXPECT().BulkUpsert(mock.Anything, mock.AnythingOfType("[]*domain.Resource")).
 			Run(func(_a0 context.Context, resources []*domain.Resource) {
@@ -647,7 +740,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 				}},
 			},
 		}
-		s.mockProviderRepository.EXPECT().Find(mockCtx).Return(providersWithResourceFilter, nil).Once()
+		s.mockProviderRepository.EXPECT().Find(mockCtx, mock.AnythingOfType("domain.ListProvidersFilter")).Return(providersWithResourceFilter, nil).Once()
 		expectedResources := []*domain.Resource{}
 		for _, p := range providersWithResourceFilter {
 			resources := []*domain.Resource{
@@ -684,7 +777,7 @@ func (s *ServiceTestSuite) TestFetchResources() {
 				}},
 			},
 		}
-		s.mockProviderRepository.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(providersWithResourceFilter, nil).Once()
+		s.mockProviderRepository.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("domain.ListProvidersFilter")).Return(providersWithResourceFilter, nil).Once()
 		expectedResources := []*domain.Resource{}
 		for _, p := range providersWithResourceFilter {
 			resources := []*domain.Resource{

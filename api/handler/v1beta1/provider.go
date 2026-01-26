@@ -4,17 +4,66 @@ import (
 	"context"
 	"errors"
 
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	slicesUtil "github.com/goto/guardian/pkg/slices"
 )
 
 func (s *GRPCServer) ListProviders(ctx context.Context, req *guardianv1beta1.ListProvidersRequest) (*guardianv1beta1.ListProvidersResponse, error) {
-	providers, err := s.providerService.Find(ctx)
+	filter := domain.ListProvidersFilter{
+		Size:       int(req.GetSize()),
+		Offset:     int(req.GetOffset()),
+		IDs:        req.GetIds(),
+		URNs:       req.GetUrns(),
+		Types:      req.GetTypes(),
+		FieldMasks: slicesUtil.GenericsStandardizeSliceNilAble(req.GetFieldMasks()),
+	}
+
+	providers, total, err := s.listProviders(ctx, filter)
 	if err != nil {
-		return nil, s.internalError(ctx, "failed to list providers: %v", err)
+		return nil, err
+	}
+
+	return &guardianv1beta1.ListProvidersResponse{
+		Providers: providers,
+		Total:     int32(total),
+	}, nil
+}
+
+func (s *GRPCServer) listProviders(ctx context.Context, filter domain.ListProvidersFilter) ([]*guardianv1beta1.Provider, int64, error) {
+	eg, egCtx := errgroup.WithContext(ctx)
+	var providers []*domain.Provider
+	var total int64
+
+	if filter.WithProviders() {
+		eg.Go(func() error {
+			providerRecords, e := s.providerService.Find(egCtx, filter)
+			if e != nil {
+				return s.internalError(ctx, "failed to list providers: %v", e)
+			}
+			providers = providerRecords
+			return nil
+		})
+	}
+
+	if filter.WithTotal() {
+		eg.Go(func() error {
+			totalRecord, e := s.providerService.GetCount(egCtx, filter)
+			if e != nil {
+				return s.internalError(ctx, "failed to get providers count: %v", e)
+			}
+			total = totalRecord
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return nil, 0, err
 	}
 
 	providerProtos := []*guardianv1beta1.Provider{}
@@ -22,14 +71,12 @@ func (s *GRPCServer) ListProviders(ctx context.Context, req *guardianv1beta1.Lis
 		p.Config.Credentials = nil
 		providerProto, err := s.adapter.ToProviderProto(p)
 		if err != nil {
-			return nil, s.internalError(ctx, "failed to parse provider %s: %v", p.URN, err)
+			return nil, 0, s.internalError(ctx, "failed to parse provider %s: %v", p.URN, err)
 		}
 		providerProtos = append(providerProtos, providerProto)
 	}
 
-	return &guardianv1beta1.ListProvidersResponse{
-		Providers: providerProtos,
-	}, nil
+	return providerProtos, total, nil
 }
 
 func (s *GRPCServer) GetProvider(ctx context.Context, req *guardianv1beta1.GetProviderRequest) (*guardianv1beta1.GetProviderResponse, error) {

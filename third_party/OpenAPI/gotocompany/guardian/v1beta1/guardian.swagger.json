@@ -3626,7 +3626,7 @@
             "format": "int64"
           },
           {
-            "name": "orderBy",
+            "name": "fieldMasks",
             "in": "query",
             "required": false,
             "type": "array",
@@ -3637,7 +3637,7 @@
           },
           {
             "name": "ids",
-            "description": "List of policy identifiers to include.\nSupported formats:\n- \"\u003cid\u003e\"        → returns all versions of the policy\n- \"\u003cid\u003e:0\"      → returns the latest version of the policy\n- \"\u003cid\u003e:\u003cn\u003e\"    → returns version \u003cn\u003e of the policy (n \u003e 0)\nInvalid or malformed entries are ignored.",
+            "description": "Supported formats:\n- \"\u003cid\u003e\"        → returns all versions of the policy\n- \"\u003cid\u003e:0\"      → returns the latest version of the policy\n- \"\u003cid\u003e:\u003cn\u003e\"    → returns version \u003cn\u003e of the policy (n \u003e 0)\nInvalid or malformed entries are ignored.",
             "in": "query",
             "required": false,
             "type": "array",
@@ -3823,6 +3823,63 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "fieldMasks",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "urns",
+            "description": "Supported formats:\n- \"\u003curn\u003e\" -\u003e returns providers that match with the urn\n- \"\u003curn\u003e:\u003ctype\u003e\" -\u003e returns providers that match with the urn and type\nInvalid or malformed entries are ignored.",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "types",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
         "tags": [
           "GuardianService"
         ]
@@ -5705,6 +5762,10 @@
             "type": "object",
             "$ref": "#/definitions/v1beta1Policy"
           }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
@@ -5717,6 +5778,10 @@
             "type": "object",
             "$ref": "#/definitions/v1beta1Provider"
           }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },

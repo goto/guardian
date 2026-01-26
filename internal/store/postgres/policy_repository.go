@@ -112,22 +112,35 @@ func (r *PolicyRepository) GetOne(ctx context.Context, id string, version uint) 
 	return p, nil
 }
 
-func applyPoliciesFilter(db *gorm.DB, filter domain.ListPoliciesFilter) (*gorm.DB, error) {
-	var err error
+// GetCount returns the total count of policies based on filters
+func (r *PolicyRepository) GetCount(ctx context.Context, filter domain.ListPoliciesFilter) (int64, error) {
+	if err := utils.ValidateStruct(filter); err != nil {
+		return 0, err
+	}
 
+	db := r.db.WithContext(ctx).Model(&model.Policy{})
+	var err error
+	db, err = applyPoliciesFilter(db, filter)
+	if err != nil {
+		return 0, err
+	}
+
+	var count int64
+	if err := db.Count(&count).Error; err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func applyPoliciesFilter(db *gorm.DB, filter domain.ListPoliciesFilter) (*gorm.DB, error) {
 	if len(filter.IDs) > 0 {
 		db = applyPolicyIDsFilter(db, `"policies"`, filter.IDs)
 	}
 
-	if len(filter.OrderBy) > 0 {
-		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{}, []string{"id", "version", "updated_at", "created_at"})
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// default order
-		db = db.Order(`"policies"."id" ASC`).Order(`"policies"."version" DESC`)
-	}
+	// TODO expose it at proton
+	// default order
+	db = db.Order(`"policies"."created_at" ASC`)
 
 	return db, nil
 }

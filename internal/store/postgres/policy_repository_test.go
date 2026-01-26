@@ -142,6 +142,165 @@ func (s *PolicyRepositoryTestSuite) TestFind() {
 		}
 		s.Nil(actualError)
 	})
+
+	s.Run("should filter by specific policy ID (all versions)", func() {
+		ctx := context.Background()
+
+		// Create test policies with multiple versions
+		testPolicies := []*domain.Policy{
+			{ID: "policy-1", Version: 1, Description: "policy 1 v1"},
+			{ID: "policy-1", Version: 2, Description: "policy 1 v2"},
+			{ID: "policy-2", Version: 1, Description: "policy 2 v1"},
+		}
+
+		for _, p := range testPolicies {
+			err := s.repository.Create(ctx, p)
+			s.Require().NoError(err)
+		}
+
+		// Filter by policy-1 (should return all versions)
+		filter := domain.ListPoliciesFilter{
+			IDs: []string{"policy-1"},
+		}
+
+		result, err := s.repository.Find(ctx, filter)
+		s.NoError(err)
+		s.Len(result, 2)
+		s.Equal("policy-1", result[0].ID)
+		s.Equal("policy-1", result[1].ID)
+	})
+
+	s.Run("should filter by policy ID with latest version (ID:0)", func() {
+		ctx := context.Background()
+
+		testPolicies := []*domain.Policy{
+			{ID: "policy-3", Version: 1, Description: "policy 3 v1"},
+			{ID: "policy-3", Version: 2, Description: "policy 3 v2"},
+			{ID: "policy-3", Version: 3, Description: "policy 3 v3"},
+		}
+
+		for _, p := range testPolicies {
+			err := s.repository.Create(ctx, p)
+			s.Require().NoError(err)
+		}
+
+		// Filter by policy-3:0 (should return latest version only)
+		filter := domain.ListPoliciesFilter{
+			IDs: []string{"policy-3:0"},
+		}
+
+		result, err := s.repository.Find(ctx, filter)
+		s.NoError(err)
+		s.Len(result, 1)
+		s.Equal("policy-3", result[0].ID)
+		s.Equal(uint(3), result[0].Version)
+	})
+
+	s.Run("should filter by policy ID with specific version", func() {
+		ctx := context.Background()
+
+		testPolicies := []*domain.Policy{
+			{ID: "policy-4", Version: 1, Description: "policy 4 v1"},
+			{ID: "policy-4", Version: 2, Description: "policy 4 v2"},
+			{ID: "policy-4", Version: 3, Description: "policy 4 v3"},
+		}
+
+		for _, p := range testPolicies {
+			err := s.repository.Create(ctx, p)
+			s.Require().NoError(err)
+		}
+
+		// Filter by policy-4:2 (should return version 2 only)
+		filter := domain.ListPoliciesFilter{
+			IDs: []string{"policy-4:2"},
+		}
+
+		result, err := s.repository.Find(ctx, filter)
+		s.NoError(err)
+		s.Len(result, 1)
+		s.Equal("policy-4", result[0].ID)
+		s.Equal(uint(2), result[0].Version)
+	})
+
+	s.Run("should filter by multiple policy IDs with mixed formats", func() {
+		ctx := context.Background()
+
+		testPolicies := []*domain.Policy{
+			{ID: "policy-5", Version: 1, Description: "policy 5 v1"},
+			{ID: "policy-5", Version: 2, Description: "policy 5 v2"},
+			{ID: "policy-6", Version: 1, Description: "policy 6 v1"},
+			{ID: "policy-6", Version: 2, Description: "policy 6 v2"},
+			{ID: "policy-7", Version: 1, Description: "policy 7 v1"},
+		}
+
+		for _, p := range testPolicies {
+			err := s.repository.Create(ctx, p)
+			s.Require().NoError(err)
+		}
+
+		// Filter by mixed formats: policy-5 (all), policy-6:0 (latest), policy-7:1 (specific)
+		filter := domain.ListPoliciesFilter{
+			IDs: []string{"policy-5", "policy-6:0", "policy-7:1"},
+		}
+
+		result, err := s.repository.Find(ctx, filter)
+		s.NoError(err)
+		s.Len(result, 4) // policy-5 (2 versions) + policy-6 (latest) + policy-7 (v1)
+
+		// Count occurrences
+		idVersionCount := make(map[string]int)
+		for _, p := range result {
+			key := p.ID
+			if p.ID == "policy-5" {
+				idVersionCount[key]++
+			} else if p.ID == "policy-6" {
+				s.Equal(uint(2), p.Version) // should be latest
+			} else if p.ID == "policy-7" {
+				s.Equal(uint(1), p.Version) // should be v1
+			}
+		}
+		s.Equal(2, idVersionCount["policy-5"]) // all versions
+	})
+
+	s.Run("should support pagination with size and offset", func() {
+		ctx := context.Background()
+
+		testPolicies := []*domain.Policy{
+			{ID: "page-policy-1", Version: 1},
+			{ID: "page-policy-2", Version: 1},
+			{ID: "page-policy-3", Version: 1},
+			{ID: "page-policy-4", Version: 1},
+			{ID: "page-policy-5", Version: 1},
+		}
+
+		for _, p := range testPolicies {
+			err := s.repository.Create(ctx, p)
+			s.Require().NoError(err)
+		}
+
+		// Get first 2 policies
+		filter := domain.ListPoliciesFilter{
+			IDs:    []string{"page-policy-1", "page-policy-2", "page-policy-3", "page-policy-4", "page-policy-5"},
+			Size:   2,
+			Offset: 0,
+		}
+
+		result, err := s.repository.Find(ctx, filter)
+		s.NoError(err)
+		s.Len(result, 2)
+
+		// Get next 2 policies
+		filter.Offset = 2
+		result, err = s.repository.Find(ctx, filter)
+		s.NoError(err)
+		s.Len(result, 2)
+
+		// Get last policy
+		filter.Offset = 4
+		result, err = s.repository.Find(ctx, filter)
+		s.NoError(err)
+		s.Len(result, 1)
+	})
 }
 
 func (s *PolicyRepositoryTestSuite) TestGetOne() {

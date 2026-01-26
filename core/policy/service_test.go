@@ -874,6 +874,114 @@ func (s *ServiceTestSuite) TestFind() {
 		s.mockPolicyRepository.AssertExpectations(s.T())
 		s.mockCrypto.AssertExpectations(s.T())
 	})
+
+	s.Run("should pass filter parameters to repository", func() {
+		filter := domain.ListPoliciesFilter{
+			IDs:    []string{"policy-1", "policy-2:1"},
+			Size:   10,
+			Offset: 5,
+		}
+
+		dummyPolicies := []*domain.Policy{
+			{ID: "policy-1", Version: 1},
+			{ID: "policy-2", Version: 1},
+		}
+
+		s.mockPolicyRepository.EXPECT().
+			Find(mock.Anything, mock.MatchedBy(func(f domain.ListPoliciesFilter) bool {
+				return len(f.IDs) == 2 &&
+					f.IDs[0] == "policy-1" &&
+					f.IDs[1] == "policy-2:1" &&
+					f.Size == 10 &&
+					f.Offset == 5
+			})).
+			Return(dummyPolicies, nil).Once()
+
+		actualResult, actualError := s.service.Find(context.Background(), filter)
+
+		s.Nil(actualError)
+		s.Len(actualResult, 2)
+		s.mockPolicyRepository.AssertExpectations(s.T())
+	})
+
+	s.Run("should filter by specific policy IDs", func() {
+		filter := domain.ListPoliciesFilter{
+			IDs: []string{"test-policy-1", "test-policy-2"},
+		}
+
+		dummyPolicies := []*domain.Policy{
+			{ID: "test-policy-1", Version: 1},
+			{ID: "test-policy-2", Version: 1},
+		}
+
+		s.mockPolicyRepository.EXPECT().
+			Find(mock.Anything, mock.MatchedBy(func(f domain.ListPoliciesFilter) bool {
+				return len(f.IDs) == 2 && f.IDs[0] == "test-policy-1" && f.IDs[1] == "test-policy-2"
+			})).
+			Return(dummyPolicies, nil).Once()
+
+		actualResult, actualError := s.service.Find(context.Background(), filter)
+
+		s.Nil(actualError)
+		s.Len(actualResult, 2)
+		s.Equal("test-policy-1", actualResult[0].ID)
+		s.Equal("test-policy-2", actualResult[1].ID)
+		s.mockPolicyRepository.AssertExpectations(s.T())
+	})
+
+	s.Run("should apply pagination filters", func() {
+		filter := domain.ListPoliciesFilter{
+			Size:   5,
+			Offset: 10,
+		}
+
+		dummyPolicies := []*domain.Policy{
+			{ID: "policy-1", Version: 1},
+			{ID: "policy-2", Version: 1},
+			{ID: "policy-3", Version: 1},
+			{ID: "policy-4", Version: 1},
+			{ID: "policy-5", Version: 1},
+		}
+
+		s.mockPolicyRepository.EXPECT().
+			Find(mock.Anything, mock.MatchedBy(func(f domain.ListPoliciesFilter) bool {
+				return f.Size == 5 && f.Offset == 10
+			})).
+			Return(dummyPolicies, nil).Once()
+
+		actualResult, actualError := s.service.Find(context.Background(), filter)
+
+		s.Nil(actualError)
+		s.Len(actualResult, 5)
+		s.mockPolicyRepository.AssertExpectations(s.T())
+	})
+
+	s.Run("should handle filter by policy ID with version format", func() {
+		filter := domain.ListPoliciesFilter{
+			IDs: []string{"policy-1:2", "policy-2:0"}, // policy-1 version 2, policy-2 latest
+		}
+
+		dummyPolicies := []*domain.Policy{
+			{ID: "policy-1", Version: 2},
+			{ID: "policy-2", Version: 3}, // latest
+		}
+
+		s.mockPolicyRepository.EXPECT().
+			Find(mock.Anything, mock.MatchedBy(func(f domain.ListPoliciesFilter) bool {
+				return len(f.IDs) == 2 && f.IDs[0] == "policy-1:2" && f.IDs[1] == "policy-2:0"
+			})).
+			Return(dummyPolicies, nil).Once()
+
+		actualResult, actualError := s.service.Find(context.Background(), filter)
+
+		s.Nil(actualError)
+		s.Len(actualResult, 2)
+		s.Equal("policy-1", actualResult[0].ID)
+		s.Equal(uint(2), actualResult[0].Version)
+		s.Equal("policy-2", actualResult[1].ID)
+		s.Equal(uint(3), actualResult[1].Version)
+		s.mockPolicyRepository.AssertExpectations(s.T())
+	})
 }
 
 func (s *ServiceTestSuite) TestGetOne() {

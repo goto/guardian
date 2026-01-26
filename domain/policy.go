@@ -524,8 +524,16 @@ func (p *Policy) AllowsUserLabels() bool {
 }
 
 type ListPoliciesFilter struct {
-	Size    int      `mapstructure:"size" json:"size,omitempty" validate:"omitempty"`
-	Offset  int      `mapstructure:"offset" json:"offset,omitempty" validate:"omitempty"`
-	OrderBy []string `mapstructure:"order_by" validate:"omitempty,min=1"`
-	IDs     []string `mapstructure:"ids" json:"ids,omitempty" validate:"omitempty"`
+	Size       int      `mapstructure:"size" json:"size,omitempty" validate:"omitempty"`
+	Offset     int      `mapstructure:"offset" json:"offset,omitempty" validate:"omitempty"`
+	IDs        []string `mapstructure:"ids" json:"ids,omitempty" validate:"omitempty"`
+	FieldMasks []string `mapstructure:"field_masks" json:"field_masks,omitempty" validate:"omitempty"`
+}
+
+func (pf ListPoliciesFilter) WithPolicies() bool {
+	return !slices.GenericsSliceContainsOne(pf.FieldMasks, "policies")
+}
+
+func (pf ListPoliciesFilter) WithTotal() bool {
+	return !slices.GenericsSliceContainsOne(pf.FieldMasks, "total")
 }

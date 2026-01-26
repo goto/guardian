@@ -26,6 +26,7 @@ type repository interface {
 	Create(context.Context, *domain.Policy) error
 	Find(context.Context, domain.ListPoliciesFilter) ([]*domain.Policy, error)
 	GetOne(ctx context.Context, id string, version uint) (*domain.Policy, error)
+	GetCount(context.Context, domain.ListPoliciesFilter) (int64, error)
 }
 
 //go:generate mockery --name=providerService --exported --with-expecter
@@ -194,6 +195,11 @@ func (s *Service) Find(ctx context.Context, filter domain.ListPoliciesFilter) ([
 		}
 	}
 	return policies, nil
+}
+
+// GetCount returns the total count of policies
+func (s *Service) GetCount(ctx context.Context, filter domain.ListPoliciesFilter) (int64, error) {
+	return s.repository.GetCount(ctx, filter)
 }
 
 // GetOne record
