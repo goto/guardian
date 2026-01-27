@@ -628,6 +628,23 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "qLabels",
+            "description": "Supported formats:\n- \"\u003ckey\u003e\" -\u003e returns appeals that match with the key\n- \"\u003ckey\u003e:\u003cvalue\u003e\" -\u003e returns appeals that match with the key and value",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -2686,6 +2703,23 @@
           },
           {
             "name": "notDetailsForSelfCriteria",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "qLabels",
+            "description": "Supported formats:\n- \"\u003ckey\u003e\" -\u003e returns appeals that match with the key\n- \"\u003ckey\u003e:\u003cvalue\u003e\" -\u003e returns appeals that match with the key and value",
             "in": "query",
             "required": false,
             "type": "array",
@@ -6371,6 +6405,35 @@
           "format": "int32"
         },
         "uniquesCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1beta1SummaryResultLabel"
+          }
+        },
+        "labelsCount": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1beta1SummaryResultLabel": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "count": {
           "type": "integer",
           "format": "int32"
         }

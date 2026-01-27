@@ -114,16 +114,23 @@ func (r *AppealRepository) GenerateSummary(ctx context.Context, filters *domain.
 
 	sr := new(domain.SummaryResult)
 
-	dbGen := func() (*gorm.DB, error) {
+	dbGen := func(gCtx context.Context) (*gorm.DB, error) {
 		// omit offset & size & order_by
 		f := filters
 		f.Offset = 0
 		f.Size = 0
 		f.OrderBy = nil
 
-		db := r.db.WithContext(ctx)
+		db := r.db.WithContext(gCtx)
 		db = applyAppealsJoins(db)
 		return applyAppealsFilter(db, f)
+	}
+
+	if filters.SummaryLabels {
+		sr.SummaryLabels, err = generateLabelSummaries(ctx, dbGen, "appeals", "labels")
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if len(filters.SummaryUniques) > 0 {
@@ -433,6 +440,17 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 
 	if len(filters.LabelKeys) > 0 {
 		db = applyLabelKeyFilters(db, filters.LabelKeys)
+	}
+
+	if len(filters.QLabels) > 0 {
+		for _, q := range filters.QLabels {
+			p := strings.SplitN(strings.TrimSpace(q), ":", 2)
+			if len(p) == 1 && p[0] != "" {
+				db = db.Where(`"appeals"."labels" ? ?`, p[0])
+			} else if len(p) == 2 && p[0] != "" && p[1] != "" {
+				db = db.Where(`"appeals"."labels" ->> ? = ?`, p[0], p[1])
+			}
+		}
 	}
 
 	return db, nil
