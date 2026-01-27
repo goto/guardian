@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -443,17 +444,49 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 	}
 
 	if len(filters.QLabels) > 0 {
-		for _, q := range filters.QLabels {
-			p := strings.SplitN(strings.TrimSpace(q), ":", 2)
-			if len(p) == 1 && p[0] != "" {
-				db = db.Where(fmt.Sprintf(`"appeals"."labels" ? '%s'`, p[0]))
-			} else if len(p) == 2 && p[0] != "" && p[1] != "" {
-				db = db.Where(`"appeals"."labels" ->> ? = ?`, p[0], p[1])
-			}
-		}
+		db = applyQLabels(db, filters.QLabels)
 	}
 
 	return db, nil
+}
+
+func applyQLabels(db *gorm.DB, qlabels []string) *gorm.DB {
+	type labelFilter struct {
+		exists bool
+		values []string
+	}
+	byKey := map[string]*labelFilter{}
+	for _, q := range qlabels {
+		p := strings.SplitN(strings.TrimSpace(q), ":", 2)
+		if len(p) == 0 || strings.TrimSpace(p[0]) == "" {
+			continue
+		}
+		key := strings.TrimSpace(p[0])
+		f := byKey[key]
+		if f == nil {
+			f = &labelFilter{}
+			byKey[key] = f
+		}
+		if len(p) == 1 {
+			f.exists = true
+			continue
+		}
+		val := strings.TrimSpace(p[1])
+		if val == "" {
+			continue
+		}
+		f.values = append(f.values, val)
+	}
+	for key, f := range byKey {
+		if len(f.values) > 0 {
+			db = db.Where(`"appeals"."labels" ->> ? IN ?`, key, f.values)
+			continue
+		}
+		if f.exists {
+			db = db.Where(fmt.Sprintf(`"appeals"."labels" ? %s`, pq.QuoteLiteral(key)))
+		}
+	}
+	return db
 }
 
 // applyLabelFilters applies label key-value filtering with OR logic for multiple values
