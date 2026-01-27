@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -379,6 +378,10 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		return nil, err
 	}
 
+	if len(filters.QLabels) > 0 {
+		db = applyQLabelsFilter(db, filters.QLabels)
+	}
+
 	if len(filters.DetailsForSelfCriteria) != 0 && len(filters.NotDetailsForSelfCriteria) != 0 {
 		return nil, fmt.Errorf("cannot use both details_for_self_criteria and not_details_for_self_criteria filters")
 	}
@@ -443,50 +446,7 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		db = applyLabelKeyFilters(db, filters.LabelKeys)
 	}
 
-	if len(filters.QLabels) > 0 {
-		db = applyQLabels(db, filters.QLabels)
-	}
-
 	return db, nil
-}
-
-func applyQLabels(db *gorm.DB, qlabels []string) *gorm.DB {
-	type labelFilter struct {
-		exists bool
-		values []string
-	}
-	byKey := map[string]*labelFilter{}
-	for _, q := range qlabels {
-		p := strings.SplitN(strings.TrimSpace(q), ":", 2)
-		if len(p) == 0 || strings.TrimSpace(p[0]) == "" {
-			continue
-		}
-		key := strings.TrimSpace(p[0])
-		f := byKey[key]
-		if f == nil {
-			f = &labelFilter{}
-			byKey[key] = f
-		}
-		if len(p) == 1 {
-			f.exists = true
-			continue
-		}
-		val := strings.TrimSpace(p[1])
-		if val == "" {
-			continue
-		}
-		f.values = append(f.values, val)
-	}
-	for key, f := range byKey {
-		if len(f.values) > 0 {
-			db = db.Where(`"appeals"."labels" ->> ? IN ?`, key, f.values)
-			continue
-		}
-		if f.exists {
-			db = db.Where(fmt.Sprintf(`"appeals"."labels" ? %s`, pq.QuoteLiteral(key)))
-		}
-	}
-	return db
 }
 
 // applyLabelFilters applies label key-value filtering with OR logic for multiple values
