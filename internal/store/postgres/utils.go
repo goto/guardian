@@ -87,46 +87,44 @@ func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*g
 	if err != nil {
 		return nil, err
 	}
-
-	type row struct {
-		Key    string         `gorm:"column:key"`
-		Values pq.StringArray `gorm:"column:values;type:text[]"`
+	var rows []struct {
+		Key    string
+		Values pq.StringArray `gorm:"type:text[]"`
 	}
-
-	var rows []row
-
 	fullLabelColumn := fmt.Sprintf("%s.%s", baseTableName, labelColumnName)
 	query := fmt.Sprintf(`
 		SELECT
-			e.key,
-			array_agg(DISTINCT e.value #>> '{}' ORDER BY e.value #>> '{}') AS values
-		FROM %s a
-		CROSS JOIN LATERAL jsonb_each(%s) e(key, value)
+			key,
+			array_agg(
+				DISTINCT trim(both '"' from value::text)
+				ORDER BY trim(both '"' from value::text)
+			) AS values
+		FROM %s,
+		     jsonb_each(%s)
 		WHERE %s IS NOT NULL
 		  AND %s <> 'null'::jsonb
 		  AND %s <> '{}'::jsonb
-		  AND jsonb_typeof(e.value) = 'string'
-		  AND (e.value #>> '{}') <> '<nil>'
-		GROUP BY e.key
-	`, baseTableName, fullLabelColumn,
-		fullLabelColumn, fullLabelColumn, fullLabelColumn,
+		  AND jsonb_typeof(value) = 'string'
+		  AND trim(both '"' from value::text) <> '<nil>'
+		GROUP BY key
+	`,
+		baseTableName,
+		fullLabelColumn,
+		fullLabelColumn,
+		fullLabelColumn,
+		fullLabelColumn,
 	)
-
 	if err = db.Raw(query).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
-
 	ret := make([]*domain.SummaryLabel, len(rows))
 	for i, r := range rows {
-		vals := []string(r.Values) // convert pq.StringArray -> []string
-
 		ret[i] = &domain.SummaryLabel{
 			Key:    r.Key,
-			Values: slicesUtil.GenericsStandardizeSlice(vals),
+			Values: slicesUtil.GenericsStandardizeSlice(r.Values),
 		}
 		ret[i].Count = int32(len(ret[i].Values))
 	}
-
 	return ret, nil
 }
 
