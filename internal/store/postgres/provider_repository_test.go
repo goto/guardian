@@ -9,13 +9,14 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
+	"github.com/ory/dockertest/v3"
+	"github.com/stretchr/testify/suite"
+
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/pkg/postgrestest"
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/suite"
 )
 
 type ProviderRepositoryTestSuite struct {
@@ -128,11 +129,336 @@ func (s *ProviderRepositoryTestSuite) TestFind() {
 			}
 		}
 
-		actualRecords, actualError := s.repository.Find(ctx)
+		actualRecords, actualError := s.repository.Find(ctx, domain.ListProvidersFilter{})
 
 		s.Nil(actualError)
 		s.NotEmpty(actualRecords)
 		s.Equal(len(expectedRecords), len(actualRecords))
+	})
+
+	s.Run("should filter providers by IDs", func() {
+		ctx := context.Background()
+		expectedRecords := []*domain.Provider{
+			{
+				Type: "test-type-1",
+				URN:  "test-urn-1",
+				Config: &domain.ProviderConfig{
+					Type: "test-type-1",
+					URN:  "test-urn-1",
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "test-resource-type",
+							Roles: []*domain.Role{
+								{ID: "test-role", Name: "test role", Permissions: []interface{}{"test-permission"}},
+							},
+						},
+					},
+					Credentials: map[string]string{},
+					Appeal: &domain.AppealConfig{
+						AllowActiveAccessExtensionIn: "1h",
+					},
+				},
+			},
+			{
+				Type: "test-type-2",
+				URN:  "test-urn-2",
+				Config: &domain.ProviderConfig{
+					Type: "test-type-2",
+					URN:  "test-urn-2",
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "test-resource-type",
+							Roles: []*domain.Role{
+								{ID: "test-role", Name: "test role", Permissions: []interface{}{"test-permission"}},
+							},
+						},
+					},
+					Credentials: map[string]string{},
+					Appeal: &domain.AppealConfig{
+						AllowActiveAccessExtensionIn: "1h",
+					},
+				},
+			},
+		}
+		for _, p := range expectedRecords {
+			err := s.repository.Create(ctx, p)
+			if err != nil {
+				s.Nil(err)
+			}
+		}
+
+		filter := domain.ListProvidersFilter{
+			IDs: []string{expectedRecords[0].ID},
+		}
+		actualRecords, actualError := s.repository.Find(ctx, filter)
+
+		s.Nil(actualError)
+		s.Equal(1, len(actualRecords))
+		s.Equal(expectedRecords[0].ID, actualRecords[0].ID)
+	})
+
+	s.Run("should filter providers by URNs", func() {
+		ctx := context.Background()
+		expectedRecords := []*domain.Provider{
+			{
+				Type: "test-type-3",
+				URN:  "test-urn-3",
+				Config: &domain.ProviderConfig{
+					Type: "test-type-3",
+					URN:  "test-urn-3",
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "test-resource-type",
+							Roles: []*domain.Role{
+								{ID: "test-role", Name: "test role", Permissions: []interface{}{"test-permission"}},
+							},
+						},
+					},
+					Credentials: map[string]string{},
+					Appeal: &domain.AppealConfig{
+						AllowActiveAccessExtensionIn: "1h",
+					},
+				},
+			},
+		}
+		for _, p := range expectedRecords {
+			err := s.repository.Create(ctx, p)
+			if err != nil {
+				s.Nil(err)
+			}
+		}
+
+		filter := domain.ListProvidersFilter{
+			URNs: []string{"test-urn-3"},
+		}
+		actualRecords, actualError := s.repository.Find(ctx, filter)
+
+		s.Nil(actualError)
+		s.GreaterOrEqual(len(actualRecords), 1)
+		s.Equal("test-urn-3", actualRecords[0].URN)
+	})
+
+	s.Run("should filter providers by URN and Type", func() {
+		ctx := context.Background()
+		expectedRecords := []*domain.Provider{
+			{
+				Type: "test-type-4",
+				URN:  "test-urn-4",
+				Config: &domain.ProviderConfig{
+					Type: "test-type-4",
+					URN:  "test-urn-4",
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "test-resource-type",
+							Roles: []*domain.Role{
+								{ID: "test-role", Name: "test role", Permissions: []interface{}{"test-permission"}},
+							},
+						},
+					},
+					Credentials: map[string]string{},
+					Appeal: &domain.AppealConfig{
+						AllowActiveAccessExtensionIn: "1h",
+					},
+				},
+			},
+		}
+		for _, p := range expectedRecords {
+			err := s.repository.Create(ctx, p)
+			if err != nil {
+				s.Nil(err)
+			}
+		}
+
+		filter := domain.ListProvidersFilter{
+			URNs: []string{"test-urn-4:test-type-4"},
+		}
+		actualRecords, actualError := s.repository.Find(ctx, filter)
+
+		s.Nil(actualError)
+		s.GreaterOrEqual(len(actualRecords), 1)
+		s.Equal("test-urn-4", actualRecords[0].URN)
+		s.Equal("test-type-4", actualRecords[0].Type)
+	})
+
+	s.Run("should filter providers by Types", func() {
+		ctx := context.Background()
+		expectedRecords := []*domain.Provider{
+			{
+				Type: "test-type-5",
+				URN:  "test-urn-5",
+				Config: &domain.ProviderConfig{
+					Type: "test-type-5",
+					URN:  "test-urn-5",
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "test-resource-type",
+							Roles: []*domain.Role{
+								{ID: "test-role", Name: "test role", Permissions: []interface{}{"test-permission"}},
+							},
+						},
+					},
+					Credentials: map[string]string{},
+					Appeal: &domain.AppealConfig{
+						AllowActiveAccessExtensionIn: "1h",
+					},
+				},
+			},
+		}
+		for _, p := range expectedRecords {
+			err := s.repository.Create(ctx, p)
+			if err != nil {
+				s.Nil(err)
+			}
+		}
+
+		filter := domain.ListProvidersFilter{
+			Types: []string{"test-type-5"},
+		}
+		actualRecords, actualError := s.repository.Find(ctx, filter)
+
+		s.Nil(actualError)
+		s.GreaterOrEqual(len(actualRecords), 1)
+		s.Equal("test-type-5", actualRecords[0].Type)
+	})
+
+	s.Run("should apply pagination with size and offset", func() {
+		ctx := context.Background()
+		expectedRecords := []*domain.Provider{
+			{
+				Type: "test-type-6",
+				URN:  "test-urn-6",
+				Config: &domain.ProviderConfig{
+					Type: "test-type-6",
+					URN:  "test-urn-6",
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "test-resource-type",
+							Roles: []*domain.Role{
+								{ID: "test-role", Name: "test role", Permissions: []interface{}{"test-permission"}},
+							},
+						},
+					},
+					Credentials: map[string]string{},
+					Appeal: &domain.AppealConfig{
+						AllowActiveAccessExtensionIn: "1h",
+					},
+				},
+			},
+			{
+				Type: "test-type-7",
+				URN:  "test-urn-7",
+				Config: &domain.ProviderConfig{
+					Type: "test-type-7",
+					URN:  "test-urn-7",
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "test-resource-type",
+							Roles: []*domain.Role{
+								{ID: "test-role", Name: "test role", Permissions: []interface{}{"test-permission"}},
+							},
+						},
+					},
+					Credentials: map[string]string{},
+					Appeal: &domain.AppealConfig{
+						AllowActiveAccessExtensionIn: "1h",
+					},
+				},
+			},
+		}
+		for _, p := range expectedRecords {
+			err := s.repository.Create(ctx, p)
+			if err != nil {
+				s.Nil(err)
+			}
+		}
+
+		filter := domain.ListProvidersFilter{
+			Size:   1,
+			Offset: 0,
+		}
+		actualRecords, actualError := s.repository.Find(ctx, filter)
+
+		s.Nil(actualError)
+		s.Equal(1, len(actualRecords))
+	})
+}
+
+func (s *ProviderRepositoryTestSuite) TestGetCount() {
+	ctx := context.Background()
+
+	s.Run("should return total count of all providers when no filter", func() {
+		expectedRecords := []*domain.Provider{
+			{
+				Type: "test-type-count-1",
+				URN:  "test-urn-count-1",
+				Config: &domain.ProviderConfig{
+					Type: "test-type-count-1",
+					URN:  "test-urn-count-1",
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "test-resource-type",
+							Roles: []*domain.Role{
+								{ID: "test-role", Name: "test role", Permissions: []interface{}{"test-permission"}},
+							},
+						},
+					},
+					Credentials: map[string]string{},
+					Appeal: &domain.AppealConfig{
+						AllowActiveAccessExtensionIn: "1h",
+					},
+				},
+			},
+		}
+		for _, p := range expectedRecords {
+			err := s.repository.Create(ctx, p)
+			if err != nil {
+				s.Nil(err)
+			}
+		}
+
+		count, err := s.repository.GetCount(ctx, domain.ListProvidersFilter{})
+
+		s.Nil(err)
+		s.GreaterOrEqual(count, int64(1))
+	})
+
+	s.Run("should return count matching filter criteria", func() {
+		expectedRecords := []*domain.Provider{
+			{
+				Type: "test-type-count-2",
+				URN:  "test-urn-count-2",
+				Config: &domain.ProviderConfig{
+					Type: "test-type-count-2",
+					URN:  "test-urn-count-2",
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "test-resource-type",
+							Roles: []*domain.Role{
+								{ID: "test-role", Name: "test role", Permissions: []interface{}{"test-permission"}},
+							},
+						},
+					},
+					Credentials: map[string]string{},
+					Appeal: &domain.AppealConfig{
+						AllowActiveAccessExtensionIn: "1h",
+					},
+				},
+			},
+		}
+		for _, p := range expectedRecords {
+			err := s.repository.Create(ctx, p)
+			if err != nil {
+				s.Nil(err)
+			}
+		}
+
+		filter := domain.ListProvidersFilter{
+			Types: []string{"test-type-count-2"},
+		}
+		count, err := s.repository.GetCount(ctx, filter)
+
+		s.Nil(err)
+		s.GreaterOrEqual(count, int64(1))
 	})
 }
 

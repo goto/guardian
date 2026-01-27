@@ -79,7 +79,8 @@ type activityService interface {
 type providerService interface {
 	Create(context.Context, *domain.Provider) error
 	PatchResource(context.Context, *domain.Resource) error
-	Find(context.Context) ([]*domain.Provider, error)
+	Find(context.Context, domain.ListProvidersFilter) ([]*domain.Provider, error)
+	GetCount(context.Context, domain.ListProvidersFilter) (int64, error)
 	GetByID(context.Context, string) (*domain.Provider, error)
 	GetTypes(context.Context) ([]domain.ProviderType, error)
 	GetOne(ctx context.Context, pType, urn string) (*domain.Provider, error)
@@ -96,8 +97,9 @@ type providerService interface {
 //go:generate mockery --name=policyService --exported --with-expecter
 type policyService interface {
 	Create(context.Context, *domain.Policy) error
-	Find(context.Context) ([]*domain.Policy, error)
+	Find(context.Context, domain.ListPoliciesFilter) ([]*domain.Policy, error)
 	GetOne(ctx context.Context, id string, version uint) (*domain.Policy, error)
+	GetCount(context.Context, domain.ListPoliciesFilter) (int64, error)
 	Update(context.Context, *domain.Policy) error
 }
 

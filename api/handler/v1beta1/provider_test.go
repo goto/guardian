@@ -99,9 +99,14 @@ func (s *GrpcHandlersSuite) TestListProvider() {
 					UpdatedAt: timestamppb.New(timeNow),
 				},
 			},
+			Total: 1,
 		}
-		s.providerService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).
+		mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
+		mockFilter := mock.AnythingOfType("domain.ListProvidersFilter")
+		s.providerService.EXPECT().Find(mockCtx, mockFilter).
 			Return(dummyProviders, nil).Once()
+		s.providerService.EXPECT().GetCount(mockCtx, mockFilter).
+			Return(int64(len(dummyProviders)), nil).Once()
 
 		req := &guardianv1beta1.ListProvidersRequest{}
 		res, err := s.grpcServer.ListProviders(context.Background(), req)
@@ -115,8 +120,12 @@ func (s *GrpcHandlersSuite) TestListProvider() {
 		s.setup()
 
 		expectedError := errors.New("random error")
-		s.providerService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).
+		mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
+		mockFilter := mock.AnythingOfType("domain.ListProvidersFilter")
+		s.providerService.EXPECT().Find(mockCtx, mockFilter).
 			Return(nil, expectedError).Once()
+		s.providerService.EXPECT().GetCount(mockCtx, mockFilter).
+			Return(int64(0), nil).Once()
 
 		req := &guardianv1beta1.ListProvidersRequest{}
 		res, err := s.grpcServer.ListProviders(context.Background(), req)
@@ -144,14 +153,251 @@ func (s *GrpcHandlersSuite) TestListProvider() {
 				},
 			},
 		}
-		s.providerService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).
+		mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
+		mockFilter := mock.AnythingOfType("domain.ListProvidersFilter")
+		s.providerService.EXPECT().Find(mockCtx, mockFilter).
 			Return(expectedProviders, nil).Once()
+		s.providerService.EXPECT().GetCount(mockCtx, mockFilter).
+			Return(int64(len(expectedProviders)), nil).Once()
 
 		req := &guardianv1beta1.ListProvidersRequest{}
 		res, err := s.grpcServer.ListProviders(context.Background(), req)
 
 		s.Equal(codes.Internal, status.Code(err))
 		s.Nil(res)
+		s.providerService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return providers with filters applied", func() {
+		s.setup()
+		timeNow := time.Now()
+
+		dummyProviders := []*domain.Provider{
+			{
+				ID:   "test-id-1",
+				Type: "bigquery",
+				URN:  "test-urn-1",
+				Config: &domain.ProviderConfig{
+					Type:                "bigquery",
+					URN:                 "test-urn-1",
+					AllowedAccountTypes: []string{"user"},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "test-resource-type",
+							Policy: &domain.PolicyConfig{
+								ID:      "test-policy",
+								Version: 1,
+							},
+							Roles: []*domain.Role{
+								{ID: "test-role-id", Name: "test-name"},
+							},
+						},
+					},
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess:         true,
+						AllowActiveAccessExtensionIn: "24h",
+					},
+				},
+				CreatedAt: timeNow,
+				UpdatedAt: timeNow,
+			},
+		}
+		mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
+		mockFilter := mock.MatchedBy(func(f domain.ListProvidersFilter) bool {
+			return len(f.Types) == 1 && f.Types[0] == "bigquery"
+		})
+		s.providerService.EXPECT().Find(mockCtx, mockFilter).
+			Return(dummyProviders, nil).Once()
+		s.providerService.EXPECT().GetCount(mockCtx, mockFilter).
+			Return(int64(1), nil).Once()
+
+		req := &guardianv1beta1.ListProvidersRequest{
+			Types: []string{"bigquery"},
+		}
+		res, err := s.grpcServer.ListProviders(context.Background(), req)
+
+		s.NoError(err)
+		s.NotNil(res)
+		s.Equal(1, len(res.Providers))
+		s.Equal(int32(1), res.Total)
+		s.Equal("bigquery", res.Providers[0].Type)
+		s.providerService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return providers filtered by IDs", func() {
+		s.setup()
+		timeNow := time.Now()
+
+		dummyProviders := []*domain.Provider{
+			{
+				ID:   "test-id-1",
+				Type: "bigquery",
+				URN:  "test-urn-1",
+				Config: &domain.ProviderConfig{
+					Type:                "bigquery",
+					URN:                 "test-urn-1",
+					AllowedAccountTypes: []string{"user"},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "test-resource-type",
+							Roles: []*domain.Role{
+								{ID: "test-role-id", Name: "test-name"},
+							},
+						},
+					},
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess:         true,
+						AllowActiveAccessExtensionIn: "24h",
+					},
+				},
+				CreatedAt: timeNow,
+				UpdatedAt: timeNow,
+			},
+		}
+		mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
+		mockFilter := mock.MatchedBy(func(f domain.ListProvidersFilter) bool {
+			return len(f.IDs) == 1 && f.IDs[0] == "test-id-1"
+		})
+		s.providerService.EXPECT().Find(mockCtx, mockFilter).
+			Return(dummyProviders, nil).Once()
+		s.providerService.EXPECT().GetCount(mockCtx, mockFilter).
+			Return(int64(1), nil).Once()
+
+		req := &guardianv1beta1.ListProvidersRequest{
+			Ids: []string{"test-id-1"},
+		}
+		res, err := s.grpcServer.ListProviders(context.Background(), req)
+
+		s.NoError(err)
+		s.NotNil(res)
+		s.Equal(1, len(res.Providers))
+		s.Equal(int32(1), res.Total)
+		s.Equal("test-id-1", res.Providers[0].Id)
+		s.providerService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return providers filtered by URNs", func() {
+		s.setup()
+		timeNow := time.Now()
+
+		dummyProviders := []*domain.Provider{
+			{
+				ID:   "test-id-1",
+				Type: "bigquery",
+				URN:  "test-urn-1",
+				Config: &domain.ProviderConfig{
+					Type:                "bigquery",
+					URN:                 "test-urn-1",
+					AllowedAccountTypes: []string{"user"},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "test-resource-type",
+							Roles: []*domain.Role{
+								{ID: "test-role-id", Name: "test-name"},
+							},
+						},
+					},
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess:         true,
+						AllowActiveAccessExtensionIn: "24h",
+					},
+				},
+				CreatedAt: timeNow,
+				UpdatedAt: timeNow,
+			},
+		}
+		mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
+		mockFilter := mock.MatchedBy(func(f domain.ListProvidersFilter) bool {
+			return len(f.URNs) == 1 && f.URNs[0] == "test-urn-1"
+		})
+		s.providerService.EXPECT().Find(mockCtx, mockFilter).
+			Return(dummyProviders, nil).Once()
+		s.providerService.EXPECT().GetCount(mockCtx, mockFilter).
+			Return(int64(1), nil).Once()
+
+		req := &guardianv1beta1.ListProvidersRequest{
+			Urns: []string{"test-urn-1"},
+		}
+		res, err := s.grpcServer.ListProviders(context.Background(), req)
+
+		s.NoError(err)
+		s.NotNil(res)
+		s.Equal(1, len(res.Providers))
+		s.Equal(int32(1), res.Total)
+		s.Equal("test-urn-1", res.Providers[0].Urn)
+		s.providerService.AssertExpectations(s.T())
+	})
+
+	s.Run("should apply pagination with size and offset", func() {
+		s.setup()
+		timeNow := time.Now()
+
+		dummyProviders := []*domain.Provider{
+			{
+				ID:   "test-id-1",
+				Type: "bigquery",
+				URN:  "test-urn-1",
+				Config: &domain.ProviderConfig{
+					Type:                "bigquery",
+					URN:                 "test-urn-1",
+					AllowedAccountTypes: []string{"user"},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "test-resource-type",
+							Roles: []*domain.Role{
+								{ID: "test-role-id", Name: "test-name"},
+							},
+						},
+					},
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess:         true,
+						AllowActiveAccessExtensionIn: "24h",
+					},
+				},
+				CreatedAt: timeNow,
+				UpdatedAt: timeNow,
+			},
+		}
+		mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
+		mockFilter := mock.MatchedBy(func(f domain.ListProvidersFilter) bool {
+			return f.Size == 10 && f.Offset == 5
+		})
+		s.providerService.EXPECT().Find(mockCtx, mockFilter).
+			Return(dummyProviders, nil).Once()
+		s.providerService.EXPECT().GetCount(mockCtx, mockFilter).
+			Return(int64(100), nil).Once()
+
+		req := &guardianv1beta1.ListProvidersRequest{
+			Size:   10,
+			Offset: 5,
+		}
+		res, err := s.grpcServer.ListProviders(context.Background(), req)
+
+		s.NoError(err)
+		s.NotNil(res)
+		s.Equal(1, len(res.Providers))
+		s.Equal(int32(100), res.Total)
+		s.providerService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return error if GetCount fails", func() {
+		s.setup()
+
+		dummyProviders := []*domain.Provider{}
+		expectedError := errors.New("count error")
+		mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
+		mockFilter := mock.AnythingOfType("domain.ListProvidersFilter")
+		s.providerService.EXPECT().Find(mockCtx, mockFilter).
+			Return(dummyProviders, nil).Once()
+		s.providerService.EXPECT().GetCount(mockCtx, mockFilter).
+			Return(int64(0), expectedError).Once()
+
+		req := &guardianv1beta1.ListProvidersRequest{}
+		res, err := s.grpcServer.ListProviders(context.Background(), req)
+
+		s.Error(err)
+		s.Nil(res)
+		s.Equal(codes.Internal, status.Code(err))
 		s.providerService.AssertExpectations(s.T())
 	})
 }

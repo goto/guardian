@@ -15,6 +15,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
+
 	"github.com/goto/guardian/core/appeal"
 	appealmocks "github.com/goto/guardian/core/appeal/mocks"
 	"github.com/goto/guardian/core/comment"
@@ -26,9 +30,6 @@ import (
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/mocks"
 	"github.com/goto/guardian/pkg/log"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
 )
 
 var (
@@ -56,6 +57,8 @@ type serviceTestHelper struct {
 
 func (h *serviceTestHelper) assertExpectations(t *testing.T) {
 	t.Helper()
+	// wait go routines to finish
+	time.Sleep(200 * time.Millisecond)
 	h.mockRepository.AssertExpectations(t)
 	h.mockCommentRepo.AssertExpectations(t)
 	h.mockAuditLogRepo.AssertExpectations(t)
@@ -218,8 +221,8 @@ func (s *ServiceTestSuite) TestCreate() {
 		expectedPolicies := []*domain.Policy{}
 		expectedAppeals := []*domain.Appeal{}
 		h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(nil, expectedError).Once()
-		h.mockProviderService.EXPECT().Find(mock.Anything).Return(expectedProviders, nil).Once()
-		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(expectedPolicies, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedProviders, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedPolicies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
 			Return(expectedAppeals, nil).Once()
@@ -237,8 +240,8 @@ func (s *ServiceTestSuite) TestCreate() {
 		expectedPolicies := []*domain.Policy{}
 		expectedAppeals := []*domain.Appeal{}
 		h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedResources, nil).Once()
-		h.mockProviderService.EXPECT().Find(mock.Anything).Return(nil, expectedError).Once()
-		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(expectedPolicies, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return(nil, expectedError).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedPolicies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
 			Return(expectedAppeals, nil).Once()
@@ -256,8 +259,8 @@ func (s *ServiceTestSuite) TestCreate() {
 		expectedError := fmt.Errorf("error getting service map: %w", errors.New("service service error"))
 		expectedAppeals := []*domain.Appeal{}
 		h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedResources, nil).Once()
-		h.mockProviderService.EXPECT().Find(mock.Anything).Return(expectedProviders, nil).Once()
-		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(nil, expectedError).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedProviders, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return(nil, expectedError).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
 			Return(expectedAppeals, nil).Once()
@@ -274,8 +277,8 @@ func (s *ServiceTestSuite) TestCreate() {
 		expectedProviders := []*domain.Provider{}
 		expectedPolicies := []*domain.Policy{}
 		h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedResources, nil).Once()
-		h.mockProviderService.EXPECT().Find(mock.Anything).Return(expectedProviders, nil).Once()
-		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(expectedPolicies, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedProviders, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedPolicies, nil).Once()
 		expectedError := errors.New("appeal repository error")
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
@@ -665,10 +668,10 @@ func (s *ServiceTestSuite) TestCreate() {
 					Find(mock.Anything, mock.Anything).
 					Return(tc.resources, nil).Once()
 				h.mockProviderService.EXPECT().
-					Find(mock.Anything).
+					Find(mock.Anything, mock.Anything).
 					Return(tc.providers, nil).Once()
 				h.mockPolicyService.EXPECT().
-					Find(mock.Anything).
+					Find(mock.Anything, mock.Anything).
 					Return(tc.policies, nil).Once()
 				h.mockRepository.EXPECT().
 					Find(h.ctxMatcher, mock.Anything).
@@ -705,10 +708,10 @@ func (s *ServiceTestSuite) TestCreate() {
 			Find(mock.Anything, mock.Anything).
 			Return(expectedResources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(mock.Anything).
+			Find(mock.Anything, mock.Anything).
 			Return(expectedProviders, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(mock.Anything).
+			Find(mock.Anything, mock.Anything).
 			Return(expectedPolicies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
@@ -1047,9 +1050,9 @@ func (s *ServiceTestSuite) TestCreate() {
 		h.mockResourceService.EXPECT().
 			Find(mock.Anything, expectedResourceFilters).Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(mock.Anything).Return(providers, nil).Once()
+			Find(mock.Anything, mock.Anything).Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(mock.Anything).Return(policies, nil).Once()
+			Find(mock.Anything, mock.Anything).Return(policies, nil).Once()
 		expectedExistingAppealsFilters := &domain.ListAppealsFilter{
 			Statuses:   []string{domain.AppealStatusPending},
 			AccountIDs: []string{"test@email.com", "addOnBehalfApprovedNotification-user"},
@@ -1517,9 +1520,9 @@ func (s *ServiceTestSuite) TestCreate() {
 		h.mockResourceService.EXPECT().
 			Find(mock.Anything, expectedResourceFilters).Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(mock.Anything).Return(providers, nil).Once()
+			Find(mock.Anything, mock.Anything).Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(mock.Anything).Return(policies, nil).Once()
+			Find(mock.Anything, mock.Anything).Return(policies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, expectedExistingAppealsFilters).
 			Return(expectedExistingAppeals, nil).Once()
@@ -1958,9 +1961,9 @@ func (s *ServiceTestSuite) TestCreate() {
 		h.mockResourceService.EXPECT().
 			Find(mock.Anything, expectedResourceFilters).Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(mock.Anything).Return(providers, nil).Once()
+			Find(mock.Anything, mock.Anything).Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(mock.Anything).Return(policies, nil).Once()
+			Find(mock.Anything, mock.Anything).Return(policies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, expectedExistingAppealsFilters).
 			Return(expectedExistingAppeals, nil).Once()
@@ -2268,9 +2271,9 @@ func (s *ServiceTestSuite) TestCreate() {
 		h.mockResourceService.EXPECT().
 			Find(mock.Anything, expectedResourceFilters).Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(mock.Anything).Return(providers, nil).Once()
+			Find(mock.Anything, mock.Anything).Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(mock.Anything).Return(policies, nil).Once()
+			Find(mock.Anything, mock.Anything).Return(policies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, expectedExistingAppealsFilters).
 			Return(expectedExistingAppeals, nil).Once()
@@ -2488,9 +2491,9 @@ func (s *ServiceTestSuite) TestCreate() {
 		h.mockResourceService.EXPECT().
 			Find(mock.Anything, expectedResourceFilters).Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(mock.Anything).Return(providers, nil).Once()
+			Find(mock.Anything, mock.Anything).Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(mock.Anything).Return(policies, nil).Once()
+			Find(mock.Anything, mock.Anything).Return(policies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, expectedExistingAppealsFilters).
 			Return(expectedExistingAppeals, nil).Once()
@@ -2773,9 +2776,9 @@ func (s *ServiceTestSuite) TestCreate() {
 		h.mockResourceService.EXPECT().
 			Find(mock.Anything, expectedResourceFilters).Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(mock.Anything).Return(providers, nil).Once()
+			Find(mock.Anything, mock.Anything).Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(mock.Anything).Return(policies, nil).Once()
+			Find(mock.Anything, mock.Anything).Return(policies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, expectedExistingAppealsFilters).
 			Return(expectedExistingAppeals, nil).Once()
@@ -2895,8 +2898,8 @@ func (s *ServiceTestSuite) TestCreate() {
 			}
 
 			h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Resource{dummyResource}, nil).Once()
-			h.mockProviderService.EXPECT().Find(mock.Anything).Return([]*domain.Provider{dummyProvider}, nil).Once()
-			h.mockPolicyService.EXPECT().Find(mock.Anything).Return([]*domain.Policy{dummyPolicy, overriddingPolicy}, nil).Once()
+			h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Provider{dummyProvider}, nil).Once()
+			h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Policy{dummyPolicy, overriddingPolicy}, nil).Once()
 			h.mockRepository.EXPECT().
 				Find(h.ctxMatcher, mock.Anything).
 				Return([]*domain.Appeal{}, nil).Once()
@@ -3128,8 +3131,8 @@ func (s *ServiceTestSuite) TestCreate__WithExistingAppealAndWithAutoApprovalStep
 
 	expectedResourceFilters := domain.ListResourcesFilter{IDs: resourceIDs}
 	h.mockResourceService.EXPECT().Find(mock.Anything, expectedResourceFilters).Return(resources, nil).Once()
-	h.mockProviderService.EXPECT().Find(mock.Anything).Return(providers, nil).Once()
-	h.mockPolicyService.EXPECT().Find(mock.Anything).Return(policies, nil).Once()
+	h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return(providers, nil).Once()
+	h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return(policies, nil).Once()
 	expectedExistingAppealsFilters := &domain.ListAppealsFilter{
 		Statuses:   []string{domain.AppealStatusPending},
 		AccountIDs: []string{accountID},
@@ -3305,8 +3308,8 @@ func (s *ServiceTestSuite) TestCreate__WithAdditionalAppeals() {
 	// 1.a main appeal creation
 	expectedResourceFilters := domain.ListResourcesFilter{IDs: []string{appealsPayload[0].Resource.ID}}
 	h.mockResourceService.EXPECT().Find(h.ctxMatcher, expectedResourceFilters).Return([]*domain.Resource{resources[0]}, nil).Once()
-	h.mockProviderService.EXPECT().Find(h.ctxMatcher).Return(providers, nil).Once()
-	h.mockPolicyService.EXPECT().Find(h.ctxMatcher).Return(policies, nil).Once()
+	h.mockProviderService.EXPECT().Find(h.ctxMatcher, mock.Anything).Return(providers, nil).Once()
+	h.mockPolicyService.EXPECT().Find(h.ctxMatcher, mock.Anything).Return(policies, nil).Once()
 	h.mockGrantService.EXPECT().List(h.ctxMatcher, mock.AnythingOfType("domain.ListGrantsFilter")).Return([]domain.Grant{}, nil).Once().Run(func(args mock.Arguments) {
 		filter := args.Get(1).(domain.ListGrantsFilter)
 		s.Equal([]string{appealsPayload[0].AccountID}, filter.AccountIDs)
@@ -3335,8 +3338,8 @@ func (s *ServiceTestSuite) TestCreate__WithAdditionalAppeals() {
 	h.mockResourceService.EXPECT().Get(mock.AnythingOfType("*context.cancelCtx"), targetResource).Return(resources[1], nil).Once()
 	expectedResourceFilters = domain.ListResourcesFilter{IDs: []string{resources[1].ID}}
 	h.mockResourceService.EXPECT().Find(mock.AnythingOfType("*context.cancelCtx"), expectedResourceFilters).Return([]*domain.Resource{resources[1]}, nil).Once()
-	h.mockProviderService.EXPECT().Find(mock.AnythingOfType("*context.cancelCtx")).Return(providers, nil).Once()
-	h.mockPolicyService.EXPECT().Find(mock.AnythingOfType("*context.cancelCtx")).Return(policies, nil).Once()
+	h.mockProviderService.EXPECT().Find(mock.AnythingOfType("*context.cancelCtx"), mock.Anything).Return(providers, nil).Once()
+	h.mockPolicyService.EXPECT().Find(mock.AnythingOfType("*context.cancelCtx"), mock.Anything).Return(policies, nil).Once()
 	h.mockProviderService.EXPECT().
 		IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
 		Return(false).Once()
@@ -3607,9 +3610,9 @@ func (s *ServiceTestSuite) TestCreate__WithAppealMetadata() {
 		Find(mock.Anything, expectedResourceFilters).
 		Return(resources, nil).Once()
 	h.mockProviderService.EXPECT().
-		Find(mock.Anything).Return(providers, nil).Once()
+		Find(mock.Anything, mock.Anything).Return(providers, nil).Once()
 	h.mockPolicyService.EXPECT().
-		Find(mock.Anything).Return(policies, nil).Once()
+		Find(mock.Anything, mock.Anything).Return(policies, nil).Once()
 	expectedExistingAppealsFilters := &domain.ListAppealsFilter{
 		Statuses:   []string{domain.AppealStatusPending},
 		AccountIDs: []string{"test@email.com"},
@@ -3757,8 +3760,8 @@ func (s *ServiceTestSuite) TestPatch() {
 		expectedAppeals := []*domain.Appeal{}
 		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(&domain.Appeal{ID: appealID, ResourceID: "1", Status: domain.AppealStatusPending, Options: &domain.AppealOptions{}}, nil).Once()
 		h.mockResourceService.EXPECT().Get(mock.Anything, mock.Anything).Return(nil, expectedError).Once()
-		h.mockProviderService.EXPECT().Find(mock.Anything).Return(expectedProviders, nil).Once()
-		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(expectedPolicies, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedProviders, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedPolicies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
 			Return(expectedAppeals, nil).Once()
@@ -3776,8 +3779,8 @@ func (s *ServiceTestSuite) TestPatch() {
 		expectedAppeals := []*domain.Appeal{}
 		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(&domain.Appeal{ID: appealID, ResourceID: "1", Status: domain.AppealStatusPending, Options: &domain.AppealOptions{}}, nil).Once()
 		h.mockResourceService.EXPECT().Get(mock.Anything, mock.Anything).Return(expectedResource, nil).Once()
-		h.mockProviderService.EXPECT().Find(mock.Anything).Return(nil, expectedError).Once()
-		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(expectedPolicies, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return(nil, expectedError).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedPolicies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
 			Return(expectedAppeals, nil).Once()
@@ -3795,8 +3798,8 @@ func (s *ServiceTestSuite) TestPatch() {
 		expectedAppeals := []*domain.Appeal{}
 		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(&domain.Appeal{ID: appealID, ResourceID: "1", Status: domain.AppealStatusPending, Options: &domain.AppealOptions{}}, nil).Once()
 		h.mockResourceService.EXPECT().Get(mock.Anything, mock.Anything).Return(expectedResource, nil).Once()
-		h.mockProviderService.EXPECT().Find(mock.Anything).Return(expectedProviders, nil).Once()
-		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(nil, expectedError).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedProviders, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return(nil, expectedError).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
 			Return(expectedAppeals, nil).Once()
@@ -3814,8 +3817,8 @@ func (s *ServiceTestSuite) TestPatch() {
 		expectedPolicies := []*domain.Policy{}
 		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(&domain.Appeal{ID: appealID, ResourceID: "1", Status: domain.AppealStatusPending, Options: &domain.AppealOptions{}}, nil).Once()
 		h.mockResourceService.EXPECT().Get(mock.Anything, mock.Anything).Return(expectedResource, nil).Once()
-		h.mockProviderService.EXPECT().Find(mock.Anything).Return(expectedProviders, nil).Once()
-		h.mockPolicyService.EXPECT().Find(mock.Anything).Return(expectedPolicies, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedProviders, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return(expectedPolicies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
 			Return(nil, expectedError).Once()
@@ -4268,10 +4271,10 @@ func (s *ServiceTestSuite) TestPatch() {
 					Get(mock.Anything, mock.Anything).
 					Return(tc.resource, nil).Once()
 				h.mockProviderService.EXPECT().
-					Find(mock.Anything).
+					Find(mock.Anything, mock.Anything).
 					Return(tc.providers, nil).Once()
 				h.mockPolicyService.EXPECT().
-					Find(mock.Anything).
+					Find(mock.Anything, mock.Anything).
 					Return(tc.policies, nil).Once()
 				h.mockRepository.EXPECT().
 					Find(h.ctxMatcher, mock.Anything).
@@ -4336,10 +4339,10 @@ func (s *ServiceTestSuite) TestPatch() {
 			Get(mock.Anything, mock.Anything).
 			Return(expectedResource, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(mock.Anything).
+			Find(mock.Anything, mock.Anything).
 			Return(expectedProviders, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(mock.Anything).
+			Find(mock.Anything, mock.Anything).
 			Return(expectedPolicies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
@@ -4814,10 +4817,10 @@ func (s *ServiceTestSuite) TestPatch() {
 					h.mockResourceService.EXPECT().Get(mock.Anything, mock.Anything).Return(resources[1], nil).Once()
 				}
 				h.mockProviderService.EXPECT().
-					Find(mock.Anything).
+					Find(mock.Anything, mock.Anything).
 					Return(providers, nil).Once()
 				h.mockPolicyService.EXPECT().
-					Find(mock.Anything).
+					Find(mock.Anything, mock.Anything).
 					Return(policies, nil).Once()
 				h.mockRepository.EXPECT().
 					Find(h.ctxMatcher, mock.Anything).
@@ -6163,7 +6166,6 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		s.NoError(actualError)
 		s.NotNil(actualResult)
 	})
-
 }
 
 func (s *ServiceTestSuite) TestGrantAccessToProvider() {
@@ -7004,10 +7006,10 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 			Find(h.ctxMatcher, mock.Anything).
 			Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(policies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
@@ -7097,10 +7099,10 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 			Find(h.ctxMatcher, mock.Anything).
 			Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(policies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
@@ -7229,10 +7231,10 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 			Find(h.ctxMatcher, mock.Anything).
 			Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(policies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
@@ -7398,10 +7400,10 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 			Find(h.ctxMatcher, mock.Anything).
 			Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(policies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
@@ -7599,10 +7601,10 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 			Find(h.ctxMatcher, mock.Anything).
 			Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(policies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
@@ -7777,10 +7779,10 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 			Find(h.ctxMatcher, mock.Anything).
 			Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(policies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
@@ -7931,10 +7933,10 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 			Find(h.ctxMatcher, mock.Anything).
 			Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(policies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
@@ -8118,10 +8120,10 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 			Find(h.ctxMatcher, mock.Anything).
 			Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(policies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).
@@ -8323,10 +8325,10 @@ func (s *ServiceTestSuite) TestCreate__WithLabeling() {
 			Find(h.ctxMatcher, mock.Anything).
 			Return(resources, nil).Once()
 		h.mockProviderService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(providers, nil).Once()
 		h.mockPolicyService.EXPECT().
-			Find(h.ctxMatcher).
+			Find(h.ctxMatcher, mock.Anything).
 			Return(policies, nil).Once()
 		h.mockRepository.EXPECT().
 			Find(h.ctxMatcher, mock.Anything).

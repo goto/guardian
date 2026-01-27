@@ -38,6 +38,7 @@ func (s *GrpcHandlersSuite) TestListPolicies() {
 					},
 				},
 			},
+			Total: 1,
 		}
 		dummyPolicies := []*domain.Policy{
 			{
@@ -56,7 +57,8 @@ func (s *GrpcHandlersSuite) TestListPolicies() {
 				},
 			},
 		}
-		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(dummyPolicies, nil).Once()
+		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(dummyPolicies, nil).Once()
+		s.policyService.EXPECT().GetCount(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(int64(1), nil).Once()
 
 		req := &guardianv1beta1.ListPoliciesRequest{}
 		res, err := s.grpcServer.ListPolicies(context.Background(), req)
@@ -73,11 +75,13 @@ func (s *GrpcHandlersSuite) TestListPolicies() {
 			Policies: []*guardianv1beta1.Policy{
 				{Id: "test-policy"},
 			},
+			Total: 1,
 		}
 		dummyPolicies := []*domain.Policy{
 			{ID: "test-policy"}, // iam is nil
 		}
-		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(dummyPolicies, nil).Once()
+		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(dummyPolicies, nil).Once()
+		s.policyService.EXPECT().GetCount(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(int64(1), nil).Once()
 
 		req := &guardianv1beta1.ListPoliciesRequest{}
 		res, err := s.grpcServer.ListPolicies(context.Background(), req)
@@ -91,13 +95,123 @@ func (s *GrpcHandlersSuite) TestListPolicies() {
 		s.setup()
 
 		expectedError := errors.New("random error")
-		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(nil, expectedError).Once()
+		s.policyService.EXPECT().Find(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(nil, expectedError).Once()
+		s.policyService.EXPECT().GetCount(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(int64(0), nil).Once()
 
 		req := &guardianv1beta1.ListPoliciesRequest{}
 		res, err := s.grpcServer.ListPolicies(context.Background(), req)
 
 		s.Equal(codes.Internal, status.Code(err))
 		s.Nil(res)
+		s.policyService.AssertExpectations(s.T())
+	})
+
+	s.Run("should filter policies by IDs", func() {
+		s.setup()
+
+		dummyPolicies := []*domain.Policy{
+			{ID: "policy-1", Version: 1},
+			{ID: "policy-2", Version: 1},
+		}
+
+		s.policyService.EXPECT().
+			Find(mock.Anything, mock.MatchedBy(func(f domain.ListPoliciesFilter) bool {
+				return len(f.IDs) == 2 && f.IDs[0] == "policy-1" && f.IDs[1] == "policy-2"
+			})).
+			Return(dummyPolicies, nil).Once()
+		s.policyService.EXPECT().GetCount(mock.Anything, mock.Anything).Return(int64(2), nil).Once()
+
+		req := &guardianv1beta1.ListPoliciesRequest{
+			Ids: []string{"policy-1", "policy-2"},
+		}
+		res, err := s.grpcServer.ListPolicies(context.Background(), req)
+
+		s.NoError(err)
+		s.Len(res.Policies, 2)
+		s.Equal("policy-1", res.Policies[0].Id)
+		s.Equal("policy-2", res.Policies[1].Id)
+		s.policyService.AssertExpectations(s.T())
+	})
+
+	s.Run("should filter policies by IDs with version format", func() {
+		s.setup()
+
+		dummyPolicies := []*domain.Policy{
+			{ID: "policy-1", Version: 2},
+			{ID: "policy-2", Version: 3},
+		}
+
+		s.policyService.EXPECT().
+			Find(mock.Anything, mock.MatchedBy(func(f domain.ListPoliciesFilter) bool {
+				return len(f.IDs) == 2 && f.IDs[0] == "policy-1:2" && f.IDs[1] == "policy-2:0"
+			})).
+			Return(dummyPolicies, nil).Once()
+		s.policyService.EXPECT().GetCount(mock.Anything, mock.Anything).Return(int64(2), nil).Once()
+
+		req := &guardianv1beta1.ListPoliciesRequest{
+			Ids: []string{"policy-1:2", "policy-2:0"}, // policy-1 version 2, policy-2 latest
+		}
+		res, err := s.grpcServer.ListPolicies(context.Background(), req)
+
+		s.NoError(err)
+		s.Len(res.Policies, 2)
+		s.Equal("policy-1", res.Policies[0].Id)
+		s.Equal(uint32(2), res.Policies[0].Version)
+		s.Equal("policy-2", res.Policies[1].Id)
+		s.Equal(uint32(3), res.Policies[1].Version)
+		s.policyService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return all versions when filtering by policy ID without version", func() {
+		s.setup()
+
+		dummyPolicies := []*domain.Policy{
+			{ID: "policy-1", Version: 1},
+			{ID: "policy-1", Version: 2},
+			{ID: "policy-1", Version: 3},
+		}
+
+		s.policyService.EXPECT().
+			Find(mock.Anything, mock.MatchedBy(func(f domain.ListPoliciesFilter) bool {
+				return len(f.IDs) == 1 && f.IDs[0] == "policy-1"
+			})).
+			Return(dummyPolicies, nil).Once()
+		s.policyService.EXPECT().GetCount(mock.Anything, mock.Anything).Return(int64(2), nil).Once()
+
+		req := &guardianv1beta1.ListPoliciesRequest{
+			Ids: []string{"policy-1"},
+		}
+		res, err := s.grpcServer.ListPolicies(context.Background(), req)
+
+		s.NoError(err)
+		s.Len(res.Policies, 3)
+		s.Equal("policy-1", res.Policies[0].Id)
+		s.Equal("policy-1", res.Policies[1].Id)
+		s.Equal("policy-1", res.Policies[2].Id)
+		s.policyService.AssertExpectations(s.T())
+	})
+
+	s.Run("should handle empty filter (return all policies)", func() {
+		s.setup()
+
+		dummyPolicies := []*domain.Policy{
+			{ID: "policy-1", Version: 1},
+			{ID: "policy-2", Version: 1},
+			{ID: "policy-3", Version: 1},
+		}
+
+		s.policyService.EXPECT().
+			Find(mock.Anything, mock.MatchedBy(func(f domain.ListPoliciesFilter) bool {
+				return len(f.IDs) == 0
+			})).
+			Return(dummyPolicies, nil).Once()
+		s.policyService.EXPECT().GetCount(mock.Anything, mock.Anything).Return(int64(2), nil).Once()
+
+		req := &guardianv1beta1.ListPoliciesRequest{}
+		res, err := s.grpcServer.ListPolicies(context.Background(), req)
+
+		s.NoError(err)
+		s.Len(res.Policies, 3)
 		s.policyService.AssertExpectations(s.T())
 	})
 }

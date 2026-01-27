@@ -22,9 +22,9 @@ func (_m *ProviderService) EXPECT() *ProviderService_Expecter {
 	return &ProviderService_Expecter{mock: &_m.Mock}
 }
 
-// Find provides a mock function with given fields: _a0
-func (_m *ProviderService) Find(_a0 context.Context) ([]*domain.Provider, error) {
-	ret := _m.Called(_a0)
+// Find provides a mock function with given fields: _a0, _a1
+func (_m *ProviderService) Find(_a0 context.Context, _a1 domain.ListProvidersFilter) ([]*domain.Provider, error) {
+	ret := _m.Called(_a0, _a1)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Find")
@@ -32,19 +32,19 @@ func (_m *ProviderService) Find(_a0 context.Context) ([]*domain.Provider, error)
 
 	var r0 []*domain.Provider
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]*domain.Provider, error)); ok {
-		return rf(_a0)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListProvidersFilter) ([]*domain.Provider, error)); ok {
+		return rf(_a0, _a1)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []*domain.Provider); ok {
-		r0 = rf(_a0)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListProvidersFilter) []*domain.Provider); ok {
+		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*domain.Provider)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(_a0)
+	if rf, ok := ret.Get(1).(func(context.Context, domain.ListProvidersFilter) error); ok {
+		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -59,13 +59,14 @@ type ProviderService_Find_Call struct {
 
 // Find is a helper method to define mock.On call
 //   - _a0 context.Context
-func (_e *ProviderService_Expecter) Find(_a0 interface{}) *ProviderService_Find_Call {
-	return &ProviderService_Find_Call{Call: _e.mock.On("Find", _a0)}
+//   - _a1 domain.ListProvidersFilter
+func (_e *ProviderService_Expecter) Find(_a0 interface{}, _a1 interface{}) *ProviderService_Find_Call {
+	return &ProviderService_Find_Call{Call: _e.mock.On("Find", _a0, _a1)}
 }
 
-func (_c *ProviderService_Find_Call) Run(run func(_a0 context.Context)) *ProviderService_Find_Call {
+func (_c *ProviderService_Find_Call) Run(run func(_a0 context.Context, _a1 domain.ListProvidersFilter)) *ProviderService_Find_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
+		run(args[0].(context.Context), args[1].(domain.ListProvidersFilter))
 	})
 	return _c
 }
@@ -75,7 +76,7 @@ func (_c *ProviderService_Find_Call) Return(_a0 []*domain.Provider, _a1 error) *
 	return _c
 }
 
-func (_c *ProviderService_Find_Call) RunAndReturn(run func(context.Context) ([]*domain.Provider, error)) *ProviderService_Find_Call {
+func (_c *ProviderService_Find_Call) RunAndReturn(run func(context.Context, domain.ListProvidersFilter) ([]*domain.Provider, error)) *ProviderService_Find_Call {
 	_c.Call.Return(run)
 	return _c
 }

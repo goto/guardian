@@ -468,6 +468,35 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		return nil, err
 	}
 
+	if len(filter.AppealDetailsForSelfCriteria) != 0 {
+		var exprs []string
+		for _, p := range filter.AppealDetailsForSelfCriteria {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			p = strings.ReplaceAll(p, ".", ",")
+			exprs = append(exprs, fmt.Sprintf(`"_Appeal"."details" #>> '{%s}'`, p))
+		}
+		if len(exprs) > 0 {
+			db = db.Where(fmt.Sprintf(`"_Appeal"."created_by" = ANY (ARRAY[%s])`, strings.Join(exprs, ",")))
+		}
+	}
+	if len(filter.NotAppealDetailsForSelfCriteria) != 0 {
+		var exprs []string
+		for _, p := range filter.NotAppealDetailsForSelfCriteria {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			p = strings.ReplaceAll(p, ".", ",")
+			exprs = append(exprs, fmt.Sprintf(`COALESCE("_Appeal"."details" #>> '{%s}', '')`, p))
+		}
+		if len(exprs) > 0 {
+			db = db.Where(fmt.Sprintf(`("grants"."appeal_id" IS NULL OR NOT ("_Appeal"."created_by" = ANY (ARRAY[%s])))`, strings.Join(exprs, ",")))
+		}
+	}
+
 	if !filter.StartTime.IsZero() && !filter.EndTime.IsZero() {
 		db = db.Where(`"grants"."created_at" BETWEEN ? AND ?`, filter.StartTime, filter.EndTime)
 	} else if !filter.StartTime.IsZero() {

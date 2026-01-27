@@ -204,69 +204,70 @@ func (gu *GrantUpdate) Validate(current Grant) error {
 }
 
 type ListGrantsFilter struct {
-	NotIDs                    []string
-	Statuses                  []string
-	AccountIDs                []string
-	AccountTypes              []string
-	GroupIDs                  []string
-	GroupTypes                []string
-	ResourceIDs               []string
-	Roles                     []string
-	Permissions               []string
-	ProviderTypes             []string
-	ProviderURNs              []string
-	ResourceTypes             []string
-	ResourceURNs              []string
-	CreatedBy                 string
-	Owner                     string
-	OrderBy                   []string
-	ExpirationDateLessThan    time.Time
-	ExpirationDateGreaterThan time.Time
-	IsPermanent               *bool
-	CreatedAtLte              time.Time
-	WithApprovals             bool
-	Size                      int    `mapstructure:"size" validate:"omitempty"`
-	Offset                    int    `mapstructure:"offset" validate:"omitempty"`
-	Q                         string `mapstructure:"q" validate:"omitempty"`
-	StartTime                 time.Time
-	EndTime                   time.Time
-	SummaryGroupBys           []string
-	SummaryUniques            []string
-	SummaryDistinctCounts     []string
-	ExpiringInDays            int
-	FieldMasks                []string
-	WithPendingAppeal         bool
-	RoleStartsWith            string
-	RoleEndsWith              string
-	RoleContains              string
-	Owners                    []string
-	ProviderUrnStartsWith     string
-	ProviderUrnEndsWith       string
-	ProviderUrnContains       string
-	ProviderUrnNotStartsWith  string
-	ProviderUrnNotEndsWith    string
-	ProviderUrnNotContains    string
-	AppealDurations           []string
-	NotAppealDurations        []string
-	AppealDetailsPaths        []string
-	AppealDetails             []string
-	NotAppealDetails          []string
-	RoleNotStartsWith         string
-	RoleNotEndsWith           string
-	RoleNotContains           string
-
-	AppealDetailsStartsWith    string
-	AppealDetailsEndsWith      string
-	AppealDetailsContains      string
-	AppealDetailsNotStartsWith string
-	AppealDetailsNotEndsWith   string
-	AppealDetailsNotContains   string
-	GroupTypeStartsWith        string
-	GroupTypeEndsWith          string
-	GroupTypeContains          string
-	GroupTypeNotStartsWith     string
-	GroupTypeNotEndsWith       string
-	GroupTypeNotContains       string
+	NotIDs                          []string
+	Statuses                        []string
+	AccountIDs                      []string
+	AccountTypes                    []string
+	GroupIDs                        []string
+	GroupTypes                      []string
+	ResourceIDs                     []string
+	Roles                           []string
+	Permissions                     []string
+	ProviderTypes                   []string
+	ProviderURNs                    []string
+	ResourceTypes                   []string
+	ResourceURNs                    []string
+	CreatedBy                       string
+	Owner                           string
+	OrderBy                         []string
+	ExpirationDateLessThan          time.Time
+	ExpirationDateGreaterThan       time.Time
+	IsPermanent                     *bool
+	CreatedAtLte                    time.Time
+	WithApprovals                   bool
+	Size                            int    `mapstructure:"size" validate:"omitempty"`
+	Offset                          int    `mapstructure:"offset" validate:"omitempty"`
+	Q                               string `mapstructure:"q" validate:"omitempty"`
+	StartTime                       time.Time
+	EndTime                         time.Time
+	SummaryGroupBys                 []string
+	SummaryUniques                  []string
+	SummaryDistinctCounts           []string
+	ExpiringInDays                  int
+	FieldMasks                      []string
+	WithPendingAppeal               bool
+	RoleStartsWith                  string
+	RoleEndsWith                    string
+	RoleContains                    string
+	Owners                          []string
+	ProviderUrnStartsWith           string
+	ProviderUrnEndsWith             string
+	ProviderUrnContains             string
+	ProviderUrnNotStartsWith        string
+	ProviderUrnNotEndsWith          string
+	ProviderUrnNotContains          string
+	AppealDurations                 []string
+	NotAppealDurations              []string
+	AppealDetailsPaths              []string
+	AppealDetails                   []string
+	NotAppealDetails                []string
+	RoleNotStartsWith               string
+	RoleNotEndsWith                 string
+	RoleNotContains                 string
+	AppealDetailsStartsWith         string
+	AppealDetailsEndsWith           string
+	AppealDetailsContains           string
+	AppealDetailsNotStartsWith      string
+	AppealDetailsNotEndsWith        string
+	AppealDetailsNotContains        string
+	GroupTypeStartsWith             string
+	GroupTypeEndsWith               string
+	GroupTypeContains               string
+	GroupTypeNotStartsWith          string
+	GroupTypeNotEndsWith            string
+	GroupTypeNotContains            string
+	AppealDetailsForSelfCriteria    []string
+	NotAppealDetailsForSelfCriteria []string
 
 	UserInactiveGrantPolicy guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy
 }

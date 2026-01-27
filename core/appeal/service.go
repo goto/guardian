@@ -68,7 +68,7 @@ type notifier interface {
 
 //go:generate mockery --name=policyService --exported --with-expecter
 type policyService interface {
-	Find(context.Context) ([]*domain.Policy, error)
+	Find(context.Context, domain.ListPoliciesFilter) ([]*domain.Policy, error)
 	GetOne(context.Context, string, uint) (*domain.Policy, error)
 }
 
@@ -80,7 +80,7 @@ type approvalService interface {
 
 //go:generate mockery --name=providerService --exported --with-expecter
 type providerService interface {
-	Find(context.Context) ([]*domain.Provider, error)
+	Find(context.Context, domain.ListProvidersFilter) ([]*domain.Provider, error)
 	GrantAccess(context.Context, domain.Grant) error
 	RevokeAccess(context.Context, domain.Grant) error
 	ValidateAppeal(context.Context, *domain.Appeal, *domain.Provider, *domain.Policy) error
@@ -1356,7 +1356,7 @@ func (s *Service) getResourcesMap(ctx context.Context, ids []string) (map[string
 }
 
 func (s *Service) getProvidersMap(ctx context.Context) (map[string]map[string]*domain.Provider, error) {
-	providers, err := s.providerService.Find(ctx)
+	providers, err := s.providerService.Find(ctx, domain.ListProvidersFilter{})
 	if err != nil {
 		return nil, err
 	}
@@ -1377,7 +1377,7 @@ func (s *Service) getProvidersMap(ctx context.Context) (map[string]map[string]*d
 }
 
 func (s *Service) getPoliciesMap(ctx context.Context) (map[string]map[uint]*domain.Policy, error) {
-	policies, err := s.policyService.Find(ctx)
+	policies, err := s.policyService.Find(ctx, domain.ListPoliciesFilter{})
 	if err != nil {
 		return nil, err
 	}

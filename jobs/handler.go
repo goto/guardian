@@ -23,7 +23,7 @@ type grantService interface {
 //go:generate mockery --name=providerService --exported
 type providerService interface {
 	FetchResources(context.Context) error
-	Find(context.Context) ([]*domain.Provider, error)
+	Find(context.Context, domain.ListProvidersFilter) ([]*domain.Provider, error)
 }
 
 //go:generate mockery --name=reportService --exported --with-expecter

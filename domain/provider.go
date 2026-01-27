@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"time"
+
+	"github.com/goto/guardian/pkg/slices"
 )
 
 const (
@@ -130,4 +132,21 @@ type ActivityConfig struct {
 type ProviderPolicy struct {
 	When   string `json:"when" yaml:"when"`
 	Policy string `json:"policy" yaml:"policy"`
+}
+
+type ListProvidersFilter struct {
+	Size       int      `mapstructure:"size" json:"size,omitempty" validate:"omitempty"`
+	Offset     int      `mapstructure:"offset" json:"offset,omitempty" validate:"omitempty"`
+	IDs        []string `mapstructure:"ids" json:"ids,omitempty" validate:"omitempty"`
+	URNs       []string `mapstructure:"urns" json:"urns,omitempty" validate:"omitempty"`
+	Types      []string `mapstructure:"types" json:"types,omitempty" validate:"omitempty"`
+	FieldMasks []string `mapstructure:"field_masks" json:"field_masks,omitempty" validate:"omitempty"`
+}
+
+func (pf ListProvidersFilter) WithProviders() bool {
+	return !slices.GenericsSliceContainsOne(pf.FieldMasks, "providers")
+}
+
+func (pf ListProvidersFilter) WithTotal() bool {
+	return !slices.GenericsSliceContainsOne(pf.FieldMasks, "total")
 }

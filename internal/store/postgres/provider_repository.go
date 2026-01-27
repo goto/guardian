@@ -3,11 +3,13 @@ package postgres
 import (
 	"context"
 	"errors"
+	"strings"
+
+	"gorm.io/gorm"
 
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres/model"
-	"gorm.io/gorm"
 )
 
 // ProviderRepository talks to the store to read or insert data
@@ -44,11 +46,21 @@ func (r *ProviderRepository) Create(ctx context.Context, p *domain.Provider) err
 }
 
 // Find records based on filters
-func (r *ProviderRepository) Find(ctx context.Context) ([]*domain.Provider, error) {
+func (r *ProviderRepository) Find(ctx context.Context, filter domain.ListProvidersFilter) ([]*domain.Provider, error) {
 	providers := []*domain.Provider{}
 
+	db := r.db.WithContext(ctx)
+	db = applyProvidersFilter(db, filter)
+
+	if filter.Size > 0 {
+		db = db.Limit(filter.Size)
+	}
+	if filter.Offset > 0 {
+		db = db.Offset(filter.Offset)
+	}
+
 	var models []*model.Provider
-	if err := r.db.WithContext(ctx).Find(&models).Error; err != nil {
+	if err := db.Find(&models).Error; err != nil {
 		return nil, err
 	}
 	for _, m := range models {
@@ -61,6 +73,19 @@ func (r *ProviderRepository) Find(ctx context.Context) ([]*domain.Provider, erro
 	}
 
 	return providers, nil
+}
+
+// GetCount returns the total count of providers matching the filter
+func (r *ProviderRepository) GetCount(ctx context.Context, filter domain.ListProvidersFilter) (int64, error) {
+	var count int64
+	db := r.db.WithContext(ctx).Model(&model.Provider{})
+	db = applyProvidersFilter(db, filter)
+
+	if err := db.Count(&count).Error; err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
 
 // GetByID record by ID
@@ -186,4 +211,60 @@ func (r *ProviderRepository) Delete(ctx context.Context, id string) error {
 	}
 
 	return nil
+}
+
+func applyProvidersFilter(db *gorm.DB, filter domain.ListProvidersFilter) *gorm.DB {
+	if len(filter.IDs) > 0 {
+		db = db.Where(`"providers"."id" IN ?`, filter.IDs)
+	}
+
+	if len(filter.URNs) > 0 {
+		var urnConds []string
+		var urnArgs []interface{}
+
+		for _, raw := range filter.URNs {
+			s := strings.TrimSpace(raw)
+			if s == "" {
+				continue
+			}
+
+			parts := strings.Split(s, ":")
+			if len(parts) > 2 {
+				continue
+			}
+
+			urn := strings.TrimSpace(parts[0])
+			if urn == "" {
+				continue
+			}
+
+			// "<urn>" → match urn only
+			if len(parts) == 1 {
+				urnConds = append(urnConds, `"providers"."urn" = ?`)
+				urnArgs = append(urnArgs, urn)
+				continue
+			}
+
+			// "<urn>:<type>" → match urn and type
+			typStr := strings.TrimSpace(parts[1])
+			if typStr != "" {
+				urnConds = append(urnConds, `("providers"."urn" = ? AND "providers"."type" = ?)`)
+				urnArgs = append(urnArgs, urn, typStr)
+			}
+		}
+
+		if len(urnConds) > 0 {
+			db = db.Where(strings.Join(urnConds, " OR "), urnArgs...)
+		}
+	}
+
+	if len(filter.Types) > 0 {
+		db = db.Where(`"providers"."type" IN ?`, filter.Types)
+	}
+
+	// TODO expose it at proton
+	// default order
+	db = db.Order(`"providers"."created_at" ASC`)
+
+	return db
 }
