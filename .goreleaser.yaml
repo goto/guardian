@@ -15,8 +15,8 @@ builds:
       - -X github.com/goto/guardian/core.Version={{.Tag}}
       - -X github.com/goto/guardian/core.BuildCommit={{.FullCommit}}
       - -X github.com/goto/guardian/core.BuildDate={{.Date}}
-    goos: [darwin, linux]
-    goarch: [amd64, arm, arm64]
+    goos: [darwin, linux, windows]
+    goarch: [amd64, 386, arm, arm64]
     env:
       - CGO_ENABLED=0
 archives:
@@ -25,9 +25,14 @@ archives:
       {{- .Version }}_
       {{- title .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
       {{- else if eq .Arch "linux" }}linux
+      {{- else if eq .Arch "windows" }}windows
       {{- else if eq .Arch "darwin" }}macos
       {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
 changelog:
   sort: asc
   filters:
