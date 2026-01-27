@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
@@ -89,7 +90,7 @@ func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*g
 	}
 	var rows []struct {
 		Key    string
-		Values []string
+		Values pq.StringArray `gorm:"type:text[]"`
 	}
 	fullLabelColumn := fmt.Sprintf("%s.%s", baseTableName, labelColumnName)
 	query := fmt.Sprintf(`
@@ -338,6 +339,7 @@ func generateSummaryResultCount(result *domain.SummaryResult) *domain.SummaryRes
 	}
 	var labelsCount int32
 	labelsCount = int32(len(result.SummaryLabels))
+
 	return &domain.SummaryResult{
 		SummaryGroups: result.SummaryGroups,
 		GroupsCount:   groupsCount,
