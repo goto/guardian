@@ -95,14 +95,17 @@ func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*g
 	query := fmt.Sprintf(`
 		SELECT
 			key,
-			array_agg(DISTINCT value::text ORDER BY value::text) AS values
+			array_agg(
+				DISTINCT trim(both '"' from value::text)
+				ORDER BY trim(both '"' from value::text)
+			) AS values
 		FROM %s,
 		     jsonb_each(%s)
 		WHERE %s IS NOT NULL
 		  AND %s <> 'null'::jsonb
 		  AND %s <> '{}'::jsonb
 		  AND jsonb_typeof(value) = 'string'
-		  AND value::text <> '<nil>'
+		  AND trim(both '"' from value::text) <> '<nil>'
 		GROUP BY key
 	`,
 		baseTableName,
