@@ -446,7 +446,7 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		for _, q := range filters.QLabels {
 			p := strings.SplitN(strings.TrimSpace(q), ":", 2)
 			if len(p) == 1 && p[0] != "" {
-				db = db.Where(`"appeals"."labels" ?? ?`, p[0])
+				db = db.Where(fmt.Sprintf(`"appeals"."labels" ? '%s'`, p[0]))
 			} else if len(p) == 2 && p[0] != "" && p[1] != "" {
 				db = db.Where(`"appeals"."labels" ->> ? = ?`, p[0], p[1])
 			}
