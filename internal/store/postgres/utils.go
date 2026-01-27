@@ -336,11 +336,17 @@ func generateSummaryResultCount(result *domain.SummaryResult) *domain.SummaryRes
 	for _, v := range result.SummaryUniques {
 		uniquesCount += v.Count
 	}
+	var labelsCount int32
+	labelsCount = int32(len(result.SummaryLabels))
 	return &domain.SummaryResult{
-		SummaryGroups:  result.SummaryGroups,
+		SummaryGroups: result.SummaryGroups,
+		GroupsCount:   groupsCount,
+
 		SummaryUniques: result.SummaryUniques,
-		GroupsCount:    groupsCount,
 		UniquesCount:   uniquesCount,
+
+		SummaryLabels: result.SummaryLabels,
+		LabelsCount:   labelsCount,
 	}
 }
 
