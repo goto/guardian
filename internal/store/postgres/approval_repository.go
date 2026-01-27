@@ -395,5 +395,14 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		}
 	}
 
+	// Label filtering
+	if len(filter.Labels) > 0 {
+		db = applyLabelFilters(db, filter.Labels)
+	}
+
+	if len(filter.LabelKeys) > 0 {
+		db = applyLabelKeyFilters(db, filter.LabelKeys)
+	}
+
 	return db, nil
 }
