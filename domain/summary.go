@@ -22,12 +22,17 @@ type SummaryParameters struct {
 }
 
 type SummaryResult struct {
-	AppliedParameters *SummaryParameters `json:"applied_parameters,omitempty"`
-	SummaryGroups     []*SummaryGroup    `json:"summary_groups,omitempty"`
-	SummaryUniques    []*SummaryUnique   `json:"summary_uniques,omitempty"`
-	Count             int32              `json:"count,omitempty"`
-	GroupsCount       int32              `json:"groups_count,omitempty"`
-	UniquesCount      int32              `json:"uniques_count,omitempty"`
+	AppliedParameters *SummaryParameters `json:"applied_parameters,omitempty"` // deprecated
+	Count             int32              `json:"count,omitempty"`              // deprecated
+
+	SummaryGroups []*SummaryGroup `json:"summary_groups,omitempty"`
+	GroupsCount   int32           `json:"groups_count,omitempty"`
+
+	SummaryUniques []*SummaryUnique `json:"summary_uniques,omitempty"`
+	UniquesCount   int32            `json:"uniques_count,omitempty"`
+
+	SummaryLabels []*SummaryLabel `json:"summary_labels,omitempty"`
+	LabelsCount   int32           `json:"labels_count,omitempty"`
 }
 
 type SummaryUnique struct {
@@ -40,4 +45,10 @@ type SummaryGroup struct {
 	GroupFields    map[string]any   `json:"group_fields,omitempty"`
 	Count          int32            `json:"count,omitempty"`
 	DistinctCounts map[string]int32 `json:"distinct_counts,omitempty"`
+}
+
+type SummaryLabel struct {
+	Key    string   `json:"key,omitempty"`
+	Values []string `json:"values,omitempty"`
+	Count  int32    `json:"count,omitempty"`
 }

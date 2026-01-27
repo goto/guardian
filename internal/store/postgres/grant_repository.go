@@ -86,14 +86,14 @@ func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.Lis
 
 	sr := new(domain.SummaryResult)
 
-	dbGen := func() (*gorm.DB, error) {
+	dbGen := func(gCtx context.Context) (*gorm.DB, error) {
 		// omit offset & size & order_by
 		f := filter
 		f.Offset = 0
 		f.Size = 0
 		f.OrderBy = nil
 
-		db := r.db.WithContext(ctx)
+		db := r.db.WithContext(gCtx)
 		db = applyGrantsJoins(db)
 		return applyGrantsFilter(db, f)
 	}

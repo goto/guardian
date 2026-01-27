@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/goto/guardian/domain"
+	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
 
@@ -81,12 +82,55 @@ func addOrderBy(db *gorm.DB, orderBy string) *gorm.DB {
 	return db
 }
 
-func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error), baseTableName string, fields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryUnique, error) {
+func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*gorm.DB, error), baseTableName, labelColumnName string) ([]*domain.SummaryLabel, error) {
+	db, err := dbGen(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		Key    string
+		Values []string
+	}
+	fullLabelColumn := fmt.Sprintf("%s.%s", baseTableName, labelColumnName)
+	query := fmt.Sprintf(`
+		SELECT
+			key,
+			array_agg(DISTINCT value::text ORDER BY value::text) AS values
+		FROM %s,
+		     jsonb_each(%s)
+		WHERE %s IS NOT NULL
+		  AND %s <> 'null'::jsonb
+		  AND %s <> '{}'::jsonb
+		  AND jsonb_typeof(value) = 'string'
+		  AND value::text <> '<nil>'
+		GROUP BY key
+	`,
+		baseTableName,
+		fullLabelColumn,
+		fullLabelColumn,
+		fullLabelColumn,
+		fullLabelColumn,
+	)
+	if err = db.Raw(query).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	ret := make([]*domain.SummaryLabel, len(rows))
+	for i, r := range rows {
+		ret[i] = &domain.SummaryLabel{
+			Key:    r.Key,
+			Values: slicesUtil.GenericsStandardizeSlice(r.Values),
+		}
+		ret[i].Count = int32(len(ret[i].Values))
+	}
+	return ret, nil
+}
+
+func generateUniqueSummaries(ctx context.Context, dbGen func(context.Context) (*gorm.DB, error), baseTableName string, fields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryUnique, error) {
 	ret := make([]*domain.SummaryUnique, 0, len(fields))
 	if len(fields) == 0 {
 		return ret, nil
 	}
-	eg, _ := errgroup.WithContext(ctx)
+	eg, egCtx := errgroup.WithContext(ctx)
 	mu := &sync.Mutex{}
 	for _, field := range fields {
 		field := field
@@ -121,7 +165,7 @@ func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error)
 				}
 				cm = buildJSONTextExpr(tableName, columnName, jsonPath)
 			}
-			db, err := dbGen()
+			db, err := dbGen(egCtx)
 			if err != nil {
 				return err
 			}
@@ -146,13 +190,13 @@ func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error)
 	return ret, nil
 }
 
-func generateGroupSummaries(_ context.Context, dbGen func() (*gorm.DB, error), baseTableName string, fields []string, distinctCountFields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryGroup, error) {
+func generateGroupSummaries(ctx context.Context, dbGen func(context.Context) (*gorm.DB, error), baseTableName string, fields []string, distinctCountFields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryGroup, error) {
 	sg := make([]*domain.SummaryGroup, 0)
 	if len(fields) == 0 {
 		return sg, nil
 	}
 
-	db, err := dbGen()
+	db, err := dbGen(ctx)
 	if err != nil {
 		return nil, err
 	}
