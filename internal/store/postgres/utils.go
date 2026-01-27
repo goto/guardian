@@ -756,3 +756,60 @@ func applyJSONBKeyValueFilter(
 
 	return db, nil
 }
+
+func applyQLabelsFilter(db *gorm.DB, qLabels []string) *gorm.DB {
+	type labelFilter struct {
+		exists bool
+		values []string
+	}
+	byKey := map[string]*labelFilter{}
+
+	// 1) Parse inputs: team or team:data-engineering
+	for _, q := range qLabels {
+		q = strings.TrimSpace(q)
+		if q == "" {
+			continue
+		}
+
+		p := strings.SplitN(q, ":", 2)
+		key := strings.TrimSpace(p[0])
+		if key == "" {
+			continue
+		}
+
+		f := byKey[key]
+		if f == nil {
+			f = &labelFilter{}
+			byKey[key] = f
+		}
+
+		if len(p) == 1 {
+			f.exists = true
+			continue
+		}
+
+		val := strings.TrimSpace(p[1])
+		if val == "" {
+			continue
+		}
+		f.values = append(f.values, val)
+	}
+
+	// 2) Apply filters:
+	// - Different keys: AND (multiple db.Where calls)
+	// - Same key, multiple values: OR via = ANY(pq.Array(values))
+	for key, f := range byKey {
+		if len(f.values) > 0 {
+			// "labels" ->> key equals ANY(values)  (OR semantics within same key)
+			db = db.Where(`"appeals"."labels" ->> ? = ANY (?)`, key, pq.Array(f.values))
+			continue
+		}
+
+		if f.exists {
+			// Existence check. Avoid placeholder confusion with "?" operator by quoting.
+			db = db.Where(fmt.Sprintf(`"appeals"."labels" ? %s`, pq.QuoteLiteral(key)))
+		}
+	}
+
+	return db
+}
