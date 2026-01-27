@@ -22,6 +22,17 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
 
+	// Extract labels from gRPC metadata
+	labels, err := s.extractLabels(ctx)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to extract labels from gRPC metadata: %v", err)
+	}
+
+	// Fallback to proto labels if no metadata labels found
+	if len(labels) == 0 {
+		labels = s.adapter.FromLabelFiltersProto(req.GetLabels())
+	}
+
 	filter := &domain.ListApprovalsFilter{
 		Q:                               req.GetQ(),
 		AccountID:                       req.GetAccountId(),
@@ -81,6 +92,8 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		AppealForSelf:                   req.GetAppealForSelf(),
 		AppealDetailsForSelfCriteria:    req.GetAppealDetailsForSelfCriteria(),
 		NotAppealDetailsForSelfCriteria: req.GetNotAppealDetailsForSelfCriteria(),
+		Labels:                          labels,
+		LabelKeys:                       req.GetLabelKeys(),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)
@@ -96,6 +109,18 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 }
 
 func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.ListApprovalsRequest) (*guardianv1beta1.ListApprovalsResponse, error) {
+
+	// Extract labels from gRPC metadata
+	labels, err := s.extractLabels(ctx)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to extract labels from gRPC metadata: %v", err)
+	}
+
+	// Fallback to proto labels if no metadata labels found
+	if len(labels) == 0 {
+		labels = s.adapter.FromLabelFiltersProto(req.GetLabels())
+	}
+
 	filter := &domain.ListApprovalsFilter{
 		Q:                               req.GetQ(),
 		AccountID:                       req.GetAccountId(),
@@ -155,6 +180,8 @@ func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.Lis
 		AppealForSelf:                   req.GetAppealForSelf(),
 		AppealDetailsForSelfCriteria:    req.GetAppealDetailsForSelfCriteria(),
 		NotAppealDetailsForSelfCriteria: req.GetNotAppealDetailsForSelfCriteria(),
+		Labels:                          labels,
+		LabelKeys:                       req.GetLabelKeys(),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)
