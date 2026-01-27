@@ -15,8 +15,8 @@ builds:
       - -X github.com/goto/guardian/core.Version={{.Tag}}
       - -X github.com/goto/guardian/core.BuildCommit={{.FullCommit}}
       - -X github.com/goto/guardian/core.BuildDate={{.Date}}
-    goos: [darwin, linux, windows]
-    goarch: [amd64, 386, arm, arm64]
+    goos: [darwin, linux]
+    goarch: [amd64, arm, arm64]
     env:
       - CGO_ENABLED=0
 archives:
