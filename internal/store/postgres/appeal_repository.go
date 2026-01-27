@@ -378,10 +378,6 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		return nil, err
 	}
 
-	if len(filters.QLabels) > 0 {
-		db = applyQLabelsFilter(db, filters.QLabels)
-	}
-
 	if len(filters.DetailsForSelfCriteria) != 0 && len(filters.NotDetailsForSelfCriteria) != 0 {
 		return nil, fmt.Errorf("cannot use both details_for_self_criteria and not_details_for_self_criteria filters")
 	}
@@ -444,6 +440,25 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 
 	if len(filters.LabelKeys) > 0 {
 		db = applyLabelKeyFilters(db, filters.LabelKeys)
+	}
+
+	if len(filters.QLabels) > 0 {
+		labelGroups := make(map[string][]string)
+		var standaloneKeys []string
+		for _, q := range filters.QLabels {
+			p := strings.SplitN(strings.TrimSpace(q), ":", 2)
+			if len(p) == 1 && p[0] != "" {
+				standaloneKeys = append(standaloneKeys, p[0])
+			} else if len(p) == 2 && p[0] != "" && p[1] != "" {
+				labelGroups[p[0]] = append(labelGroups[p[0]], p[1])
+			}
+		}
+		for _, key := range standaloneKeys {
+			db = db.Where(fmt.Sprintf(`"appeals"."labels" ? '%s'`, key))
+		}
+		for key, values := range labelGroups {
+			db = db.Where(`"appeals"."labels" ->> ? IN ?`, key, values)
+		}
 	}
 
 	return db, nil
