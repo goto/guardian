@@ -323,14 +323,14 @@ func (s *GRPCServer) DeleteApprover(ctx context.Context, req *guardianv1beta1.De
 }
 
 func (s *GRPCServer) listApprovals(ctx context.Context, filter *domain.ListApprovalsFilter) ([]*guardianv1beta1.Approval, int64, *guardianv1beta1.SummaryResult, error) {
-	eg, ctx := errgroup.WithContext(ctx)
+	eg, egCtx := errgroup.WithContext(ctx)
 	var approvals []*domain.Approval
 	var summary *domain.SummaryResult
 	var total int64
 
 	if filter.WithApprovals() {
 		eg.Go(func() error {
-			approvalRecords, err := s.approvalService.ListApprovals(ctx, filter)
+			approvalRecords, err := s.approvalService.ListApprovals(egCtx, filter)
 			if err != nil {
 				return s.internalError(ctx, "failed to get approval list: %s", err)
 			}
@@ -340,7 +340,7 @@ func (s *GRPCServer) listApprovals(ctx context.Context, filter *domain.ListAppro
 	}
 	if filter.WithTotal() {
 		eg.Go(func() error {
-			totalRecord, err := s.approvalService.GetApprovalsTotalCount(ctx, filter)
+			totalRecord, err := s.approvalService.GetApprovalsTotalCount(egCtx, filter)
 			if err != nil {
 				return s.internalError(ctx, "failed to get approval list: %v", err)
 			}
@@ -351,7 +351,7 @@ func (s *GRPCServer) listApprovals(ctx context.Context, filter *domain.ListAppro
 	if filter.WithSummary() {
 		eg.Go(func() error {
 			var e error
-			summary, e = s.approvalService.GenerateSummary(ctx, *filter)
+			summary, e = s.approvalService.GenerateSummary(egCtx, *filter)
 			if e != nil {
 				switch {
 				case errors.Is(e, domain.ErrInvalidUniqueInput) ||

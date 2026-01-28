@@ -344,14 +344,14 @@ func (s *GRPCServer) RestoreGrant(ctx context.Context, req *guardianv1beta1.Rest
 }
 
 func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFilter) ([]*guardianv1beta1.Grant, int64, *guardianv1beta1.SummaryResult, error) {
-	eg, ctx := errgroup.WithContext(ctx)
+	eg, egCtx := errgroup.WithContext(ctx)
 	var grants []domain.Grant
 	var summary *domain.SummaryResult
 	var total int64
 
 	if filter.WithGrants() {
 		eg.Go(func() error {
-			grantRecords, err := s.grantService.List(ctx, filter)
+			grantRecords, err := s.grantService.List(egCtx, filter)
 			if err != nil {
 				return s.internalError(ctx, "failed to get grant list: %s", err)
 			}
@@ -361,7 +361,7 @@ func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFil
 	}
 	if filter.WithTotal() {
 		eg.Go(func() error {
-			totalRecord, err := s.grantService.GetGrantsTotalCount(ctx, filter)
+			totalRecord, err := s.grantService.GetGrantsTotalCount(egCtx, filter)
 			if err != nil {
 				return s.internalError(ctx, "failed to get grant total count: %s", err)
 			}
@@ -372,7 +372,7 @@ func (s *GRPCServer) listGrants(ctx context.Context, filter domain.ListGrantsFil
 	if filter.WithSummary() {
 		eg.Go(func() error {
 			var e error
-			summary, e = s.grantService.GenerateSummary(ctx, filter)
+			summary, e = s.grantService.GenerateSummary(egCtx, filter)
 			if e != nil {
 				switch {
 				case errors.Is(e, domain.ErrInvalidUniqueInput) ||

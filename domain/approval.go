@@ -131,7 +131,7 @@ type ListApprovalsFilter struct {
 }
 
 func (af ListApprovalsFilter) WithSummary() bool {
-	return len(af.SummaryGroupBys) > 0 || len(af.SummaryUniques) > 0
+	return len(af.SummaryGroupBys) > 0 || len(af.SummaryUniques) > 0 || af.SummaryLabels
 }
 
 func (af ListApprovalsFilter) WithApprovals() bool {

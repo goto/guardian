@@ -276,7 +276,7 @@ type ListGrantsFilter struct {
 }
 
 func (gf ListGrantsFilter) WithSummary() bool {
-	return len(gf.SummaryGroupBys) > 0 || len(gf.SummaryUniques) > 0
+	return len(gf.SummaryGroupBys) > 0 || len(gf.SummaryUniques) > 0 || gf.SummaryLabels
 }
 
 func (gf ListGrantsFilter) WithGrants() bool {

@@ -116,14 +116,14 @@ func (r *AppealRepository) GenerateSummary(ctx context.Context, filters *domain.
 
 	dbGen := func(gCtx context.Context) (*gorm.DB, error) {
 		// omit offset & size & order_by
-		f := filters
+		f := *filters
 		f.Offset = 0
 		f.Size = 0
 		f.OrderBy = nil
 
 		db := r.db.WithContext(gCtx)
 		db = applyAppealsJoins(db)
-		return applyAppealsFilter(db, f)
+		return applyAppealsFilter(db, &f)
 	}
 
 	if filters.SummaryLabels {

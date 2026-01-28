@@ -404,14 +404,14 @@ func (s *GRPCServer) ListAppealActivities(ctx context.Context, req *guardianv1be
 }
 
 func (s *GRPCServer) listAppeals(ctx context.Context, filters *domain.ListAppealsFilter) ([]*guardianv1beta1.Appeal, int64, *guardianv1beta1.SummaryResult, error) {
-	eg, ctx := errgroup.WithContext(ctx)
+	eg, egCtx := errgroup.WithContext(ctx)
 	var appeals []*domain.Appeal
 	var summary *domain.SummaryResult
 	var total int64
 
 	if filters.WithAppeals() {
 		eg.Go(func() error {
-			appealRecords, err := s.appealService.Find(ctx, filters)
+			appealRecords, err := s.appealService.Find(egCtx, filters)
 			if err != nil {
 				return s.internalError(ctx, "failed to get appeal list: %s", err)
 			}
@@ -421,7 +421,7 @@ func (s *GRPCServer) listAppeals(ctx context.Context, filters *domain.ListAppeal
 	}
 	if filters.WithTotal() {
 		eg.Go(func() error {
-			totalRecord, err := s.appealService.GetAppealsTotalCount(ctx, filters)
+			totalRecord, err := s.appealService.GetAppealsTotalCount(egCtx, filters)
 			if err != nil {
 				return s.internalError(ctx, "failed to get appeal total count: %s", err)
 			}
@@ -432,7 +432,7 @@ func (s *GRPCServer) listAppeals(ctx context.Context, filters *domain.ListAppeal
 	if filters.WithSummary() {
 		eg.Go(func() error {
 			var e error
-			summary, e = s.appealService.GenerateSummary(ctx, filters)
+			summary, e = s.appealService.GenerateSummary(egCtx, filters)
 			if e != nil {
 				switch {
 				case errors.Is(e, domain.ErrInvalidUniqueInput) ||
