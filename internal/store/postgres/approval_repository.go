@@ -157,6 +157,13 @@ func (r *ApprovalRepository) GenerateSummary(ctx context.Context, filter domain.
 		return applyApprovalsFilter(db, &f)
 	}
 
+	if filter.SummaryLabels {
+		sr.SummaryLabels, err = generateLabelSummaries(ctx, dbGen, `"Appeal"."labels"`)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if len(filter.SummaryUniques) > 0 {
 		sr.SummaryUniques, err = generateUniqueSummaries(ctx, dbGen, "approvals", filter.SummaryUniques, approvalEntityGroupKeyMapping)
 		if err != nil {
@@ -397,11 +404,11 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 
 	// Label filtering
 	if len(filter.Labels) > 0 {
-		db = applyLabelFilters(db, filter.Labels)
+		db = applyLabelFilter(db, `"Appeal"."labels"`, filter.Labels)
 	}
 
 	if len(filter.LabelKeys) > 0 {
-		db = applyLabelKeyFilters(db, filter.LabelKeys)
+		db = applyLabelKeyFilter(db, `"Appeal"."labels"`, filter.LabelKeys)
 	}
 
 	return db, nil

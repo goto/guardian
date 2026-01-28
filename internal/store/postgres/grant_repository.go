@@ -98,6 +98,13 @@ func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.Lis
 		return applyGrantsFilter(db, f)
 	}
 
+	if filter.SummaryLabels {
+		sr.SummaryLabels, err = generateLabelSummaries(ctx, dbGen, `"_Appeal"."labels"`)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if len(filter.SummaryUniques) > 0 {
 		sr.SummaryUniques, err = generateUniqueSummaries(ctx, dbGen, "grants", filter.SummaryUniques, grantEntityGroupKeyMapping)
 		if err != nil {
@@ -513,6 +520,15 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	// Label filtering
+	if len(filter.Labels) > 0 {
+		db = applyLabelFilter(db, `"_Appeal"."labels"`, filter.Labels)
+	}
+
+	if len(filter.LabelKeys) > 0 {
+		db = applyLabelKeyFilter(db, `"_Appeal"."labels"`, filter.LabelKeys)
 	}
 
 	return db, nil

@@ -16,6 +16,17 @@ import (
 )
 
 func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGrantsRequest) (*guardianv1beta1.ListGrantsResponse, error) {
+	// Extract labels from gRPC metadata
+	labels, err := s.extractLabels(ctx)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to extract labels from gRPC metadata: %v", err)
+	}
+
+	// Fallback to proto labels if no metadata labels found
+	if len(labels) == 0 {
+		labels = s.adapter.FromLabelFiltersProto(req.GetLabels())
+	}
+
 	filter := domain.ListGrantsFilter{
 		Q:                               req.GetQ(),
 		Statuses:                        req.GetStatuses(),
@@ -75,6 +86,9 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		GroupTypeNotContains:            req.GetGroupTypeNotContains(),
 		AppealDetailsForSelfCriteria:    req.GetAppealDetailsForSelfCriteria(),
 		NotAppealDetailsForSelfCriteria: req.GetNotAppealDetailsForSelfCriteria(),
+		Labels:                          labels,
+		LabelKeys:                       req.GetLabelKeys(),
+		SummaryLabels:                   req.GetSummaryLabels(),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
@@ -93,6 +107,17 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 	user, err := s.getUser(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, "failed to get metadata: user")
+	}
+
+	// Extract labels from gRPC metadata
+	labels, err := s.extractLabels(ctx)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to extract labels from gRPC metadata: %v", err)
+	}
+
+	// Fallback to proto labels if no metadata labels found
+	if len(labels) == 0 {
+		labels = s.adapter.FromLabelFiltersProto(req.GetLabels())
 	}
 
 	filter := domain.ListGrantsFilter{
@@ -150,6 +175,9 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		GroupTypeNotContains:            req.GetGroupTypeNotContains(),
 		AppealDetailsForSelfCriteria:    req.GetAppealDetailsForSelfCriteria(),
 		NotAppealDetailsForSelfCriteria: req.GetNotAppealDetailsForSelfCriteria(),
+		Labels:                          labels,
+		LabelKeys:                       req.GetLabelKeys(),
+		SummaryLabels:                   req.GetSummaryLabels(),
 
 		UserInactiveGrantPolicy: req.GetInactiveGrantPolicy(),
 	}

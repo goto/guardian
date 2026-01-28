@@ -82,7 +82,7 @@ func addOrderBy(db *gorm.DB, orderBy string) *gorm.DB {
 	return db
 }
 
-func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*gorm.DB, error), baseTableName, labelColumnName string) ([]*domain.SummaryLabel, error) {
+func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*gorm.DB, error), labelColumn string) ([]*domain.SummaryLabel, error) {
 	db, err := dbGen(ctx)
 	if err != nil {
 		return nil, err
@@ -91,30 +91,21 @@ func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*g
 		Key    string
 		Values pq.StringArray `gorm:"type:text[]"`
 	}
-	fullLabelColumn := fmt.Sprintf("%s.%s", baseTableName, labelColumnName)
-	query := fmt.Sprintf(`
-		SELECT
-			key,
-			array_agg(
-				DISTINCT trim(both '"' from value::text)
-				ORDER BY trim(both '"' from value::text)
-			) AS values
-		FROM %s,
-		     jsonb_each(%s)
-		WHERE %s IS NOT NULL
-		  AND %s <> 'null'::jsonb
-		  AND %s <> '{}'::jsonb
-		  AND jsonb_typeof(value) = 'string'
-		  AND trim(both '"' from value::text) <> '<nil>'
-		GROUP BY key
-	`,
-		baseTableName,
-		fullLabelColumn,
-		fullLabelColumn,
-		fullLabelColumn,
-		fullLabelColumn,
-	)
-	if err = db.Raw(query).Scan(&rows).Error; err != nil {
+	// Use a subquery to extract jsonb key-value pairs, then aggregate
+	subQuery := db.
+		Select("key, trim(both '\"' from value::text) as trimmed_value").
+		Joins(fmt.Sprintf("CROSS JOIN jsonb_each(%s)", labelColumn)).
+		Where(fmt.Sprintf("%s IS NOT NULL", labelColumn)).
+		Where(fmt.Sprintf("%s <> 'null'::jsonb", labelColumn)).
+		Where(fmt.Sprintf("%s <> '{}'::jsonb", labelColumn)).
+		Where("jsonb_typeof(value) = 'string'").
+		Where("trim(both '\"' from value::text) <> '<nil>'")
+	// Wrap the subquery and aggregate
+	err = db.Table("(?) as label_pairs", subQuery).
+		Select("key, array_agg(DISTINCT trimmed_value ORDER BY trimmed_value) as values").
+		Group("key").
+		Scan(&rows).Error
+	if err != nil {
 		return nil, err
 	}
 	ret := make([]*domain.SummaryLabel, len(rows))
@@ -755,4 +746,42 @@ func applyJSONBKeyValueFilter(
 	}
 
 	return db, nil
+}
+
+// applyLabelFilter applies label key-value filtering with OR logic for multiple values
+func applyLabelFilter(db *gorm.DB, labelsColumnPath string, labels map[string][]string) *gorm.DB {
+	for key, values := range labels {
+		if len(values) == 0 {
+			continue
+		}
+
+		// Filter using PostgreSQL JSONB operators on labels column (simple key-value pairs)
+		// labels->>key extracts the string value for the key
+		if len(values) == 1 {
+			db = db.Where(fmt.Sprintf(`%s->>? = ?`, labelsColumnPath), key, values[0])
+		} else {
+			// OR logic for multiple values for the same key
+			db = db.Where(fmt.Sprintf(`%s->>? IN ?`, labelsColumnPath), key, values)
+		}
+	}
+	return db
+}
+
+// applyLabelKeyFilter applies filtering by label keys (regardless of value) with OR logic
+func applyLabelKeyFilter(db *gorm.DB, labelsColumnPath string, keys []string) *gorm.DB {
+	if len(keys) == 0 {
+		return db
+	}
+
+	// Build OR condition for checking if any of the keys exist in labels column
+	var orConditions []string
+
+	for _, key := range keys {
+		orConditions = append(orConditions, fmt.Sprintf(`jsonb_exists(%s, '%s')`, labelsColumnPath, key))
+	}
+
+	query := fmt.Sprintf("(%s)", strings.Join(orConditions, " OR "))
+	db = db.Where(query)
+
+	return db
 }

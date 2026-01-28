@@ -268,6 +268,9 @@ type ListGrantsFilter struct {
 	GroupTypeNotContains            string
 	AppealDetailsForSelfCriteria    []string
 	NotAppealDetailsForSelfCriteria []string
+	Labels                          map[string][]string
+	LabelKeys                       []string
+	SummaryLabels                   bool
 
 	UserInactiveGrantPolicy guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy
 }

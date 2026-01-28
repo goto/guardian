@@ -127,7 +127,7 @@ func (r *AppealRepository) GenerateSummary(ctx context.Context, filters *domain.
 	}
 
 	if filters.SummaryLabels {
-		sr.SummaryLabels, err = generateLabelSummaries(ctx, dbGen, "appeals", "labels")
+		sr.SummaryLabels, err = generateLabelSummaries(ctx, dbGen, `"appeals"."labels"`)
 		if err != nil {
 			return nil, err
 		}
@@ -435,69 +435,12 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 
 	// Label filtering
 	if len(filters.Labels) > 0 {
-		db = applyLabelFilters(db, filters.Labels)
+		db = applyLabelFilter(db, `"appeals"."labels"`, filters.Labels)
 	}
 
 	if len(filters.LabelKeys) > 0 {
-		db = applyLabelKeyFilters(db, filters.LabelKeys)
-	}
-
-	if len(filters.QLabels) > 0 {
-		labelGroups := make(map[string][]string)
-		var standaloneKeys []string
-		for _, q := range filters.QLabels {
-			p := strings.SplitN(strings.TrimSpace(q), ":", 2)
-			if len(p) == 1 && p[0] != "" {
-				standaloneKeys = append(standaloneKeys, p[0])
-			} else if len(p) == 2 && p[0] != "" && p[1] != "" {
-				labelGroups[p[0]] = append(labelGroups[p[0]], p[1])
-			}
-		}
-		for _, key := range standaloneKeys {
-			db = db.Where(fmt.Sprintf(`"appeals"."labels" ? '%s'`, key))
-		}
-		for key, values := range labelGroups {
-			db = db.Where(`"appeals"."labels" ->> ? IN ?`, key, values)
-		}
+		db = applyLabelKeyFilter(db, `"appeals"."labels"`, filters.LabelKeys)
 	}
 
 	return db, nil
-}
-
-// applyLabelFilters applies label key-value filtering with OR logic for multiple values
-func applyLabelFilters(db *gorm.DB, labels map[string][]string) *gorm.DB {
-	for key, values := range labels {
-		if len(values) == 0 {
-			continue
-		}
-
-		// Filter using PostgreSQL JSONB operators on labels column (simple key-value pairs)
-		// labels->>key extracts the string value for the key
-		if len(values) == 1 {
-			db = db.Where(`"appeals"."labels"->>? = ?`, key, values[0])
-		} else {
-			// OR logic for multiple values for the same key
-			db = db.Where(`"appeals"."labels"->>? IN ?`, key, values)
-		}
-	}
-	return db
-}
-
-// applyLabelKeyFilters applies filtering by label keys (regardless of value) with OR logic
-func applyLabelKeyFilters(db *gorm.DB, keys []string) *gorm.DB {
-	if len(keys) == 0 {
-		return db
-	}
-
-	// Build OR condition for checking if any of the keys exist in labels column
-	var orConditions []string
-
-	for _, key := range keys {
-		orConditions = append(orConditions, fmt.Sprintf(`jsonb_exists("appeals"."labels", '%s')`, key))
-	}
-
-	query := fmt.Sprintf("(%s)", strings.Join(orConditions, " OR "))
-	db = db.Where(query)
-
-	return db
 }

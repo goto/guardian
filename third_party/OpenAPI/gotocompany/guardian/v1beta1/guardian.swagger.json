@@ -634,17 +634,6 @@
             "in": "query",
             "required": false,
             "type": "boolean"
-          },
-          {
-            "name": "qLabels",
-            "description": "Supported formats:\n- \"\u003ckey\u003e\" -\u003e returns appeals that match with the key\n- \"\u003ckey\u003e:\u003cvalue\u003e\" -\u003e returns appeals that match with the key and value",
-            "in": "query",
-            "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -1517,6 +1506,22 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "labelKeys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -2022,6 +2027,22 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "labelKeys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -2712,14 +2733,7 @@
             "collectionFormat": "multi"
           },
           {
-            "name": "summaryLabels",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "qLabels",
-            "description": "Supported formats:\n- \"\u003ckey\u003e\" -\u003e returns appeals that match with the key\n- \"\u003ckey\u003e:\u003cvalue\u003e\" -\u003e returns appeals that match with the key and value",
+            "name": "labelKeys",
             "in": "query",
             "required": false,
             "type": "array",
@@ -2727,6 +2741,12 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -3198,6 +3218,22 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "labelKeys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -3678,6 +3714,22 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "labelKeys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [

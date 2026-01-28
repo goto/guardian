@@ -94,6 +94,7 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		NotAppealDetailsForSelfCriteria: req.GetNotAppealDetailsForSelfCriteria(),
 		Labels:                          labels,
 		LabelKeys:                       req.GetLabelKeys(),
+		SummaryLabels:                   req.GetSummaryLabels(),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)
@@ -109,7 +110,6 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 }
 
 func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.ListApprovalsRequest) (*guardianv1beta1.ListApprovalsResponse, error) {
-
 	// Extract labels from gRPC metadata
 	labels, err := s.extractLabels(ctx)
 	if err != nil {
@@ -182,6 +182,7 @@ func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.Lis
 		NotAppealDetailsForSelfCriteria: req.GetNotAppealDetailsForSelfCriteria(),
 		Labels:                          labels,
 		LabelKeys:                       req.GetLabelKeys(),
+		SummaryLabels:                   req.GetSummaryLabels(),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)
