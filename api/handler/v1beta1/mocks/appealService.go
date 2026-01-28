@@ -714,6 +714,67 @@ func (_c *AppealService_Patch_Call) RunAndReturn(run func(context.Context, *doma
 	return _c
 }
 
+// Relabel provides a mock function with given fields: _a0, _a1, _a2, _a3
+func (_m *AppealService) Relabel(_a0 context.Context, _a1 string, _a2 *uint, _a3 bool) (*domain.Appeal, error) {
+	ret := _m.Called(_a0, _a1, _a2, _a3)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Relabel")
+	}
+
+	var r0 *domain.Appeal
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *uint, bool) (*domain.Appeal, error)); ok {
+		return rf(_a0, _a1, _a2, _a3)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, *uint, bool) *domain.Appeal); ok {
+		r0 = rf(_a0, _a1, _a2, _a3)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Appeal)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, *uint, bool) error); ok {
+		r1 = rf(_a0, _a1, _a2, _a3)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AppealService_Relabel_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Relabel'
+type AppealService_Relabel_Call struct {
+	*mock.Call
+}
+
+// Relabel is a helper method to define mock.On call
+//   - _a0 context.Context
+//   - _a1 string
+//   - _a2 *uint
+//   - _a3 bool
+func (_e *AppealService_Expecter) Relabel(_a0 interface{}, _a1 interface{}, _a2 interface{}, _a3 interface{}) *AppealService_Relabel_Call {
+	return &AppealService_Relabel_Call{Call: _e.mock.On("Relabel", _a0, _a1, _a2, _a3)}
+}
+
+func (_c *AppealService_Relabel_Call) Run(run func(_a0 context.Context, _a1 string, _a2 *uint, _a3 bool)) *AppealService_Relabel_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(*uint), args[3].(bool))
+	})
+	return _c
+}
+
+func (_c *AppealService_Relabel_Call) Return(_a0 *domain.Appeal, _a1 error) *AppealService_Relabel_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *AppealService_Relabel_Call) RunAndReturn(run func(context.Context, string, *uint, bool) (*domain.Appeal, error)) *AppealService_Relabel_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateApproval provides a mock function with given fields: ctx, approvalAction
 func (_m *AppealService) UpdateApproval(ctx context.Context, approvalAction domain.ApprovalAction) (*domain.Appeal, error) {
 	ret := _m.Called(ctx, approvalAction)

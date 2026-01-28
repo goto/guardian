@@ -48,6 +48,7 @@ type GuardianServiceClient interface {
 	CancelAppeal(ctx context.Context, in *CancelAppealRequest, opts ...grpc.CallOption) (*CancelAppealResponse, error)
 	CreateAppeal(ctx context.Context, in *CreateAppealRequest, opts ...grpc.CallOption) (*CreateAppealResponse, error)
 	PatchAppeal(ctx context.Context, in *PatchAppealRequest, opts ...grpc.CallOption) (*PatchAppealResponse, error)
+	RelabelAppeal(ctx context.Context, in *RelabelAppealRequest, opts ...grpc.CallOption) (*RelabelAppealResponse, error)
 	ListAppealComments(ctx context.Context, in *ListAppealCommentsRequest, opts ...grpc.CallOption) (*ListAppealCommentsResponse, error)
 	CreateAppealComment(ctx context.Context, in *CreateAppealCommentRequest, opts ...grpc.CallOption) (*CreateAppealCommentResponse, error)
 	ListAppealActivities(ctx context.Context, in *ListAppealActivitiesRequest, opts ...grpc.CallOption) (*ListAppealActivitiesResponse, error)
@@ -311,6 +312,15 @@ func (c *guardianServiceClient) PatchAppeal(ctx context.Context, in *PatchAppeal
 	return out, nil
 }
 
+func (c *guardianServiceClient) RelabelAppeal(ctx context.Context, in *RelabelAppealRequest, opts ...grpc.CallOption) (*RelabelAppealResponse, error) {
+	out := new(RelabelAppealResponse)
+	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/RelabelAppeal", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *guardianServiceClient) ListAppealComments(ctx context.Context, in *ListAppealCommentsRequest, opts ...grpc.CallOption) (*ListAppealCommentsResponse, error) {
 	out := new(ListAppealCommentsResponse)
 	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/ListAppealComments", in, out, opts...)
@@ -512,6 +522,7 @@ type GuardianServiceServer interface {
 	CancelAppeal(context.Context, *CancelAppealRequest) (*CancelAppealResponse, error)
 	CreateAppeal(context.Context, *CreateAppealRequest) (*CreateAppealResponse, error)
 	PatchAppeal(context.Context, *PatchAppealRequest) (*PatchAppealResponse, error)
+	RelabelAppeal(context.Context, *RelabelAppealRequest) (*RelabelAppealResponse, error)
 	ListAppealComments(context.Context, *ListAppealCommentsRequest) (*ListAppealCommentsResponse, error)
 	CreateAppealComment(context.Context, *CreateAppealCommentRequest) (*CreateAppealCommentResponse, error)
 	ListAppealActivities(context.Context, *ListAppealActivitiesRequest) (*ListAppealActivitiesResponse, error)
@@ -615,6 +626,9 @@ func (UnimplementedGuardianServiceServer) CreateAppeal(context.Context, *CreateA
 }
 func (UnimplementedGuardianServiceServer) PatchAppeal(context.Context, *PatchAppealRequest) (*PatchAppealResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PatchAppeal not implemented")
+}
+func (UnimplementedGuardianServiceServer) RelabelAppeal(context.Context, *RelabelAppealRequest) (*RelabelAppealResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RelabelAppeal not implemented")
 }
 func (UnimplementedGuardianServiceServer) ListAppealComments(context.Context, *ListAppealCommentsRequest) (*ListAppealCommentsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListAppealComments not implemented")
@@ -1154,6 +1168,24 @@ func _GuardianService_PatchAppeal_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GuardianService_RelabelAppeal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RelabelAppealRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuardianServiceServer).RelabelAppeal(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gotocompany.guardian.v1beta1.GuardianService/RelabelAppeal",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuardianServiceServer).RelabelAppeal(ctx, req.(*RelabelAppealRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _GuardianService_ListAppealComments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListAppealCommentsRequest)
 	if err := dec(in); err != nil {
@@ -1606,6 +1638,10 @@ var GuardianService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PatchAppeal",
 			Handler:    _GuardianService_PatchAppeal_Handler,
+		},
+		{
+			MethodName: "RelabelAppeal",
+			Handler:    _GuardianService_RelabelAppeal_Handler,
 		},
 		{
 			MethodName: "ListAppealComments",
