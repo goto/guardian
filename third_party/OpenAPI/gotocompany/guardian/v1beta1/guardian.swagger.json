@@ -628,6 +628,12 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -1500,6 +1506,22 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "labelKeys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -2005,6 +2027,22 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "labelKeys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -2693,6 +2731,22 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "labelKeys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -3164,6 +3218,22 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "labelKeys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -3644,6 +3714,22 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "labelKeys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -6371,6 +6457,35 @@
           "format": "int32"
         },
         "uniquesCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1beta1SummaryResultLabel"
+          }
+        },
+        "labelsCount": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1beta1SummaryResultLabel": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "count": {
           "type": "integer",
           "format": "int32"
         }

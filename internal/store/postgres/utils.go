@@ -8,12 +8,13 @@ import (
 	"strings"
 	"sync"
 
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	"github.com/goto/guardian/domain"
+	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
 
@@ -81,12 +82,50 @@ func addOrderBy(db *gorm.DB, orderBy string) *gorm.DB {
 	return db
 }
 
-func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error), baseTableName string, fields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryUnique, error) {
+func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*gorm.DB, error), baseTableName, labelColumn string) ([]*domain.SummaryLabel, error) {
+	db, err := dbGen(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var rows []struct {
+		Key    string
+		Values pq.StringArray `gorm:"type:text[]"`
+	}
+
+	// Build the query on the base table with filters and joins from dbGen
+	err = db.Table(baseTableName).
+		Select("key, array_agg(DISTINCT trim(both '\"' from value::text) ORDER BY trim(both '\"' from value::text)) as values").
+		Joins(fmt.Sprintf("CROSS JOIN jsonb_each(%s)", labelColumn)).
+		Where(fmt.Sprintf("%s IS NOT NULL", labelColumn)).
+		Where(fmt.Sprintf("%s <> 'null'::jsonb", labelColumn)).
+		Where(fmt.Sprintf("%s <> '{}'::jsonb", labelColumn)).
+		Where("jsonb_typeof(value) = 'string'").
+		Where("trim(both '\"' from value::text) <> '<nil>'").
+		Group("key").
+		Scan(&rows).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]*domain.SummaryLabel, len(rows))
+	for i, r := range rows {
+		ret[i] = &domain.SummaryLabel{
+			Key:    r.Key,
+			Values: slicesUtil.GenericsStandardizeSlice(r.Values),
+		}
+		ret[i].Count = int32(len(ret[i].Values))
+	}
+	return ret, nil
+}
+
+func generateUniqueSummaries(ctx context.Context, dbGen func(context.Context) (*gorm.DB, error), baseTableName string, fields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryUnique, error) {
 	ret := make([]*domain.SummaryUnique, 0, len(fields))
 	if len(fields) == 0 {
 		return ret, nil
 	}
-	eg, _ := errgroup.WithContext(ctx)
+	eg, egCtx := errgroup.WithContext(ctx)
 	mu := &sync.Mutex{}
 	for _, field := range fields {
 		field := field
@@ -121,7 +160,7 @@ func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error)
 				}
 				cm = buildJSONTextExpr(tableName, columnName, jsonPath)
 			}
-			db, err := dbGen()
+			db, err := dbGen(egCtx)
 			if err != nil {
 				return err
 			}
@@ -146,13 +185,13 @@ func generateUniqueSummaries(ctx context.Context, dbGen func() (*gorm.DB, error)
 	return ret, nil
 }
 
-func generateGroupSummaries(_ context.Context, dbGen func() (*gorm.DB, error), baseTableName string, fields []string, distinctCountFields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryGroup, error) {
+func generateGroupSummaries(ctx context.Context, dbGen func(context.Context) (*gorm.DB, error), baseTableName string, fields []string, distinctCountFields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryGroup, error) {
 	sg := make([]*domain.SummaryGroup, 0)
 	if len(fields) == 0 {
 		return sg, nil
 	}
 
-	db, err := dbGen()
+	db, err := dbGen(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -289,11 +328,18 @@ func generateSummaryResultCount(result *domain.SummaryResult) *domain.SummaryRes
 	for _, v := range result.SummaryUniques {
 		uniquesCount += v.Count
 	}
+	var labelsCount int32
+	labelsCount = int32(len(result.SummaryLabels))
+
 	return &domain.SummaryResult{
-		SummaryGroups:  result.SummaryGroups,
+		SummaryGroups: result.SummaryGroups,
+		GroupsCount:   groupsCount,
+
 		SummaryUniques: result.SummaryUniques,
-		GroupsCount:    groupsCount,
 		UniquesCount:   uniquesCount,
+
+		SummaryLabels: result.SummaryLabels,
+		LabelsCount:   labelsCount,
 	}
 }
 
@@ -701,4 +747,42 @@ func applyJSONBKeyValueFilter(
 	}
 
 	return db, nil
+}
+
+// applyLabelFilter applies label key-value filtering with OR logic for multiple values
+func applyLabelFilter(db *gorm.DB, labelsColumnPath string, labels map[string][]string) *gorm.DB {
+	for key, values := range labels {
+		if len(values) == 0 {
+			continue
+		}
+
+		// Filter using PostgreSQL JSONB operators on labels column (simple key-value pairs)
+		// labels->>key extracts the string value for the key
+		if len(values) == 1 {
+			db = db.Where(fmt.Sprintf(`%s->>? = ?`, labelsColumnPath), key, values[0])
+		} else {
+			// OR logic for multiple values for the same key
+			db = db.Where(fmt.Sprintf(`%s->>? IN ?`, labelsColumnPath), key, values)
+		}
+	}
+	return db
+}
+
+// applyLabelKeyFilter applies filtering by label keys (regardless of value) with OR logic
+func applyLabelKeyFilter(db *gorm.DB, labelsColumnPath string, keys []string) *gorm.DB {
+	if len(keys) == 0 {
+		return db
+	}
+
+	// Build OR condition for checking if any of the keys exist in labels column
+	var orConditions []string
+
+	for _, key := range keys {
+		orConditions = append(orConditions, fmt.Sprintf(`jsonb_exists(%s, '%s')`, labelsColumnPath, key))
+	}
+
+	query := fmt.Sprintf("(%s)", strings.Join(orConditions, " OR "))
+	db = db.Where(query)
+
+	return db
 }

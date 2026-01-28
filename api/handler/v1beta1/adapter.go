@@ -1225,13 +1225,19 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 
 	summaryProto := &guardianv1beta1.SummaryResult{
 		AppliedParameters: appliedParameters,
-		Groups:            make([]*guardianv1beta1.SummaryResult_Group, len(s.SummaryGroups)),
-		Uniques:           make([]*guardianv1beta1.SummaryResult_Unique, len(s.SummaryUniques)),
 		Count:             s.Count,
-		GroupsCount:       s.GroupsCount,
-		UniquesCount:      s.UniquesCount,
+
+		Groups:      make([]*guardianv1beta1.SummaryResult_Group, len(s.SummaryGroups)),
+		GroupsCount: s.GroupsCount,
+
+		Uniques:      make([]*guardianv1beta1.SummaryResult_Unique, len(s.SummaryUniques)),
+		UniquesCount: s.UniquesCount,
+
+		Labels:      make([]*guardianv1beta1.SummaryResult_Label, len(s.SummaryLabels)),
+		LabelsCount: s.LabelsCount,
 	}
 
+	// convert summary groups
 	for i, group := range s.SummaryGroups {
 		groupFields, err := toProtoMap(group.GroupFields)
 		if err != nil {
@@ -1248,6 +1254,7 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 		}
 	}
 
+	// convert summary uniques
 	for i, unique := range s.SummaryUniques {
 		values, err := toProtoList(unique.Values)
 		if err != nil {
@@ -1258,6 +1265,15 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 			Field:  unique.Field,
 			Values: values,
 			Count:  unique.Count,
+		}
+	}
+
+	// convert summary labels
+	for i, label := range s.SummaryLabels {
+		summaryProto.Labels[i] = &guardianv1beta1.SummaryResult_Label{
+			Key:    label.Key,
+			Values: label.Values,
+			Count:  label.Count,
 		}
 	}
 

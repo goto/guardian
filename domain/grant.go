@@ -268,12 +268,15 @@ type ListGrantsFilter struct {
 	GroupTypeNotContains            string
 	AppealDetailsForSelfCriteria    []string
 	NotAppealDetailsForSelfCriteria []string
+	Labels                          map[string][]string
+	LabelKeys                       []string
+	SummaryLabels                   bool
 
 	UserInactiveGrantPolicy guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy
 }
 
 func (gf ListGrantsFilter) WithSummary() bool {
-	return len(gf.SummaryGroupBys) > 0 || len(gf.SummaryUniques) > 0
+	return len(gf.SummaryGroupBys) > 0 || len(gf.SummaryUniques) > 0 || gf.SummaryLabels
 }
 
 func (gf ListGrantsFilter) WithGrants() bool {
