@@ -87,27 +87,28 @@ func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*g
 	if err != nil {
 		return nil, err
 	}
+
 	var rows []struct {
 		Key    string
 		Values pq.StringArray `gorm:"type:text[]"`
 	}
-	// Use a subquery to extract jsonb key-value pairs, then aggregate
-	subQuery := db.
-		Select("key, trim(both '\"' from value::text) as trimmed_value").
+
+	// Build the query directly on the filtered db
+	err = db.
+		Select("key, array_agg(DISTINCT trim(both '\"' from value::text) ORDER BY trim(both '\"' from value::text)) as values").
 		Joins(fmt.Sprintf("CROSS JOIN jsonb_each(%s)", labelColumn)).
 		Where(fmt.Sprintf("%s IS NOT NULL", labelColumn)).
 		Where(fmt.Sprintf("%s <> 'null'::jsonb", labelColumn)).
 		Where(fmt.Sprintf("%s <> '{}'::jsonb", labelColumn)).
 		Where("jsonb_typeof(value) = 'string'").
-		Where("trim(both '\"' from value::text) <> '<nil>'")
-	// Wrap the subquery and aggregate
-	err = db.Table("(?) as label_pairs", subQuery).
-		Select("key, array_agg(DISTINCT trimmed_value ORDER BY trimmed_value) as values").
+		Where("trim(both '\"' from value::text) <> '<nil>'").
 		Group("key").
 		Scan(&rows).Error
+
 	if err != nil {
 		return nil, err
 	}
+
 	ret := make([]*domain.SummaryLabel, len(rows))
 	for i, r := range rows {
 		ret[i] = &domain.SummaryLabel{
