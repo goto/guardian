@@ -2,12 +2,10 @@ package v1beta1
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
@@ -24,17 +22,15 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
 
-	var labels map[string][]string
-	var labelKeys []string
+	// Extract labels from gRPC metadata
+	labels, err := s.extractLabels(ctx)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to extract labels from gRPC metadata: %v", err)
+	}
 
-	// Extract labels from gRPC metadata (from custom header set by middleware)
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		if headerValues := md.Get("x-guardian-labels"); len(headerValues) > 0 {
-			var labelsMap map[string][]string
-			if err := json.Unmarshal([]byte(headerValues[0]), &labelsMap); err == nil {
-				labels = labelsMap
-			}
-		}
+	// Fallback to proto labels if no metadata labels found
+	if len(labels) == 0 {
+		labels = s.adapter.FromLabelFiltersProto(req.GetLabels())
 	}
 
 	filters := &domain.ListAppealsFilter{
@@ -76,7 +72,7 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 		Details:                   req.GetDetails(),
 		NotDetails:                req.GetNotDetails(),
 		Labels:                    labels,
-		LabelKeys:                 labelKeys,
+		LabelKeys:                 req.GetLabelKeys(),
 		RoleNotStartsWith:         req.GetRoleNotStartsWith(),
 		RoleNotEndsWith:           req.GetRoleNotEndsWith(),
 		RoleNotContains:           req.GetRoleNotContains(),
@@ -111,16 +107,11 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 }
 
 func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListAppealsRequest) (*guardianv1beta1.ListAppealsResponse, error) {
-	var labels map[string][]string
 
-	// Try to extract labels from gRPC metadata (from custom header set by middleware)
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		if headerValues := md.Get("x-guardian-labels"); len(headerValues) > 0 {
-			var labelsMap map[string][]string
-			if err := json.Unmarshal([]byte(headerValues[0]), &labelsMap); err == nil {
-				labels = labelsMap
-			}
-		}
+	// Extract labels from gRPC metadata
+	labels, err := s.extractLabels(ctx)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to extract labels from gRPC metadata: %v", err)
 	}
 
 	// Fallback to proto labels if no metadata labels found

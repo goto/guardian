@@ -2,6 +2,7 @@ package v1beta1
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/goto/guardian/core/grant"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
@@ -222,4 +224,18 @@ func (s *GRPCServer) failedPrecondition(ctx context.Context, format string, a ..
 func (s *GRPCServer) internalError(ctx context.Context, format string, a ...interface{}) error {
 	s.logger.Error(ctx, fmt.Sprintf(format, a...))
 	return status.Errorf(codes.Internal, format, a...)
+}
+
+// Extract labels from gRPC metadata (from custom header set by middleware)
+func (s *GRPCServer) extractLabels(ctx context.Context) (map[string][]string, error) {
+	var labels map[string][]string
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if headerValues := md.Get("x-guardian-labels"); len(headerValues) > 0 {
+			var labelsMap map[string][]string
+			if err := json.Unmarshal([]byte(headerValues[0]), &labelsMap); err == nil {
+				labels = labelsMap
+			}
+		}
+	}
+	return labels, nil
 }
