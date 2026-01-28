@@ -99,7 +99,7 @@ func (r *GrantRepository) GenerateSummary(ctx context.Context, filter domain.Lis
 	}
 
 	if filter.SummaryLabels {
-		sr.SummaryLabels, err = generateLabelSummaries(ctx, dbGen, `"_Appeal"."labels"`)
+		sr.SummaryLabels, err = generateLabelSummaries(ctx, dbGen, "grants", `"_Appeal"."labels"`)
 		if err != nil {
 			return nil, err
 		}

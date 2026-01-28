@@ -82,7 +82,7 @@ func addOrderBy(db *gorm.DB, orderBy string) *gorm.DB {
 	return db
 }
 
-func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*gorm.DB, error), labelColumn string) ([]*domain.SummaryLabel, error) {
+func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*gorm.DB, error), baseTableName, labelColumn string) ([]*domain.SummaryLabel, error) {
 	db, err := dbGen(ctx)
 	if err != nil {
 		return nil, err
@@ -93,8 +93,8 @@ func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*g
 		Values pq.StringArray `gorm:"type:text[]"`
 	}
 
-	// Build the query directly on the filtered db
-	err = db.
+	// Build the query on the base table with filters and joins from dbGen
+	err = db.Table(baseTableName).
 		Select("key, array_agg(DISTINCT trim(both '\"' from value::text) ORDER BY trim(both '\"' from value::text)) as values").
 		Joins(fmt.Sprintf("CROSS JOIN jsonb_each(%s)", labelColumn)).
 		Where(fmt.Sprintf("%s IS NOT NULL", labelColumn)).

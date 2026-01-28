@@ -127,7 +127,7 @@ func (r *AppealRepository) GenerateSummary(ctx context.Context, filters *domain.
 	}
 
 	if filters.SummaryLabels {
-		sr.SummaryLabels, err = generateLabelSummaries(ctx, dbGen, `"appeals"."labels"`)
+		sr.SummaryLabels, err = generateLabelSummaries(ctx, dbGen, "appeals", `"appeals"."labels"`)
 		if err != nil {
 			return nil, err
 		}
