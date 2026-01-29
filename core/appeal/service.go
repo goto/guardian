@@ -592,8 +592,10 @@ func (s *Service) Relabel(ctx context.Context, appealID string, policyVersion *u
 		go func() {
 			ctx := context.WithoutCancel(ctx)
 			if err := s.auditLogger.Log(ctx, AuditKeyUpdate, map[string]interface{}{
-				"appeal_id": appealID,
-				"action":    "relabel",
+				"appeal_id":      appealID,
+				"action":         "relabel",
+				"policy_version": policyVersionToFetch,
+				"policy_id":      existingAppeal.PolicyID,
 			}); err != nil {
 				s.logger.Error(ctx, "failed to record audit log", "error", err)
 			}

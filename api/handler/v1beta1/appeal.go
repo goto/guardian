@@ -383,6 +383,12 @@ func (s *GRPCServer) CancelAppeal(ctx context.Context, req *guardianv1beta1.Canc
 }
 
 func (s *GRPCServer) RelabelAppeal(ctx context.Context, req *guardianv1beta1.RelabelAppealRequest) (*guardianv1beta1.RelabelAppealResponse, error) {
+
+	_, err := s.getUser(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+
 	appealID := req.GetAppealId()
 	if appealID == "" {
 		return nil, status.Error(codes.InvalidArgument, "appeal_id is required")
