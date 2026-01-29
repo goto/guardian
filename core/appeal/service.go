@@ -584,7 +584,7 @@ func (s *Service) Relabel(ctx context.Context, appealID string, policyVersion *u
 	}
 
 	if !dryRun {
-		if err := s.repo.UpdateByID(ctx, existingAppeal); err != nil {
+		if err := s.repo.Update(ctx, existingAppeal); err != nil {
 			return nil, fmt.Errorf("error updating appeal: %w", err)
 		}
 
