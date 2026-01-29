@@ -52,6 +52,7 @@ type repository interface {
 	GetByID(ctx context.Context, id string) (*domain.Appeal, error)
 	UpdateByID(context.Context, *domain.Appeal) error
 	Update(context.Context, *domain.Appeal) error
+	UpdateLabels(context.Context, *domain.Appeal) error
 	GetAppealsTotalCount(context.Context, *domain.ListAppealsFilter) (int64, error)
 	GenerateSummary(context.Context, *domain.ListAppealsFilter) (*domain.SummaryResult, error)
 }
@@ -584,7 +585,7 @@ func (s *Service) Relabel(ctx context.Context, appealID string, policyVersion *u
 	}
 
 	if !dryRun {
-		if err := s.repo.Update(ctx, existingAppeal); err != nil {
+		if err := s.repo.UpdateLabels(ctx, existingAppeal); err != nil {
 			return nil, fmt.Errorf("error updating appeal: %w", err)
 		}
 
