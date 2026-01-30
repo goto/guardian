@@ -490,7 +490,7 @@ func (r *AppealRepository) UpdateLabels(ctx context.Context, a *domain.Appeal) e
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&model.Appeal{}).
 			Where("id = ?", a.ID).
-			Select("labels", "label_metadata").
+			Select("labels", "labels_metadata").
 			Updates(m).Error; err != nil {
 			return err
 		}
