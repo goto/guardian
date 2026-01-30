@@ -1607,6 +1607,8 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 			AccountTypes: []string{dg.AccountType},
 			ResourceIDs:  []string{dg.Resource.ID},
 			Permissions:  dg.Permissions,
+			GroupIDs:     []string{dg.GroupID},
+			GroupTypes:   []string{dg.GroupType},
 			Size:         1,
 		})
 		if err != nil {
