@@ -1601,6 +1601,8 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 		return fmt.Errorf("getting grant dependencies: %w", err)
 	}
 	for _, dg := range dependencyGrants {
+		// Find any existing active grant for the same account/resource/permissions
+		// regardless of group attributes to handle grant updates
 		activeDepGrants, err := s.grantService.List(ctx, domain.ListGrantsFilter{
 			Statuses:     []string{string(domain.GrantStatusActive)},
 			AccountIDs:   []string{dg.AccountID},
@@ -1614,7 +1616,20 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 		}
 
 		if len(activeDepGrants) > 0 {
-			continue
+			existingGrant := &activeDepGrants[0]
+			// Check if the existing grant has the exact same attributes (including group)
+			if existingGrant.GroupID == dg.GroupID && existingGrant.GroupType == dg.GroupType {
+				// Same grant already exists, skip creating a new one
+				continue
+			}
+			// Different group attributes detected, revoke the old grant and create new one
+			// Skip revoke in provider since the access will be re-granted with new attributes
+			if _, err := s.grantService.Revoke(ctx, existingGrant.ID, domain.SystemActorName, "Replaced with updated group attributes",
+				grant.SkipNotifications(),
+				grant.SkipRevokeAccessInProvider(),
+			); err != nil {
+				return fmt.Errorf("failed to revoke previous dependency grant: %w", err)
+			}
 		}
 
 		dg.Status = domain.GrantStatusActive
