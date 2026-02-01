@@ -570,10 +570,11 @@ type ListAppealsFilter struct {
 	NotIDs                    []string `mapstructure:"not_ids" validate:"omitempty"`
 	DetailsForSelfCriteria    []string `mapstructure:"details_for_self_criteria" json:"details_for_self_criteria,omitempty" validate:"omitempty"`
 	NotDetailsForSelfCriteria []string `mapstructure:"not_details_for_self_criteria" json:"not_details_for_self_criteria,omitempty" validate:"omitempty"`
+	SummaryLabels             bool     `mapstructure:"summary_labels" json:"summary_labels,omitempty" validate:"omitempty"`
 }
 
 func (af ListAppealsFilter) WithSummary() bool {
-	return len(af.SummaryGroupBys) > 0 || len(af.SummaryUniques) > 0
+	return len(af.SummaryGroupBys) > 0 || len(af.SummaryUniques) > 0 || af.SummaryLabels
 }
 
 func (af ListAppealsFilter) WithAppeals() bool {

@@ -112,14 +112,14 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 
 	sr := new(domain.SummaryResult)
 
-	dbGen := func() (*gorm.DB, error) {
+	dbGen := func(gCtx context.Context) (*gorm.DB, error) {
 		// omit offset & size & order_by
 		f := *filter
 		f.Offset = 0
 		f.Size = 0
 		f.OrderBy = nil
 
-		db := r.db.WithContext(ctx)
+		db := r.db.WithContext(gCtx)
 		db = applyApprovalsSummaryJoins(db)
 		return applyApprovalsFilter(db, &f)
 	}
@@ -145,16 +145,23 @@ func (r *ApprovalRepository) GenerateSummary(ctx context.Context, filter domain.
 
 	sr := new(domain.SummaryResult)
 
-	dbGen := func() (*gorm.DB, error) {
+	dbGen := func(gCtx context.Context) (*gorm.DB, error) {
 		// omit offset & size & order_by
 		f := filter
 		f.Offset = 0
 		f.Size = 0
 		f.OrderBy = nil
 
-		db := r.db.WithContext(ctx)
+		db := r.db.WithContext(gCtx)
 		db = applyApprovalsSummaryJoins(db)
 		return applyApprovalsFilter(db, &f)
+	}
+
+	if filter.SummaryLabels {
+		sr.SummaryLabels, err = generateLabelSummaries(ctx, dbGen, "approvals", `"Appeal"."labels"`)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if len(filter.SummaryUniques) > 0 {
@@ -397,11 +404,11 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 
 	// Label filtering
 	if len(filter.Labels) > 0 {
-		db = applyLabelFilters(db, filter.Labels)
+		db = applyLabelFilter(db, `"Appeal"."labels"`, filter.Labels)
 	}
 
 	if len(filter.LabelKeys) > 0 {
-		db = applyLabelKeyFilters(db, filter.LabelKeys)
+		db = applyLabelKeyFilter(db, `"Appeal"."labels"`, filter.LabelKeys)
 	}
 
 	return db, nil

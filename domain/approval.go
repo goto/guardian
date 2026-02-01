@@ -127,10 +127,11 @@ type ListApprovalsFilter struct {
 	NotAppealDetailsForSelfCriteria []string            `mapstructure:"not_appeal_details_for_self_criteria" json:"not_appeal_details_for_self_criteria,omitempty" validate:"omitempty"`
 	Labels                          map[string][]string `mapstructure:"labels" validate:"omitempty"`
 	LabelKeys                       []string            `mapstructure:"label_keys" validate:"omitempty,min=1"`
+	SummaryLabels                   bool                `mapstructure:"summary_labels" json:"summary_labels,omitempty" validate:"omitempty"`
 }
 
 func (af ListApprovalsFilter) WithSummary() bool {
-	return len(af.SummaryGroupBys) > 0 || len(af.SummaryUniques) > 0
+	return len(af.SummaryGroupBys) > 0 || len(af.SummaryUniques) > 0 || af.SummaryLabels
 }
 
 func (af ListApprovalsFilter) WithApprovals() bool {
