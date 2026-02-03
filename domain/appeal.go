@@ -234,15 +234,17 @@ func (a Appeal) ToGrant() (*Grant, error) {
 	if a.Options != nil && a.Options.ExpirationDate != nil {
 		// User provided exact expiration date
 		expDate := *a.Options.ExpirationDate
+		duration := time.Until(expDate)
+		if duration <= 0 {
+			return nil, fmt.Errorf("expiration date must be in the future, got: %v", expDate)
+		}
+
 		grant.ExpirationDate = &expDate
 		grant.RequestedExpirationDate = &expDate
 		grant.ExpirationDateReason = ExpirationDateReasonFromAppeal
 
 		// Calculate and set Duration based on ExpirationDate
-		duration := time.Until(expDate)
-		if duration > 0 {
-			a.Options.Duration = duration.Round(time.Second).String()
-		}
+		a.Options.Duration = duration.Round(time.Second).String()
 	} else if a.Options != nil && a.Options.Duration != "" {
 		// User provided duration string
 		duration, err := time.ParseDuration(a.Options.Duration)

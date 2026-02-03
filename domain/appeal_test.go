@@ -569,6 +569,87 @@ func TestAppeal_ToGrant(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "should create grant with ExpirationDate and calculate Duration",
+			appeal: domain.Appeal{
+				ID:          "appeal-1",
+				AccountID:   "account-1",
+				AccountType: "test",
+				ResourceID:  "resource-1",
+				Role:        "role-1",
+				Permissions: []string{"permission-1"},
+				CreatedBy:   "user-1",
+				Options: &domain.AppealOptions{
+					ExpirationDate: func() *time.Time {
+						t := time.Now().Add(48 * time.Hour)
+						return &t
+					}(),
+				},
+			},
+			want: &domain.Grant{
+				Status:      domain.GrantStatusActive,
+				AccountID:   "account-1",
+				AccountType: "test",
+				ResourceID:  "resource-1",
+				Role:        "role-1",
+				Permissions: []string{"permission-1"},
+				AppealID:    "appeal-1",
+				CreatedBy:   "user-1",
+				IsPermanent: false,
+			},
+			wantErr: false,
+		},
+		{
+			name: "should return error when ExpirationDate is in the past",
+			appeal: domain.Appeal{
+				ID:          "appeal-1",
+				AccountID:   "account-1",
+				AccountType: "test",
+				ResourceID:  "resource-1",
+				Role:        "role-1",
+				Permissions: []string{"permission-1"},
+				CreatedBy:   "user-1",
+				Options: &domain.AppealOptions{
+					ExpirationDate: func() *time.Time {
+						t := time.Now().Add(-24 * time.Hour)
+						return &t
+					}(),
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "should prioritize ExpirationDate over Duration",
+			appeal: domain.Appeal{
+				ID:          "appeal-1",
+				AccountID:   "account-1",
+				AccountType: "test",
+				ResourceID:  "resource-1",
+				Role:        "role-1",
+				Permissions: []string{"permission-1"},
+				CreatedBy:   "user-1",
+				Options: &domain.AppealOptions{
+					ExpirationDate: func() *time.Time {
+						t := time.Now().Add(24 * time.Hour)
+						return &t
+					}(),
+					Duration: "48h",
+				},
+			},
+			want: &domain.Grant{
+				Status:      domain.GrantStatusActive,
+				AccountID:   "account-1",
+				AccountType: "test",
+				ResourceID:  "resource-1",
+				Role:        "role-1",
+				Permissions: []string{"permission-1"},
+				AppealID:    "appeal-1",
+				CreatedBy:   "user-1",
+				IsPermanent: false,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
