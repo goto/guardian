@@ -3212,6 +3212,16 @@ func (s *ServiceTestSuite) TestCreate__WithExistingAppealAndWithAutoApprovalStep
 	time.Sleep(time.Millisecond)
 
 	s.Nil(actualError)
+
+	s.Require().NotNil(appeals[0].Grant)
+	s.Equal(resources[0].ID, appeals[0].Grant.ResourceID)
+	s.Equal(domain.GrantStatusActive, appeals[0].Grant.Status)
+	s.Equal(accountID, appeals[0].Grant.AccountID)
+	s.Equal(domain.DefaultAppealAccountType, appeals[0].Grant.AccountType)
+	s.Equal("role_id", appeals[0].Grant.Role)
+	s.Equal([]string{"test-permission"}, appeals[0].Grant.Permissions)
+	s.Equal(resources[0], appeals[0].Grant.Resource)
+
 	s.Equal(expectedResult, appeals)
 
 	time.Sleep(time.Millisecond)
