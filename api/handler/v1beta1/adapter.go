@@ -1,6 +1,7 @@
 package v1beta1
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -869,7 +870,13 @@ func (a *adapter) FromCreateAppealProto(ca *guardianv1beta1.CreateAppealRequest,
 
 		if r.GetOptions() != nil {
 			var options *domain.AppealOptions
-			if err := mapstructure.Decode(r.GetOptions().AsMap(), &options); err != nil {
+			jsonBytes, err := json.Marshal(r.GetOptions().AsMap())
+			if err != nil {
+				return nil, err
+			}
+
+			// Unmarshal - this handles time.Time automatically!
+			if err := json.Unmarshal(jsonBytes, &options); err != nil {
 				return nil, err
 			}
 			appeal.Options = options
