@@ -120,6 +120,9 @@ type Appeal struct {
 
 	Description string `json:"description" yaml:"description"`
 
+	// AdditionalApprovalSteps allows users to provide custom approval steps for this appeal
+	AdditionalApprovalSteps []*Step `json:"additional_approval_steps,omitempty" yaml:"additional_approval_steps,omitempty"`
+
 	Policy    *Policy     `json:"-" yaml:"-"`
 	Resource  *Resource   `json:"resource,omitempty" yaml:"resource,omitempty"`
 	Approvals []*Approval `json:"approvals,omitempty" yaml:"approvals,omitempty"`
