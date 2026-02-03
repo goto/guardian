@@ -875,7 +875,6 @@ func (a *adapter) FromCreateAppealProto(ca *guardianv1beta1.CreateAppealRequest,
 				return nil, err
 			}
 
-			// Unmarshal - this handles time.Time automatically!
 			if err := json.Unmarshal(jsonBytes, &options); err != nil {
 				return nil, err
 			}
