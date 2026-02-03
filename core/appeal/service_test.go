@@ -2922,6 +2922,10 @@ func (s *ServiceTestSuite) TestCreate() {
 			h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(overriddingPolicy, nil).Once()
 			h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
 			h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
+			// UpdateByID is called for auto-approved appeals to update grant information
+			h.mockRepository.EXPECT().
+				UpdateByID(mock.Anything, mock.AnythingOfType("*domain.Appeal")).
+				Return(nil).Once()
 
 			err := h.service.Create(context.Background(), []*domain.Appeal{input}, appeal.CreateWithAdditionalAppeal())
 
@@ -3030,6 +3034,7 @@ func (s *ServiceTestSuite) TestCreate__WithExistingAppealAndWithAutoApprovalStep
 	expectedCreatorUser := map[string]interface{}{
 		"managers": []interface{}{"user.approver@email.com"},
 	}
+	// BulkUpsert is now called before Grant is prepared, so expectedAppealsInsertionParam should NOT have Grant
 	expectedAppealsInsertionParam := []*domain.Appeal{
 		{
 			ResourceID:    resources[0].ID,
@@ -3059,15 +3064,7 @@ func (s *ServiceTestSuite) TestCreate__WithExistingAppealAndWithAutoApprovalStep
 					Approvers:     []string{"test-approver@email.com"},
 				},
 			},
-			Grant: &domain.Grant{
-				ResourceID:  resources[0].ID,
-				Status:      domain.GrantStatusActive,
-				AccountID:   accountID,
-				AccountType: domain.DefaultAppealAccountType,
-				Role:        "role_id",
-				Permissions: []string{"test-permission"},
-				Resource:    resources[0],
-			},
+			Grant: nil, // Grant is set after BulkUpsert in the new flow
 		},
 	}
 
