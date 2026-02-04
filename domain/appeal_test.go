@@ -516,6 +516,27 @@ func TestAppeal_ToGrant(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "should return error when both ExpirationDate and Duration are provided",
+			appeal: domain.Appeal{
+				ID:          "appeal-1",
+				AccountID:   "account-1",
+				AccountType: "test",
+				ResourceID:  "resource-1",
+				Role:        "role-1",
+				Permissions: []string{"permission-1"},
+				CreatedBy:   "user-1",
+				Options: &domain.AppealOptions{
+					ExpirationDate: func() *time.Time {
+						t := time.Now().Add(24 * time.Hour)
+						return &t
+					}(),
+					Duration: "48h",
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
 			name: "should include group fields in ToGrant conversion",
 			appeal: domain.Appeal{
 				ID:          "appeal-1",
@@ -618,37 +639,6 @@ func TestAppeal_ToGrant(t *testing.T) {
 			},
 			want:    nil,
 			wantErr: true,
-		},
-		{
-			name: "should prioritize ExpirationDate over Duration",
-			appeal: domain.Appeal{
-				ID:          "appeal-1",
-				AccountID:   "account-1",
-				AccountType: "test",
-				ResourceID:  "resource-1",
-				Role:        "role-1",
-				Permissions: []string{"permission-1"},
-				CreatedBy:   "user-1",
-				Options: &domain.AppealOptions{
-					ExpirationDate: func() *time.Time {
-						t := time.Now().Add(24 * time.Hour)
-						return &t
-					}(),
-					Duration: "48h",
-				},
-			},
-			want: &domain.Grant{
-				Status:      domain.GrantStatusActive,
-				AccountID:   "account-1",
-				AccountType: "test",
-				ResourceID:  "resource-1",
-				Role:        "role-1",
-				Permissions: []string{"permission-1"},
-				AppealID:    "appeal-1",
-				CreatedBy:   "user-1",
-				IsPermanent: false,
-			},
-			wantErr: false,
 		},
 	}
 	for _, tt := range tests {

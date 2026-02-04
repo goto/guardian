@@ -46,7 +46,7 @@ var (
 // AppealOptions
 type AppealOptions struct {
 	ExpirationDate *time.Time `json:"expiration_date,omitempty" yaml:"expiration_date,omitempty"`
-	Duration       string     `json:"duration" yaml:"duration"`
+	Duration       string     `json:"duration,omitempty" yaml:"duration,omitempty"`
 }
 
 // LabelMetadata contains rich information about how a label was derived
@@ -230,6 +230,11 @@ func (a Appeal) ToGrant() (*Grant, error) {
 		CreatedBy:   a.CreatedBy,
 	}
 
+	// Validate that both ExpirationDate and Duration are not provided
+	if a.Options != nil && a.Options.ExpirationDate != nil && a.Options.Duration != "" {
+		return nil, fmt.Errorf("cannot specify both expiration_date and duration, please provide only one")
+	}
+
 	// Priority: ExpirationDate > Duration
 	if a.Options != nil && a.Options.ExpirationDate != nil {
 		// User provided exact expiration date
@@ -244,7 +249,8 @@ func (a Appeal) ToGrant() (*Grant, error) {
 		grant.ExpirationDateReason = ExpirationDateReasonFromAppeal
 
 		// Calculate and set Duration based on ExpirationDate
-		a.Options.Duration = duration.Round(time.Second).String()
+		hours := int(duration.Hours())
+		a.Options.Duration = fmt.Sprintf("%dh", hours)
 	} else if a.Options != nil && a.Options.Duration != "" {
 		// User provided duration string
 		duration, err := time.ParseDuration(a.Options.Duration)
