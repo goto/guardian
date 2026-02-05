@@ -1854,6 +1854,16 @@ func (s *Service) GetCustomSteps(ctx context.Context, a *domain.Appeal, p *domai
 			return nil, fmt.Errorf("error decoding metadata config: %w", err)
 		}
 
+		if cfg.When != "" {
+			isFalsy, err := evaluateIsFalsyExpressionWithAppeal(a, cfg.When)
+			if err != nil {
+				return nil, err
+			}
+			if isFalsy {
+				return nil, nil
+			}
+		}
+
 		if cfg.URL == "" {
 			return nil, fmt.Errorf("URL cannot be empty for http type")
 		}
@@ -2252,6 +2262,22 @@ func evaluateExpressionWithAppeal(a *domain.Appeal, expression string) (string, 
 		return evaluatedStr, nil
 	}
 	return expression, nil
+}
+
+func evaluateIsFalsyExpressionWithAppeal(a *domain.Appeal, expression string) (bool, error) {
+	if expression != "" {
+		appealMap, err := a.ToMap()
+		if err != nil {
+			return false, fmt.Errorf("error converting appeal to map: %w", err)
+		}
+		params := map[string]interface{}{"appeal": appealMap}
+		v, err := evaluator.Expression(expression).EvaluateWithVars(params)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating expression %w", err)
+		}
+		return reflect.ValueOf(v).IsZero(), nil
+	}
+	return false, nil
 }
 
 // executePostAppealHooks executes all post hooks for a requirement
