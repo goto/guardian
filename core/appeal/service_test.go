@@ -569,7 +569,7 @@ func (s *ServiceTestSuite) TestCreate() {
 					ResourceID: "1",
 					Role:       "invalid_role",
 					Options: &domain.AppealOptions{
-						ExpirationDate: &timeNow,
+						Duration: "24h",
 					},
 				}},
 				expectedError: appeal.ErrInvalidRole,
@@ -600,7 +600,7 @@ func (s *ServiceTestSuite) TestCreate() {
 					ResourceID: "1",
 					Role:       "role_1",
 					Options: &domain.AppealOptions{
-						ExpirationDate: &timeNow,
+						Duration: "24h",
 					},
 				}},
 				expectedError: appeal.ErrPolicyNotFound,
@@ -621,7 +621,7 @@ func (s *ServiceTestSuite) TestCreate() {
 					ResourceID: "1",
 					Role:       "role_1",
 					Options: &domain.AppealOptions{
-						ExpirationDate: &timeNow,
+						Duration: "24h",
 					},
 				}},
 				expectedError: appeal.ErrPolicyNotFound,
@@ -658,6 +658,66 @@ func (s *ServiceTestSuite) TestCreate() {
 					},
 				}},
 				expectedError: appeal.ErrDurationNotAllowed,
+			},
+			{
+				name: "should return error when both ExpirationDate and Duration are provided",
+				resources: []*domain.Resource{{
+					ID:           "1",
+					ProviderType: "provider_type",
+					ProviderURN:  "provider_urn",
+					Type:         "resource_type",
+				}},
+				callMockValidateAppeal: true,
+				callMockGetPermissions: true,
+				providers:              []*domain.Provider{testProvider},
+				policies: []*domain.Policy{{
+					ID:      "policy_id",
+					Version: uint(1),
+					AppealConfig: &domain.PolicyAppealConfig{
+						DurationOptions: []domain.AppealDurationOption{
+							{Name: "1 Day", Value: "24h"},
+						},
+					},
+				}},
+				appeals: []*domain.Appeal{{
+					ResourceID: "1",
+					Role:       "role_1",
+					Options: &domain.AppealOptions{
+						ExpirationDate: func() *time.Time {
+							t := time.Now().Add(24 * time.Hour)
+							return &t
+						}(),
+						Duration: "24h",
+					},
+				}},
+				expectedError: fmt.Errorf("cannot specify both expiration_date and duration, please provide only one"),
+			},
+			{
+				name: "should return error when ExpirationDate is in the past",
+				resources: []*domain.Resource{{
+					ID:           "1",
+					ProviderType: "provider_type",
+					ProviderURN:  "provider_urn",
+					Type:         "resource_type",
+				}},
+				callMockValidateAppeal: true,
+				callMockGetPermissions: true,
+				providers:              []*domain.Provider{testProvider},
+				policies: []*domain.Policy{{
+					ID:      "policy_id",
+					Version: uint(1),
+				}},
+				appeals: []*domain.Appeal{{
+					ResourceID: "1",
+					Role:       "role_1",
+					Options: &domain.AppealOptions{
+						ExpirationDate: func() *time.Time {
+							t := time.Now().Add(-24 * time.Hour)
+							return &t
+						}(),
+					},
+				}},
+				expectedError: fmt.Errorf("expiration date must be in the future"),
 			},
 		}
 
@@ -4183,7 +4243,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					ResourceID: "1",
 					Role:       "role_1",
 					Options: &domain.AppealOptions{
-						ExpirationDate: &timeNow,
+						Duration: "24h",
 					},
 					Status: domain.ApprovalStatusPending,
 				},
@@ -4210,7 +4270,7 @@ func (s *ServiceTestSuite) TestPatch() {
 					ResourceID: "2",
 					Role:       "role_1",
 					Options: &domain.AppealOptions{
-						ExpirationDate: &timeNow,
+						Duration: "24h",
 					},
 					Status: domain.ApprovalStatusPending,
 				},

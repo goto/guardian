@@ -230,19 +230,11 @@ func (a Appeal) ToGrant() (*Grant, error) {
 		CreatedBy:   a.CreatedBy,
 	}
 
-	// Validate that both ExpirationDate and Duration are not provided
-	if a.Options != nil && a.Options.ExpirationDate != nil && a.Options.Duration != "" {
-		return nil, fmt.Errorf("cannot specify both expiration_date and duration, please provide only one")
-	}
-
 	// Priority: ExpirationDate > Duration
 	if a.Options != nil && a.Options.ExpirationDate != nil {
 		// User provided exact expiration date
 		expDate := *a.Options.ExpirationDate
 		duration := time.Until(expDate)
-		if duration <= 0 {
-			return nil, fmt.Errorf("expiration date must be in the future, got: %v", expDate)
-		}
 
 		grant.ExpirationDate = &expDate
 		grant.RequestedExpirationDate = &expDate

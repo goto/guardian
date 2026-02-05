@@ -331,7 +331,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			return fmt.Errorf("getting permissions list: %w", err)
 		}
 		appeal.Permissions = strPermissions
-		if err := validateAppealDurationConfig(appeal, policy); err != nil {
+		if err := validateAppealOptionsConfig(appeal, policy); err != nil {
 			return err
 		}
 
@@ -522,18 +522,23 @@ func addOnBehalfApprovedNotification(appeal *domain.Appeal, notifications []doma
 	return notifications
 }
 
-func validateAppealDurationConfig(appeal *domain.Appeal, policy *domain.Policy) error {
-	// return nil if duration options are not configured for this policy
-	if policy.AppealConfig == nil || policy.AppealConfig.DurationOptions == nil {
+func validateAppealOptionsConfig(appeal *domain.Appeal, policy *domain.Policy) error {
+	// Validate that both ExpirationDate and Duration are not provided
+	if appeal.Options != nil && appeal.Options.ExpirationDate != nil && appeal.Options.Duration != "" {
+		return fmt.Errorf("cannot specify both expiration_date and duration, please provide only one")
+	}
+
+	// Validate ExpirationDate is in the future
+	if appeal.Options != nil && appeal.Options.ExpirationDate != nil {
+		duration := time.Until(*appeal.Options.ExpirationDate)
+		if duration <= 0 {
+			return fmt.Errorf("expiration date must be in the future, got: %v", *appeal.Options.ExpirationDate)
+		}
 		return nil
 	}
 
-	if appeal.Options != nil && appeal.Options.ExpirationDate != nil {
-		duration := time.Until(*appeal.Options.ExpirationDate)
-		if duration > 0 {
-			hours := int(duration.Hours())
-			appeal.Options.Duration = fmt.Sprintf("%dh", hours)
-		}
+	// return nil if duration options are not configured for this policy
+	if policy.AppealConfig == nil || policy.AppealConfig.DurationOptions == nil {
 		return nil
 	}
 
@@ -669,7 +674,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	}
 	appeal.Permissions = strPermissions
 
-	if err := validateAppealDurationConfig(appeal, policy); err != nil {
+	if err := validateAppealOptionsConfig(appeal, policy); err != nil {
 		return err
 	}
 
