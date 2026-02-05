@@ -527,6 +527,16 @@ func validateAppealDurationConfig(appeal *domain.Appeal, policy *domain.Policy) 
 	if policy.AppealConfig == nil || policy.AppealConfig.DurationOptions == nil {
 		return nil
 	}
+
+	if appeal.Options != nil && appeal.Options.ExpirationDate != nil {
+		duration := time.Until(*appeal.Options.ExpirationDate)
+		if duration > 0 {
+			hours := int(duration.Hours())
+			appeal.Options.Duration = fmt.Sprintf("%dh", hours)
+		}
+		return nil
+	}
+
 	for _, durationOption := range policy.AppealConfig.DurationOptions {
 		if appeal.Options.Duration == durationOption.Value {
 			return nil

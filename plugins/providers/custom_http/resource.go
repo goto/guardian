@@ -23,7 +23,7 @@ func (r *Resource) ToDomain() *domain.Resource {
 	return &domain.Resource{
 		ID:       r.ID,
 		Name:     r.Name,
-		URN:      fmt.Sprintf("custom_http:%s:%s", r.Type, resource_id),
+		URN:      fmt.Sprintf("%s:%s", r.Type, resource_id),
 		Type:     r.Type,
 		Details:  r.Details,
 		Children: []*domain.Resource{},
