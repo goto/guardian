@@ -873,53 +873,6 @@
         ]
       }
     },
-    "/v1beta1/appeals/{appealId}/relabel": {
-      "post": {
-        "operationId": "GuardianService_RelabelAppeal",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1beta1RelabelAppealResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "appealId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "policyVersion": {
-                  "type": "integer",
-                  "format": "int64"
-                },
-                "dryRun": {
-                  "type": "boolean"
-                }
-              }
-            }
-          }
-        ],
-        "tags": [
-          "GuardianService"
-        ]
-      }
-    },
     "/v1beta1/appeals/{id}": {
       "get": {
         "operationId": "GuardianService_GetAppeal",
@@ -4989,47 +4942,6 @@
         }
       }
     },
-    "ResourceAdditionalApprovalStep": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "allowFailed": {
-          "type": "boolean"
-        },
-        "when": {
-          "type": "string"
-        },
-        "strategy": {
-          "type": "string"
-        },
-        "approveIf": {
-          "type": "string"
-        },
-        "approvers": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "rejectionReason": {
-          "type": "string"
-        },
-        "dontAllowSelfApproval": {
-          "type": "boolean"
-        },
-        "details": {
-          "type": "object"
-        },
-        "termsAndConditions": {
-          "type": "string"
-        }
-      }
-    },
     "SummaryResultGroup": {
       "type": "object",
       "properties": {
@@ -5479,13 +5391,6 @@
         },
         "groupType": {
           "type": "string"
-        },
-        "additionalApprovalSteps": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/ResourceAdditionalApprovalStep"
-          }
         }
       }
     },
@@ -6416,14 +6321,6 @@
           "items": {
             "type": "string"
           }
-        }
-      }
-    },
-    "v1beta1RelabelAppealResponse": {
-      "type": "object",
-      "properties": {
-        "appeal": {
-          "$ref": "#/definitions/v1beta1Appeal"
         }
       }
     },

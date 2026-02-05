@@ -879,32 +879,6 @@ func (a *adapter) FromCreateAppealProto(ca *guardianv1beta1.CreateAppealRequest,
 			appeal.Details = r.GetDetails().AsMap()
 		}
 
-		// Map additional approval steps from proto to domain
-		if len(r.GetAdditionalApprovalSteps()) > 0 {
-			additionalSteps := make([]*domain.Step, 0, len(r.GetAdditionalApprovalSteps()))
-			for _, protoStep := range r.GetAdditionalApprovalSteps() {
-				step := &domain.Step{
-					Name:                  protoStep.GetName(),
-					Description:           protoStep.GetDescription(),
-					AllowFailed:           protoStep.GetAllowFailed(),
-					When:                  protoStep.GetWhen(),
-					Strategy:              domain.ApprovalStepStrategy(protoStep.GetStrategy()),
-					ApproveIf:             protoStep.GetApproveIf(),
-					Approvers:             protoStep.GetApprovers(),
-					RejectionReason:       protoStep.GetRejectionReason(),
-					DontAllowSelfApproval: protoStep.GetDontAllowSelfApproval(),
-					TermsAndConditions:    protoStep.GetTermsAndConditions(),
-				}
-
-				if protoStep.GetDetails() != nil {
-					step.Details = protoStep.GetDetails().AsMap()
-				}
-
-				additionalSteps = append(additionalSteps, step)
-			}
-			appeal.AdditionalApprovalSteps = additionalSteps
-		}
-
 		appeals = append(appeals, appeal)
 	}
 

@@ -347,10 +347,6 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			return fmt.Errorf("getting appeal metadata: %w", err)
 		}
 
-		if appeal.AdditionalApprovalSteps != nil {
-			policy.Steps = append(policy.Steps, appeal.AdditionalApprovalSteps...)
-		}
-
 		steps, err := s.GetCustomSteps(ctx, appeal, policy)
 		if err != nil {
 			return fmt.Errorf("getting custom steps : %w", err)

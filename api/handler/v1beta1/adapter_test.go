@@ -4,12 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/types/known/structpb"
-
 	"github.com/goto/guardian/api/handler/v1beta1"
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/domain"
+	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestAdapter_FromCreateAppealProto_WithUserLabels(t *testing.T) {
@@ -108,91 +107,6 @@ func TestAdapter_FromCreateAppealProto_WithUserLabels(t *testing.T) {
 		assert.Len(t, appeals, 2)
 		assert.Equal(t, "production", appeals[0].UserLabels["environment"])
 		assert.Equal(t, "production", appeals[1].UserLabels["environment"])
-	})
-
-	t.Run("should map additional_approval_steps from proto to domain", func(t *testing.T) {
-		detailsStruct, _ := structpb.NewStruct(map[string]interface{}{
-			"key": "value",
-		})
-
-		req := &guardianv1beta1.CreateAppealRequest{
-			AccountId: "test-account",
-			Resources: []*guardianv1beta1.CreateAppealRequest_Resource{
-				{
-					Id:   "resource-1",
-					Role: "viewer",
-					AdditionalApprovalSteps: []*guardianv1beta1.CreateAppealRequest_Resource_AdditionalApprovalStep{
-						{
-							Name:                  "custom-step-1",
-							Description:           "First custom approval step",
-							AllowFailed:           false,
-							When:                  "$appeal.resource.type == 'critical'",
-							Strategy:              "manual",
-							Approvers:             []string{"approver1@example.com", "approver2@example.com"},
-							DontAllowSelfApproval: true,
-							TermsAndConditions:    "Accept terms and conditions",
-							Details:               detailsStruct,
-						},
-						{
-							Name:            "custom-step-2",
-							Description:     "Second custom approval step",
-							AllowFailed:     true,
-							Strategy:        "auto",
-							ApproveIf:       "$appeal.creator.role == 'admin'",
-							RejectionReason: "Not admin",
-						},
-					},
-				},
-			},
-		}
-
-		appeals, err := adapter.FromCreateAppealProto(req, authenticatedUser)
-
-		assert.NoError(t, err)
-		assert.Len(t, appeals, 1)
-		assert.NotNil(t, appeals[0].AdditionalApprovalSteps)
-		assert.Len(t, appeals[0].AdditionalApprovalSteps, 2)
-
-		// Verify first step
-		step1 := appeals[0].AdditionalApprovalSteps[0]
-		assert.Equal(t, "custom-step-1", step1.Name)
-		assert.Equal(t, "First custom approval step", step1.Description)
-		assert.False(t, step1.AllowFailed)
-		assert.Equal(t, "$appeal.resource.type == 'critical'", step1.When)
-		assert.Equal(t, domain.ApprovalStepStrategy("manual"), step1.Strategy)
-		assert.Equal(t, []string{"approver1@example.com", "approver2@example.com"}, step1.Approvers)
-		assert.True(t, step1.DontAllowSelfApproval)
-		assert.Equal(t, "Accept terms and conditions", step1.TermsAndConditions)
-		assert.NotNil(t, step1.Details)
-		assert.Equal(t, "value", step1.Details["key"])
-
-		// Verify second step
-		step2 := appeals[0].AdditionalApprovalSteps[1]
-		assert.Equal(t, "custom-step-2", step2.Name)
-		assert.Equal(t, "Second custom approval step", step2.Description)
-		assert.True(t, step2.AllowFailed)
-		assert.Equal(t, domain.ApprovalStepStrategy("auto"), step2.Strategy)
-		assert.Equal(t, "$appeal.creator.role == 'admin'", step2.ApproveIf)
-		assert.Equal(t, "Not admin", step2.RejectionReason)
-	})
-
-	t.Run("should handle nil additional_approval_steps", func(t *testing.T) {
-		req := &guardianv1beta1.CreateAppealRequest{
-			AccountId: "test-account",
-			Resources: []*guardianv1beta1.CreateAppealRequest_Resource{
-				{
-					Id:                      "resource-1",
-					Role:                    "viewer",
-					AdditionalApprovalSteps: nil,
-				},
-			},
-		}
-
-		appeals, err := adapter.FromCreateAppealProto(req, authenticatedUser)
-
-		assert.NoError(t, err)
-		assert.Len(t, appeals, 1)
-		assert.Nil(t, appeals[0].AdditionalApprovalSteps)
 	})
 }
 
