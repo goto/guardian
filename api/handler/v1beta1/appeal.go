@@ -472,3 +472,48 @@ func (s *GRPCServer) listAppeals(ctx context.Context, filters *domain.ListAppeal
 
 	return appealsProto, total, summaryProto, nil
 }
+
+func (s *GRPCServer) RelabelAppeal(ctx context.Context, req *guardianv1beta1.RelabelAppealRequest) (*guardianv1beta1.RelabelAppealResponse, error) {
+
+	_, err := s.getUser(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+
+	appealID := req.GetAppealId()
+	if appealID == "" {
+		return nil, status.Error(codes.InvalidArgument, "appeal_id is required")
+	}
+
+	var policyVersion *uint
+	if req.PolicyVersion != nil {
+		version := uint(*req.PolicyVersion)
+		policyVersion = &version
+	}
+
+	a, err := s.appealService.Relabel(ctx, appealID, policyVersion, req.GetDryRun())
+	if err != nil {
+		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
+		}
+		switch {
+		case errors.Is(err, appeal.ErrAppealNotFound):
+			return nil, status.Errorf(codes.NotFound, "appeal not found: %v", appealID)
+		case errors.Is(err, appeal.ErrPolicyNotFound):
+			return nil, s.failedPrecondition(ctx, "policy not found for appeal: %v", err)
+		case errors.Is(err, appeal.ErrResourceNotFound):
+			return nil, s.failedPrecondition(ctx, "resource not found for appeal: %v", err)
+		default:
+			return nil, s.internalError(ctx, "failed to relabel appeal: %v", err)
+		}
+	}
+
+	appealProto, err := s.adapter.ToAppealProto(a)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to parse appeal: %v", err)
+	}
+
+	return &guardianv1beta1.RelabelAppealResponse{
+		Appeal: appealProto,
+	}, nil
+}
