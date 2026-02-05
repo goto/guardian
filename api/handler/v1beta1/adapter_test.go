@@ -905,3 +905,296 @@ func TestAdapter_ToPolicyProto_WithLabelingConfig(t *testing.T) {
 		assert.Equal(t, 5, roundtrippedPolicy.AppealConfig.UserLabelConfig.MaxLabels)
 	})
 }
+
+func TestAdapter_FromCreateAppealProto_OptionsErrorHandling(t *testing.T) {
+	adapter := v1beta1.NewAdapter()
+	authenticatedUser := "user@example.com"
+
+	t.Run("should parse duration option successfully", func(t *testing.T) {
+		optionsStruct, err := structpb.NewStruct(map[string]interface{}{
+			"duration": "24h",
+		})
+		assert.NoError(t, err)
+
+		req := &guardianv1beta1.CreateAppealRequest{
+			AccountId: "test-account",
+			Resources: []*guardianv1beta1.CreateAppealRequest_Resource{
+				{
+					Id:      "resource-1",
+					Role:    "viewer",
+					Options: optionsStruct,
+				},
+			},
+		}
+
+		appeals, err := adapter.FromCreateAppealProto(req, authenticatedUser)
+
+		assert.NoError(t, err)
+		assert.Len(t, appeals, 1)
+		assert.NotNil(t, appeals[0].Options)
+		assert.Equal(t, "24h", appeals[0].Options.Duration)
+	})
+
+	t.Run("should parse expiration_date option successfully", func(t *testing.T) {
+		expirationTime := time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)
+		optionsStruct, err := structpb.NewStruct(map[string]interface{}{
+			"expiration_date": expirationTime.Format(time.RFC3339),
+		})
+		assert.NoError(t, err)
+
+		req := &guardianv1beta1.CreateAppealRequest{
+			AccountId: "test-account",
+			Resources: []*guardianv1beta1.CreateAppealRequest_Resource{
+				{
+					Id:      "resource-1",
+					Role:    "viewer",
+					Options: optionsStruct,
+				},
+			},
+		}
+
+		appeals, err := adapter.FromCreateAppealProto(req, authenticatedUser)
+
+		assert.NoError(t, err)
+		assert.Len(t, appeals, 1)
+		assert.NotNil(t, appeals[0].Options)
+		assert.NotNil(t, appeals[0].Options.ExpirationDate)
+		// Time comparison with some tolerance for parsing
+		assert.WithinDuration(t, expirationTime, *appeals[0].Options.ExpirationDate, time.Second)
+	})
+
+	t.Run("should handle invalid JSON in options gracefully", func(t *testing.T) {
+		// Create a structpb with a channel (which cannot be marshaled to JSON)
+		// Since structpb.NewStruct won't accept channels, we test with deeply nested circular reference
+		// Instead, we'll use an approach that triggers unmarshal error
+
+		// This will succeed marshal but fail unmarshal due to invalid duration format
+		optionsStruct, err := structpb.NewStruct(map[string]interface{}{
+			"duration": map[string]interface{}{
+				"invalid": "structure",
+			},
+		})
+		assert.NoError(t, err)
+
+		req := &guardianv1beta1.CreateAppealRequest{
+			AccountId: "test-account",
+			Resources: []*guardianv1beta1.CreateAppealRequest_Resource{
+				{
+					Id:      "resource-1",
+					Role:    "viewer",
+					Options: optionsStruct,
+				},
+			},
+		}
+
+		appeals, err := adapter.FromCreateAppealProto(req, authenticatedUser)
+
+		// Should return error when unmarshal fails
+		assert.Error(t, err)
+		assert.Nil(t, appeals)
+	})
+
+	t.Run("should handle both duration and expiration_date", func(t *testing.T) {
+		expirationTime := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+		optionsStruct, err := structpb.NewStruct(map[string]interface{}{
+			"duration":        "72h",
+			"expiration_date": expirationTime.Format(time.RFC3339),
+		})
+		assert.NoError(t, err)
+
+		req := &guardianv1beta1.CreateAppealRequest{
+			AccountId: "test-account",
+			Resources: []*guardianv1beta1.CreateAppealRequest_Resource{
+				{
+					Id:      "resource-1",
+					Role:    "viewer",
+					Options: optionsStruct,
+				},
+			},
+		}
+
+		appeals, err := adapter.FromCreateAppealProto(req, authenticatedUser)
+
+		assert.NoError(t, err)
+		assert.Len(t, appeals, 1)
+		assert.NotNil(t, appeals[0].Options)
+		assert.Equal(t, "72h", appeals[0].Options.Duration)
+		assert.NotNil(t, appeals[0].Options.ExpirationDate)
+		assert.WithinDuration(t, expirationTime, *appeals[0].Options.ExpirationDate, time.Second)
+	})
+
+	t.Run("should handle nil options", func(t *testing.T) {
+		req := &guardianv1beta1.CreateAppealRequest{
+			AccountId: "test-account",
+			Resources: []*guardianv1beta1.CreateAppealRequest_Resource{
+				{
+					Id:      "resource-1",
+					Role:    "viewer",
+					Options: nil,
+				},
+			},
+		}
+
+		appeals, err := adapter.FromCreateAppealProto(req, authenticatedUser)
+
+		assert.NoError(t, err)
+		assert.Len(t, appeals, 1)
+		assert.Nil(t, appeals[0].Options)
+	})
+}
+
+func TestAdapter_ToGrantProto_ErrorHandling(t *testing.T) {
+	adapter := v1beta1.NewAdapter()
+
+	t.Run("should handle nil grant", func(t *testing.T) {
+		result, err := adapter.ToGrantProto(nil)
+
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("should convert grant successfully", func(t *testing.T) {
+		expirationDate := time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)
+		revokedAt := time.Date(2026, 1, 15, 10, 30, 0, 0, time.UTC)
+		createdAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+		updatedAt := time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC)
+
+		grant := &domain.Grant{
+			ID:                   "grant-123",
+			Status:               domain.GrantStatusActive,
+			StatusInProvider:     domain.GrantStatusActive,
+			AccountID:            "user@example.com",
+			AccountType:          "user",
+			ResourceID:           "resource-456",
+			Role:                 "viewer",
+			Permissions:          []string{"read"},
+			IsPermanent:          false,
+			AppealID:             "appeal-789",
+			Source:               domain.GrantSourceAppeal,
+			ExpirationDate:       &expirationDate,
+			ExpirationDateReason: "Access expires at end of year",
+			RevokedAt:            &revokedAt,
+			RevokedBy:            "admin@example.com",
+			RevokeReason:         "No longer needed",
+			CreatedBy:            "system",
+			Owner:                "team-alpha",
+			CreatedAt:            createdAt,
+			UpdatedAt:            updatedAt,
+		}
+
+		result, err := adapter.ToGrantProto(grant)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "grant-123", result.Id)
+		assert.Equal(t, "active", result.Status)
+		assert.Equal(t, "user@example.com", result.AccountId)
+		assert.NotNil(t, result.ExpirationDate)
+		assert.Equal(t, expirationDate.Unix(), result.ExpirationDate.AsTime().Unix())
+	})
+
+	t.Run("should handle grant with resource", func(t *testing.T) {
+		grant := &domain.Grant{
+			ID:         "grant-123",
+			ResourceID: "resource-456",
+			Resource: &domain.Resource{
+				ID:           "resource-456",
+				ProviderType: "bigquery",
+				Type:         "dataset",
+				URN:          "bigquery:dataset:my-dataset",
+				Name:         "My Dataset",
+				Details: map[string]interface{}{
+					"project": "my-project",
+				},
+			},
+		}
+
+		result, err := adapter.ToGrantProto(grant)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.Resource)
+		assert.Equal(t, "resource-456", result.Resource.Id)
+		assert.Equal(t, "bigquery", result.Resource.ProviderType)
+	})
+
+	t.Run("should return error when resource conversion fails", func(t *testing.T) {
+		grant := &domain.Grant{
+			ID:         "grant-123",
+			ResourceID: "resource-456",
+			Resource: &domain.Resource{
+				ID: "resource-456",
+				Details: map[string]interface{}{
+					"invalid": make(chan int), // channels cannot be converted to structpb
+				},
+			},
+		}
+
+		result, err := adapter.ToGrantProto(grant)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "parsing resource")
+		assert.Nil(t, result)
+	})
+
+	t.Run("should handle grant with appeal", func(t *testing.T) {
+		grant := &domain.Grant{
+			ID:       "grant-123",
+			AppealID: "appeal-789",
+			Appeal: &domain.Appeal{
+				ID:          "appeal-789",
+				ResourceID:  "resource-456",
+				AccountID:   "user@example.com",
+				Role:        "viewer",
+				Status:      domain.AppealStatusApproved,
+				Description: "Need access",
+			},
+		}
+
+		result, err := adapter.ToGrantProto(grant)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.Appeal)
+		assert.Equal(t, "appeal-789", result.Appeal.Id)
+		assert.Equal(t, "approved", result.Appeal.Status)
+	})
+
+	t.Run("should return error when appeal conversion fails", func(t *testing.T) {
+		grant := &domain.Grant{
+			ID:       "grant-123",
+			AppealID: "appeal-789",
+			Appeal: &domain.Appeal{
+				ID:         "appeal-789",
+				ResourceID: "resource-456",
+				Details: map[string]interface{}{
+					"invalid": make(chan int), // channels cannot be converted to structpb
+				},
+			},
+		}
+
+		result, err := adapter.ToGrantProto(grant)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "parsing appeal")
+		assert.Nil(t, result)
+	})
+
+	t.Run("should handle grant with all optional fields nil", func(t *testing.T) {
+		grant := &domain.Grant{
+			ID:         "grant-123",
+			ResourceID: "resource-456",
+			AccountID:  "user@example.com",
+			Role:       "viewer",
+		}
+
+		result, err := adapter.ToGrantProto(grant)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Nil(t, result.ExpirationDate)
+		assert.Nil(t, result.RevokedAt)
+		assert.Nil(t, result.Resource)
+		assert.Nil(t, result.Appeal)
+	})
+}

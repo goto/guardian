@@ -52,6 +52,7 @@ type repository interface {
 	GetByID(ctx context.Context, id string) (*domain.Appeal, error)
 	UpdateByID(context.Context, *domain.Appeal) error
 	Update(context.Context, *domain.Appeal) error
+	UpdateLabels(context.Context, *domain.Appeal) error
 	GetAppealsTotalCount(context.Context, *domain.ListAppealsFilter) (int64, error)
 	GenerateSummary(context.Context, *domain.ListAppealsFilter) (*domain.SummaryResult, error)
 }
@@ -331,7 +332,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			return fmt.Errorf("getting permissions list: %w", err)
 		}
 		appeal.Permissions = strPermissions
-		if err := validateAppealDurationConfig(appeal, policy); err != nil {
+		if err := validateAppealOptionsConfig(appeal, policy); err != nil {
 			return err
 		}
 
@@ -543,11 +544,26 @@ func addOnBehalfApprovedNotification(appeal *domain.Appeal, notifications []doma
 	return notifications
 }
 
-func validateAppealDurationConfig(appeal *domain.Appeal, policy *domain.Policy) error {
+func validateAppealOptionsConfig(appeal *domain.Appeal, policy *domain.Policy) error {
+	// Validate that both ExpirationDate and Duration are not provided
+	if appeal.Options != nil && appeal.Options.ExpirationDate != nil && appeal.Options.Duration != "" {
+		return fmt.Errorf("cannot specify both expiration_date and duration, please provide only one")
+	}
+
+	// Validate ExpirationDate is in the future
+	if appeal.Options != nil && appeal.Options.ExpirationDate != nil {
+		duration := time.Until(*appeal.Options.ExpirationDate)
+		if duration <= 0 {
+			return fmt.Errorf("expiration date must be in the future, got: %v", *appeal.Options.ExpirationDate)
+		}
+		return nil
+	}
+
 	// return nil if duration options are not configured for this policy
 	if policy.AppealConfig == nil || policy.AppealConfig.DurationOptions == nil {
 		return nil
 	}
+
 	for _, durationOption := range policy.AppealConfig.DurationOptions {
 		if appeal.Options.Duration == durationOption.Value {
 			return nil
@@ -567,6 +583,62 @@ func validateAppealOnBehalf(a *domain.Appeal, policy *domain.Policy) error {
 		}
 	}
 	return nil
+}
+
+// Relabel reapplies labeling rules to an existing appeal based on updated policy configuration
+func (s *Service) Relabel(ctx context.Context, appealID string, policyVersion *uint, dryRun bool) (*domain.Appeal, error) {
+	if appealID == "" {
+		return nil, ErrAppealIDEmptyParam
+	}
+
+	existingAppeal, err := s.GetByID(ctx, appealID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting existing appeal: %w", err)
+	}
+
+	if existingAppeal.Resource == nil {
+		resource, err := s.resourceService.Get(ctx, &domain.ResourceIdentifier{ID: existingAppeal.ResourceID})
+		if err != nil {
+			return nil, fmt.Errorf("error getting resource: %w", err)
+		}
+		existingAppeal.Resource = resource
+	}
+
+	var policy *domain.Policy
+	policyVersionToFetch := existingAppeal.PolicyVersion
+
+	if policyVersion != nil {
+		policyVersionToFetch = *policyVersion
+	}
+
+	policy, err = s.policyService.GetOne(ctx, existingAppeal.PolicyID, policyVersionToFetch)
+	if err != nil {
+		return nil, fmt.Errorf("error getting policy version %d: %w", policyVersionToFetch, err)
+	}
+
+	if err := s.applyLabeling(ctx, existingAppeal, policy); err != nil {
+		return nil, fmt.Errorf("error applying labels: %w", err)
+	}
+
+	if !dryRun {
+		if err := s.repo.UpdateLabels(ctx, existingAppeal); err != nil {
+			return nil, fmt.Errorf("error updating appeal: %w", err)
+		}
+
+		go func() {
+			ctx := context.WithoutCancel(ctx)
+			if err := s.auditLogger.Log(ctx, AuditKeyUpdate, map[string]interface{}{
+				"appeal_id":      appealID,
+				"action":         "relabel",
+				"policy_version": policyVersionToFetch,
+				"policy_id":      existingAppeal.PolicyID,
+			}); err != nil {
+				s.logger.Error(ctx, "failed to record audit log", "error", err)
+			}
+		}()
+
+	}
+	return existingAppeal, nil
 }
 
 // Patch record
@@ -680,7 +752,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	}
 	appeal.Permissions = strPermissions
 
-	if err := validateAppealDurationConfig(appeal, policy); err != nil {
+	if err := validateAppealOptionsConfig(appeal, policy); err != nil {
 		return err
 	}
 
