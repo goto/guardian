@@ -331,7 +331,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			return fmt.Errorf("getting permissions list: %w", err)
 		}
 		appeal.Permissions = strPermissions
-		if err := validateAppealDurationConfig(appeal, policy); err != nil {
+		if err := validateAppealOptionsConfig(appeal, policy); err != nil {
 			return err
 		}
 
@@ -522,7 +522,7 @@ func addOnBehalfApprovedNotification(appeal *domain.Appeal, notifications []doma
 	return notifications
 }
 
-func validateAppealDurationConfig(appeal *domain.Appeal, policy *domain.Policy) error {
+func validateAppealOptionsConfig(appeal *domain.Appeal, policy *domain.Policy) error {
 	// Validate that both ExpirationDate and Duration are not provided
 	if appeal.Options != nil && appeal.Options.ExpirationDate != nil && appeal.Options.Duration != "" {
 		return fmt.Errorf("cannot specify both expiration_date and duration, please provide only one")
@@ -674,7 +674,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	}
 	appeal.Permissions = strPermissions
 
-	if err := validateAppealDurationConfig(appeal, policy); err != nil {
+	if err := validateAppealOptionsConfig(appeal, policy); err != nil {
 		return err
 	}
 
