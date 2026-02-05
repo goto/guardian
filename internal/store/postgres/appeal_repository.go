@@ -444,3 +444,37 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 
 	return db, nil
 }
+
+// UpdateLabels updates only the labels and label metadata of an appeal
+func (r *AppealRepository) UpdateLabels(ctx context.Context, a *domain.Appeal) error {
+	if a.ID == "" {
+		return appeal.ErrAppealIDEmptyParam
+	}
+
+	m := new(model.Appeal)
+	if err := m.FromDomain(a); err != nil {
+		return err
+	}
+
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.Appeal{}).
+			Where("id = ?", a.ID).
+			Select("labels", "labels_metadata").
+			Updates(m).Error; err != nil {
+			return err
+		}
+
+		// Reload to get updated timestamps and state
+		if err := tx.Where("id = ?", a.ID).First(m).Error; err != nil {
+			return err
+		}
+
+		newRecord, err := m.ToDomain()
+		if err != nil {
+			return err
+		}
+
+		*a = *newRecord
+		return nil
+	})
+}
