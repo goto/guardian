@@ -2982,6 +2982,12 @@ func (s *ServiceTestSuite) TestCreate() {
 			h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(overriddingPolicy, nil).Once()
 			h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
 			h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
+			h.mockRepository.EXPECT().
+				UpdateByID(mock.Anything, mock.AnythingOfType("*domain.Appeal")).
+				Return(nil).
+				Run(func(_ context.Context, a *domain.Appeal) {
+					s.NotNil(a.Grant, "Grant should be set before UpdateByID is called")
+				}).Once()
 
 			err := h.service.Create(context.Background(), []*domain.Appeal{input}, appeal.CreateWithAdditionalAppeal())
 
@@ -3090,6 +3096,7 @@ func (s *ServiceTestSuite) TestCreate__WithExistingAppealAndWithAutoApprovalStep
 	expectedCreatorUser := map[string]interface{}{
 		"managers": []interface{}{"user.approver@email.com"},
 	}
+	// BulkUpsert is now called before Grant is prepared, so expectedAppealsInsertionParam should NOT have Grant
 	expectedAppealsInsertionParam := []*domain.Appeal{
 		{
 			ResourceID:    resources[0].ID,
@@ -3119,15 +3126,7 @@ func (s *ServiceTestSuite) TestCreate__WithExistingAppealAndWithAutoApprovalStep
 					Approvers:     []string{"test-approver@email.com"},
 				},
 			},
-			Grant: &domain.Grant{
-				ResourceID:  resources[0].ID,
-				Status:      domain.GrantStatusActive,
-				AccountID:   accountID,
-				AccountType: domain.DefaultAppealAccountType,
-				Role:        "role_id",
-				Permissions: []string{"test-permission"},
-				Resource:    resources[0],
-			},
+			Grant: nil, // Grant is set after BulkUpsert in the new flow
 		},
 	}
 
@@ -3259,6 +3258,13 @@ func (s *ServiceTestSuite) TestCreate__WithExistingAppealAndWithAutoApprovalStep
 				}
 			}
 		}).Once()
+	h.mockRepository.EXPECT().
+		UpdateByID(h.ctxMatcher, mock.AnythingOfType("*domain.Appeal")).
+		Return(nil).
+		Run(func(_a0 context.Context, a *domain.Appeal) {
+			s.NotNil(a.Grant, "Grant should be set before UpdateByID is called")
+			s.Equal(domain.GrantStatusActive, a.Grant.Status)
+		}).Once()
 	h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 	h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 
@@ -3266,6 +3272,16 @@ func (s *ServiceTestSuite) TestCreate__WithExistingAppealAndWithAutoApprovalStep
 	time.Sleep(time.Millisecond)
 
 	s.Nil(actualError)
+
+	s.Require().NotNil(appeals[0].Grant)
+	s.Equal(resources[0].ID, appeals[0].Grant.ResourceID)
+	s.Equal(domain.GrantStatusActive, appeals[0].Grant.Status)
+	s.Equal(accountID, appeals[0].Grant.AccountID)
+	s.Equal(domain.DefaultAppealAccountType, appeals[0].Grant.AccountType)
+	s.Equal("role_id", appeals[0].Grant.Role)
+	s.Equal([]string{"test-permission"}, appeals[0].Grant.Permissions)
+	s.Equal(resources[0], appeals[0].Grant.Resource)
+
 	s.Equal(expectedResult, appeals)
 
 	time.Sleep(time.Millisecond)
@@ -3446,6 +3462,14 @@ func (s *ServiceTestSuite) TestCreate__WithAdditionalAppeals() {
 		appeal := appeals[0]
 		s.Equal(targetResource.ID, appeal.Resource.ID)
 	})
+	// UpdateByID is called for auto-approved additional appeals to update grant information
+	h.mockRepository.EXPECT().
+		UpdateByID(mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("*domain.Appeal")).
+		Return(nil).
+		Run(func(_ context.Context, a *domain.Appeal) {
+			// Verify that Grant is set when UpdateByID is called
+			s.NotNil(a.Grant, "Grant should be set before UpdateByID is called for additional appeal")
+		}).Once()
 	h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 	h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 
@@ -3460,6 +3484,12 @@ func (s *ServiceTestSuite) TestCreate__WithAdditionalAppeals() {
 		appeal := appeals[0]
 		s.Equal(appealsPayload[0].Resource.ID, appeal.Resource.ID)
 	})
+	h.mockRepository.EXPECT().
+		UpdateByID(h.ctxMatcher, mock.AnythingOfType("*domain.Appeal")).
+		Return(nil).
+		Run(func(_ context.Context, a *domain.Appeal) {
+			s.NotNil(a.Grant, "Grant should be set before UpdateByID is called for main appeal")
+		}).Once()
 	h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
 	h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 

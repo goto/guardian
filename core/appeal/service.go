@@ -379,53 +379,74 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		if createAppealOpts.DryRun {
 			return nil
 		}
+	}
 
+	// Separate auto-approved appeals from pending appeals for optimized processing
+	// Auto-approved appeals need to be persisted before GrantAccessToProvider is called
+	// so that post hooks can retrieve the appeal from the database
+	var autoApprovedAppeals []*domain.Appeal
+	for _, appeal := range appeals {
 		for _, approval := range appeal.Approvals {
 			// TODO: direcly check on appeal.Status==domain.AppealStatusApproved instead of manual looping through approvals
 			if approval.Index == len(appeal.Approvals)-1 && (approval.Status == domain.ApprovalStatusApproved || appeal.Status == domain.AppealStatusApproved) {
-				newGrant, prevGrant, err := s.prepareGrant(ctx, appeal)
-				if err != nil {
-					return fmt.Errorf("preparing grant: %w", err)
-				}
-				newGrant.Resource = appeal.Resource
-				appeal.Grant = newGrant
-				if prevGrant != nil {
-					if _, err := s.grantService.Revoke(ctx, prevGrant.ID, domain.SystemActorName, prevGrant.RevokeReason,
-						grant.SkipNotifications(),
-						grant.SkipRevokeAccessInProvider(),
-					); err != nil {
-						return fmt.Errorf("revoking previous grant: %w", err)
-					}
-				}
-
-				if err := s.GrantAccessToProvider(ctx, appeal, opts...); err != nil {
-					return fmt.Errorf("granting access: %w", err)
-				}
-
-				notifications = append(notifications, domain.Notification{
-					User: appeal.CreatedBy,
-					Labels: map[string]string{
-						"appeal_id": appeal.ID,
-					},
-					Message: domain.NotificationMessage{
-						Type: domain.NotificationTypeAppealApproved,
-						Variables: map[string]interface{}{
-							"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-							"role":          appeal.Role,
-							"account_id":    appeal.AccountID,
-							"appeal_id":     appeal.ID,
-							"requestor":     appeal.CreatedBy,
-						},
-					},
-				})
-
-				notifications = addOnBehalfApprovedNotification(appeal, notifications)
+				autoApprovedAppeals = append(autoApprovedAppeals, appeal)
+				break
 			}
 		}
 	}
 
+	// Persist all appeals to database in one operation
+	// This ensures auto-approved appeals exist in DB before post hooks are executed
 	if err := s.repo.BulkUpsert(ctx, appeals); err != nil {
 		return fmt.Errorf("inserting appeals into db: %w", err)
+	}
+
+	// Process auto-approved appeals: grant access and handle requirements
+	// At this point, appeals already exist in DB so post hooks can retrieve them
+	for _, appeal := range autoApprovedAppeals {
+		newGrant, prevGrant, err := s.prepareGrant(ctx, appeal)
+		if err != nil {
+			return fmt.Errorf("preparing grant: %w", err)
+		}
+		newGrant.Resource = appeal.Resource
+		appeal.Grant = newGrant
+
+		if prevGrant != nil {
+			if _, err := s.grantService.Revoke(ctx, prevGrant.ID, domain.SystemActorName, prevGrant.RevokeReason,
+				grant.SkipNotifications(),
+				grant.SkipRevokeAccessInProvider(),
+			); err != nil {
+				return fmt.Errorf("revoking previous grant: %w", err)
+			}
+		}
+
+		if err := s.GrantAccessToProvider(ctx, appeal, opts...); err != nil {
+			return fmt.Errorf("granting access: %w", err)
+		}
+
+		// Update the appeal with grant information after GrantAccessToProvider
+		if err := s.repo.UpdateByID(ctx, appeal); err != nil {
+			return fmt.Errorf("updating appeal with grant: %w", err)
+		}
+
+		notifications = append(notifications, domain.Notification{
+			User: appeal.CreatedBy,
+			Labels: map[string]string{
+				"appeal_id": appeal.ID,
+			},
+			Message: domain.NotificationMessage{
+				Type: domain.NotificationTypeAppealApproved,
+				Variables: map[string]interface{}{
+					"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+					"role":          appeal.Role,
+					"account_id":    appeal.AccountID,
+					"appeal_id":     appeal.ID,
+					"requestor":     appeal.CreatedBy,
+				},
+			},
+		})
+
+		notifications = addOnBehalfApprovedNotification(appeal, notifications)
 	}
 
 	go func() {
@@ -1833,6 +1854,16 @@ func (s *Service) GetCustomSteps(ctx context.Context, a *domain.Appeal, p *domai
 			return nil, fmt.Errorf("error decoding metadata config: %w", err)
 		}
 
+		if cfg.When != "" {
+			isFalsy, err := evaluateIsFalsyExpressionWithAppeal(a, cfg.When)
+			if err != nil {
+				return nil, err
+			}
+			if isFalsy {
+				return nil, nil
+			}
+		}
+
 		if cfg.URL == "" {
 			return nil, fmt.Errorf("URL cannot be empty for http type")
 		}
@@ -2231,6 +2262,22 @@ func evaluateExpressionWithAppeal(a *domain.Appeal, expression string) (string, 
 		return evaluatedStr, nil
 	}
 	return expression, nil
+}
+
+func evaluateIsFalsyExpressionWithAppeal(a *domain.Appeal, expression string) (bool, error) {
+	if expression != "" {
+		appealMap, err := a.ToMap()
+		if err != nil {
+			return false, fmt.Errorf("error converting appeal to map: %w", err)
+		}
+		params := map[string]interface{}{"appeal": appealMap}
+		v, err := evaluator.Expression(expression).EvaluateWithVars(params)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating expression %w", err)
+		}
+		return reflect.ValueOf(v).IsZero(), nil
+	}
+	return false, nil
 }
 
 // executePostAppealHooks executes all post hooks for a requirement
