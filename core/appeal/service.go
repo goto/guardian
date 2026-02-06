@@ -545,13 +545,10 @@ func addOnBehalfApprovedNotification(appeal *domain.Appeal, notifications []doma
 }
 
 func validateAppealOptionsConfig(appeal *domain.Appeal, policy *domain.Policy, isUpdate bool) error {
-	// Validate that both ExpirationDate and Duration are not provided
-	// Skip this check for updates to allow transitions between ExpirationDate and Duration
 	if !isUpdate && appeal.Options != nil && appeal.Options.ExpirationDate != nil && appeal.Options.Duration != "" {
 		return fmt.Errorf("cannot specify both expiration_date and duration, please provide only one")
 	}
 
-	// Validate ExpirationDate is in the future
 	if appeal.Options != nil && appeal.Options.ExpirationDate != nil {
 		duration := time.Until(*appeal.Options.ExpirationDate)
 		if duration <= 0 {
@@ -560,7 +557,16 @@ func validateAppealOptionsConfig(appeal *domain.Appeal, policy *domain.Policy, i
 		return nil
 	}
 
-	// return nil if duration options are not configured for this policy
+	if appeal.Options == nil || appeal.Options.Duration == "" {
+		if policy.AppealConfig == nil || policy.AppealConfig.DurationOptions == nil {
+			return nil
+		}
+		if appeal.Options != nil && appeal.Options.Duration == "" {
+			return fmt.Errorf("invalid duration: %w: %q", ErrDurationNotAllowed, appeal.Options.Duration)
+		}
+		return nil
+	}
+
 	if policy.AppealConfig == nil || policy.AppealConfig.DurationOptions == nil {
 		return nil
 	}
