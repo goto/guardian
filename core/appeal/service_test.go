@@ -5144,7 +5144,6 @@ func (s *ServiceTestSuite) TestPatch() {
 			ID: appealID,
 			Options: &domain.AppealOptions{
 				ExpirationDate: &futureExpDate,
-				Duration:       "", // Empty duration sent in request
 			},
 		}
 
