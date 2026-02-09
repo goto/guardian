@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -904,7 +903,12 @@ func (a *adapter) FromPatchAppealProto(ua *guardianv1beta1.PatchAppealRequest, a
 
 	if ua.GetOptions() != nil {
 		var options *domain.AppealOptions
-		if err := mapstructure.Decode(ua.GetOptions().AsMap(), &options); err != nil {
+		jsonBytes, err := json.Marshal(ua.GetOptions().AsMap())
+		if err != nil {
+			return nil, err
+		}
+
+		if err := json.Unmarshal(jsonBytes, &options); err != nil {
 			return nil, err
 		}
 		appeal.Options = options

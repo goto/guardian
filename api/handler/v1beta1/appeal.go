@@ -474,7 +474,6 @@ func (s *GRPCServer) listAppeals(ctx context.Context, filters *domain.ListAppeal
 }
 
 func (s *GRPCServer) RelabelAppeal(ctx context.Context, req *guardianv1beta1.RelabelAppealRequest) (*guardianv1beta1.RelabelAppealResponse, error) {
-
 	_, err := s.getUser(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())

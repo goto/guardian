@@ -4955,6 +4955,320 @@ func (s *ServiceTestSuite) TestPatch() {
 			})
 		}
 	})
+
+	s.Run("should allow updating appeal from ExpirationDate to Duration", func() {
+		h := newServiceTestHelper()
+
+		futureExpDate := timeNow.Add(48 * time.Hour)
+		existingAppeal := &domain.Appeal{
+			ID:         appealID,
+			ResourceID: "1",
+			Resource: &domain.Resource{
+				ID:           "1",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider_urn",
+				Type:         "resource_type",
+			},
+			PolicyID:      "policy_1",
+			PolicyVersion: 1,
+			Status:        domain.AppealStatusPending,
+			AccountID:     "test-user",
+			AccountType:   domain.DefaultAppealAccountType,
+			CreatedBy:     "test-user",
+			Role:          "role_id",
+			Options: &domain.AppealOptions{
+				ExpirationDate: &futureExpDate,
+			},
+		}
+
+		reqAppeal := &domain.Appeal{
+			ID: appealID,
+			Options: &domain.AppealOptions{
+				Duration: "24h",
+			},
+		}
+
+		provider := &domain.Provider{
+			ID:   "1",
+			Type: "provider_type",
+			URN:  "provider_urn",
+			Config: &domain.ProviderConfig{
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: "resource_type",
+						Policy: &domain.PolicyConfig{
+							ID:      "policy_1",
+							Version: 1,
+						},
+						Roles: []*domain.Role{
+							{
+								ID:          "role_id",
+								Permissions: []interface{}{"test-permission"},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		policy := &domain.Policy{
+			ID:      "policy_1",
+			Version: 1,
+			AppealConfig: &domain.PolicyAppealConfig{
+				DurationOptions: []domain.AppealDurationOption{
+					{Name: "1 Day", Value: "24h"},
+				},
+			},
+		}
+
+		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(existingAppeal, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Provider{provider}, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Policy{policy}, nil).Once()
+		h.mockRepository.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Appeal{}, nil).Once()
+		h.mockGrantService.EXPECT().List(h.ctxMatcher, mock.AnythingOfType("domain.ListGrantsFilter")).Return([]domain.Grant{}, nil).Once()
+		h.mockProviderService.EXPECT().ValidateAppeal(mock.Anything, mock.Anything, provider, policy).Return(nil).Once()
+		h.mockProviderService.EXPECT().GetPermissions(mock.Anything, mock.Anything, "resource_type", "role_id").Return([]interface{}{"test-permission"}, nil).Once()
+		h.mockRepository.EXPECT().UpdateByID(mock.Anything, mock.Anything).Return(nil).Once()
+		h.mockAuditLogger.EXPECT().Log(mock.Anything, appeal.AuditKeyUpdate, mock.Anything).Return(nil).Once()
+
+		err := h.service.Patch(context.Background(), reqAppeal)
+		s.Nil(err)
+
+		time.Sleep(time.Millisecond)
+		h.assertExpectations(s.T())
+	})
+
+	s.Run("should allow updating appeal from Duration to ExpirationDate", func() {
+		h := newServiceTestHelper()
+
+		existingAppeal := &domain.Appeal{
+			ID:         appealID,
+			ResourceID: "1",
+			Resource: &domain.Resource{
+				ID:           "1",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider_urn",
+				Type:         "resource_type",
+			},
+			PolicyID:      "policy_1",
+			PolicyVersion: 1,
+			Status:        domain.AppealStatusPending,
+			AccountID:     "test-user",
+			AccountType:   domain.DefaultAppealAccountType,
+			CreatedBy:     "test-user",
+			Role:          "role_id",
+			Options: &domain.AppealOptions{
+				Duration: "24h",
+			},
+		}
+
+		futureExpDate := timeNow.Add(48 * time.Hour)
+		reqAppeal := &domain.Appeal{
+			ID: appealID,
+			Options: &domain.AppealOptions{
+				ExpirationDate: &futureExpDate,
+			},
+		}
+
+		provider := &domain.Provider{
+			ID:   "1",
+			Type: "provider_type",
+			URN:  "provider_urn",
+			Config: &domain.ProviderConfig{
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: "resource_type",
+						Policy: &domain.PolicyConfig{
+							ID:      "policy_1",
+							Version: 1,
+						},
+						Roles: []*domain.Role{
+							{
+								ID:          "role_id",
+								Permissions: []interface{}{"test-permission"},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		policy := &domain.Policy{
+			ID:      "policy_1",
+			Version: 1,
+		}
+
+		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(existingAppeal, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Provider{provider}, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Policy{policy}, nil).Once()
+		h.mockRepository.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Appeal{}, nil).Once()
+		h.mockGrantService.EXPECT().List(h.ctxMatcher, mock.AnythingOfType("domain.ListGrantsFilter")).Return([]domain.Grant{}, nil).Once()
+		h.mockProviderService.EXPECT().ValidateAppeal(mock.Anything, mock.Anything, provider, policy).Return(nil).Once()
+		h.mockProviderService.EXPECT().GetPermissions(mock.Anything, mock.Anything, "resource_type", "role_id").Return([]interface{}{"test-permission"}, nil).Once()
+		h.mockRepository.EXPECT().UpdateByID(mock.Anything, mock.Anything).Return(nil).Once()
+		h.mockAuditLogger.EXPECT().Log(mock.Anything, appeal.AuditKeyUpdate, mock.Anything).Return(nil).Once()
+
+		err := h.service.Patch(context.Background(), reqAppeal)
+		s.Nil(err)
+
+		time.Sleep(time.Millisecond)
+		h.assertExpectations(s.T())
+	})
+
+	s.Run("should allow updating appeal from Duration to ExpirationDate with empty duration in request", func() {
+		h := newServiceTestHelper()
+
+		existingAppeal := &domain.Appeal{
+			ID:         appealID,
+			ResourceID: "1",
+			Resource: &domain.Resource{
+				ID:           "1",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider_urn",
+				Type:         "resource_type",
+			},
+			PolicyID:      "policy_1",
+			PolicyVersion: 1,
+			Status:        domain.AppealStatusPending,
+			AccountID:     "test-user",
+			AccountType:   domain.DefaultAppealAccountType,
+			CreatedBy:     "test-user",
+			Role:          "role_id",
+			Options: &domain.AppealOptions{
+				Duration: "0h",
+			},
+		}
+
+		futureExpDate := timeNow.Add(48 * time.Hour)
+		reqAppeal := &domain.Appeal{
+			ID: appealID,
+			Options: &domain.AppealOptions{
+				ExpirationDate: &futureExpDate,
+			},
+		}
+
+		provider := &domain.Provider{
+			ID:   "1",
+			Type: "provider_type",
+			URN:  "provider_urn",
+			Config: &domain.ProviderConfig{
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: "resource_type",
+						Policy: &domain.PolicyConfig{
+							ID:      "policy_1",
+							Version: 1,
+						},
+						Roles: []*domain.Role{
+							{
+								ID:          "role_id",
+								Permissions: []interface{}{"test-permission"},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		policy := &domain.Policy{
+			ID:      "policy_1",
+			Version: 1,
+		}
+
+		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(existingAppeal, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Provider{provider}, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Policy{policy}, nil).Once()
+		h.mockRepository.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Appeal{}, nil).Once()
+		h.mockGrantService.EXPECT().List(h.ctxMatcher, mock.AnythingOfType("domain.ListGrantsFilter")).Return([]domain.Grant{}, nil).Once()
+		h.mockProviderService.EXPECT().ValidateAppeal(mock.Anything, mock.Anything, provider, policy).Return(nil).Once()
+		h.mockProviderService.EXPECT().GetPermissions(mock.Anything, mock.Anything, "resource_type", "role_id").Return([]interface{}{"test-permission"}, nil).Once()
+		h.mockRepository.EXPECT().UpdateByID(mock.Anything, mock.Anything).Return(nil).Once()
+		h.mockAuditLogger.EXPECT().Log(mock.Anything, appeal.AuditKeyUpdate, mock.Anything).Return(nil).Once()
+
+		err := h.service.Patch(context.Background(), reqAppeal)
+		s.Nil(err)
+
+		time.Sleep(time.Millisecond)
+		h.assertExpectations(s.T())
+	})
+
+	s.Run("should allow updating ExpirationDate to a new ExpirationDate", func() {
+		h := newServiceTestHelper()
+
+		oldExpDate := timeNow.Add(24 * time.Hour)
+		existingAppeal := &domain.Appeal{
+			ID:         appealID,
+			ResourceID: "1",
+			Resource: &domain.Resource{
+				ID:           "1",
+				ProviderType: "provider_type",
+				ProviderURN:  "provider_urn",
+				Type:         "resource_type",
+			},
+			PolicyID:      "policy_1",
+			PolicyVersion: 1,
+			Status:        domain.AppealStatusPending,
+			AccountID:     "test-user",
+			AccountType:   domain.DefaultAppealAccountType,
+			CreatedBy:     "test-user",
+			Role:          "role_id",
+			Options: &domain.AppealOptions{
+				ExpirationDate: &oldExpDate,
+			},
+		}
+
+		newExpDate := timeNow.Add(72 * time.Hour)
+		reqAppeal := &domain.Appeal{
+			ID: appealID,
+			Options: &domain.AppealOptions{
+				ExpirationDate: &newExpDate,
+			},
+		}
+
+		provider := &domain.Provider{
+			ID:   "1",
+			Type: "provider_type",
+			URN:  "provider_urn",
+			Config: &domain.ProviderConfig{
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: "resource_type",
+						Policy: &domain.PolicyConfig{
+							ID:      "policy_1",
+							Version: 1,
+						},
+						Roles: []*domain.Role{
+							{
+								ID:          "role_id",
+								Permissions: []interface{}{"test-permission"},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		policy := &domain.Policy{
+			ID:      "policy_1",
+			Version: 1,
+		}
+
+		h.mockRepository.EXPECT().GetByID(mock.Anything, appealID).Return(existingAppeal, nil).Once()
+		h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Provider{provider}, nil).Once()
+		h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Policy{policy}, nil).Once()
+		h.mockRepository.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Appeal{}, nil).Once()
+		h.mockGrantService.EXPECT().List(h.ctxMatcher, mock.AnythingOfType("domain.ListGrantsFilter")).Return([]domain.Grant{}, nil).Once()
+		h.mockProviderService.EXPECT().ValidateAppeal(mock.Anything, mock.Anything, provider, policy).Return(nil).Once()
+		h.mockProviderService.EXPECT().GetPermissions(mock.Anything, mock.Anything, "resource_type", "role_id").Return([]interface{}{"test-permission"}, nil).Once()
+		h.mockRepository.EXPECT().UpdateByID(mock.Anything, mock.Anything).Return(nil).Once()
+		h.mockAuditLogger.EXPECT().Log(mock.Anything, appeal.AuditKeyUpdate, mock.Anything).Return(nil).Once()
+
+		err := h.service.Patch(context.Background(), reqAppeal)
+		s.Nil(err)
+
+		time.Sleep(time.Millisecond)
+		h.assertExpectations(s.T())
+	})
 }
 
 func (s *ServiceTestSuite) TestUpdateApproval() {
