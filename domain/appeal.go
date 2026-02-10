@@ -231,19 +231,7 @@ func (a Appeal) ToGrant() (*Grant, error) {
 	}
 
 	// Priority: ExpirationDate > Duration
-	if a.Options != nil && a.Options.ExpirationDate != nil && !a.Options.ExpirationDate.IsZero() {
-		// User provided exact expiration date
-		expDate := *a.Options.ExpirationDate
-		duration := time.Until(expDate)
-
-		grant.ExpirationDate = &expDate
-		grant.RequestedExpirationDate = &expDate
-		grant.ExpirationDateReason = ExpirationDateReasonFromAppeal
-
-		// Calculate and set Duration based on ExpirationDate
-		hours := int(duration.Hours())
-		a.Options.Duration = fmt.Sprintf("%dh", hours)
-	} else if a.Options != nil && a.Options.Duration != "" {
+	if a.Options != nil && a.Options.Duration != "" {
 		// User provided duration string
 		duration, err := time.ParseDuration(a.Options.Duration)
 		if err != nil {
@@ -257,6 +245,18 @@ func (a Appeal) ToGrant() (*Grant, error) {
 			grant.RequestedExpirationDate = &expDate
 			grant.ExpirationDateReason = ExpirationDateReasonFromAppeal
 		}
+	} else if a.Options != nil && a.Options.ExpirationDate != nil && !a.Options.ExpirationDate.IsZero() {
+		// User provided exact expiration date
+		expDate := *a.Options.ExpirationDate
+		duration := time.Until(expDate)
+
+		grant.ExpirationDate = &expDate
+		grant.RequestedExpirationDate = &expDate
+		grant.ExpirationDateReason = ExpirationDateReasonFromAppeal
+
+		// Calculate and set Duration based on ExpirationDate
+		hours := int(duration.Hours())
+		a.Options.Duration = fmt.Sprintf("%dh", hours)
 	} else {
 		grant.IsPermanent = true
 	}
