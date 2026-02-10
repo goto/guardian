@@ -231,7 +231,7 @@ func (a Appeal) ToGrant() (*Grant, error) {
 	}
 
 	// Priority: ExpirationDate > Duration
-	if a.Options != nil && a.Options.ExpirationDate != nil {
+	if a.Options != nil && a.Options.ExpirationDate != nil && !a.Options.ExpirationDate.IsZero() {
 		// User provided exact expiration date
 		expDate := *a.Options.ExpirationDate
 		duration := time.Until(expDate)
