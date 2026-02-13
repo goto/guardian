@@ -1950,6 +1950,19 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 					return fmt.Errorf("error decoding metadata config: %w", err)
 				}
 
+				if cfg.When != "" {
+					isFalsy, err := evaluateIsFalsyExpressionWithAppeal(a, cfg.When)
+					if err != nil {
+						return err
+					}
+					if isFalsy {
+						mu.Lock()
+						appealMetadata[key] = nil
+						mu.Unlock()
+						return nil
+					}
+				}
+
 				if cfg.URL == "" {
 					return fmt.Errorf("URL cannot be empty for http type")
 				}
@@ -1968,19 +1981,6 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 				for k, v := range cfg.Headers {
 					if cfg.Headers[k], err = evaluateExpressionWithAppeal(a, v); err != nil {
 						return err
-					}
-				}
-
-				if cfg.When != "" {
-					isFalsy, err := evaluateIsFalsyExpressionWithAppeal(a, cfg.When)
-					if err != nil {
-						return err
-					}
-					if isFalsy {
-						mu.Lock()
-						appealMetadata[key] = nil
-						mu.Unlock()
-						return nil
 					}
 				}
 
