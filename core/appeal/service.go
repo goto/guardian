@@ -1977,6 +1977,9 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 						return err
 					}
 					if isFalsy {
+						mu.Lock()
+						appealMetadata[key] = nil
+						mu.Unlock()
 						return nil
 					}
 				}
