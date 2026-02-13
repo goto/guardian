@@ -1971,6 +1971,16 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 					}
 				}
 
+				if cfg.When != "" {
+					isFalsy, err := evaluateIsFalsyExpressionWithAppeal(a, cfg.When)
+					if err != nil {
+						return err
+					}
+					if isFalsy {
+						return nil
+					}
+				}
+
 				clientCreator := &http.HttpClientCreatorStruct{}
 				metadataCl, err := http.NewHTTPClient(&cfg.HTTPClientConfig, clientCreator, "AppealMetadata")
 				if err != nil {
