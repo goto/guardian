@@ -1965,9 +1965,8 @@ func (s *Service) populateAppealMetadata(ctx context.Context, a *domain.Appeal, 
 					return err
 				}
 
-				headers := make(map[string]string)
 				for k, v := range cfg.Headers {
-					if headers[k], err = evaluateExpressionWithAppeal(a, v); err != nil {
+					if cfg.Headers[k], err = evaluateExpressionWithAppeal(a, v); err != nil {
 						return err
 					}
 				}
