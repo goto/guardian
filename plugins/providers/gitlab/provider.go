@@ -150,17 +150,21 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		return err
 	}
 
-	userID, err := strconv.Atoi(g.AccountID)
-	if err != nil {
-		return fmt.Errorf("invalid user ID: %q: %w", g.AccountID, err)
-	}
-
 	if len(g.Permissions) != 1 {
 		return fmt.Errorf("unexpected number of permissions: %d", len(g.Permissions))
 	}
 	accessLevel, ok := gitlabRoleMapping[g.Permissions[0]]
 	if !ok {
 		return fmt.Errorf("invalid grant permission: %q", g.Permissions[0])
+	}
+
+	if g.AccountType == accountTypeGitlabGroupID {
+		return p.shareProjectWithGroup(ctx, client, g, accessLevel)
+	}
+
+	userID, err := strconv.Atoi(g.AccountID)
+	if err != nil {
+		return fmt.Errorf("invalid user ID: %q: %w", g.AccountID, err)
 	}
 
 	empty := ""
@@ -200,15 +204,33 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 	return nil
 }
 
+func (p *provider) shareProjectWithGroup(ctx context.Context, client *gitlab.Client, g domain.Grant, accessLevel gitlab.AccessLevelValue) error {
+	if g.Resource.Type != resourceTypeProject {
+		return fmt.Errorf("gitlab_group_id account type only supports project resources, got: %q", g.Resource.Type)
+	}
+
+	groupID, err := strconv.Atoi(g.AccountID)
+	if err != nil {
+		return fmt.Errorf("invalid group ID: %q: %w", g.AccountID, err)
+	}
+
+	res, err := client.Projects.ShareProjectWithGroup(g.Resource.URN, &gitlab.ShareWithGroupOptions{
+		GroupID:     &groupID,
+		GroupAccess: &accessLevel,
+	}, gitlab.WithContext(ctx))
+	if res != nil && res.StatusCode == http.StatusConflict {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to share project with group: %w", err)
+	}
+	return nil
+}
+
 func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
 	client, err := p.getClient(*pc)
 	if err != nil {
 		return err
-	}
-
-	userID, err := strconv.Atoi(g.AccountID)
-	if err != nil {
-		return fmt.Errorf("invalid user ID: %q: %w", g.AccountID, err)
 	}
 
 	if len(g.Permissions) != 1 {
@@ -217,6 +239,15 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 	accessLevel, ok := gitlabRoleMapping[g.Permissions[0]]
 	if !ok {
 		return fmt.Errorf("invalid grant permission: %q", g.Permissions[0])
+	}
+
+	if g.AccountType == accountTypeGitlabGroupID {
+		return p.unshareProjectFromGroup(ctx, client, g)
+	}
+
+	userID, err := strconv.Atoi(g.AccountID)
+	if err != nil {
+		return fmt.Errorf("invalid user ID: %q: %w", g.AccountID, err)
 	}
 
 	var res *gitlab.Response
@@ -246,12 +277,32 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 	return nil
 }
 
+func (p *provider) unshareProjectFromGroup(ctx context.Context, client *gitlab.Client, g domain.Grant) error {
+	if g.Resource.Type != resourceTypeProject {
+		return fmt.Errorf("gitlab_group_id account type only supports project resources, got: %q", g.Resource.Type)
+	}
+
+	groupID, err := strconv.Atoi(g.AccountID)
+	if err != nil {
+		return fmt.Errorf("invalid group ID: %q: %w", g.AccountID, err)
+	}
+
+	res, err := client.Projects.DeleteSharedProjectFromGroup(g.Resource.URN, groupID, gitlab.WithContext(ctx))
+	if res != nil && res.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to unshare project from group: %w", err)
+	}
+	return nil
+}
+
 func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*domain.Role, error) {
 	return pv.GetRoles(pc, resourceType)
 }
 
 func (p *provider) GetAccountTypes() []string {
-	return []string{accountTypeGitlabUserID}
+	return []string{accountTypeGitlabUserID, accountTypeGitlabGroupID}
 }
 
 func (p *provider) IsExclusiveRoleAssignment(context.Context) bool {
