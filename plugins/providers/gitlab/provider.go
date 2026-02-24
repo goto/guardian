@@ -219,6 +219,7 @@ func (p *provider) shareProjectWithGroup(ctx context.Context, client *gitlab.Cli
 		GroupAccess: &accessLevel,
 	}, gitlab.WithContext(ctx))
 	if res != nil && res.StatusCode == http.StatusConflict {
+		p.logger.Debug(ctx, "project already shared with group", "project_urn", g.Resource.URN, "group_id", groupID)
 		return nil
 	}
 	if err != nil {
@@ -289,6 +290,7 @@ func (p *provider) unshareProjectFromGroup(ctx context.Context, client *gitlab.C
 
 	res, err := client.Projects.DeleteSharedProjectFromGroup(g.Resource.URN, groupID, gitlab.WithContext(ctx))
 	if res != nil && res.StatusCode == http.StatusNotFound {
+		p.logger.Debug(ctx, "project not shared with group, nothing to unshare", "project_urn", g.Resource.URN, "group_id", groupID)
 		return nil
 	}
 	if err != nil {
