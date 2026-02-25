@@ -27,6 +27,8 @@ var (
 
 	projectMembersEndpoint       = func(pID string) string { return fmt.Sprintf("/api/v4/projects/%s/members", pID) }
 	projectMemberDetailsEndpoint = func(pID, uID string) string { return fmt.Sprintf("/api/v4/projects/%s/members/%s", pID, uID) }
+	projectShareEndpoint         = func(pID string) string { return fmt.Sprintf("/api/v4/projects/%s/share", pID) }
+	projectUnshareEndpoint       = func(pID, gID string) string { return fmt.Sprintf("/api/v4/projects/%s/share/%s", pID, gID) }
 )
 
 func TestGetType(t *testing.T) {
@@ -358,6 +360,55 @@ func TestGrantAcccess(t *testing.T) {
 					},
 				},
 			},
+			{
+				name: "should share project with group for gitlab_group_id account type",
+				grant: domain.Grant{
+					AccountID:   "100",
+					AccountType: "gitlab_group_id",
+					Permissions: []string{"developer"},
+					Resource:    &domain.Resource{Type: "project", URN: "1"},
+				},
+				handlers: map[string]http.HandlerFunc{
+					projectShareEndpoint("1"): func(w http.ResponseWriter, r *http.Request) {
+						switch r.Method {
+						case http.MethodPost:
+							var reqBody map[string]any
+							err := json.NewDecoder(r.Body).Decode(&reqBody)
+							require.NoError(t, err)
+							assert.Equal(t, float64(100), reqBody["group_id"])
+							assert.Equal(t, float64(30), reqBody["group_access"])
+							w.WriteHeader(http.StatusCreated)
+							w.Write([]byte("{}"))
+							return
+						default:
+							w.WriteHeader(http.StatusMethodNotAllowed)
+							w.Write(nil)
+						}
+					},
+				},
+			},
+			{
+				name: "should handle conflict when project already shared with group",
+				grant: domain.Grant{
+					AccountID:   "100",
+					AccountType: "gitlab_group_id",
+					Permissions: []string{"developer"},
+					Resource:    &domain.Resource{Type: "project", URN: "1"},
+				},
+				handlers: map[string]http.HandlerFunc{
+					projectShareEndpoint("1"): func(w http.ResponseWriter, r *http.Request) {
+						switch r.Method {
+						case http.MethodPost:
+							w.WriteHeader(http.StatusConflict)
+							w.Write([]byte(`{"message": "Group already shared"}`))
+							return
+						default:
+							w.WriteHeader(http.StatusMethodNotAllowed)
+							w.Write(nil)
+						}
+					},
+				},
+			},
 		}
 
 		for _, tc := range testCases {
@@ -530,6 +581,50 @@ func TestRevokeAccess(t *testing.T) {
 					},
 				},
 			},
+			{
+				name: "should unshare project from group for gitlab_group_id account type",
+				grant: domain.Grant{
+					AccountID:   "100",
+					AccountType: "gitlab_group_id",
+					Permissions: []string{"developer"},
+					Resource:    &domain.Resource{Type: "project", URN: "1"},
+				},
+				handlers: map[string]http.HandlerFunc{
+					projectUnshareEndpoint("1", "100"): func(w http.ResponseWriter, r *http.Request) {
+						switch r.Method {
+						case http.MethodDelete:
+							w.WriteHeader(http.StatusNoContent)
+							w.Write([]byte(""))
+							return
+						default:
+							w.WriteHeader(http.StatusMethodNotAllowed)
+							w.Write(nil)
+						}
+					},
+				},
+			},
+			{
+				name: "should not return error if project not shared with group",
+				grant: domain.Grant{
+					AccountID:   "100",
+					AccountType: "gitlab_group_id",
+					Permissions: []string{"developer"},
+					Resource:    &domain.Resource{Type: "project", URN: "1"},
+				},
+				handlers: map[string]http.HandlerFunc{
+					projectUnshareEndpoint("1", "100"): func(w http.ResponseWriter, r *http.Request) {
+						switch r.Method {
+						case http.MethodDelete:
+							w.WriteHeader(http.StatusNotFound)
+							w.Write([]byte(`{"message": "404 Not found"}`))
+							return
+						default:
+							w.WriteHeader(http.StatusMethodNotAllowed)
+							w.Write(nil)
+						}
+					},
+				},
+			},
 		}
 
 		for _, tc := range testCases {
@@ -623,7 +718,7 @@ func TestGetAccountTypes(t *testing.T) {
 	t.Run("should return account types", func(t *testing.T) {
 		provider := gitlab.NewProvider("gitlab", nil, log.NewNoop())
 		accountTypes := provider.GetAccountTypes()
-		assert.Equal(t, []string{"gitlab_user_id"}, accountTypes)
+		assert.Equal(t, []string{"gitlab_user_id", "gitlab_group_id"}, accountTypes)
 	})
 }
 

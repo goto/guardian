@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	accountTypeGitlabUserID = "gitlab_user_id"
+	accountTypeGitlabUserID  = "gitlab_user_id"
+	accountTypeGitlabGroupID = "gitlab_group_id"
 
 	resourceTypeProject = "project"
 	resourceTypeGroup   = "group"
