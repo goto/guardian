@@ -571,11 +571,13 @@ func validateAppealOptionsConfig(appeal *domain.Appeal, policy *domain.Policy, i
 		return nil
 	}
 
-	if !dryRun {
-		for _, durationOption := range policy.AppealConfig.DurationOptions {
-			if appeal.Options.Duration == durationOption.Value {
-				return nil
-			}
+	if dryRun {
+		return nil
+	}
+
+	for _, durationOption := range policy.AppealConfig.DurationOptions {
+		if appeal.Options.Duration == durationOption.Value {
+			return nil
 		}
 	}
 
