@@ -332,7 +332,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			return fmt.Errorf("getting permissions list: %w", err)
 		}
 		appeal.Permissions = strPermissions
-		if err := validateAppealOptionsConfig(appeal, policy, false); err != nil {
+		if err := validateAppealOptionsConfig(appeal, policy, false, createAppealOpts.DryRun); err != nil {
 			return err
 		}
 
@@ -544,7 +544,7 @@ func addOnBehalfApprovedNotification(appeal *domain.Appeal, notifications []doma
 	return notifications
 }
 
-func validateAppealOptionsConfig(appeal *domain.Appeal, policy *domain.Policy, isUpdate bool) error {
+func validateAppealOptionsConfig(appeal *domain.Appeal, policy *domain.Policy, isUpdate bool, dryRun bool) error {
 	if !isUpdate && appeal.Options != nil && appeal.Options.ExpirationDate != nil && appeal.Options.Duration != "" {
 		return fmt.Errorf("cannot specify both expiration_date and duration, please provide only one")
 	}
@@ -571,9 +571,11 @@ func validateAppealOptionsConfig(appeal *domain.Appeal, policy *domain.Policy, i
 		return nil
 	}
 
-	for _, durationOption := range policy.AppealConfig.DurationOptions {
-		if appeal.Options.Duration == durationOption.Value {
-			return nil
+	if !dryRun {
+		for _, durationOption := range policy.AppealConfig.DurationOptions {
+			if appeal.Options.Duration == durationOption.Value {
+				return nil
+			}
 		}
 	}
 
@@ -749,7 +751,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		}
 	}
 
-	if err := validateAppealOptionsConfig(appeal, policy, true); err != nil {
+	if err := validateAppealOptionsConfig(appeal, policy, true, false); err != nil {
 		return err
 	}
 
