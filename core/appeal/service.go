@@ -722,12 +722,6 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 
 	appeal.SetDefaults()
 
-	if appeal.AccountID != existingAppeal.AccountID || appeal.ResourceID != existingAppeal.ResourceID || appeal.Role != existingAppeal.Role {
-		if err := validateAppeal(appeal, pendingAppeals); err != nil {
-			return err
-		}
-	}
-
 	provider, err := getProvider(appeal, providers)
 	if err != nil {
 		return err
@@ -736,6 +730,14 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	policy, err := getPolicy(appeal, provider, policies)
 	if err != nil {
 		return err
+	}
+
+	if !policy.AllowsDuplicateAppeals() {
+		if appeal.AccountID != existingAppeal.AccountID || appeal.ResourceID != existingAppeal.ResourceID || appeal.Role != existingAppeal.Role {
+			if err := validateAppeal(appeal, pendingAppeals); err != nil {
+				return err
+			}
+		}
 	}
 
 	activeGrant, err := s.findActiveGrant(ctx, appeal)

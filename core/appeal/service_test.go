@@ -367,6 +367,14 @@ func (s *ServiceTestSuite) TestCreate() {
 					Role:       "test-role",
 				}},
 				expectedError: appeal.ErrAppealDuplicate,
+resources: []*domain.Resource{{
+ID:           "1",
+ProviderType: testProvider.Type,
+ProviderURN:  testProvider.URN,
+Type:         "resource_type",
+}},
+providers:     []*domain.Provider{testProvider},
+policies:      testPolicies,
 			},
 			{
 				name: "resource not found",
