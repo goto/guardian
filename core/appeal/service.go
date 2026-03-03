@@ -986,6 +986,8 @@ func validatePatchReq(appeal, existingAppeal *domain.Appeal) (bool, error) {
 
 	appeal.Creator = existingAppeal.Creator
 	appeal.Status = existingAppeal.Status
+	appeal.GroupID = existingAppeal.GroupID
+	appeal.GroupType = existingAppeal.GroupType
 
 	return isAppealUpdated, nil
 }
