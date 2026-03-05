@@ -59,6 +59,8 @@ type GuardianServiceClient interface {
 	UpdateApproval(ctx context.Context, in *UpdateApprovalRequest, opts ...grpc.CallOption) (*UpdateApprovalResponse, error)
 	AddApprover(ctx context.Context, in *AddApproverRequest, opts ...grpc.CallOption) (*AddApproverResponse, error)
 	DeleteApprover(ctx context.Context, in *DeleteApproverRequest, opts ...grpc.CallOption) (*DeleteApproverResponse, error)
+	AddApprovalStep(ctx context.Context, in *AddApprovalStepRequest, opts ...grpc.CallOption) (*AddApprovalStepResponse, error)
+	UpdateApprovalStep(ctx context.Context, in *UpdateApprovalStepRequest, opts ...grpc.CallOption) (*UpdateApprovalStepResponse, error)
 	ListGrants(ctx context.Context, in *ListGrantsRequest, opts ...grpc.CallOption) (*ListGrantsResponse, error)
 	ListUserGrants(ctx context.Context, in *ListUserGrantsRequest, opts ...grpc.CallOption) (*ListUserGrantsResponse, error)
 	ListUserRoles(ctx context.Context, in *ListUserRolesRequest, opts ...grpc.CallOption) (*ListUserRolesResponse, error)
@@ -411,6 +413,24 @@ func (c *guardianServiceClient) DeleteApprover(ctx context.Context, in *DeleteAp
 	return out, nil
 }
 
+func (c *guardianServiceClient) AddApprovalStep(ctx context.Context, in *AddApprovalStepRequest, opts ...grpc.CallOption) (*AddApprovalStepResponse, error) {
+	out := new(AddApprovalStepResponse)
+	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/AddApprovalStep", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *guardianServiceClient) UpdateApprovalStep(ctx context.Context, in *UpdateApprovalStepRequest, opts ...grpc.CallOption) (*UpdateApprovalStepResponse, error) {
+	out := new(UpdateApprovalStepResponse)
+	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/UpdateApprovalStep", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *guardianServiceClient) ListGrants(ctx context.Context, in *ListGrantsRequest, opts ...grpc.CallOption) (*ListGrantsResponse, error) {
 	out := new(ListGrantsResponse)
 	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/ListGrants", in, out, opts...)
@@ -533,6 +553,8 @@ type GuardianServiceServer interface {
 	UpdateApproval(context.Context, *UpdateApprovalRequest) (*UpdateApprovalResponse, error)
 	AddApprover(context.Context, *AddApproverRequest) (*AddApproverResponse, error)
 	DeleteApprover(context.Context, *DeleteApproverRequest) (*DeleteApproverResponse, error)
+	AddApprovalStep(context.Context, *AddApprovalStepRequest) (*AddApprovalStepResponse, error)
+	UpdateApprovalStep(context.Context, *UpdateApprovalStepRequest) (*UpdateApprovalStepResponse, error)
 	ListGrants(context.Context, *ListGrantsRequest) (*ListGrantsResponse, error)
 	ListUserGrants(context.Context, *ListUserGrantsRequest) (*ListUserGrantsResponse, error)
 	ListUserRoles(context.Context, *ListUserRolesRequest) (*ListUserRolesResponse, error)
@@ -659,6 +681,12 @@ func (UnimplementedGuardianServiceServer) AddApprover(context.Context, *AddAppro
 }
 func (UnimplementedGuardianServiceServer) DeleteApprover(context.Context, *DeleteApproverRequest) (*DeleteApproverResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteApprover not implemented")
+}
+func (UnimplementedGuardianServiceServer) AddApprovalStep(context.Context, *AddApprovalStepRequest) (*AddApprovalStepResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddApprovalStep not implemented")
+}
+func (UnimplementedGuardianServiceServer) UpdateApprovalStep(context.Context, *UpdateApprovalStepRequest) (*UpdateApprovalStepResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateApprovalStep not implemented")
 }
 func (UnimplementedGuardianServiceServer) ListGrants(context.Context, *ListGrantsRequest) (*ListGrantsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListGrants not implemented")
@@ -1366,6 +1394,42 @@ func _GuardianService_DeleteApprover_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GuardianService_AddApprovalStep_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddApprovalStepRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuardianServiceServer).AddApprovalStep(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gotocompany.guardian.v1beta1.GuardianService/AddApprovalStep",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuardianServiceServer).AddApprovalStep(ctx, req.(*AddApprovalStepRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GuardianService_UpdateApprovalStep_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateApprovalStepRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuardianServiceServer).UpdateApprovalStep(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gotocompany.guardian.v1beta1.GuardianService/UpdateApprovalStep",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuardianServiceServer).UpdateApprovalStep(ctx, req.(*UpdateApprovalStepRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _GuardianService_ListGrants_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListGrantsRequest)
 	if err := dec(in); err != nil {
@@ -1682,6 +1746,14 @@ var GuardianService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteApprover",
 			Handler:    _GuardianService_DeleteApprover_Handler,
+		},
+		{
+			MethodName: "AddApprovalStep",
+			Handler:    _GuardianService_AddApprovalStep_Handler,
+		},
+		{
+			MethodName: "UpdateApprovalStep",
+			Handler:    _GuardianService_UpdateApprovalStep_Handler,
 		},
 		{
 			MethodName: "ListGrants",

@@ -304,6 +304,50 @@ func (_c *ApprovalService_ListApprovals_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
+// UpdateApproval provides a mock function with given fields: _a0, _a1
+func (_m *ApprovalService) UpdateApproval(_a0 context.Context, _a1 *domain.Approval) error {
+	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateApproval")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.Approval) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// ApprovalService_UpdateApproval_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateApproval'
+type ApprovalService_UpdateApproval_Call struct {
+	*mock.Call
+}
+
+func (_e *ApprovalService_Expecter) UpdateApproval(_a0 interface{}, _a1 interface{}) *ApprovalService_UpdateApproval_Call {
+	return &ApprovalService_UpdateApproval_Call{Call: _e.mock.On("UpdateApproval", _a0, _a1)}
+}
+
+func (_c *ApprovalService_UpdateApproval_Call) Run(run func(_a0 context.Context, _a1 *domain.Approval)) *ApprovalService_UpdateApproval_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*domain.Approval))
+	})
+	return _c
+}
+
+func (_c *ApprovalService_UpdateApproval_Call) Return(_a0 error) *ApprovalService_UpdateApproval_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *ApprovalService_UpdateApproval_Call) RunAndReturn(run func(context.Context, *domain.Approval) error) *ApprovalService_UpdateApproval_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewApprovalService creates a new instance of ApprovalService. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewApprovalService(t interface {

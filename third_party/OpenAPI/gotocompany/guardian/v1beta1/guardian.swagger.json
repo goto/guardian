@@ -701,6 +701,102 @@
         ]
       }
     },
+    "/v1beta1/appeals/{appealId}/approvals": {
+      "post": {
+        "operationId": "GuardianService_AddApprovalStep",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1AddApprovalStepResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "appealId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "$ref": "#/definitions/v1beta1ApprovalStepInput"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
+      }
+    },
+    "/v1beta1/appeals/{appealId}/approvals/{approvalId}": {
+      "patch": {
+        "operationId": "GuardianService_UpdateApprovalStep",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1UpdateApprovalStepResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "appealId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "approvalId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "details": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
+      }
+    },
     "/v1beta1/appeals/{appealId}/approvals/{approvalId}/approvers": {
       "post": {
         "operationId": "GuardianService_AddApprover",
@@ -863,6 +959,53 @@
               "properties": {
                 "body": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
+      }
+    },
+    "/v1beta1/appeals/{appealId}/relabel": {
+      "post": {
+        "operationId": "GuardianService_RelabelAppeal",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1RelabelAppealResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "appealId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "policyVersion": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "dryRun": {
+                  "type": "boolean"
                 }
               }
             }
@@ -5088,6 +5231,14 @@
         }
       }
     },
+    "v1beta1AddApprovalStepResponse": {
+      "type": "object",
+      "properties": {
+        "appeal": {
+          "$ref": "#/definitions/v1beta1Appeal"
+        }
+      }
+    },
     "v1beta1AddApproverResponse": {
       "type": "object",
       "properties": {
@@ -5313,6 +5464,28 @@
         }
       },
       "title": "Approval is an approval item that generated in an appeal based on the selected policy"
+    },
+    "v1beta1ApprovalStepInput": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "approvers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "details": {
+          "type": "object"
+        },
+        "index": {
+          "type": "integer",
+          "format": "int32",
+          "title": "0 = append at end"
+        }
+      }
     },
     "v1beta1CancelAppealResponse": {
       "type": "object",
@@ -6324,6 +6497,14 @@
         }
       }
     },
+    "v1beta1RelabelAppealResponse": {
+      "type": "object",
+      "properties": {
+        "appeal": {
+          "$ref": "#/definitions/v1beta1Appeal"
+        }
+      }
+    },
     "v1beta1RestoreGrantResponse": {
       "type": "object",
       "properties": {
@@ -6492,6 +6673,14 @@
       }
     },
     "v1beta1UpdateApprovalResponse": {
+      "type": "object",
+      "properties": {
+        "appeal": {
+          "$ref": "#/definitions/v1beta1Appeal"
+        }
+      }
+    },
+    "v1beta1UpdateApprovalStepResponse": {
       "type": "object",
       "properties": {
         "appeal": {

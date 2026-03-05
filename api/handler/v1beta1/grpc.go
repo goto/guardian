@@ -117,6 +117,8 @@ type appealService interface {
 	AddApprover(ctx context.Context, appealID, approvalID, email string) (*domain.Appeal, error)
 	DeleteApprover(ctx context.Context, appealID, approvalID, email string) (*domain.Appeal, error)
 	UpdateApproval(ctx context.Context, approvalAction domain.ApprovalAction) (*domain.Appeal, error)
+	AddApprovalStep(ctx context.Context, appealID string, steps []domain.Approval) (*domain.Appeal, error)
+	UpdateApprovalStep(ctx context.Context, appealID, approvalID string, details map[string]interface{}) (*domain.Appeal, error)
 	ListComments(context.Context, domain.ListCommentsFilter) ([]*domain.Comment, error)
 	CreateComment(context.Context, *domain.Comment) error
 	ListActivities(context.Context, string) ([]*domain.Event, error)
@@ -130,6 +132,7 @@ type approvalService interface {
 	GenerateSummary(context.Context, domain.ListApprovalsFilter) (*domain.SummaryResult, error)
 	GenerateApprovalSummary(context.Context, *domain.ListApprovalsFilter, []string) (*domain.SummaryResult, error)
 	BulkInsert(context.Context, []*domain.Approval) error
+	UpdateApproval(context.Context, *domain.Approval) error
 }
 
 //go:generate mockery --name=grantService --exported --with-expecter
