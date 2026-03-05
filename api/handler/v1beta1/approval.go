@@ -322,6 +322,77 @@ func (s *GRPCServer) DeleteApprover(ctx context.Context, req *guardianv1beta1.De
 	}, nil
 }
 
+func (s *GRPCServer) AddApprovalStep(ctx context.Context, req *guardianv1beta1.AddApprovalStepRequest) (*guardianv1beta1.AddApprovalStepResponse, error) {
+	var steps []domain.Approval
+	for _, s := range req.GetSteps() {
+		var details map[string]interface{}
+		if s.GetDetails() != nil {
+			details = s.GetDetails().AsMap()
+		}
+		steps = append(steps, domain.Approval{
+			Name:      s.GetName(),
+			Approvers: s.GetApprovers(),
+			Details:   details,
+			Index:     int(s.GetIndex()),
+		})
+	}
+
+	a, err := s.appealService.AddApprovalStep(ctx, req.GetAppealId(), steps)
+	switch {
+	case errors.Is(err, appeal.ErrAppealIDEmptyParam),
+		errors.Is(err, appeal.ErrApprovalStepNameEmpty),
+		errors.Is(err, appeal.ErrApprovalStepApproversEmpty):
+		return nil, s.invalidArgument(ctx, "unable to process the request: %s", err)
+	case errors.Is(err, appeal.ErrAppealNotEligibleForApproval):
+		return nil, s.failedPrecondition(ctx, "%s", err.Error())
+	case errors.Is(err, appeal.ErrAppealNotFound):
+		return nil, status.Errorf(codes.NotFound, "appeal not found: %s", err)
+	case err != nil:
+		return nil, s.internalError(ctx, "failed to add approval step: %s", err)
+	}
+
+	appealProto, err := s.adapter.ToAppealProto(a)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to parse appeal: %s", err)
+	}
+
+	return &guardianv1beta1.AddApprovalStepResponse{
+		Appeal: appealProto,
+	}, nil
+}
+
+func (s *GRPCServer) UpdateApprovalStep(ctx context.Context, req *guardianv1beta1.UpdateApprovalStepRequest) (*guardianv1beta1.UpdateApprovalStepResponse, error) {
+	var details map[string]interface{}
+	if req.GetDetails() != nil {
+		details = req.GetDetails().AsMap()
+	}
+
+	a, err := s.appealService.UpdateApprovalStep(ctx, req.GetAppealId(), req.GetApprovalId(), details)
+	switch {
+	case errors.Is(err, appeal.ErrAppealIDEmptyParam),
+		errors.Is(err, appeal.ErrApprovalIDEmptyParam):
+		return nil, s.invalidArgument(ctx, "unable to process the request: %s", err)
+	case errors.Is(err, appeal.ErrAppealNotEligibleForApproval),
+		errors.Is(err, appeal.ErrApprovalNotEligibleForAction):
+		return nil, s.failedPrecondition(ctx, "%s", err.Error())
+	case errors.Is(err, appeal.ErrAppealNotFound):
+		return nil, status.Errorf(codes.NotFound, "appeal not found: %s", err)
+	case errors.Is(err, appeal.ErrApprovalNotFound):
+		return nil, status.Errorf(codes.NotFound, "approval not found: %s", err)
+	case err != nil:
+		return nil, s.internalError(ctx, "failed to update approval step: %s", err)
+	}
+
+	appealProto, err := s.adapter.ToAppealProto(a)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to parse appeal: %s", err)
+	}
+
+	return &guardianv1beta1.UpdateApprovalStepResponse{
+		Appeal: appealProto,
+	}, nil
+}
+
 func (s *GRPCServer) listApprovals(ctx context.Context, filter *domain.ListApprovalsFilter) ([]*guardianv1beta1.Approval, int64, *guardianv1beta1.SummaryResult, error) {
 	eg, egCtx := errgroup.WithContext(ctx)
 	var approvals []*domain.Approval

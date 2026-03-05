@@ -5,6 +5,7 @@ package mocks
 import (
 	context "context"
 
+	domain "github.com/goto/guardian/domain"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -113,6 +114,94 @@ func (_c *ApprovalService_DeleteApprover_Call) Return(_a0 error) *ApprovalServic
 }
 
 func (_c *ApprovalService_DeleteApprover_Call) RunAndReturn(run func(context.Context, string, string) error) *ApprovalService_DeleteApprover_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// BulkInsert provides a mock function with given fields: ctx, approvals
+func (_m *ApprovalService) BulkInsert(ctx context.Context, approvals []*domain.Approval) error {
+	ret := _m.Called(ctx, approvals)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BulkInsert")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []*domain.Approval) error); ok {
+		r0 = rf(ctx, approvals)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// ApprovalService_BulkInsert_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BulkInsert'
+type ApprovalService_BulkInsert_Call struct {
+	*mock.Call
+}
+
+func (_e *ApprovalService_Expecter) BulkInsert(ctx interface{}, approvals interface{}) *ApprovalService_BulkInsert_Call {
+	return &ApprovalService_BulkInsert_Call{Call: _e.mock.On("BulkInsert", ctx, approvals)}
+}
+
+func (_c *ApprovalService_BulkInsert_Call) Run(run func(ctx context.Context, approvals []*domain.Approval)) *ApprovalService_BulkInsert_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]*domain.Approval))
+	})
+	return _c
+}
+
+func (_c *ApprovalService_BulkInsert_Call) Return(_a0 error) *ApprovalService_BulkInsert_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *ApprovalService_BulkInsert_Call) RunAndReturn(run func(context.Context, []*domain.Approval) error) *ApprovalService_BulkInsert_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateApproval provides a mock function with given fields: ctx, approval
+func (_m *ApprovalService) UpdateApproval(ctx context.Context, approval *domain.Approval) error {
+	ret := _m.Called(ctx, approval)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateApproval")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.Approval) error); ok {
+		r0 = rf(ctx, approval)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// ApprovalService_UpdateApproval_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateApproval'
+type ApprovalService_UpdateApproval_Call struct {
+	*mock.Call
+}
+
+func (_e *ApprovalService_Expecter) UpdateApproval(ctx interface{}, approval interface{}) *ApprovalService_UpdateApproval_Call {
+	return &ApprovalService_UpdateApproval_Call{Call: _e.mock.On("UpdateApproval", ctx, approval)}
+}
+
+func (_c *ApprovalService_UpdateApproval_Call) Run(run func(ctx context.Context, approval *domain.Approval)) *ApprovalService_UpdateApproval_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*domain.Approval))
+	})
+	return _c
+}
+
+func (_c *ApprovalService_UpdateApproval_Call) Return(_a0 error) *ApprovalService_UpdateApproval_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *ApprovalService_UpdateApproval_Call) RunAndReturn(run func(context.Context, *domain.Approval) error) *ApprovalService_UpdateApproval_Call {
 	_c.Call.Return(run)
 	return _c
 }

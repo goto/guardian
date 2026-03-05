@@ -226,6 +226,24 @@ func (r *ApprovalRepository) AddApprover(ctx context.Context, approver *domain.A
 	return nil
 }
 
+func (r *ApprovalRepository) UpdateApproval(ctx context.Context, approval *domain.Approval) error {
+	m := new(model.Approval)
+	if err := m.FromDomain(approval); err != nil {
+		return fmt.Errorf("parsing approval: %w", err)
+	}
+
+	if err := r.db.WithContext(ctx).Save(m).Error; err != nil {
+		return fmt.Errorf("updating approval: %w", err)
+	}
+
+	newApproval, err := m.ToDomain()
+	if err != nil {
+		return fmt.Errorf("converting approval back to domain: %w", err)
+	}
+	*approval = *newApproval
+	return nil
+}
+
 func (r *ApprovalRepository) DeleteApprover(ctx context.Context, approvalID, email string) error {
 	result := r.db.
 		WithContext(ctx).

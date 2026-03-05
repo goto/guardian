@@ -77,6 +77,8 @@ type policyService interface {
 type approvalService interface {
 	AddApprover(ctx context.Context, approvalID, email string) error
 	DeleteApprover(ctx context.Context, approvalID, email string) error
+	BulkInsert(ctx context.Context, approvals []*domain.Approval) error
+	UpdateApproval(ctx context.Context, approval *domain.Approval) error
 }
 
 //go:generate mockery --name=providerService --exported --with-expecter
@@ -1395,6 +1397,110 @@ func (s *Service) DeleteApprover(ctx context.Context, appealID, approvalID, emai
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
 	}()
+
+	return appeal, nil
+}
+
+func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []domain.Approval) (*domain.Appeal, error) {
+	if appealID == "" {
+		return nil, ErrAppealIDEmptyParam
+	}
+
+	appeal, err := s.repo.GetByID(ctx, appealID)
+	if err != nil {
+		return nil, fmt.Errorf("getting appeal details: %w", err)
+	}
+	if appeal.Status != domain.AppealStatusPending {
+		return nil, fmt.Errorf("%w: can't add approval step to appeal with %q status", ErrAppealNotEligibleForApproval, appeal.Status)
+	}
+
+	// Find max index among existing non-stale approvals
+	maxIndex := -1
+	for _, a := range appeal.Approvals {
+		if !a.IsStale && a.Index > maxIndex {
+			maxIndex = a.Index
+		}
+	}
+
+	var toInsert []*domain.Approval
+	for i := range steps {
+		step := &steps[i]
+
+		if step.Name == "" {
+			return nil, ErrApprovalStepNameEmpty
+		}
+		if len(step.Approvers) == 0 {
+			return nil, ErrApprovalStepApproversEmpty
+		}
+
+		// Determine index: 0 means append at end
+		if step.Index == 0 {
+			maxIndex++
+			step.Index = maxIndex
+		} else if step.Index > maxIndex {
+			maxIndex = step.Index
+		}
+
+		// Determine status based on preceding approvals
+		step.Status = domain.ApprovalStatusPending
+		for _, a := range appeal.Approvals {
+			if a.IsStale {
+				continue
+			}
+			if a.Index < step.Index {
+				if a.Status != domain.ApprovalStatusApproved && a.Status != domain.ApprovalStatusSkipped {
+					step.Status = domain.ApprovalStatusBlocked
+					break
+				}
+			}
+		}
+
+		step.AppealID = appealID
+		step.AppealRevision = appeal.Revision
+		toInsert = append(toInsert, step)
+	}
+
+	if err := s.approvalService.BulkInsert(ctx, toInsert); err != nil {
+		return nil, fmt.Errorf("inserting approval steps: %w", err)
+	}
+
+	for _, step := range toInsert {
+		appeal.Approvals = append(appeal.Approvals, step)
+	}
+	return appeal, nil
+}
+
+func (s *Service) UpdateApprovalStep(ctx context.Context, appealID, approvalID string, details map[string]interface{}) (*domain.Appeal, error) {
+	if appealID == "" {
+		return nil, ErrAppealIDEmptyParam
+	}
+	if approvalID == "" {
+		return nil, ErrApprovalIDEmptyParam
+	}
+
+	appeal, err := s.repo.GetByID(ctx, appealID)
+	if err != nil {
+		return nil, fmt.Errorf("getting appeal details: %w", err)
+	}
+	if appeal.Status != domain.AppealStatusPending {
+		return nil, fmt.Errorf("%w: can't update approval step on appeal with %q status", ErrAppealNotEligibleForApproval, appeal.Status)
+	}
+
+	approval := appeal.GetApproval(approvalID)
+	if approval == nil {
+		return nil, ErrApprovalNotFound
+	}
+	if approval.IsStale {
+		return nil, fmt.Errorf("%w: can't update a stale approval step", ErrApprovalNotEligibleForAction)
+	}
+	if approval.Status != domain.ApprovalStatusPending && approval.Status != domain.ApprovalStatusBlocked {
+		return nil, fmt.Errorf("%w: can't update approval step with %q status", ErrApprovalNotEligibleForAction, approval.Status)
+	}
+
+	approval.Details = details
+	if err := s.approvalService.UpdateApproval(ctx, approval); err != nil {
+		return nil, fmt.Errorf("updating approval step: %w", err)
+	}
 
 	return appeal, nil
 }

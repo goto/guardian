@@ -14,6 +14,7 @@ type repository interface {
 	ListApprovals(context.Context, *domain.ListApprovalsFilter) ([]*domain.Approval, error)
 	AddApprover(context.Context, *domain.Approver) error
 	DeleteApprover(ctx context.Context, approvalID, email string) error
+	UpdateApproval(ctx context.Context, approval *domain.Approval) error
 	GenerateApprovalSummary(ctx context.Context, filter *domain.ListApprovalsFilter, groupBys []string) (*domain.SummaryResult, error)
 	GenerateSummary(context.Context, domain.ListApprovalsFilter) (*domain.SummaryResult, error)
 }
@@ -88,4 +89,8 @@ func (s *Service) AddApprover(ctx context.Context, approvalID, email string) err
 
 func (s *Service) DeleteApprover(ctx context.Context, approvalID, email string) error {
 	return s.repo.DeleteApprover(ctx, approvalID, email)
+}
+
+func (s *Service) UpdateApproval(ctx context.Context, approval *domain.Approval) error {
+	return s.repo.UpdateApproval(ctx, approval)
 }
