@@ -307,6 +307,23 @@ func (p *provider) GetAccountTypes() []string {
 	return []string{accountTypeGitlabUserID, accountTypeGitlabGroupID}
 }
 
+func (p *provider) ValidateResourceIdentifiers(ctx context.Context, r *domain.Resource) error {
+	if r.Type != resourceTypeProject && r.Type != resourceTypeGroup {
+		return fmt.Errorf("invalid resource type %q, expected %q or %q", r.Type, resourceTypeProject, resourceTypeGroup)
+	}
+	if r.URN == "" {
+		return fmt.Errorf("resource urn is required")
+	}
+
+	r.GlobalURN = utils.GetGlobalURN("gitlab", r.ProviderURN, r.Type, r.URN)
+
+	return nil
+}
+
+func (p *provider) ValidateResourceDetails(ctx context.Context, r *domain.Resource) error {
+	return nil
+}
+
 func (p *provider) IsExclusiveRoleAssignment(context.Context) bool {
 	return true
 }
