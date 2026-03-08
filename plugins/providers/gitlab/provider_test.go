@@ -729,6 +729,78 @@ func TestIsExclusiveRoleAssignment(t *testing.T) {
 	})
 }
 
+func TestValidateResourceIdentifiers(t *testing.T) {
+	p := gitlab.NewProvider("gitlab", nil, log.NewNoop())
+	ctx := context.Background()
+
+	tests := []struct {
+		name          string
+		resource      *domain.Resource
+		expectedGURN  string
+		expectedError string
+	}{
+		{
+			name: "valid group resource",
+			resource: &domain.Resource{
+				ProviderURN: "test-gitlab",
+				Type:        "group",
+				URN:         "my-group",
+			},
+			expectedGURN: "urn:gitlab:test-gitlab:group:my-group",
+		},
+		{
+			name: "valid project resource",
+			resource: &domain.Resource{
+				ProviderURN: "test-gitlab",
+				Type:        "project",
+				URN:         "12345",
+			},
+			expectedGURN: "urn:gitlab:test-gitlab:project:12345",
+		},
+		{
+			name: "invalid resource type",
+			resource: &domain.Resource{
+				ProviderURN: "test-gitlab",
+				Type:        "unknown",
+				URN:         "some-urn",
+			},
+			expectedError: `invalid resource type "unknown"`,
+		},
+		{
+			name: "empty URN",
+			resource: &domain.Resource{
+				ProviderURN: "test-gitlab",
+				Type:        "group",
+				URN:         "",
+			},
+			expectedError: "resource urn is required",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := p.ValidateResourceIdentifiers(ctx, tc.resource)
+			if tc.expectedError != "" {
+				require.ErrorContains(t, err, tc.expectedError)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedGURN, tc.resource.GlobalURN)
+		})
+	}
+}
+
+func TestValidateResourceDetails(t *testing.T) {
+	t.Run("should always return nil", func(t *testing.T) {
+		p := gitlab.NewProvider("gitlab", nil, log.NewNoop())
+		err := p.ValidateResourceDetails(context.Background(), &domain.Resource{
+			Type: "group",
+			URN:  "my-group",
+		})
+		assert.NoError(t, err)
+	})
+}
+
 func readFixtures(path string) ([]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {

@@ -205,25 +205,38 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 }
 
 func (p *provider) shareProjectWithGroup(ctx context.Context, client *gitlab.Client, g domain.Grant, accessLevel gitlab.AccessLevelValue) error {
-	if g.Resource.Type != resourceTypeProject {
-		return fmt.Errorf("gitlab_group_id account type only supports project resources, got: %q", g.Resource.Type)
-	}
-
 	groupID, err := strconv.Atoi(g.AccountID)
 	if err != nil {
 		return fmt.Errorf("invalid group ID: %q: %w", g.AccountID, err)
 	}
 
-	res, err := client.Projects.ShareProjectWithGroup(g.Resource.URN, &gitlab.ShareWithGroupOptions{
-		GroupID:     &groupID,
-		GroupAccess: &accessLevel,
-	}, gitlab.WithContext(ctx))
-	if res != nil && res.StatusCode == http.StatusConflict {
-		p.logger.Debug(ctx, "project already shared with group", "project_urn", g.Resource.URN, "group_id", groupID)
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("failed to share project with group: %w", err)
+	switch g.Resource.Type {
+	case resourceTypeProject:
+		res, err := client.Projects.ShareProjectWithGroup(g.Resource.URN, &gitlab.ShareWithGroupOptions{
+			GroupID:     &groupID,
+			GroupAccess: &accessLevel,
+		}, gitlab.WithContext(ctx))
+		if res != nil && res.StatusCode == http.StatusConflict {
+			p.logger.Debug(ctx, "project already shared with group", "project_urn", g.Resource.URN, "group_id", groupID)
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to share project with group: %w", err)
+		}
+	case resourceTypeGroup:
+		_, res, err := client.Groups.ShareGroupWithGroup(g.Resource.URN, &gitlab.ShareGroupWithGroupOptions{
+			GroupID:     &groupID,
+			GroupAccess: &accessLevel,
+		}, gitlab.WithContext(ctx))
+		if res != nil && res.StatusCode == http.StatusConflict {
+			p.logger.Debug(ctx, "group already shared with group", "group_urn", g.Resource.URN, "group_id", groupID)
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to share group with group: %w", err)
+		}
+	default:
+		return fmt.Errorf("gitlab_group_id account type only supports project or group resources, got: %q", g.Resource.Type)
 	}
 	return nil
 }
@@ -279,22 +292,32 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 }
 
 func (p *provider) unshareProjectFromGroup(ctx context.Context, client *gitlab.Client, g domain.Grant) error {
-	if g.Resource.Type != resourceTypeProject {
-		return fmt.Errorf("gitlab_group_id account type only supports project resources, got: %q", g.Resource.Type)
-	}
-
 	groupID, err := strconv.Atoi(g.AccountID)
 	if err != nil {
 		return fmt.Errorf("invalid group ID: %q: %w", g.AccountID, err)
 	}
 
-	res, err := client.Projects.DeleteSharedProjectFromGroup(g.Resource.URN, groupID, gitlab.WithContext(ctx))
-	if res != nil && res.StatusCode == http.StatusNotFound {
-		p.logger.Debug(ctx, "project not shared with group, nothing to unshare", "project_urn", g.Resource.URN, "group_id", groupID)
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("failed to unshare project from group: %w", err)
+	switch g.Resource.Type {
+	case resourceTypeProject:
+		res, err := client.Projects.DeleteSharedProjectFromGroup(g.Resource.URN, groupID, gitlab.WithContext(ctx))
+		if res != nil && res.StatusCode == http.StatusNotFound {
+			p.logger.Debug(ctx, "project not shared with group, nothing to unshare", "project_urn", g.Resource.URN, "group_id", groupID)
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to unshare project from group: %w", err)
+		}
+	case resourceTypeGroup:
+		res, err := client.Groups.UnshareGroupFromGroup(g.Resource.URN, groupID, gitlab.WithContext(ctx))
+		if res != nil && res.StatusCode == http.StatusNotFound {
+			p.logger.Debug(ctx, "group not shared with group, nothing to unshare", "group_urn", g.Resource.URN, "group_id", groupID)
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to unshare group from group: %w", err)
+		}
+	default:
+		return fmt.Errorf("gitlab_group_id account type only supports project or group resources, got: %q", g.Resource.Type)
 	}
 	return nil
 }
