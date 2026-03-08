@@ -1703,6 +1703,23 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 		return fmt.Errorf("getting grant dependencies: %w", err)
 	}
 	for _, dg := range dependencyGrants {
+		// resolve permissions from role for the dependency grant's provider
+		depProviders, err := s.providerService.Find(ctx, domain.ListProvidersFilter{
+			Types: []string{dg.Resource.ProviderType},
+			URNs:  []string{dg.Resource.ProviderURN},
+		})
+		if err != nil {
+			return fmt.Errorf("failed to find provider for dependency grant %q/%q: %w", dg.Resource.ProviderType, dg.Resource.ProviderURN, err)
+		}
+		if len(depProviders) == 0 {
+			return fmt.Errorf("provider not found for dependency grant: type=%q urn=%q", dg.Resource.ProviderType, dg.Resource.ProviderURN)
+		}
+		depPermissions, err := s.getPermissions(ctx, depProviders[0].Config, dg.Resource.Type, dg.Role)
+		if err != nil {
+			return fmt.Errorf("failed to resolve permissions for dependency grant: %w", err)
+		}
+		dg.Permissions = depPermissions
+
 		// Find any existing active grant for the same account/resource/permissions
 		// regardless of group attributes to handle grant updates
 		activeDepGrants, err := s.grantService.List(ctx, domain.ListGrantsFilter{
