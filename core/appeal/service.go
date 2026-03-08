@@ -1706,15 +1706,21 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 		// resolve permissions from role for the dependency grant's provider
 		depProviders, err := s.providerService.Find(ctx, domain.ListProvidersFilter{
 			Types: []string{dg.Resource.ProviderType},
-			URNs:  []string{dg.Resource.ProviderURN},
 		})
 		if err != nil {
 			return fmt.Errorf("failed to find provider for dependency grant %q/%q: %w", dg.Resource.ProviderType, dg.Resource.ProviderURN, err)
 		}
-		if len(depProviders) == 0 {
+		var depProvider *domain.Provider
+		for _, p := range depProviders {
+			if p.URN == dg.Resource.ProviderURN {
+				depProvider = p
+				break
+			}
+		}
+		if depProvider == nil {
 			return fmt.Errorf("provider not found for dependency grant: type=%q urn=%q", dg.Resource.ProviderType, dg.Resource.ProviderURN)
 		}
-		depPermissions, err := s.getPermissions(ctx, depProviders[0].Config, dg.Resource.Type, dg.Role)
+		depPermissions, err := s.getPermissions(ctx, depProvider.Config, dg.Resource.Type, dg.Role)
 		if err != nil {
 			return fmt.Errorf("failed to resolve permissions for dependency grant: %w", err)
 		}
