@@ -2,9 +2,12 @@ package alicloud_sso
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 
 	sso "github.com/alibabacloud-go/cloudsso-20210515/client"
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/bearaujus/bptr"
 
 	"github.com/goto/guardian/domain"
@@ -107,6 +110,10 @@ func (p *provider) addMemberToGroup(ctx context.Context, pc *domain.ProviderConf
 		GroupId:     bptr.FromStringNilAble(groupID),
 		UserId:      bptr.FromStringNilAble(userID),
 	}); err != nil {
+		var sdkErr *tea.SDKError
+		if errors.As(err, &sdkErr) && sdkErr.StatusCode != nil && *sdkErr.StatusCode == http.StatusConflict {
+			return nil
+		}
 		return fmt.Errorf("fail to add member to group. client error: %w", err)
 	}
 
