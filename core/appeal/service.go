@@ -236,7 +236,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		resources      map[string]*domain.Resource
 		providers      map[string]map[string]*domain.Provider
 		policies       map[string]map[uint]*domain.Policy
-		pendingAppeals map[string]map[string]map[string]*domain.Appeal
+		pendingAppeals map[string]map[string]map[string][]*domain.Appeal
 	)
 
 	eg.Go(func() error {
@@ -287,12 +287,6 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	for _, appeal := range appeals {
 		appeal.SetDefaults()
 
-		if !createAppealOpts.DryRun { // ignore multiple identical appeal creation check on dry-run
-			if err := validateAppeal(appeal, pendingAppeals); err != nil {
-				return err
-			}
-		}
-
 		if err := addResource(appeal, resources); err != nil {
 			return fmt.Errorf("couldn't find resource with id %q: %w", appeal.ResourceID, err)
 		}
@@ -308,6 +302,18 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			policy, err = getPolicy(appeal, provider, policies)
 			if err != nil {
 				return err
+			}
+		}
+
+		if !createAppealOpts.DryRun {
+			if allowsDuplicateAppeals(appeal, policy) {
+				if err := validateAppealMetadata(appeal, pendingAppeals); err != nil {
+					return err
+				}
+			} else {
+				if err := validateAppeal(appeal, pendingAppeals); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -674,7 +680,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	var (
 		providers      map[string]map[string]*domain.Provider
 		policies       map[string]map[uint]*domain.Policy
-		pendingAppeals map[string]map[string]map[string]*domain.Appeal
+		pendingAppeals map[string]map[string]map[string][]*domain.Appeal
 	)
 
 	eg.Go(func() error {
@@ -724,12 +730,6 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 
 	appeal.SetDefaults()
 
-	if appeal.AccountID != existingAppeal.AccountID || appeal.ResourceID != existingAppeal.ResourceID || appeal.Role != existingAppeal.Role {
-		if err := validateAppeal(appeal, pendingAppeals); err != nil {
-			return err
-		}
-	}
-
 	provider, err := getProvider(appeal, providers)
 	if err != nil {
 		return err
@@ -738,6 +738,18 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	policy, err := getPolicy(appeal, provider, policies)
 	if err != nil {
 		return err
+	}
+
+	if allowsDuplicateAppeals(appeal, policy) {
+		if err := validateAppealMetadata(appeal, pendingAppeals); err != nil {
+			return err
+		}
+	} else {
+		if appeal.AccountID != existingAppeal.AccountID || appeal.ResourceID != existingAppeal.ResourceID || appeal.Role != existingAppeal.Role {
+			if err := validateAppeal(appeal, pendingAppeals); err != nil {
+				return err
+			}
+		}
 	}
 
 	activeGrant, err := s.findActiveGrant(ctx, appeal)
@@ -1528,23 +1540,23 @@ func (s *Service) getApproval(ctx context.Context, appealID, approvalID string) 
 	return appeal, approval, nil
 }
 
-// getAppealsMap returns map[account_id]map[resource_id]map[role]*domain.Appeal, error
-func (s *Service) getAppealsMap(ctx context.Context, filters *domain.ListAppealsFilter) (map[string]map[string]map[string]*domain.Appeal, error) {
+// getAppealsMap returns map[account_id]map[resource_id]map[role][]*domain.Appeal, error
+func (s *Service) getAppealsMap(ctx context.Context, filters *domain.ListAppealsFilter) (map[string]map[string]map[string][]*domain.Appeal, error) {
 	appeals, err := s.repo.Find(ctx, filters)
 	if err != nil {
 		return nil, err
 	}
 
-	appealsMap := map[string]map[string]map[string]*domain.Appeal{}
+	appealsMap := map[string]map[string]map[string][]*domain.Appeal{}
 	for _, a := range appeals {
 		accountID := strings.ToLower(a.AccountID)
 		if appealsMap[accountID] == nil {
-			appealsMap[accountID] = map[string]map[string]*domain.Appeal{}
+			appealsMap[accountID] = map[string]map[string][]*domain.Appeal{}
 		}
 		if appealsMap[accountID][a.ResourceID] == nil {
-			appealsMap[accountID][a.ResourceID] = map[string]*domain.Appeal{}
+			appealsMap[accountID][a.ResourceID] = map[string][]*domain.Appeal{}
 		}
-		appealsMap[accountID][a.ResourceID][a.Role] = a
+		appealsMap[accountID][a.ResourceID][a.Role] = append(appealsMap[accountID][a.ResourceID][a.Role], a)
 	}
 
 	return appealsMap, nil
@@ -2329,15 +2341,67 @@ func getProvider(a *domain.Appeal, providersMap map[string]map[string]*domain.Pr
 	return provider, nil
 }
 
-func validateAppeal(a *domain.Appeal, pendingAppealsMap map[string]map[string]map[string]*domain.Appeal) error {
+func validateAppeal(a *domain.Appeal, pendingAppealsMap map[string]map[string]map[string][]*domain.Appeal) error {
 	accountID := strings.ToLower(a.AccountID)
 	if pendingAppealsMap[accountID] != nil &&
 		pendingAppealsMap[accountID][a.ResourceID] != nil &&
-		pendingAppealsMap[accountID][a.ResourceID][a.Role] != nil {
-		return fmt.Errorf("%w. appeal id: %q", ErrAppealDuplicate, pendingAppealsMap[accountID][a.ResourceID][a.Role].ID)
+		len(pendingAppealsMap[accountID][a.ResourceID][a.Role]) > 0 {
+		return fmt.Errorf("%w. appeal id: %q", ErrAppealDuplicate, pendingAppealsMap[accountID][a.ResourceID][a.Role][0].ID)
 	}
 
 	return nil
+}
+
+func validateAppealMetadata(a *domain.Appeal, pendingAppealsMap map[string]map[string]map[string][]*domain.Appeal) error {
+	accountID := strings.ToLower(a.AccountID)
+	if pendingAppealsMap[accountID] == nil ||
+		pendingAppealsMap[accountID][a.ResourceID] == nil ||
+		len(pendingAppealsMap[accountID][a.ResourceID][a.Role]) == 0 {
+		return nil
+	}
+
+	newMetadata := getProviderMetadata(a)
+	if newMetadata == nil {
+		return nil
+	}
+
+	for _, existingAppeal := range pendingAppealsMap[accountID][a.ResourceID][a.Role] {
+		existingMetadata := getProviderMetadata(existingAppeal)
+		if reflect.DeepEqual(newMetadata, existingMetadata) {
+			return fmt.Errorf("%w. appeal id: %q", ErrAppealDuplicateMetadata, existingAppeal.ID)
+		}
+	}
+
+	return nil
+}
+
+func getProviderMetadata(a *domain.Appeal) map[string]any {
+	if a.Details == nil {
+		return nil
+	}
+	params, ok := a.Details[domain.ReservedDetailsKeyProviderParameters].(map[string]any)
+	if !ok || params == nil {
+		return nil
+	}
+	metadata, ok := params["metadata"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return metadata
+}
+
+func allowsDuplicateAppeals(a *domain.Appeal, p *domain.Policy) bool {
+	if p.AllowsDuplicateAppeals() {
+		return true
+	}
+
+	if a.Resource != nil &&
+		a.Resource.ProviderType == domain.ProviderTypeGuardian &&
+		(strings.HasPrefix(a.Resource.Type, "action") || strings.HasPrefix(a.Resource.Type, "optimus")) {
+		return true
+	}
+
+	return false
 }
 
 func (s *Service) getPermissions(ctx context.Context, pc *domain.ProviderConfig, resourceType, role string) ([]string, error) {
@@ -2359,27 +2423,31 @@ func (s *Service) getPermissions(ctx context.Context, pc *domain.ProviderConfig,
 
 // TODO(feature): add relation between new and revoked grant for traceability
 func (s *Service) prepareGrant(ctx context.Context, appeal *domain.Appeal) (newGrant *domain.Grant, deactivatedGrant *domain.Grant, err error) {
-	filter := domain.ListGrantsFilter{
-		AccountIDs:  []string{appeal.AccountID},
-		ResourceIDs: []string{appeal.ResourceID},
-		Statuses:    []string{string(domain.GrantStatusActive)},
-		Permissions: appeal.Permissions,
-	}
-	revocationReason := RevokeReasonForExtension
-	if s.providerService.IsExclusiveRoleAssignment(ctx, appeal.Resource.ProviderType, appeal.Resource.Type) {
-		filter.Permissions = nil
-		revocationReason = RevokeReasonForOverride
-	}
+	skipRevocation := isIndependentGrantResource(appeal)
 
-	activeGrants, err := s.grantService.List(ctx, filter)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to retrieve existing active grants: %w", err)
-	}
+	if !skipRevocation {
+		filter := domain.ListGrantsFilter{
+			AccountIDs:  []string{appeal.AccountID},
+			ResourceIDs: []string{appeal.ResourceID},
+			Statuses:    []string{string(domain.GrantStatusActive)},
+			Permissions: appeal.Permissions,
+		}
+		revocationReason := RevokeReasonForExtension
+		if s.providerService.IsExclusiveRoleAssignment(ctx, appeal.Resource.ProviderType, appeal.Resource.Type) {
+			filter.Permissions = nil
+			revocationReason = RevokeReasonForOverride
+		}
 
-	if len(activeGrants) > 0 {
-		deactivatedGrant = &activeGrants[0]
-		if err := deactivatedGrant.Revoke(domain.SystemActorName, revocationReason); err != nil {
-			return nil, nil, fmt.Errorf("revoking previous grant: %w", err)
+		activeGrants, err := s.grantService.List(ctx, filter)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to retrieve existing active grants: %w", err)
+		}
+
+		if len(activeGrants) > 0 {
+			deactivatedGrant = &activeGrants[0]
+			if err := deactivatedGrant.Revoke(domain.SystemActorName, revocationReason); err != nil {
+				return nil, nil, fmt.Errorf("revoking previous grant: %w", err)
+			}
 		}
 	}
 
@@ -2393,6 +2461,17 @@ func (s *Service) prepareGrant(ctx context.Context, appeal *domain.Appeal) (newG
 	}
 
 	return grant, deactivatedGrant, nil
+}
+
+func isIndependentGrantResource(a *domain.Appeal) bool {
+	if a.Resource == nil {
+		return false
+	}
+	if a.Resource.ProviderType == domain.ProviderTypeGuardian &&
+		(strings.HasPrefix(a.Resource.Type, "action") || strings.HasPrefix(a.Resource.Type, "optimus")) {
+		return true
+	}
+	return false
 }
 
 func (s *Service) GetAppealsTotalCount(ctx context.Context, filters *domain.ListAppealsFilter) (int64, error) {
