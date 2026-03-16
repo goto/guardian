@@ -140,16 +140,3 @@ func (p *Provider) getClient(pc *domain.ProviderConfig) (*Client, error) {
 	p.clients[pc.URN] = client
 	return client, nil
 }
-
-func extractProviderParameters(details map[string]interface{}) (map[string]interface{}, error) {
-	raw, ok := details[domain.ReservedDetailsKeyProviderParameters]
-	if !ok {
-		return nil, fmt.Errorf("missing %q in appeal details", domain.ReservedDetailsKeyProviderParameters)
-	}
-
-	result := make(map[string]interface{})
-	if err := mapstructure.Decode(raw, &result); err != nil {
-		return nil, fmt.Errorf("decoding provider parameters: %w", err)
-	}
-	return result, nil
-}
