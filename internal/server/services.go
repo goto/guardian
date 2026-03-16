@@ -42,6 +42,7 @@ import (
 	"github.com/goto/guardian/plugins/providers/maxcompute"
 	"github.com/goto/guardian/plugins/providers/metabase"
 	"github.com/goto/guardian/plugins/providers/noop"
+	"github.com/goto/guardian/plugins/providers/optimus"
 	"github.com/goto/guardian/plugins/providers/oss"
 	"github.com/goto/guardian/plugins/providers/shield"
 	"github.com/goto/guardian/plugins/providers/tableau"
@@ -135,6 +136,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		tableau.NewProvider(domain.ProviderTypeTableau, deps.Crypto),
 		gcloudiam.NewProvider(domain.ProviderTypeGCloudIAM, deps.Crypto, deps.Logger),
 		noop.NewProvider(domain.ProviderTypeNoOp, deps.Logger),
+		optimus.NewProvider(domain.ProviderTypeOptimus, deps.Logger),
 		gcs.NewProvider(domain.ProviderTypeGCS, deps.Crypto),
 		dataplex.NewProvider(domain.ProviderTypePolicyTag, deps.Crypto),
 		shield.NewProvider(domain.ProviderTypeShield, deps.Logger),
