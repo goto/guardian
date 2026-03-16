@@ -102,56 +102,8 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 	return resources, nil
 }
 
-func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
-	if g.Appeal == nil {
-		return fmt.Errorf("grant has no associated appeal")
-	}
-
-	params, err := extractProviderParameters(g.Appeal.Details)
-	if err != nil {
-		return fmt.Errorf("extracting provider parameters: %w", err)
-	}
-
-	creds, err := (&config{pc}).getCredentials()
-	if err != nil {
-		return err
-	}
-
-	parallel := false
-	if v, ok := params["parallel"]; ok {
-		switch val := v.(type) {
-		case bool:
-			parallel = val
-		case string:
-			parallel = val == "true"
-		}
-	}
-
-	replayReq := &replayRequest{
-		ProjectName:   creds.ProjectName,
-		JobName:       fmt.Sprintf("%v", params["job_name"]),
-		NamespaceName: fmt.Sprintf("%v", params["namespace_name"]),
-		StartTime:     fmt.Sprintf("%v", params["start_time"]),
-		EndTime:       fmt.Sprintf("%v", params["end_time"]),
-		Parallel:      parallel,
-		Description:   fmt.Sprintf("%v", params["description"]),
-		JobConfig:     fmt.Sprintf("%v", params["job_config"]),
-		Category:      fmt.Sprintf("%v", params["category"]),
-		Status:        "granted",
-		RequesterID:   g.ID,
-	}
-
-	client, err := p.getClient(pc)
-	if err != nil {
-		return err
-	}
-
-	result, err := client.CreateReplay(ctx, replayReq)
-	if err != nil {
-		return fmt.Errorf("creating optimus replay: %w", err)
-	}
-
-	p.logger.Info(ctx, "optimus replay created", "replay_id", result.ID, "job_name", replayReq.JobName)
+func (p *Provider) GrantAccess(ctx context.Context, _ *domain.ProviderConfig, g domain.Grant) error {
+	p.logger.Info(ctx, "optimus grant created in db", "grant_id", g.ID, "account_id", g.AccountID)
 	return nil
 }
 
