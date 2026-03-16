@@ -9,7 +9,6 @@ import (
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/utils"
-	"github.com/mitchellh/mapstructure"
 )
 
 const (
