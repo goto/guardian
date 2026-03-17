@@ -223,7 +223,8 @@ func (p *Provider) IsDuplicateAppeal(ctx context.Context, incoming *domain.Appea
 		if err != nil {
 			return false, fmt.Errorf("parsing existing end_time for appeal %s: %w", existing.ID, err)
 		}
-		if !(incomingEnd.Before(existingStart) || existingEnd.Before(incomingStart)) {
+		if (existingStart.Equal(incomingEnd) || existingStart.Before(incomingEnd)) &&
+			(existingEnd.Equal(incomingStart) || existingEnd.After(incomingStart)) {
 			return true, nil
 		}
 	}
