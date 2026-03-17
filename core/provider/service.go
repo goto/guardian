@@ -80,6 +80,10 @@ type appealValidator interface {
 	ValidateAppeal(ctx context.Context, a *domain.Appeal) error
 }
 
+type appealDuplicateChecker interface {
+	IsDuplicateAppeal(ctx context.Context, incoming *domain.Appeal, fetchPending func(context.Context, *domain.ListAppealsFilter) ([]*domain.Appeal, error)) (bool, error)
+}
+
 //go:generate mockery --name=resourceService --exported --with-expecter
 type resourceService interface {
 	Create(context.Context, *domain.Resource) error
@@ -438,6 +442,18 @@ func (s *Service) ValidateAppeal(ctx context.Context, a *domain.Appeal, p *domai
 	}
 
 	return nil
+}
+
+func (s *Service) CheckDuplicateAppeal(ctx context.Context, providerType string, incoming *domain.Appeal, fetchPending func(context.Context, *domain.ListAppealsFilter) ([]*domain.Appeal, error)) (bool, error) {
+	c := s.getClient(providerType)
+	if c == nil {
+		return false, nil
+	}
+	checker, ok := c.(appealDuplicateChecker)
+	if !ok {
+		return false, nil
+	}
+	return checker.IsDuplicateAppeal(ctx, incoming, fetchPending)
 }
 
 func (*Service) validateQuestionsAndParameters(a *domain.Appeal, p *domain.Provider, policy *domain.Policy) error {
