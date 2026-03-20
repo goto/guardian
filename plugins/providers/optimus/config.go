@@ -117,8 +117,6 @@ func (c *config) validate() error {
 func (c *config) getCredentials() (*credentials, error) {
 	if creds, ok := c.Credentials.(credentials); ok {
 		return &creds, nil
-	} else if creds, ok := c.Credentials.(*credentials); ok {
-		return creds, nil
 	} else if m, ok := c.Credentials.(map[string]interface{}); ok {
 		var creds credentials
 		if err := mapstructure.Decode(m, &creds); err != nil {

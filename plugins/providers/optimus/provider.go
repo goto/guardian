@@ -15,7 +15,7 @@ import (
 
 const (
 	RoleExecuteBackfill = "execute_backfill"
-	AccountTypeUser     = "user"
+	AccountTypeUUID     = "UUID"
 )
 
 type encryptor interface {
@@ -61,7 +61,7 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 	if err := creds.encrypt(p.encryptor); err != nil {
 		return fmt.Errorf("failed to encrypt credentials: %w", err)
 	}
-	pc.Credentials = creds
+	pc.Credentials = *creds
 
 	return nil
 }
@@ -110,7 +110,7 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			Type:         ResourceTypeJob,
 			URN:          fmt.Sprintf("%s/%s/%s", jr.ProjectName, jr.NamespaceName, jr.Job.Name),
 			Name:         jr.Job.Name,
-			GlobalURN:    utils.GetGlobalURN(pc.Type, pc.URN, ResourceTypeJob, jr.Job.Name),
+			GlobalURN:    utils.GetGlobalURN(pc.Type, pc.URN, ResourceTypeJob, fmt.Sprintf("%s/%s/%s", jr.ProjectName, jr.NamespaceName, jr.Job.Name)),
 			Details: map[string]interface{}{
 				"name":                   jr.Job.Name,
 				"namespace_name":         jr.NamespaceName,
@@ -142,7 +142,7 @@ func (p *Provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*
 }
 
 func (p *Provider) GetAccountTypes() []string {
-	return []string{AccountTypeUser}
+	return []string{AccountTypeUUID}
 }
 
 func (p *Provider) ValidateAppeal(_ context.Context, a *domain.Appeal) error {

@@ -151,7 +151,7 @@ func TestCreateConfigEncryptsCredentials(t *testing.T) {
 	require.NoError(t, err)
 
 	// Ensure CreateConfig transitioned credentials to provider-specific struct
-	assert.Equal(t, reflect.Ptr, reflect.TypeOf(pc.Credentials).Kind())
+	assert.Equal(t, reflect.Struct, reflect.TypeOf(pc.Credentials).Kind())
 
 	// Decryption path should then work for getClient
 	_, err = p.GetResources(context.Background(), pc)
@@ -209,7 +209,7 @@ func TestGetResources(t *testing.T) {
 		assert.Equal(t, optimus.ResourceTypeJob, r.Type)
 		assert.Equal(t, "my-project/my-namespace/etl-job", r.URN)
 		assert.Equal(t, "etl-job", r.Name)
-		assert.Equal(t, "urn:optimus:optimus-prod:job:etl-job", r.GlobalURN)
+		assert.Equal(t, "urn:optimus:optimus-prod:job:my-project/my-namespace/etl-job", r.GlobalURN)
 		assert.Equal(t, "2023-01-01", r.Details["start_date"])
 		assert.Equal(t, "project.dataset.table", r.Details["destination_table_name"])
 	})
@@ -288,7 +288,7 @@ func TestRevokeAccess(t *testing.T) {
 
 func TestGetAccountTypes(t *testing.T) {
 	p := newProvider()
-	assert.Equal(t, []string{"user"}, p.GetAccountTypes())
+	assert.Equal(t, []string{"UUID"}, p.GetAccountTypes())
 }
 
 // ---------------------------------------------------------------------------

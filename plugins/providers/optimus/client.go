@@ -45,24 +45,6 @@ type listJobsResponse struct {
 	JobSpecificationResponses []jobSpecificationResponse `json:"jobSpecificationResponses"`
 }
 
-type replayRequest struct {
-	ProjectName   string `json:"projectName"`
-	JobName       string `json:"jobName"`
-	NamespaceName string `json:"namespaceName"`
-	StartTime     string `json:"startTime"`
-	EndTime       string `json:"endTime"`
-	Parallel      bool   `json:"parallel"`
-	Description   string `json:"description"`
-	JobConfig     string `json:"jobConfig"`
-	Category      string `json:"category"`
-	Status        string `json:"status"`
-	RequesterID   string `json:"requester_id"`
-}
-
-type replayResponse struct {
-	ID string `json:"id"`
-}
-
 type Client struct {
 	host       string
 	httpClient *http.Client
