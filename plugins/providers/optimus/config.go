@@ -36,20 +36,75 @@ func (c *credentials) validate() error {
 	return nil
 }
 
+func (c *credentials) encrypt(encryptor domain.Encryptor) error {
+	if c == nil {
+		return ErrMissingCredentials
+	}
+
+	if c.Host != "" {
+		encryptedHost, err := encryptor.Encrypt(c.Host)
+		if err != nil {
+			return fmt.Errorf("encrypting host: %w", err)
+		}
+		c.Host = encryptedHost
+	}
+
+	if c.ProjectName != "" {
+		encryptedProjectName, err := encryptor.Encrypt(c.ProjectName)
+		if err != nil {
+			return fmt.Errorf("encrypting project_name: %w", err)
+		}
+		c.ProjectName = encryptedProjectName
+	}
+
+	return nil
+}
+
+func (c *credentials) decrypt(decryptor domain.Decryptor) error {
+	if c == nil {
+		return ErrMissingCredentials
+	}
+
+	if c.Host != "" {
+		decryptedHost, err := decryptor.Decrypt(c.Host)
+		if err != nil {
+			return fmt.Errorf("decrypting host: %w", err)
+		}
+		c.Host = decryptedHost
+	}
+
+	if c.ProjectName != "" {
+		decryptedProjectName, err := decryptor.Decrypt(c.ProjectName)
+		if err != nil {
+			return fmt.Errorf("decrypting project_name: %w", err)
+		}
+		c.ProjectName = decryptedProjectName
+	}
+
+	return nil
+}
+
 type config struct {
 	*domain.ProviderConfig
 }
 
 func (c *config) validate() error {
+
 	if c.Credentials == nil {
 		return ErrMissingCredentials
 	}
+
 	creds, err := c.getCredentials()
 	if err != nil {
 		return err
 	}
+
 	if err := creds.validate(); err != nil {
 		return fmt.Errorf("invalid credentials: %w", err)
+	}
+
+	if len(c.Resources) == 0 {
+		return errors.New("empty resource config")
 	}
 	for _, rc := range c.Resources {
 		if rc.Type != ResourceTypeJob {

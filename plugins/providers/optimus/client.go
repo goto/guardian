@@ -1,7 +1,6 @@
 package optimus
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -107,35 +106,4 @@ func (c *Client) GetJobs(ctx context.Context, projectName string) ([]jobSpecific
 	}
 
 	return result.JobSpecificationResponses, nil
-}
-
-func (c *Client) CreateReplay(ctx context.Context, r *replayRequest) (*replayResponse, error) {
-	body, err := json.Marshal(r)
-	if err != nil {
-		return nil, fmt.Errorf("marshaling replay request: %w", err)
-	}
-
-	endpoint := fmt.Sprintf("%s/api/v1beta1/project/%s/replay", c.host, r.ProjectName)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBuffer(body))
-	if err != nil {
-		return nil, fmt.Errorf("creating replay request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("executing replay request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("create replay returned status %d", resp.StatusCode)
-	}
-
-	var result replayResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decoding replay response: %w", err)
-	}
-
-	return &result, nil
 }

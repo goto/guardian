@@ -90,7 +90,6 @@ type providerService interface {
 	GetPermissions(context.Context, *domain.ProviderConfig, string, string) ([]interface{}, error)
 	IsExclusiveRoleAssignment(context.Context, string, string) bool
 	GetDependencyGrants(context.Context, domain.Grant) ([]*domain.Grant, error)
-	CheckDuplicateAppeal(ctx context.Context, providerType string, incoming *domain.Appeal, fetchPending func(context.Context, *domain.ListAppealsFilter) ([]*domain.Appeal, error)) (bool, error)
 }
 
 //go:generate mockery --name=resourceService --exported --with-expecter
@@ -288,6 +287,11 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 	for _, appeal := range appeals {
 		appeal.SetDefaults()
 
+		provider, err := getProvider(appeal, providers)
+		if err != nil {
+			return err
+		}
+
 		if !createAppealOpts.DryRun { // ignore multiple identical appeal creation check on dry-run
 			if err := validateAppeal(appeal, pendingAppeals); err != nil {
 				return err
@@ -296,18 +300,6 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 
 		if err := addResource(appeal, resources); err != nil {
 			return fmt.Errorf("couldn't find resource with id %q: %w", appeal.ResourceID, err)
-		}
-		provider, err := getProvider(appeal, providers)
-		if err != nil {
-			return err
-		}
-
-		if !createAppealOpts.DryRun {
-			if isDup, err := s.providerService.CheckDuplicateAppeal(ctx, provider.Type, appeal, s.repo.Find); err != nil {
-				return fmt.Errorf("evaluating duplicate appeal: %w", err)
-			} else if isDup {
-				return fmt.Errorf("%w: overlapping replay window already pending for this job", ErrAppealDuplicate)
-			}
 		}
 
 		var policy *domain.Policy
@@ -742,12 +734,6 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	provider, err := getProvider(appeal, providers)
 	if err != nil {
 		return err
-	}
-
-	if isDup, err := s.providerService.CheckDuplicateAppeal(ctx, provider.Type, appeal, s.repo.Find); err != nil {
-		return fmt.Errorf("evaluating duplicate appeal: %w", err)
-	} else if isDup {
-		return fmt.Errorf("%w: overlapping replay window already pending for this job", ErrAppealDuplicate)
 	}
 
 	policy, err := getPolicy(appeal, provider, policies)

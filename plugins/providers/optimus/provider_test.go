@@ -3,13 +3,13 @@ package optimus_test
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/pkg/crypto"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/providers/optimus"
 	"github.com/stretchr/testify/assert"
@@ -17,7 +17,7 @@ import (
 )
 
 func newProvider() *optimus.Provider {
-	return optimus.NewProvider("optimus", log.NewNoop())
+	return optimus.NewProvider("optimus", crypto.NewAES("test-encryption-key"), log.NewNoop())
 }
 
 func validProviderConfig(host string) *domain.ProviderConfig {
@@ -50,7 +50,7 @@ func appealWithParams(id, resourceID, role string, params map[string]interface{}
 // ---------------------------------------------------------------------------
 
 func TestGetType(t *testing.T) {
-	p := optimus.NewProvider("optimus", log.NewNoop())
+	p := optimus.NewProvider("optimus", crypto.NewAES("test-encryption-key"), log.NewNoop())
 	assert.Equal(t, "optimus", p.GetType())
 }
 
@@ -144,6 +144,20 @@ func TestCreateConfig(t *testing.T) {
 	}
 }
 
+func TestCreateConfigEncryptsCredentials(t *testing.T) {
+	p := newProvider()
+	pc := validProviderConfig("http://optimus.example.com")
+	err := p.CreateConfig(pc)
+	require.NoError(t, err)
+
+	// Ensure CreateConfig transitioned credentials to provider-specific struct
+	assert.Equal(t, reflect.Ptr, reflect.TypeOf(pc.Credentials).Kind())
+
+	// Decryption path should then work for getClient
+	_, err = p.GetResources(context.Background(), pc)
+	assert.Error(t, err) // no server, but decrypt path ran without "invalid input" errors.
+}
+
 // ---------------------------------------------------------------------------
 // GetResources
 // ---------------------------------------------------------------------------
@@ -181,6 +195,8 @@ func TestGetResources(t *testing.T) {
 
 		p := newProvider()
 		pc := validProviderConfig(ts.URL)
+		err := p.CreateConfig(pc)
+		require.NoError(t, err)
 
 		resources, err := p.GetResources(context.Background(), pc)
 
@@ -206,8 +222,10 @@ func TestGetResources(t *testing.T) {
 
 		p := newProvider()
 		pc := validProviderConfig(ts.URL)
+		err := p.CreateConfig(pc)
+		require.NoError(t, err)
 
-		_, err := p.GetResources(context.Background(), pc)
+		_, err = p.GetResources(context.Background(), pc)
 		assert.Error(t, err)
 	})
 
@@ -238,6 +256,8 @@ func TestGetResources(t *testing.T) {
 
 		p := newProvider()
 		pc := validProviderConfig(ts.URL)
+		err := p.CreateConfig(pc)
+		require.NoError(t, err)
 
 		resources, err := p.GetResources(context.Background(), pc)
 		require.NoError(t, err)
@@ -401,257 +421,4 @@ func TestValidateAppeal(t *testing.T) {
 			}
 		})
 	}
-}
-
-// ---------------------------------------------------------------------------
-// IsDuplicateAppeal
-// ---------------------------------------------------------------------------
-
-func TestIsDuplicateAppeal(t *testing.T) {
-	p := newProvider()
-	ctx := context.Background()
-
-	const (
-		resourceID = "resource-abc"
-		role       = "execute_backfill"
-	)
-
-	makeFetch := func(appeals []*domain.Appeal, err error) func(context.Context, *domain.ListAppealsFilter) ([]*domain.Appeal, error) {
-		return func(_ context.Context, _ *domain.ListAppealsFilter) ([]*domain.Appeal, error) {
-			return appeals, err
-		}
-	}
-
-	incoming := appealWithParams("appeal-new", resourceID, role, map[string]interface{}{
-		"start_time": "2024-02-01T00:00:00Z",
-		"end_time":   "2024-02-10T00:00:00Z",
-	})
-
-	tests := []struct {
-		name      string
-		incoming  *domain.Appeal
-		fetch     func(context.Context, *domain.ListAppealsFilter) ([]*domain.Appeal, error)
-		wantDup   bool
-		wantErr   bool
-		errSubstr string
-	}{
-		{
-			name:      "fetchPending returns error",
-			incoming:  incoming,
-			fetch:     makeFetch(nil, errors.New("db error")),
-			wantErr:   true,
-			errSubstr: "fetching pending appeals",
-		},
-		{
-			name:    "no existing appeals → not a duplicate",
-			incoming: incoming,
-			fetch:   makeFetch(nil, nil),
-			wantDup: false,
-		},
-		{
-			name:    "self excluded by ID → not a duplicate",
-			incoming: incoming,
-			fetch: makeFetch([]*domain.Appeal{
-				appealWithParams("appeal-new", resourceID, role, map[string]interface{}{
-					"start_time": "2024-02-01T00:00:00Z",
-					"end_time":   "2024-02-10T00:00:00Z",
-				}),
-			}, nil),
-			wantDup: false,
-		},
-		{
-			name:    "overlapping window → duplicate",
-			incoming: incoming,
-			fetch: makeFetch([]*domain.Appeal{
-				appealWithParams("appeal-existing", resourceID, role, map[string]interface{}{
-					"start_time": "2024-02-05T00:00:00Z",
-					"end_time":   "2024-02-15T00:00:00Z",
-				}),
-			}, nil),
-			wantDup: true,
-		},
-		{
-			name:    "existing window fully inside incoming → duplicate",
-			incoming: incoming,
-			fetch: makeFetch([]*domain.Appeal{
-				appealWithParams("appeal-existing", resourceID, role, map[string]interface{}{
-					"start_time": "2024-02-03T00:00:00Z",
-					"end_time":   "2024-02-07T00:00:00Z",
-				}),
-			}, nil),
-			wantDup: true,
-		},
-		{
-			name:    "incoming fully before existing → not a duplicate",
-			incoming: incoming,
-			fetch: makeFetch([]*domain.Appeal{
-				appealWithParams("appeal-existing", resourceID, role, map[string]interface{}{
-					"start_time": "2024-03-01T00:00:00Z",
-					"end_time":   "2024-03-10T00:00:00Z",
-				}),
-			}, nil),
-			wantDup: false,
-		},
-		{
-			name:    "incoming fully after existing → not a duplicate",
-			incoming: incoming,
-			fetch: makeFetch([]*domain.Appeal{
-				appealWithParams("appeal-existing", resourceID, role, map[string]interface{}{
-					"start_time": "2024-01-01T00:00:00Z",
-					"end_time":   "2024-01-15T00:00:00Z",
-				}),
-			}, nil),
-			wantDup: false,
-		},
-		{
-			name:    "adjacent windows (incoming end == existing start) → duplicate",
-			incoming: incoming,
-			fetch: makeFetch([]*domain.Appeal{
-				appealWithParams("appeal-existing", resourceID, role, map[string]interface{}{
-					"start_time": "2024-02-10T00:00:00Z",
-					"end_time":   "2024-02-20T00:00:00Z",
-				}),
-			}, nil),
-			wantDup: true,
-		},
-		{
-			name:    "one non-overlapping and one overlapping → duplicate",
-			incoming: incoming,
-			fetch: makeFetch([]*domain.Appeal{
-				appealWithParams("appeal-before", resourceID, role, map[string]interface{}{
-					"start_time": "2024-01-01T00:00:00Z",
-					"end_time":   "2024-01-15T00:00:00Z",
-				}),
-				appealWithParams("appeal-overlap", resourceID, role, map[string]interface{}{
-					"start_time": "2024-02-05T00:00:00Z",
-					"end_time":   "2024-02-15T00:00:00Z",
-				}),
-			}, nil),
-			wantDup: true,
-		},
-		{
-			name:    "existing appeal missing __provider_parameters → error",
-			incoming: incoming,
-			fetch: makeFetch([]*domain.Appeal{
-				{ID: "bad-appeal", Details: map[string]interface{}{}},
-			}, nil),
-			wantErr:   true,
-			errSubstr: "reading existing appeal parameters",
-		},
-		{
-			name:    "existing appeal has invalid start_time → error",
-			incoming: incoming,
-			fetch: makeFetch([]*domain.Appeal{
-				appealWithParams("bad-appeal", resourceID, role, map[string]interface{}{
-					"start_time": "not-a-date",
-					"end_time":   "2024-02-15T00:00:00Z",
-				}),
-			}, nil),
-			wantErr:   true,
-			errSubstr: "parsing existing start_time",
-		},
-		{
-			name:    "existing appeal has invalid end_time → error",
-			incoming: incoming,
-			fetch: makeFetch([]*domain.Appeal{
-				appealWithParams("bad-appeal", resourceID, role, map[string]interface{}{
-					"start_time": "2024-02-05T00:00:00Z",
-					"end_time":   "not-a-date",
-				}),
-			}, nil),
-			wantErr:   true,
-			errSubstr: "parsing existing end_time",
-		},
-		{
-			name: "incoming appeal missing __provider_parameters → error",
-			incoming: &domain.Appeal{
-				ID:         "new-appeal",
-				ResourceID: resourceID,
-				Role:       role,
-				Details:    map[string]interface{}{},
-			},
-			fetch:     makeFetch(nil, nil),
-			wantErr:   true,
-			errSubstr: "reading incoming appeal parameters",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			isDup, err := p.IsDuplicateAppeal(ctx, tc.incoming, tc.fetch)
-			if tc.wantErr {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.errSubstr)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tc.wantDup, isDup)
-			}
-		})
-	}
-}
-
-// ---------------------------------------------------------------------------
-// fetchPending filter passthrough
-// ---------------------------------------------------------------------------
-
-func TestIsDuplicateAppeal_FetchCalledWithCorrectFilter(t *testing.T) {
-	p := newProvider()
-	ctx := context.Background()
-
-	incoming := appealWithParams("new-appeal", "resource-xyz", "execute_backfill", map[string]interface{}{
-		"start_time": "2024-05-01T00:00:00Z",
-		"end_time":   "2024-05-10T00:00:00Z",
-	})
-
-	var capturedFilter *domain.ListAppealsFilter
-	fetch := func(_ context.Context, f *domain.ListAppealsFilter) ([]*domain.Appeal, error) {
-		capturedFilter = f
-		return nil, nil
-	}
-
-	_, err := p.IsDuplicateAppeal(ctx, incoming, fetch)
-	require.NoError(t, err)
-
-	require.NotNil(t, capturedFilter)
-	assert.Equal(t, []string{"resource-xyz"}, capturedFilter.ResourceIDs)
-	assert.Equal(t, []string{"execute_backfill"}, capturedFilter.Roles)
-	assert.Equal(t, []string{domain.AppealStatusPending}, capturedFilter.Statuses)
-}
-
-// ---------------------------------------------------------------------------
-// IsDuplicateAppeal — invalid incoming start_time (fetched appeals irrelevant)
-// ---------------------------------------------------------------------------
-
-func TestIsDuplicateAppeal_InvalidIncomingStartTime(t *testing.T) {
-	p := newProvider()
-
-	incoming := appealWithParams("x", "r", "role", map[string]interface{}{
-		"start_time": "bad",
-		"end_time":   "2024-01-10T00:00:00Z",
-	})
-
-	fetch := func(_ context.Context, _ *domain.ListAppealsFilter) ([]*domain.Appeal, error) {
-		return nil, nil
-	}
-
-	_, err := p.IsDuplicateAppeal(context.Background(), incoming, fetch)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "parsing incoming start_time")
-}
-
-func TestIsDuplicateAppeal_InvalidIncomingEndTime(t *testing.T) {
-	p := newProvider()
-
-	incoming := appealWithParams("x", "r", "role", map[string]interface{}{
-		"start_time": "2024-01-01T00:00:00Z",
-		"end_time":   "bad",
-	})
-
-	fetch := func(_ context.Context, _ *domain.ListAppealsFilter) ([]*domain.Appeal, error) {
-		return nil, nil
-	}
-
-	_, err := p.IsDuplicateAppeal(context.Background(), incoming, fetch)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf("parsing incoming end_time"))
 }

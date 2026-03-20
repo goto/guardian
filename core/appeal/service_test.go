@@ -85,8 +85,7 @@ func newServiceTestHelper() *serviceTestHelper {
 	h.mockProviderService = new(appealmocks.ProviderService)
 	h.mockPolicyService = new(appealmocks.PolicyService)
 	h.mockGrantService = new(appealmocks.GrantService)
-	// default: no provider supports duplicate check unless explicitly overridden per test
-	h.mockProviderService.EXPECT().CheckDuplicateAppeal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
+
 	commentService := comment.NewService(comment.ServiceDeps{
 		Repository:  h.mockCommentRepo,
 		Logger:      logger,

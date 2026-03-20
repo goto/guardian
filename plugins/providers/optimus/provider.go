@@ -18,22 +18,28 @@ const (
 	AccountTypeUser     = "user"
 )
 
+type encryptor interface {
+	domain.Crypto
+}
+
 type Provider struct {
 	pv.UnimplementedClient
 	pv.PermissionManager
 
-	typeName string
-	logger   log.Logger
+	typeName  string
+	logger    log.Logger
+	encryptor encryptor
 
 	clients map[string]*Client
 	mu      sync.Mutex
 }
 
-func NewProvider(typeName string, logger log.Logger) *Provider {
+func NewProvider(typeName string, encryptor encryptor, logger log.Logger) *Provider {
 	return &Provider{
-		typeName: typeName,
-		logger:   logger,
-		clients:  make(map[string]*Client),
+		typeName:  typeName,
+		logger:    logger,
+		encryptor: encryptor,
+		clients:   make(map[string]*Client),
 	}
 }
 
@@ -46,12 +52,30 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 	if err := cfg.validate(); err != nil {
 		return fmt.Errorf("invalid optimus config: %w", err)
 	}
+
+	// encrypt sensitive config
 	creds, err := cfg.getCredentials()
 	if err != nil {
 		return err
 	}
+	if err := creds.encrypt(p.encryptor); err != nil {
+		return fmt.Errorf("failed to encrypt credentials: %w", err)
+	}
 	pc.Credentials = creds
+
 	return nil
+}
+
+func (p *Provider) getCreds(pc *domain.ProviderConfig) (*credentials, error) {
+	cfg := &config{pc}
+	creds, err := cfg.getCredentials()
+	if err != nil {
+		return nil, err
+	}
+	if err := creds.decrypt(p.encryptor); err != nil {
+		return nil, fmt.Errorf("failed to decrypt credentials: %w", err)
+	}
+	return creds, nil
 }
 
 func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
@@ -60,7 +84,7 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 		return nil, err
 	}
 
-	creds, err := (&config{pc}).getCredentials()
+	creds, err := p.getCreds(pc)
 	if err != nil {
 		return nil, err
 	}
@@ -183,54 +207,6 @@ func (p *Provider) ListAccess(_ context.Context, _ domain.ProviderConfig, _ []*d
 	return domain.MapResourceAccess{}, nil
 }
 
-func (p *Provider) IsDuplicateAppeal(ctx context.Context, incoming *domain.Appeal, fetchPending func(context.Context, *domain.ListAppealsFilter) ([]*domain.Appeal, error)) (bool, error) {
-	incomingParams, err := getStringParams(incoming)
-	if err != nil {
-		return false, fmt.Errorf("reading incoming appeal parameters: %w", err)
-	}
-
-	incomingStart, err := time.Parse(time.RFC3339, incomingParams["start_time"])
-	if err != nil {
-		return false, fmt.Errorf("parsing incoming start_time: %w", err)
-	}
-	incomingEnd, err := time.Parse(time.RFC3339, incomingParams["end_time"])
-	if err != nil {
-		return false, fmt.Errorf("parsing incoming end_time: %w", err)
-	}
-
-	existingPending, err := fetchPending(ctx, &domain.ListAppealsFilter{
-		ResourceIDs: []string{incoming.ResourceID},
-		Roles:       []string{incoming.Role},
-		Statuses:    []string{domain.AppealStatusPending},
-	})
-	if err != nil {
-		return false, fmt.Errorf("fetching pending appeals: %w", err)
-	}
-
-	for _, existing := range existingPending {
-		if existing.ID == incoming.ID {
-			continue
-		}
-		existingParams, err := getStringParams(existing)
-		if err != nil {
-			return false, fmt.Errorf("reading existing appeal parameters for appeal %s: %w", existing.ID, err)
-		}
-		existingStart, err := time.Parse(time.RFC3339, existingParams["start_time"])
-		if err != nil {
-			return false, fmt.Errorf("parsing existing start_time for appeal %s: %w", existing.ID, err)
-		}
-		existingEnd, err := time.Parse(time.RFC3339, existingParams["end_time"])
-		if err != nil {
-			return false, fmt.Errorf("parsing existing end_time for appeal %s: %w", existing.ID, err)
-		}
-		if (existingStart.Equal(incomingEnd) || existingStart.Before(incomingEnd)) &&
-			(existingEnd.Equal(incomingStart) || existingEnd.After(incomingStart)) {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
 func (p *Provider) getClient(pc *domain.ProviderConfig) (*Client, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -238,8 +214,7 @@ func (p *Provider) getClient(pc *domain.ProviderConfig) (*Client, error) {
 	if c, ok := p.clients[pc.URN]; ok {
 		return c, nil
 	}
-
-	creds, err := (&config{pc}).getCredentials()
+	creds, err := p.getCreds(pc)
 	if err != nil {
 		return nil, err
 	}

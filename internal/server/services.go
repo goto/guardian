@@ -136,7 +136,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		tableau.NewProvider(domain.ProviderTypeTableau, deps.Crypto),
 		gcloudiam.NewProvider(domain.ProviderTypeGCloudIAM, deps.Crypto, deps.Logger),
 		noop.NewProvider(domain.ProviderTypeNoOp, deps.Logger),
-		optimus.NewProvider(domain.ProviderTypeOptimus, deps.Logger),
+		optimus.NewProvider(domain.ProviderTypeOptimus, deps.Crypto, deps.Logger),
 		gcs.NewProvider(domain.ProviderTypeGCS, deps.Crypto),
 		dataplex.NewProvider(domain.ProviderTypePolicyTag, deps.Crypto),
 		shield.NewProvider(domain.ProviderTypeShield, deps.Logger),
