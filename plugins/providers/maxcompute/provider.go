@@ -106,6 +106,8 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 	}
 
 	if sliceshelper.GenericsSliceContainsOne(availableResourceTypes, resourceTypeTable) {
+		creds, _ := p.getCreds(pc)
+
 		var errW error
 		var w = pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
 		defer w.Shutdown()
@@ -113,7 +115,7 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 			i := i
 			schema := schema
 			w.Do(func() error {
-				tables, err := p.getTablesFromSchema(ctx, pc, "", accountId, project, schema)
+				tables, err := p.getTablesFromSchema(ctx, pc, "", accountId, project, schema, creds.FetchComments)
 				if err != nil {
 					return err
 				}
