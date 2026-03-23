@@ -211,12 +211,18 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 				accountType := pkgAccountConfig.AccountType
 				accountID := requestorAccount.AccountID
 
-				grantDep := &domain.Grant{
-					ResourceID:  resource.ID,
-					AccountType: accountType,
-					AccountID:   accountID,
-					Role:        pkgAccountConfig.GrantParameters.Role,
+				var appealID string
+				if g.Appeal != nil {
+					appealID = g.Appeal.ID
+				}
 
+				grantDep := &domain.Grant{
+					ResourceID:           resource.ID,
+					AccountType:          accountType,
+					AccountID:            accountID,
+					Role:                 pkgAccountConfig.GrantParameters.Role,
+					AppealID:             appealID,
+					Appeal:               g.Appeal,
 					IsPermanent:          pkgGrant.IsPermanent,
 					ExpirationDate:       pkgGrant.ExpirationDate,
 					ExpirationDateReason: pkgGrant.ExpirationDateReason,
