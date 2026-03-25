@@ -121,6 +121,7 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 				"destination_table_name": destinationTable,
 				"task_name":              jr.Job.TaskName,
 				"start_date":             jr.Job.StartDate,
+				"end_date":               jr.Job.EndDate,
 			},
 		})
 	}
