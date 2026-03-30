@@ -127,7 +127,7 @@ func (p *provider) getSchemasFromProject(ctx context.Context, pc *domain.Provide
 	return ret, nil
 }
 
-func (p *provider) getTablesFromSchema(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, accountID string, project *domain.Resource, schema *domain.Resource) ([]*domain.Resource, error) {
+func (p *provider) getTablesFromSchema(ctx context.Context, pc *domain.ProviderConfig, overrideRAMRole, accountID string, project *domain.Resource, schema *domain.Resource, fetchComments bool) ([]*domain.Resource, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("fail to retrieve tables from '%s' and schema '%s': %w", project.Name, schema.Name, err)
 	}
@@ -148,7 +148,7 @@ func (p *provider) getTablesFromSchema(ctx context.Context, pc *domain.ProviderC
 	})
 	if err != nil {
 		if odpsShouldRetry(ctx, err) {
-			return p.getTablesFromSchema(ctx, pc, overrideRAMRole, accountID, project, schema)
+			return p.getTablesFromSchema(ctx, pc, overrideRAMRole, accountID, project, schema, fetchComments)
 		}
 		var restErr restclient.HttpError
 		if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
@@ -158,19 +158,61 @@ func (p *provider) getTablesFromSchema(ctx context.Context, pc *domain.ProviderC
 	}
 	tables = slices.GenericsStandardizeSlice(tables)
 
+	// Store table comments if fetch_comments is enabled
+	tableComments := make(map[string]map[string]interface{}) // tableName → parsed comment JSON
+	if fetchComments {
+		for i := 0; i < len(tables); i += 100 {
+			end := i + 100
+			if end > len(tables) {
+				end = len(tables)
+			}
+			loaded, batchErr := invoker.BatchLoadTables(tables[i:end])
+			if batchErr != nil {
+				p.logger.Warn(ctx, "BatchLoadTables failed, skipping comment extraction", "project", project.Name, "schema", schema.Name, "error", batchErr)
+				break
+			}
+			for _, t := range loaded {
+				comment := extractComment(t)
+				if comment != nil {
+					tableComments[t.Name()] = comment
+				}
+			}
+		}
+	}
+
 	var ret []*domain.Resource
 	for _, table := range tables {
 		urn := fmt.Sprintf("%s.%s.%s", project.Name, schema.Name, table)
-		ret = append(ret, &domain.Resource{
+		r := &domain.Resource{
 			ProviderType: pc.Type,
 			ProviderURN:  pc.URN,
 			Type:         resourceTypeTable,
 			URN:          urn,
 			Name:         table,
 			GlobalURN:    utils.GetGlobalURN(sourceName, accountID, resourceTypeTable, urn),
-		})
+		}
+		if comment, ok := tableComments[table]; ok {
+			if r.Details == nil {
+				r.Details = make(map[string]interface{})
+			}
+			r.Details["comment"] = comment
+		}
+		ret = append(ret, r)
 	}
 	return ret, nil
+}
+
+// extractComment reads the full comment JSON from a table's metadata.
+func extractComment(t *odps.Table) map[string]interface{} {
+	comment := t.Comment()
+	if comment == "" {
+		return nil
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(comment), &data); err != nil {
+		return nil
+	}
+	return data
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
