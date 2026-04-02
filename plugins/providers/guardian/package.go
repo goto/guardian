@@ -11,6 +11,7 @@ const (
 )
 
 type PackageInfo struct {
+	DataAccess  string                  `json:"data_access" mapstructure:"data_access"`
 	CreatedBy   string                  `json:"created_by" mapstructure:"created_by"`
 	Description string                  `json:"description" mapstructure:"description"`
 	Accounts    []*PackageAccountConfig `json:"accounts" mapstructure:"accounts"`

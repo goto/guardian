@@ -80,16 +80,20 @@ func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
 			var pkgInfo *PackageInfo
 			var requestorAccounts []*RequestorAccount
 
+			pkgInfo, err = getPackageInfo(a.Resource)
+			if err != nil {
+				return fmt.Errorf("unable to get package info: %w", err)
+			}
+
+			if pkgInfo.DataAccess == "bot-only" && a.Role == packagePermissionAdmin {
+				return nil
+			}
+
 			resources, err = p.getGrantableResources(ctx, packageID)
 			if err != nil {
 				return fmt.Errorf("failed to get grantable resources: %w", err)
 			}
 			providerTypes := getUniqueProviderTypes(resources)
-
-			pkgInfo, err = getPackageInfo(a.Resource)
-			if err != nil {
-				return fmt.Errorf("unable to get package info: %w", err)
-			}
 
 			requestorAccounts, err = getRequestorAccounts(a)
 			if err != nil {
@@ -173,6 +177,11 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 			pkgInfo, err := getPackageInfo(pkgResource)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get package info: %w", err)
+			}
+
+			// Bot-only packages: humans are admins only — no resource dependency grants.
+			if pkgInfo.DataAccess == "bot-only" {
+				return nil, nil
 			}
 
 			requestorAccounts, err := getRequestorAccounts(g.Appeal)
