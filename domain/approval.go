@@ -128,7 +128,6 @@ type ListApprovalsFilter struct {
 	Labels                          map[string][]string `mapstructure:"labels" validate:"omitempty"`
 	LabelKeys                       []string            `mapstructure:"label_keys" validate:"omitempty,min=1"`
 	SummaryLabels                   bool                `mapstructure:"summary_labels" json:"summary_labels,omitempty" validate:"omitempty"`
-	IncludeFiltersToLabels          bool                `mapstructure:"include_filters_to_labels" json:"include_filters_to_labels,omitempty" validate:"omitempty"`
 }
 
 func (af ListApprovalsFilter) WithSummary() bool {

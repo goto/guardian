@@ -89,8 +89,6 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		Labels:                          labels,
 		LabelKeys:                       req.GetLabelKeys(),
 		SummaryLabels:                   req.GetSummaryLabels(),
-		IncludeFiltersToLabels:          req.GetIncludeFiltersToLabels(),
-		ExcludeEmptyAppeals:             req.GetExcludeEmptyAppeal(),
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
@@ -180,8 +178,6 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		Labels:                          labels,
 		LabelKeys:                       req.GetLabelKeys(),
 		SummaryLabels:                   req.GetSummaryLabels(),
-		IncludeFiltersToLabels:          req.GetIncludeFiltersToLabels(),
-		ExcludeEmptyAppeals:             req.GetExcludeEmptyAppeal(),
 
 		UserInactiveGrantPolicy: req.GetInactiveGrantPolicy(),
 	}

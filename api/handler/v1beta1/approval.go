@@ -95,7 +95,6 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		Labels:                          labels,
 		LabelKeys:                       req.GetLabelKeys(),
 		SummaryLabels:                   req.GetSummaryLabels(),
-		IncludeFiltersToLabels:          req.GetIncludeFiltersToLabels(),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)
@@ -184,7 +183,6 @@ func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.Lis
 		Labels:                          labels,
 		LabelKeys:                       req.GetLabelKeys(),
 		SummaryLabels:                   req.GetSummaryLabels(),
-		IncludeFiltersToLabels:          req.GetIncludeFiltersToLabels(),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)
