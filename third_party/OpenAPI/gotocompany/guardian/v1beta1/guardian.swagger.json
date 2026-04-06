@@ -634,6 +634,12 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "includeFiltersToLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -1665,6 +1671,12 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "includeFiltersToLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -2183,6 +2195,18 @@
           },
           {
             "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includeFiltersToLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "excludeEmptyAppeal",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -2890,6 +2914,12 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "includeFiltersToLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -3374,6 +3404,12 @@
           },
           {
             "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includeFiltersToLabels",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -3870,6 +3906,18 @@
           },
           {
             "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includeFiltersToLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "excludeEmptyAppeal",
             "in": "query",
             "required": false,
             "type": "boolean"

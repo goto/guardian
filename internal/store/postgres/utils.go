@@ -93,8 +93,12 @@ func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*g
 		Values pq.StringArray `gorm:"type:text[]"`
 	}
 
-	// Build the query on the base table with filters and joins from dbGen
-	err = db.Table(baseTableName).
+	// To preserve filters while setting the base table, we use the db from dbGen directly.
+	// The db object already has all WHERE conditions and joins applied from the filter.
+	// We add the CROSS JOIN with jsonb_each on top of the filtered query.
+	// The key is to NOT reset the query context by calling Table() after filters are applied.
+
+	err = db.
 		Select("key, array_agg(DISTINCT trim(both '\"' from value::text) ORDER BY trim(both '\"' from value::text)) as values").
 		Joins(fmt.Sprintf("CROSS JOIN jsonb_each(%s)", labelColumn)).
 		Where(fmt.Sprintf("%s IS NOT NULL", labelColumn)).
