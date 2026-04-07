@@ -121,17 +121,40 @@ func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*g
 }
 
 func generateLabelSummariesV2(ctx context.Context, dbGenWithLabels func(context.Context, map[string][]string) (*gorm.DB, error), baseTableName, labelColumn string, labelFilters map[string][]string) ([]*domain.SummaryLabelV2, error) {
-	if len(labelFilters) == 0 {
+	// Step 1: discover all available label keys using a V1-style query with no label filters applied.
+	// This ensures we always show ALL keys in the data (not just the ones currently filtered),
+	// which is the V1 baseline behavior. The other non-label filters (status, resource, etc.)
+	// are still respected because they come from the dbGenWithLabels closure.
+	db, err := dbGenWithLabels(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	var keyRows []struct{ Key string }
+	err = db.Table(baseTableName).
+		Select("DISTINCT key").
+		Joins(fmt.Sprintf("CROSS JOIN jsonb_each(%s)", labelColumn)).
+		Where(fmt.Sprintf("%s IS NOT NULL", labelColumn)).
+		Where(fmt.Sprintf("%s <> 'null'::jsonb", labelColumn)).
+		Where(fmt.Sprintf("%s <> '{}'::jsonb", labelColumn)).
+		Where("jsonb_typeof(value) = 'string'").
+		Where("trim(both '\"' from value::text) <> '<nil>'").
+		Order("key").
+		Scan(&keyRows).Error
+	if err != nil {
+		return nil, err
+	}
+	if len(keyRows) == 0 {
 		return nil, nil
 	}
 
-	// collect unique keys in deterministic order
-	keys := make([]string, 0, len(labelFilters))
-	for k := range labelFilters {
-		keys = append(keys, k)
+	keys := make([]string, len(keyRows))
+	for i, r := range keyRows {
+		keys[i] = r.Key
 	}
-	sort.Strings(keys)
 
+	// Step 2: for each key, run a query with the label filters excluding that key.
+	// This gives proper faceted counts: for key K you see all values available
+	// under the current selection of every OTHER key.
 	ret := make([]*domain.SummaryLabelV2, len(keys))
 	eg, egCtx := errgroup.WithContext(ctx)
 
@@ -139,7 +162,7 @@ func generateLabelSummariesV2(ctx context.Context, dbGenWithLabels func(context.
 		idx, key := idx, key
 		eg.Go(func() error {
 			// build labels filter excluding the current key
-			filteredLabels := make(map[string][]string, len(labelFilters)-1)
+			filteredLabels := make(map[string][]string, len(labelFilters))
 			for k, v := range labelFilters {
 				if k != key {
 					filteredLabels[k] = v

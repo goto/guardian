@@ -327,6 +327,9 @@ type ApprovalService_UpdateApproval_Call struct {
 	*mock.Call
 }
 
+// UpdateApproval is a helper method to define mock.On call
+//   - _a0 context.Context
+//   - _a1 *domain.Approval
 func (_e *ApprovalService_Expecter) UpdateApproval(_a0 interface{}, _a1 interface{}) *ApprovalService_UpdateApproval_Call {
 	return &ApprovalService_UpdateApproval_Call{Call: _e.mock.On("UpdateApproval", _a0, _a1)}
 }

@@ -95,12 +95,15 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		SummaryLabels:                   req.GetSummaryLabels(),
 		SummaryLabelsV2:                 req.GetSummaryLabelsV2(),
 		ExcludeEmptyAppeal:              req.GetExcludeEmptyAppeal(),
-		UserInactiveGrantPolicy:         guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy(req.GetInactiveGrantPolicy()),
-		InactiveGrantGroupIdPolicy:      req.GetInactiveGrantGroupId(),
-		InactiveGrantResourceIdPolicy:   req.GetInactiveGrantResourceId(),
+
+		InactiveGrantPolicy:       req.GetInactiveGrantPolicy(),
+		InactiveGrantGroupId:      req.GetInactiveGrantGroupId(),
+		InactiveGrantGroupType:    req.GetInactiveGrantGroupType(),
+		InactiveGrantResourceId:   req.GetInactiveGrantResourceId(),
+		InactiveGrantProviderType: req.GetInactiveGrantProviderType(),
 	}
 
-	excludedGrantIDs, err := s.grantService.GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+	excludedGrantIDs, err := s.grantService.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
 	if err != nil {
 		return nil, s.internalError(ctx, "failed to generate excluded grant ids: %s", err)
 	}

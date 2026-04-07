@@ -25,6 +25,66 @@ func (_m *AppealService) EXPECT() *AppealService_Expecter {
 	return &AppealService_Expecter{mock: &_m.Mock}
 }
 
+// AddApprovalStep provides a mock function with given fields: ctx, appealID, steps
+func (_m *AppealService) AddApprovalStep(ctx context.Context, appealID string, steps []domain.Approval) (*domain.Appeal, error) {
+	ret := _m.Called(ctx, appealID, steps)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddApprovalStep")
+	}
+
+	var r0 *domain.Appeal
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, []domain.Approval) (*domain.Appeal, error)); ok {
+		return rf(ctx, appealID, steps)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, []domain.Approval) *domain.Appeal); ok {
+		r0 = rf(ctx, appealID, steps)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Appeal)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, []domain.Approval) error); ok {
+		r1 = rf(ctx, appealID, steps)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AppealService_AddApprovalStep_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddApprovalStep'
+type AppealService_AddApprovalStep_Call struct {
+	*mock.Call
+}
+
+// AddApprovalStep is a helper method to define mock.On call
+//   - ctx context.Context
+//   - appealID string
+//   - steps []domain.Approval
+func (_e *AppealService_Expecter) AddApprovalStep(ctx interface{}, appealID interface{}, steps interface{}) *AppealService_AddApprovalStep_Call {
+	return &AppealService_AddApprovalStep_Call{Call: _e.mock.On("AddApprovalStep", ctx, appealID, steps)}
+}
+
+func (_c *AppealService_AddApprovalStep_Call) Run(run func(ctx context.Context, appealID string, steps []domain.Approval)) *AppealService_AddApprovalStep_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].([]domain.Approval))
+	})
+	return _c
+}
+
+func (_c *AppealService_AddApprovalStep_Call) Return(_a0 *domain.Appeal, _a1 error) *AppealService_AddApprovalStep_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *AppealService_AddApprovalStep_Call) RunAndReturn(run func(context.Context, string, []domain.Approval) (*domain.Appeal, error)) *AppealService_AddApprovalStep_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AddApprover provides a mock function with given fields: ctx, appealID, approvalID, email
 func (_m *AppealService) AddApprover(ctx context.Context, appealID string, approvalID string, email string) (*domain.Appeal, error) {
 	ret := _m.Called(ctx, appealID, approvalID, email)
@@ -834,62 +894,6 @@ func (_c *AppealService_UpdateApproval_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
-// AddApprovalStep provides a mock function with given fields: ctx, appealID, steps
-func (_m *AppealService) AddApprovalStep(ctx context.Context, appealID string, steps []domain.Approval) (*domain.Appeal, error) {
-	ret := _m.Called(ctx, appealID, steps)
-
-	if len(ret) == 0 {
-		panic("no return value specified for AddApprovalStep")
-	}
-
-	var r0 *domain.Appeal
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []domain.Approval) (*domain.Appeal, error)); ok {
-		return rf(ctx, appealID, steps)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, []domain.Approval) *domain.Appeal); ok {
-		r0 = rf(ctx, appealID, steps)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.Appeal)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, []domain.Approval) error); ok {
-		r1 = rf(ctx, appealID, steps)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// AppealService_AddApprovalStep_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddApprovalStep'
-type AppealService_AddApprovalStep_Call struct {
-	*mock.Call
-}
-
-func (_e *AppealService_Expecter) AddApprovalStep(ctx interface{}, appealID interface{}, steps interface{}) *AppealService_AddApprovalStep_Call {
-	return &AppealService_AddApprovalStep_Call{Call: _e.mock.On("AddApprovalStep", ctx, appealID, steps)}
-}
-
-func (_c *AppealService_AddApprovalStep_Call) Run(run func(ctx context.Context, appealID string, steps []domain.Approval)) *AppealService_AddApprovalStep_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].([]domain.Approval))
-	})
-	return _c
-}
-
-func (_c *AppealService_AddApprovalStep_Call) Return(_a0 *domain.Appeal, _a1 error) *AppealService_AddApprovalStep_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *AppealService_AddApprovalStep_Call) RunAndReturn(run func(context.Context, string, []domain.Approval) (*domain.Appeal, error)) *AppealService_AddApprovalStep_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // UpdateApprovalStep provides a mock function with given fields: ctx, appealID, approvalID, details
 func (_m *AppealService) UpdateApprovalStep(ctx context.Context, appealID string, approvalID string, details map[string]interface{}) (*domain.Appeal, error) {
 	ret := _m.Called(ctx, appealID, approvalID, details)
@@ -925,6 +929,11 @@ type AppealService_UpdateApprovalStep_Call struct {
 	*mock.Call
 }
 
+// UpdateApprovalStep is a helper method to define mock.On call
+//   - ctx context.Context
+//   - appealID string
+//   - approvalID string
+//   - details map[string]interface{}
 func (_e *AppealService_Expecter) UpdateApprovalStep(ctx interface{}, appealID interface{}, approvalID interface{}, details interface{}) *AppealService_UpdateApprovalStep_Call {
 	return &AppealService_UpdateApprovalStep_Call{Call: _e.mock.On("UpdateApprovalStep", ctx, appealID, approvalID, details)}
 }

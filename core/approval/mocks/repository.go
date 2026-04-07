@@ -399,9 +399,9 @@ func (_c *Repository_ListApprovals_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
-// UpdateApproval provides a mock function with given fields: ctx, approval
-func (_m *Repository) UpdateApproval(ctx context.Context, approval *domain.Approval) error {
-	ret := _m.Called(ctx, approval)
+// UpdateApproval provides a mock function with given fields: ctx, _a1
+func (_m *Repository) UpdateApproval(ctx context.Context, _a1 *domain.Approval) error {
+	ret := _m.Called(ctx, _a1)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateApproval")
@@ -409,7 +409,7 @@ func (_m *Repository) UpdateApproval(ctx context.Context, approval *domain.Appro
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, *domain.Approval) error); ok {
-		r0 = rf(ctx, approval)
+		r0 = rf(ctx, _a1)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -422,11 +422,14 @@ type Repository_UpdateApproval_Call struct {
 	*mock.Call
 }
 
-func (_e *Repository_Expecter) UpdateApproval(ctx interface{}, approval interface{}) *Repository_UpdateApproval_Call {
-	return &Repository_UpdateApproval_Call{Call: _e.mock.On("UpdateApproval", ctx, approval)}
+// UpdateApproval is a helper method to define mock.On call
+//   - ctx context.Context
+//   - _a1 *domain.Approval
+func (_e *Repository_Expecter) UpdateApproval(ctx interface{}, _a1 interface{}) *Repository_UpdateApproval_Call {
+	return &Repository_UpdateApproval_Call{Call: _e.mock.On("UpdateApproval", ctx, _a1)}
 }
 
-func (_c *Repository_UpdateApproval_Call) Run(run func(ctx context.Context, approval *domain.Approval)) *Repository_UpdateApproval_Call {
+func (_c *Repository_UpdateApproval_Call) Run(run func(ctx context.Context, _a1 *domain.Approval)) *Repository_UpdateApproval_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(*domain.Approval))
 	})

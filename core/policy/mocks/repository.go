@@ -128,6 +128,63 @@ func (_c *Repository_Find_Call) RunAndReturn(run func(context.Context, domain.Li
 	return _c
 }
 
+// GetCount provides a mock function with given fields: _a0, _a1
+func (_m *Repository) GetCount(_a0 context.Context, _a1 domain.ListPoliciesFilter) (int64, error) {
+	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCount")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListPoliciesFilter) (int64, error)); ok {
+		return rf(_a0, _a1)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListPoliciesFilter) int64); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, domain.ListPoliciesFilter) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Repository_GetCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCount'
+type Repository_GetCount_Call struct {
+	*mock.Call
+}
+
+// GetCount is a helper method to define mock.On call
+//   - _a0 context.Context
+//   - _a1 domain.ListPoliciesFilter
+func (_e *Repository_Expecter) GetCount(_a0 interface{}, _a1 interface{}) *Repository_GetCount_Call {
+	return &Repository_GetCount_Call{Call: _e.mock.On("GetCount", _a0, _a1)}
+}
+
+func (_c *Repository_GetCount_Call) Run(run func(_a0 context.Context, _a1 domain.ListPoliciesFilter)) *Repository_GetCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(domain.ListPoliciesFilter))
+	})
+	return _c
+}
+
+func (_c *Repository_GetCount_Call) Return(_a0 int64, _a1 error) *Repository_GetCount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Repository_GetCount_Call) RunAndReturn(run func(context.Context, domain.ListPoliciesFilter) (int64, error)) *Repository_GetCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetOne provides a mock function with given fields: ctx, id, version
 func (_m *Repository) GetOne(ctx context.Context, id string, version uint) (*domain.Policy, error) {
 	ret := _m.Called(ctx, id, version)
@@ -184,63 +241,6 @@ func (_c *Repository_GetOne_Call) Return(_a0 *domain.Policy, _a1 error) *Reposit
 }
 
 func (_c *Repository_GetOne_Call) RunAndReturn(run func(context.Context, string, uint) (*domain.Policy, error)) *Repository_GetOne_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetCount provides a mock function with given fields: _a0, _a1
-func (_m *Repository) GetCount(_a0 context.Context, _a1 domain.ListPoliciesFilter) (int64, error) {
-	ret := _m.Called(_a0, _a1)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCount")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.ListPoliciesFilter) (int64, error)); ok {
-		return rf(_a0, _a1)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, domain.ListPoliciesFilter) int64); ok {
-		r0 = rf(_a0, _a1)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, domain.ListPoliciesFilter) error); ok {
-		r1 = rf(_a0, _a1)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Repository_GetCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCount'
-type Repository_GetCount_Call struct {
-	*mock.Call
-}
-
-// GetCount is a helper method to define mock.On call
-//   - _a0 context.Context
-//   - _a1 domain.ListPoliciesFilter
-func (_e *Repository_Expecter) GetCount(_a0 interface{}, _a1 interface{}) *Repository_GetCount_Call {
-	return &Repository_GetCount_Call{Call: _e.mock.On("GetCount", _a0, _a1)}
-}
-
-func (_c *Repository_GetCount_Call) Run(run func(_a0 context.Context, _a1 domain.ListPoliciesFilter)) *Repository_GetCount_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(domain.ListPoliciesFilter))
-	})
-	return _c
-}
-
-func (_c *Repository_GetCount_Call) Return(_a0 int64, _a1 error) *Repository_GetCount_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *Repository_GetCount_Call) RunAndReturn(run func(context.Context, domain.ListPoliciesFilter) (int64, error)) *Repository_GetCount_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -268,63 +268,6 @@ func (_c *ProviderService_Find_Call) RunAndReturn(run func(context.Context, doma
 	return _c
 }
 
-// GetCount provides a mock function with given fields: _a0, _a1
-func (_m *ProviderService) GetCount(_a0 context.Context, _a1 domain.ListProvidersFilter) (int64, error) {
-	ret := _m.Called(_a0, _a1)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCount")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.ListProvidersFilter) (int64, error)); ok {
-		return rf(_a0, _a1)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, domain.ListProvidersFilter) int64); ok {
-		r0 = rf(_a0, _a1)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, domain.ListProvidersFilter) error); ok {
-		r1 = rf(_a0, _a1)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ProviderService_GetCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCount'
-type ProviderService_GetCount_Call struct {
-	*mock.Call
-}
-
-// GetCount is a helper method to define mock.On call
-//   - _a0 context.Context
-//   - _a1 domain.ListProvidersFilter
-func (_e *ProviderService_Expecter) GetCount(_a0 interface{}, _a1 interface{}) *ProviderService_GetCount_Call {
-	return &ProviderService_GetCount_Call{Call: _e.mock.On("GetCount", _a0, _a1)}
-}
-
-func (_c *ProviderService_GetCount_Call) Run(run func(_a0 context.Context, _a1 domain.ListProvidersFilter)) *ProviderService_GetCount_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(domain.ListProvidersFilter))
-	})
-	return _c
-}
-
-func (_c *ProviderService_GetCount_Call) Return(_a0 int64, _a1 error) *ProviderService_GetCount_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *ProviderService_GetCount_Call) RunAndReturn(run func(context.Context, domain.ListProvidersFilter) (int64, error)) *ProviderService_GetCount_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetByID provides a mock function with given fields: _a0, _a1
 func (_m *ProviderService) GetByID(_a0 context.Context, _a1 string) (*domain.Provider, error) {
 	ret := _m.Called(_a0, _a1)
@@ -380,6 +323,63 @@ func (_c *ProviderService_GetByID_Call) Return(_a0 *domain.Provider, _a1 error) 
 }
 
 func (_c *ProviderService_GetByID_Call) RunAndReturn(run func(context.Context, string) (*domain.Provider, error)) *ProviderService_GetByID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetCount provides a mock function with given fields: _a0, _a1
+func (_m *ProviderService) GetCount(_a0 context.Context, _a1 domain.ListProvidersFilter) (int64, error) {
+	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCount")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListProvidersFilter) (int64, error)); ok {
+		return rf(_a0, _a1)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ListProvidersFilter) int64); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, domain.ListProvidersFilter) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProviderService_GetCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCount'
+type ProviderService_GetCount_Call struct {
+	*mock.Call
+}
+
+// GetCount is a helper method to define mock.On call
+//   - _a0 context.Context
+//   - _a1 domain.ListProvidersFilter
+func (_e *ProviderService_Expecter) GetCount(_a0 interface{}, _a1 interface{}) *ProviderService_GetCount_Call {
+	return &ProviderService_GetCount_Call{Call: _e.mock.On("GetCount", _a0, _a1)}
+}
+
+func (_c *ProviderService_GetCount_Call) Run(run func(_a0 context.Context, _a1 domain.ListProvidersFilter)) *ProviderService_GetCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(domain.ListProvidersFilter))
+	})
+	return _c
+}
+
+func (_c *ProviderService_GetCount_Call) Return(_a0 int64, _a1 error) *ProviderService_GetCount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *ProviderService_GetCount_Call) RunAndReturn(run func(context.Context, domain.ListProvidersFilter) (int64, error)) *ProviderService_GetCount_Call {
 	_c.Call.Return(run)
 	return _c
 }
