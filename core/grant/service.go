@@ -207,10 +207,18 @@ func (s *Service) GenerateExcludedGrantIDsForSmartInactiveGrants(ctx context.Con
 		return nil, nil
 	}
 
-	scopeGroupIDs := slicesUtil.GenericsStandardizeSliceNilAble([]string{filter.InactiveGrantGroupId})
-	scopeGroupTypes := slicesUtil.GenericsStandardizeSliceNilAble([]string{filter.InactiveGrantGroupType})
-	scopeResourceIDs := slicesUtil.GenericsStandardizeSliceNilAble([]string{filter.InactiveGrantResourceId})
-	scopeProviderTypes := slicesUtil.GenericsStandardizeSliceNilAble([]string{filter.InactiveGrantProviderType})
+	// Build scope slices: only set if the value is non-empty to avoid passing
+	// an empty IN () clause to the database (which would match nothing).
+	scopeField := func(v string) []string {
+		if v == "" {
+			return nil
+		}
+		return []string{v}
+	}
+	scopeGroupIDs := scopeField(filter.InactiveGrantGroupId)
+	scopeGroupTypes := scopeField(filter.InactiveGrantGroupType)
+	scopeResourceIDs := scopeField(filter.InactiveGrantResourceId)
+	scopeProviderTypes := scopeField(filter.InactiveGrantProviderType)
 
 	// get inactive grants
 	inf := filter
