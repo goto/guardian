@@ -75,6 +75,9 @@ func (s *GrpcHandlersSuite) TestListGrants() {
 			ResourceIDs:  []string{"test-resource-id"},
 		}
 		s.grantService.EXPECT().
+			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
+			Return(nil, nil).Once()
+		s.grantService.EXPECT().
 			List(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
 			Return(dummyGrants, nil).Once()
 		s.grantService.EXPECT().
@@ -150,6 +153,9 @@ func (s *GrpcHandlersSuite) TestListGrants() {
 			GroupTypes: []string{"test-group-type"},
 		}
 		s.grantService.EXPECT().
+			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
+			Return(nil, nil).Once()
+		s.grantService.EXPECT().
 			List(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
 			Return(dummyGrants, nil).Once()
 		s.grantService.EXPECT().
@@ -171,6 +177,9 @@ func (s *GrpcHandlersSuite) TestListGrants() {
 		s.setup()
 
 		expectedError := errors.New("unexpected error")
+		s.grantService.EXPECT().
+			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("domain.ListGrantsFilter")).
+			Return(nil, nil).Once()
 		s.grantService.EXPECT().
 			List(mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("domain.ListGrantsFilter")).
 			Return(nil, expectedError).Once()
@@ -198,6 +207,9 @@ func (s *GrpcHandlersSuite) TestListGrants() {
 				},
 			},
 		}
+		s.grantService.EXPECT().
+			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("domain.ListGrantsFilter")).
+			Return(nil, nil).Once()
 		s.grantService.EXPECT().
 			List(mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("domain.ListGrantsFilter")).
 			Return(expectedGrants, nil).Once()
