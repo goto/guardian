@@ -128,10 +128,11 @@ type ListApprovalsFilter struct {
 	Labels                          map[string][]string `mapstructure:"labels" validate:"omitempty"`
 	LabelKeys                       []string            `mapstructure:"label_keys" validate:"omitempty,min=1"`
 	SummaryLabels                   bool                `mapstructure:"summary_labels" json:"summary_labels,omitempty" validate:"omitempty"`
+	SummaryLabelsV2                 bool                `mapstructure:"summary_labels_v2" json:"summary_labels_v2,omitempty" validate:"omitempty"`
 }
 
 func (af ListApprovalsFilter) WithSummary() bool {
-	return len(af.SummaryGroupBys) > 0 || len(af.SummaryUniques) > 0 || af.SummaryLabels
+	return len(af.SummaryGroupBys) > 0 || len(af.SummaryUniques) > 0 || af.SummaryLabels || af.SummaryLabelsV2
 }
 
 func (af ListApprovalsFilter) WithApprovals() bool {

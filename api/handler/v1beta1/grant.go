@@ -16,6 +16,10 @@ import (
 )
 
 func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGrantsRequest) (*guardianv1beta1.ListGrantsResponse, error) {
+	if req.GetSummaryLabels() && req.GetSummaryLabelsV2() {
+		return nil, s.invalidArgument(ctx, "summary_labels and summary_labels_v2 cannot both be true")
+	}
+
 	// Extract labels from gRPC metadata
 	labels, err := s.extractLabels(ctx)
 	if err != nil {
@@ -89,6 +93,19 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		Labels:                          labels,
 		LabelKeys:                       req.GetLabelKeys(),
 		SummaryLabels:                   req.GetSummaryLabels(),
+		SummaryLabelsV2:                 req.GetSummaryLabelsV2(),
+		ExcludeEmptyAppeal:              req.GetExcludeEmptyAppeal(),
+		UserInactiveGrantPolicy:         guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy(req.GetInactiveGrantPolicy()),
+		InactiveGrantGroupIdPolicy:      req.GetInactiveGrantGroupId(),
+		InactiveGrantResourceIdPolicy:   req.GetInactiveGrantResourceId(),
+	}
+
+	excludedGrantIDs, err := s.grantService.GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to generate excluded grant ids: %s", err)
+	}
+	if len(excludedGrantIDs) > 0 {
+		filter.NotIDs = slicesUtil.GenericsStandardizeSlice(append(filter.NotIDs, excludedGrantIDs...))
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)
@@ -104,6 +121,10 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 }
 
 func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.ListUserGrantsRequest) (*guardianv1beta1.ListUserGrantsResponse, error) {
+	if req.GetSummaryLabels() && req.GetSummaryLabelsV2() {
+		return nil, s.invalidArgument(ctx, "summary_labels and summary_labels_v2 cannot both be true")
+	}
+
 	user, err := s.getUser(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, "failed to get metadata: user")
@@ -178,6 +199,8 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		Labels:                          labels,
 		LabelKeys:                       req.GetLabelKeys(),
 		SummaryLabels:                   req.GetSummaryLabels(),
+		SummaryLabelsV2:                 req.GetSummaryLabelsV2(),
+		ExcludeEmptyAppeal:              req.GetExcludeEmptyAppeal(),
 
 		UserInactiveGrantPolicy: req.GetInactiveGrantPolicy(),
 	}

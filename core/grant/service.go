@@ -164,16 +164,53 @@ func (s *Service) GenerateSummary(ctx context.Context, filter domain.ListGrantsF
 }
 
 func (s *Service) GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx context.Context, filter domain.ListGrantsFilter) ([]string, error) {
+	var ret []string
+
+	// User-scoped smart inactive grants (requires owner/created_by)
 	owner := strings.ToLower(filter.Owner)
 	if filter.CreatedBy != "" {
 		owner = strings.ToLower(filter.CreatedBy)
 	}
-	var ret []string
+	if filter.UserInactiveGrantPolicy == guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_SMART && owner != "" {
+		ids, err := s.generateSmartExcludedGrantIDs(ctx, filter)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, ids...)
+	}
 
-	if filter.UserInactiveGrantPolicy != guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_SMART ||
-		owner == "" ||
-		(len(filter.Statuses) != 0 && !slices.Contains(filter.Statuses, string(domain.GrantStatusInactive))) {
-		return ret, nil
+	// Group-scoped smart inactive grants (requires group_ids in filter)
+	if filter.InactiveGrantGroupIdPolicy == guardianv1beta1.ListGrantsRequest_INACTIVE_GRANT_POLICY_SMART && len(filter.GroupIDs) > 0 {
+		ids, err := s.generateSmartExcludedGrantIDs(ctx, filter)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, ids...)
+	}
+
+	// Resource-scoped smart inactive grants (requires resource_ids in filter)
+	if filter.InactiveGrantResourceIdPolicy == guardianv1beta1.ListGrantsRequest_INACTIVE_GRANT_POLICY_SMART && len(filter.ResourceIDs) > 0 {
+		ids, err := s.generateSmartExcludedGrantIDs(ctx, filter)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, ids...)
+	}
+
+	return slicesUtil.GenericsStandardizeSlice(ret), nil
+}
+
+// generateSmartExcludedGrantIDs runs the core smart-inactive-grant deduplication algorithm.
+// It returns IDs of inactive grants that should be hidden because either:
+//   - an active counterpart exists (same resource+account+role), or
+//   - a newer inactive grant exists for the same resource+account+role.
+//
+// The caller is responsible for ensuring the filter is already scoped
+// (e.g. by owner, group_id, or resource_id) before calling this.
+func (s *Service) generateSmartExcludedGrantIDs(ctx context.Context, filter domain.ListGrantsFilter) ([]string, error) {
+	// If inactive status is explicitly excluded, nothing to do.
+	if len(filter.Statuses) != 0 && !slices.Contains(filter.Statuses, string(domain.GrantStatusInactive)) {
+		return nil, nil
 	}
 
 	// get inactive grants
@@ -209,6 +246,7 @@ func (s *Service) GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx context
 		key := ag.ResourceID + ":" + ag.AccountID + ":" + ag.Role
 		activeMap[key] = struct{}{}
 	}
+	var ret []string
 	for _, ig := range inactiveGrants {
 		key := ig.ResourceID + ":" + ig.AccountID + ":" + ig.Role
 		if _, found := activeMap[key]; found {
@@ -256,7 +294,7 @@ func (s *Service) GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx context
 		ret = append(ret, d.excludedIDs...)
 	}
 
-	return slicesUtil.GenericsStandardizeSlice(ret), nil
+	return ret, nil
 }
 
 func (s *Service) GetByID(ctx context.Context, id string) (*domain.Grant, error) {

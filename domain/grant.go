@@ -271,12 +271,16 @@ type ListGrantsFilter struct {
 	Labels                          map[string][]string
 	LabelKeys                       []string
 	SummaryLabels                   bool
+	SummaryLabelsV2                 bool
+	ExcludeEmptyAppeal              bool
 
-	UserInactiveGrantPolicy guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy
+	UserInactiveGrantPolicy         guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy
+	InactiveGrantGroupIdPolicy      guardianv1beta1.ListGrantsRequest_InactiveGrantPolicy
+	InactiveGrantResourceIdPolicy   guardianv1beta1.ListGrantsRequest_InactiveGrantPolicy
 }
 
 func (gf ListGrantsFilter) WithSummary() bool {
-	return len(gf.SummaryGroupBys) > 0 || len(gf.SummaryUniques) > 0 || gf.SummaryLabels
+	return len(gf.SummaryGroupBys) > 0 || len(gf.SummaryUniques) > 0 || gf.SummaryLabels || gf.SummaryLabelsV2
 }
 
 func (gf ListGrantsFilter) WithGrants() bool {

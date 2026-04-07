@@ -33,6 +33,9 @@ type SummaryResult struct {
 
 	SummaryLabels []*SummaryLabel `json:"summary_labels,omitempty"`
 	LabelsCount   int32           `json:"labels_count,omitempty"`
+
+	SummaryLabelsV2 []*SummaryLabelV2 `json:"summary_labels_v2,omitempty"`
+	LabelsV2Count   int32             `json:"labels_v2_count,omitempty"`
 }
 
 type SummaryUnique struct {
@@ -48,6 +51,15 @@ type SummaryGroup struct {
 }
 
 type SummaryLabel struct {
+	Key    string   `json:"key,omitempty"`
+	Values []string `json:"values,omitempty"`
+	Count  int32    `json:"count,omitempty"`
+}
+
+// SummaryLabelV2 represents a single label key with its available values
+// computed via faceted search: for each key, available values are derived
+// by applying all OTHER active label filters (excluding the current key).
+type SummaryLabelV2 struct {
 	Key    string   `json:"key,omitempty"`
 	Values []string `json:"values,omitempty"`
 	Count  int32    `json:"count,omitempty"`
