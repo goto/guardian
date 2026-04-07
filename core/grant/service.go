@@ -256,24 +256,25 @@ func smartExcludedGrantIDs(activeGrants, inactiveGrants []domain.Grant) []string
 
 	// For duplicate inactives with no active counterpart, keep only the latest; exclude the rest.
 	type inactiveData struct {
-		latest      *domain.Grant
+		latest      domain.Grant
 		excludedIDs []string
 	}
 	group := make(map[string]*inactiveData)
 
 	for _, ig := range inactiveGrants {
+		ig := ig // capture loop variable
 		key := ig.ResourceID + ":" + ig.AccountID + ":" + ig.Role
 		if _, found := activeMap[key]; found {
 			continue // skip already excluded by active
 		}
 		d := group[key]
 		if d == nil {
-			group[key] = &inactiveData{latest: &ig}
+			group[key] = &inactiveData{latest: ig}
 			continue
 		}
 		if ig.UpdatedAt.After(d.latest.UpdatedAt) {
 			d.excludedIDs = append(d.excludedIDs, d.latest.ID)
-			d.latest = &ig
+			d.latest = ig
 		} else {
 			d.excludedIDs = append(d.excludedIDs, ig.ID)
 		}
