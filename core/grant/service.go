@@ -207,14 +207,19 @@ func (s *Service) GenerateExcludedGrantIDsForSmartInactiveGrants(ctx context.Con
 		return nil, nil
 	}
 
+	scopeGroupIDs := slicesUtil.GenericsStandardizeSliceNilAble([]string{filter.InactiveGrantGroupId})
+	scopeGroupTypes := slicesUtil.GenericsStandardizeSliceNilAble([]string{filter.InactiveGrantGroupType})
+	scopeResourceIDs := slicesUtil.GenericsStandardizeSliceNilAble([]string{filter.InactiveGrantResourceId})
+	scopeProviderTypes := slicesUtil.GenericsStandardizeSliceNilAble([]string{filter.InactiveGrantProviderType})
+
 	// get inactive grants
 	inf := filter
 	inf.Offset, inf.Size, inf.OrderBy = 0, 0, nil
 	inf.Statuses = []string{string(domain.GrantStatusInactive)}
-	inf.GroupIDs = []string{filter.InactiveGrantGroupId}
-	inf.GroupTypes = []string{filter.InactiveGrantGroupType}
-	inf.ResourceIDs = []string{filter.InactiveGrantResourceId}
-	inf.ProviderTypes = []string{filter.InactiveGrantProviderType}
+	inf.GroupIDs = scopeGroupIDs
+	inf.GroupTypes = scopeGroupTypes
+	inf.ResourceIDs = scopeResourceIDs
+	inf.ProviderTypes = scopeProviderTypes
 	inactiveGrants, err := s.repo.List(ctx, inf)
 	if err != nil {
 		return nil, err
@@ -224,10 +229,10 @@ func (s *Service) GenerateExcludedGrantIDsForSmartInactiveGrants(ctx context.Con
 	acf := filter
 	acf.Offset, acf.Size, acf.OrderBy = 0, 0, nil
 	acf.Statuses = []string{string(domain.GrantStatusActive)}
-	acf.GroupIDs = []string{filter.InactiveGrantGroupId}
-	acf.GroupTypes = []string{filter.InactiveGrantGroupType}
-	acf.ResourceIDs = []string{filter.InactiveGrantResourceId}
-	acf.ProviderTypes = []string{filter.InactiveGrantProviderType}
+	acf.GroupIDs = scopeGroupIDs
+	acf.GroupTypes = scopeGroupTypes
+	acf.ResourceIDs = scopeResourceIDs
+	acf.ProviderTypes = scopeProviderTypes
 	activeGrants, err := s.repo.List(ctx, acf)
 	if err != nil {
 		return nil, err
