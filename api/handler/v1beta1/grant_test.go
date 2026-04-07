@@ -619,3 +619,126 @@ func (s *GrpcHandlersSuite) TestRevokeGrant() {
 		s.Equal(timestamppb.New(expectedGrant.UpdatedAt), res.Grant.UpdatedAt)
 	})
 }
+
+func (s *GrpcHandlersSuite) TestListUserGrants() {
+	s.Run("should return list of user grants on success", func() {
+		s.setup()
+		timeNow := time.Now()
+		expectedUser := "user@example.com"
+
+		dummyGrants := []domain.Grant{
+			{
+				ID:          "test-id",
+				Status:      "test-status",
+				AccountID:   "test-account-id",
+				AccountType: "test-account-type",
+				ResourceID:  "test-resource-id",
+				Permissions: []string{"test-permission"},
+				CreatedAt:   timeNow,
+				UpdatedAt:   timeNow,
+				Resource: &domain.Resource{
+					ID: "test-resource-id",
+				},
+				Appeal: &domain.Appeal{
+					ID: "test-appeal-id",
+				},
+			},
+		}
+		expectedFilter := domain.ListGrantsFilter{
+			Statuses:                []string{"active"},
+			ResourceIDs:             []string{"test-resource-id"},
+			Owner:                   expectedUser,
+			UserInactiveGrantPolicy: guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_UNSPECIFIED,
+		}
+		s.grantService.EXPECT().
+			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedFilter).
+			Return(nil, nil).Once()
+		s.grantService.EXPECT().
+			List(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
+			Return(dummyGrants, nil).Once()
+		s.grantService.EXPECT().
+			GetGrantsTotalCount(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
+			Return(int64(1), nil).Once()
+
+		req := &guardianv1beta1.ListUserGrantsRequest{
+			Statuses:    []string{"active"},
+			ResourceIds: []string{"test-resource-id"},
+		}
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, expectedUser)
+		res, err := s.grpcServer.ListUserGrants(ctx, req)
+
+		s.NoError(err)
+		s.Equal(int32(1), res.Total)
+		s.Len(res.Grants, 1)
+		s.Equal("test-id", res.Grants[0].Id)
+		s.grantService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return error if user is not authenticated", func() {
+		s.setup()
+
+		req := &guardianv1beta1.ListUserGrantsRequest{}
+		res, err := s.grpcServer.ListUserGrants(context.Background(), req)
+
+		s.Nil(res)
+		s.Error(err)
+		st, ok := status.FromError(err)
+		s.True(ok)
+		s.Equal(codes.Unauthenticated, st.Code())
+	})
+
+	s.Run("should return invalid argument if both summary_labels and summary_labels_v2 are true", func() {
+		s.setup()
+
+		req := &guardianv1beta1.ListUserGrantsRequest{
+			SummaryLabels:   true,
+			SummaryLabelsV2: true,
+		}
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.com")
+		res, err := s.grpcServer.ListUserGrants(ctx, req)
+
+		s.Nil(res)
+		s.Error(err)
+		st, ok := status.FromError(err)
+		s.True(ok)
+		s.Equal(codes.InvalidArgument, st.Code())
+	})
+
+	s.Run("should return error if GenerateUserExcludedGrantIDsForSmartInactiveGrants returns error", func() {
+		s.setup()
+
+		expectedFilter := domain.ListGrantsFilter{
+			Owner:                   "user@example.com",
+			UserInactiveGrantPolicy: guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_UNSPECIFIED,
+		}
+		s.grantService.EXPECT().
+			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedFilter).
+			Return(nil, errors.New("generate error")).Once()
+
+		req := &guardianv1beta1.ListUserGrantsRequest{}
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.com")
+		res, err := s.grpcServer.ListUserGrants(ctx, req)
+
+		s.Nil(res)
+		s.Error(err)
+		s.grantService.AssertExpectations(s.T())
+	})
+}
+
+func (s *GrpcHandlersSuite) TestListGrantsSummaryLabelsValidation() {
+	s.Run("should return invalid argument if both summary_labels and summary_labels_v2 are true", func() {
+		s.setup()
+
+		req := &guardianv1beta1.ListGrantsRequest{
+			SummaryLabels:   true,
+			SummaryLabelsV2: true,
+		}
+		res, err := s.grpcServer.ListGrants(context.Background(), req)
+
+		s.Nil(res)
+		s.Error(err)
+		st, ok := status.FromError(err)
+		s.True(ok)
+		s.Equal(codes.InvalidArgument, st.Code())
+	})
+}
