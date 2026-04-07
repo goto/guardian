@@ -75,7 +75,7 @@ func (s *GrpcHandlersSuite) TestListGrants() {
 			ResourceIDs:  []string{"test-resource-id"},
 		}
 		s.grantService.EXPECT().
-			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
+			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedFilter).
 			Return(nil, nil).Once()
 		s.grantService.EXPECT().
 			List(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
@@ -153,7 +153,7 @@ func (s *GrpcHandlersSuite) TestListGrants() {
 			GroupTypes: []string{"test-group-type"},
 		}
 		s.grantService.EXPECT().
-			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
+			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedFilter).
 			Return(nil, nil).Once()
 		s.grantService.EXPECT().
 			List(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
@@ -178,7 +178,7 @@ func (s *GrpcHandlersSuite) TestListGrants() {
 
 		expectedError := errors.New("unexpected error")
 		s.grantService.EXPECT().
-			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("domain.ListGrantsFilter")).
+			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("domain.ListGrantsFilter")).
 			Return(nil, nil).Once()
 		s.grantService.EXPECT().
 			List(mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("domain.ListGrantsFilter")).
@@ -208,7 +208,7 @@ func (s *GrpcHandlersSuite) TestListGrants() {
 			},
 		}
 		s.grantService.EXPECT().
-			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("domain.ListGrantsFilter")).
+			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("domain.ListGrantsFilter")).
 			Return(nil, nil).Once()
 		s.grantService.EXPECT().
 			List(mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("domain.ListGrantsFilter")).
