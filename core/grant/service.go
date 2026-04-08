@@ -168,12 +168,11 @@ func (s *Service) GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx context
 	if filter.CreatedBy != "" {
 		owner = strings.ToLower(filter.CreatedBy)
 	}
-	var ret []string
 
 	if filter.UserInactiveGrantPolicy != guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_SMART ||
 		owner == "" ||
 		(len(filter.Statuses) != 0 && !slices.Contains(filter.Statuses, string(domain.GrantStatusInactive))) {
-		return ret, nil
+		return nil, nil
 	}
 
 	// get inactive grants
@@ -194,21 +193,72 @@ func (s *Service) GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx context
 		return nil, err
 	}
 
-	/* scenario: exclude inactive grants that have an active counterpart
-	if at least 1 active to the same resource, it will hide the inactive to the same resource. e,g.
-	- active
-	> resource1, account1, role1
+	return smartExcludedGrantIDs(activeGrants, inactiveGrants), nil
+}
 
-	- inactive (to the same resource)
-	> resource1, account1, role1
+// GenerateExcludedGrantIDsForSmartInactiveGrants handles the group/resource/provider-scoped
+// smart inactive grant dedup triggered by InactiveGrantPolicy=SMART + specific scoping IDs/types.
+// This is used by the admin ListGrants endpoint where no single owner email exists.
+func (s *Service) GenerateExcludedGrantIDsForSmartInactiveGrants(ctx context.Context, filter domain.ListGrantsFilter) ([]string, error) {
+	if filter.InactiveGrantPolicy != guardianv1beta1.ListGrantsRequest_INACTIVE_GRANT_POLICY_SMART ||
+		(filter.InactiveGrantGroupId == "" && filter.InactiveGrantGroupType == "" && filter.InactiveGrantResourceId == "" && filter.InactiveGrantProviderType == "") ||
+		(len(filter.Statuses) != 0 && !slices.Contains(filter.Statuses, string(domain.GrantStatusInactive))) {
+		return nil, nil
+	}
 
-	- return inactive grant
-	> empty. */
+	// Build scope slices: only set if the value is non-empty to avoid passing
+	// an empty IN () clause to the database (which would match nothing).
+	scopeField := func(v string) []string {
+		if v == "" {
+			return nil
+		}
+		return []string{v}
+	}
+	scopeGroupIDs := scopeField(filter.InactiveGrantGroupId)
+	scopeGroupTypes := scopeField(filter.InactiveGrantGroupType)
+	scopeResourceIDs := scopeField(filter.InactiveGrantResourceId)
+	scopeProviderTypes := scopeField(filter.InactiveGrantProviderType)
+
+	// get inactive grants
+	inf := filter
+	inf.Offset, inf.Size, inf.OrderBy = 0, 0, nil
+	inf.Statuses = []string{string(domain.GrantStatusInactive)}
+	inf.GroupIDs = scopeGroupIDs
+	inf.GroupTypes = scopeGroupTypes
+	inf.ResourceIDs = scopeResourceIDs
+	inf.ProviderTypes = scopeProviderTypes
+	inactiveGrants, err := s.repo.List(ctx, inf)
+	if err != nil {
+		return nil, err
+	}
+
+	// get active grants
+	acf := filter
+	acf.Offset, acf.Size, acf.OrderBy = 0, 0, nil
+	acf.Statuses = []string{string(domain.GrantStatusActive)}
+	acf.GroupIDs = scopeGroupIDs
+	acf.GroupTypes = scopeGroupTypes
+	acf.ResourceIDs = scopeResourceIDs
+	acf.ProviderTypes = scopeProviderTypes
+	activeGrants, err := s.repo.List(ctx, acf)
+	if err != nil {
+		return nil, err
+	}
+
+	return smartExcludedGrantIDs(activeGrants, inactiveGrants), nil
+}
+
+// smartExcludedGrantIDs returns the IDs of inactive grants that should be excluded.
+// It excludes inactive grants that have an active counterpart (same resource+account+role),
+// and for duplicate inactives with no active counterpart, keeps only the latest; excludes the rest.
+func smartExcludedGrantIDs(activeGrants, inactiveGrants []domain.Grant) []string {
+	// Exclude inactive grants that have an active counterpart (same resource+account+role).
 	activeMap := make(map[string]struct{})
 	for _, ag := range activeGrants {
 		key := ag.ResourceID + ":" + ag.AccountID + ":" + ag.Role
 		activeMap[key] = struct{}{}
 	}
+	var ret []string
 	for _, ig := range inactiveGrants {
 		key := ig.ResourceID + ":" + ig.AccountID + ":" + ig.Role
 		if _, found := activeMap[key]; found {
@@ -216,37 +266,27 @@ func (s *Service) GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx context
 		}
 	}
 
-	/* scenario: handle multiple inactive grants for the same resource (keep latest)
-	will take 1 from latest inactive grant only to the same resource. e,g.
-	- active
-	> empty
-
-	- inactive (to the same resource)
-	> resource1, account1, role1, created5
-	> resource1, account1, role1, created4
-	> resource1, account1, role1, created3
-
-	- return inactive grant
-	> resource1, account1, role1, created5 */
+	// For duplicate inactives with no active counterpart, keep only the latest; exclude the rest.
 	type inactiveData struct {
-		latest      *domain.Grant
+		latest      domain.Grant
 		excludedIDs []string
 	}
 	group := make(map[string]*inactiveData)
 
 	for _, ig := range inactiveGrants {
+		ig := ig // capture loop variable
 		key := ig.ResourceID + ":" + ig.AccountID + ":" + ig.Role
 		if _, found := activeMap[key]; found {
 			continue // skip already excluded by active
 		}
 		d := group[key]
 		if d == nil {
-			group[key] = &inactiveData{latest: &ig}
+			group[key] = &inactiveData{latest: ig}
 			continue
 		}
 		if ig.UpdatedAt.After(d.latest.UpdatedAt) {
 			d.excludedIDs = append(d.excludedIDs, d.latest.ID)
-			d.latest = &ig
+			d.latest = ig
 		} else {
 			d.excludedIDs = append(d.excludedIDs, ig.ID)
 		}
@@ -256,7 +296,7 @@ func (s *Service) GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx context
 		ret = append(ret, d.excludedIDs...)
 	}
 
-	return slicesUtil.GenericsStandardizeSlice(ret), nil
+	return slicesUtil.GenericsStandardizeSlice(ret)
 }
 
 func (s *Service) GetByID(ctx context.Context, id string) (*domain.Grant, error) {

@@ -273,6 +273,12 @@ type ListGrantsFilter struct {
 	SummaryLabels                   bool
 
 	UserInactiveGrantPolicy guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy
+
+	InactiveGrantPolicy       guardianv1beta1.ListGrantsRequest_InactiveGrantPolicy
+	InactiveGrantGroupId      string
+	InactiveGrantGroupType    string
+	InactiveGrantResourceId   string
+	InactiveGrantProviderType string
 }
 
 func (gf ListGrantsFilter) WithSummary() bool {

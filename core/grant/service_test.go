@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
+	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/core/grant/mocks"
 	"github.com/goto/guardian/domain"
@@ -1286,5 +1287,221 @@ func (s *ServiceTestSuite) TestListUserRoles() {
 
 		s.Zero(roles)
 		s.EqualError(actualError, expectedError.Error())
+	})
+}
+
+func (s *ServiceTestSuite) TestGenerateUserExcludedGrantIDsForSmartInactiveGrants() {
+	ctx := context.Background()
+	smartPolicy := guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_SMART
+
+	s.Run("should return nil when policy is not SMART", func() {
+		s.setup()
+		filter := domain.ListGrantsFilter{
+			UserInactiveGrantPolicy: guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_UNSPECIFIED,
+			Owner:                   "user@example.com",
+		}
+		ids, err := s.service.GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.NoError(err)
+		s.Nil(ids)
+	})
+
+	s.Run("should return nil when owner is empty", func() {
+		s.setup()
+		filter := domain.ListGrantsFilter{
+			UserInactiveGrantPolicy: smartPolicy,
+		}
+		ids, err := s.service.GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.NoError(err)
+		s.Nil(ids)
+	})
+
+	s.Run("should return nil when statuses exclude inactive", func() {
+		s.setup()
+		filter := domain.ListGrantsFilter{
+			UserInactiveGrantPolicy: smartPolicy,
+			Owner:                   "user@example.com",
+			Statuses:                []string{string(domain.GrantStatusActive)},
+		}
+		ids, err := s.service.GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.NoError(err)
+		s.Nil(ids)
+	})
+
+	s.Run("should exclude inactive grant that has active counterpart", func() {
+		s.setup()
+		filter := domain.ListGrantsFilter{
+			UserInactiveGrantPolicy: smartPolicy,
+			Owner:                   "user@example.com",
+		}
+		inactiveGrants := []domain.Grant{
+			{ID: "inactive-1", ResourceID: "res1", AccountID: "acc1", Role: "role1", Status: domain.GrantStatusInactive},
+		}
+		activeGrants := []domain.Grant{
+			{ID: "active-1", ResourceID: "res1", AccountID: "acc1", Role: "role1", Status: domain.GrantStatusActive},
+		}
+
+		s.mockRepository.EXPECT().
+			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(f domain.ListGrantsFilter) bool {
+				return f.Statuses[0] == string(domain.GrantStatusInactive)
+			})).Return(inactiveGrants, nil).Once()
+		s.mockRepository.EXPECT().
+			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(f domain.ListGrantsFilter) bool {
+				return f.Statuses[0] == string(domain.GrantStatusActive)
+			})).Return(activeGrants, nil).Once()
+
+		ids, err := s.service.GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.NoError(err)
+		s.Equal([]string{"inactive-1"}, ids)
+	})
+
+	s.Run("should keep only the latest duplicate inactive when no active counterpart", func() {
+		s.setup()
+		filter := domain.ListGrantsFilter{
+			UserInactiveGrantPolicy: smartPolicy,
+			Owner:                   "user@example.com",
+		}
+		now := time.Now()
+		inactiveGrants := []domain.Grant{
+			{ID: "inactive-old", ResourceID: "res1", AccountID: "acc1", Role: "role1", Status: domain.GrantStatusInactive, UpdatedAt: now.Add(-1 * time.Hour)},
+			{ID: "inactive-new", ResourceID: "res1", AccountID: "acc1", Role: "role1", Status: domain.GrantStatusInactive, UpdatedAt: now},
+		}
+
+		s.mockRepository.EXPECT().
+			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(f domain.ListGrantsFilter) bool {
+				return f.Statuses[0] == string(domain.GrantStatusInactive)
+			})).Return(inactiveGrants, nil).Once()
+		s.mockRepository.EXPECT().
+			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(f domain.ListGrantsFilter) bool {
+				return f.Statuses[0] == string(domain.GrantStatusActive)
+			})).Return(nil, nil).Once()
+
+		ids, err := s.service.GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.NoError(err)
+		s.Equal([]string{"inactive-old"}, ids)
+	})
+
+	s.Run("should return error if repository returns error", func() {
+		s.setup()
+		filter := domain.ListGrantsFilter{
+			UserInactiveGrantPolicy: smartPolicy,
+			Owner:                   "user@example.com",
+		}
+		expectedErr := errors.New("repository error")
+		s.mockRepository.EXPECT().
+			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("domain.ListGrantsFilter")).
+			Return(nil, expectedErr).Once()
+
+		ids, err := s.service.GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.Nil(ids)
+		s.EqualError(err, expectedErr.Error())
+	})
+}
+
+func (s *ServiceTestSuite) TestGenerateExcludedGrantIDsForSmartInactiveGrants() {
+	ctx := context.Background()
+	smartPolicy := guardianv1beta1.ListGrantsRequest_INACTIVE_GRANT_POLICY_SMART
+
+	s.Run("should return nil when policy is not SMART", func() {
+		s.setup()
+		filter := domain.ListGrantsFilter{
+			InactiveGrantPolicy:  guardianv1beta1.ListGrantsRequest_INACTIVE_GRANT_POLICY_UNSPECIFIED,
+			InactiveGrantGroupId: "group-1",
+		}
+		ids, err := s.service.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.NoError(err)
+		s.Nil(ids)
+	})
+
+	s.Run("should return nil when no scoping IDs/types are set", func() {
+		s.setup()
+		filter := domain.ListGrantsFilter{
+			InactiveGrantPolicy: smartPolicy,
+		}
+		ids, err := s.service.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.NoError(err)
+		s.Nil(ids)
+	})
+
+	s.Run("should return nil when statuses exclude inactive", func() {
+		s.setup()
+		filter := domain.ListGrantsFilter{
+			InactiveGrantPolicy:  smartPolicy,
+			InactiveGrantGroupId: "group-1",
+			Statuses:             []string{string(domain.GrantStatusActive)},
+		}
+		ids, err := s.service.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.NoError(err)
+		s.Nil(ids)
+	})
+
+	s.Run("should exclude inactive grant that has active counterpart (scoped by group)", func() {
+		s.setup()
+		filter := domain.ListGrantsFilter{
+			InactiveGrantPolicy:  smartPolicy,
+			InactiveGrantGroupId: "group-1",
+		}
+		inactiveGrants := []domain.Grant{
+			{ID: "inactive-1", ResourceID: "res1", AccountID: "acc1", Role: "role1", Status: domain.GrantStatusInactive},
+		}
+		activeGrants := []domain.Grant{
+			{ID: "active-1", ResourceID: "res1", AccountID: "acc1", Role: "role1", Status: domain.GrantStatusActive},
+		}
+
+		s.mockRepository.EXPECT().
+			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(f domain.ListGrantsFilter) bool {
+				return f.Statuses[0] == string(domain.GrantStatusInactive)
+			})).Return(inactiveGrants, nil).Once()
+		s.mockRepository.EXPECT().
+			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(f domain.ListGrantsFilter) bool {
+				return f.Statuses[0] == string(domain.GrantStatusActive)
+			})).Return(activeGrants, nil).Once()
+
+		ids, err := s.service.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.NoError(err)
+		s.Equal([]string{"inactive-1"}, ids)
+	})
+
+	s.Run("should keep only the latest duplicate inactive when no active counterpart", func() {
+		s.setup()
+		now := time.Now()
+		filter := domain.ListGrantsFilter{
+			InactiveGrantPolicy:       smartPolicy,
+			InactiveGrantResourceId:   "res1",
+			InactiveGrantProviderType: "bigquery",
+		}
+		inactiveGrants := []domain.Grant{
+			{ID: "inactive-old", ResourceID: "res1", AccountID: "acc1", Role: "role1", Status: domain.GrantStatusInactive, UpdatedAt: now.Add(-2 * time.Hour)},
+			{ID: "inactive-mid", ResourceID: "res1", AccountID: "acc1", Role: "role1", Status: domain.GrantStatusInactive, UpdatedAt: now.Add(-1 * time.Hour)},
+			{ID: "inactive-new", ResourceID: "res1", AccountID: "acc1", Role: "role1", Status: domain.GrantStatusInactive, UpdatedAt: now},
+		}
+
+		s.mockRepository.EXPECT().
+			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(f domain.ListGrantsFilter) bool {
+				return f.Statuses[0] == string(domain.GrantStatusInactive)
+			})).Return(inactiveGrants, nil).Once()
+		s.mockRepository.EXPECT().
+			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(f domain.ListGrantsFilter) bool {
+				return f.Statuses[0] == string(domain.GrantStatusActive)
+			})).Return(nil, nil).Once()
+
+		ids, err := s.service.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.NoError(err)
+		s.ElementsMatch([]string{"inactive-old", "inactive-mid"}, ids)
+	})
+
+	s.Run("should return error if repository returns error fetching inactive grants", func() {
+		s.setup()
+		filter := domain.ListGrantsFilter{
+			InactiveGrantPolicy:  smartPolicy,
+			InactiveGrantGroupId: "group-1",
+		}
+		expectedErr := errors.New("repository error")
+		s.mockRepository.EXPECT().
+			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("domain.ListGrantsFilter")).
+			Return(nil, expectedErr).Once()
+
+		ids, err := s.service.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.Nil(ids)
+		s.EqualError(err, expectedErr.Error())
 	})
 }
