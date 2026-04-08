@@ -87,6 +87,26 @@ func (r *AppealRepository) Find(ctx context.Context, filters *domain.ListAppeals
 		return nil, err
 	}
 
+	// Apply combined ORDER BY: exact-match priority (when Q is set) + user-specified order_by.
+	// This is intentionally outside applyAppealsFilter so it does not affect summary/count queries.
+	if filters.Q != "" || len(filters.OrderBy) > 0 {
+		var prependSQL string
+		var prependVars []interface{}
+		if filters.Q != "" {
+			prependSQL = `CASE WHEN "appeals"."account_id" = ? THEN 0 WHEN "appeals"."role" = ? THEN 0 WHEN "Resource"."urn" = ? THEN 0 WHEN "Resource"."name" = ? THEN 0 ELSE 1 END`
+			prependVars = []interface{}{filters.Q, filters.Q, filters.Q, filters.Q}
+		}
+		db, err = addOrderByClause(db, filters.OrderBy, addOrderByClauseOptions{
+			statusColumnName: `"appeals"."status"`,
+			statusesOrder:    AppealStatusDefaultSort,
+			prependSQL:       prependSQL,
+			prependVars:      prependVars,
+		}, []string{"updated_at", "created_at"})
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	var models []*model.Appeal
 	if err := db.Preload("Resource").
 		Preload("Grant").
@@ -416,16 +436,6 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		db = db.Where(`"appeals"."created_at" >= ?`, filters.StartTime)
 	} else if !filters.EndTime.IsZero() {
 		db = db.Where(`"appeals"."created_at" <= ?`, filters.EndTime)
-	}
-
-	if filters.OrderBy != nil {
-		db, err = addOrderByClause(db, filters.OrderBy, addOrderByClauseOptions{
-			statusColumnName: `"appeals"."status"`,
-			statusesOrder:    AppealStatusDefaultSort,
-		}, []string{"updated_at", "created_at"})
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	if filters.WithApprovals {
