@@ -271,6 +271,7 @@ type ListGrantsFilter struct {
 	Labels                          map[string][]string
 	LabelKeys                       []string
 	SummaryLabels                   bool
+	ExcludeEmptyAppeal              bool
 
 	UserInactiveGrantPolicy guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy
 }
