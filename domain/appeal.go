@@ -585,10 +585,11 @@ type ListAppealsFilter struct {
 	DetailsForSelfCriteria    []string `mapstructure:"details_for_self_criteria" json:"details_for_self_criteria,omitempty" validate:"omitempty"`
 	NotDetailsForSelfCriteria []string `mapstructure:"not_details_for_self_criteria" json:"not_details_for_self_criteria,omitempty" validate:"omitempty"`
 	SummaryLabels             bool     `mapstructure:"summary_labels" json:"summary_labels,omitempty" validate:"omitempty"`
+	SummaryLabelsV2           bool     `mapstructure:"summary_labels_v2" json:"summary_labels_v2,omitempty" validate:"omitempty"`
 }
 
 func (af ListAppealsFilter) WithSummary() bool {
-	return len(af.SummaryGroupBys) > 0 || len(af.SummaryUniques) > 0 || af.SummaryLabels
+	return len(af.SummaryGroupBys) > 0 || len(af.SummaryUniques) > 0 || af.SummaryLabels || af.SummaryLabelsV2
 }
 
 func (af ListAppealsFilter) WithAppeals() bool {

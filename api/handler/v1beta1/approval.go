@@ -17,6 +17,10 @@ import (
 )
 
 func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1.ListUserApprovalsRequest) (*guardianv1beta1.ListUserApprovalsResponse, error) {
+	if req.GetSummaryLabels() && req.GetSummaryLabelsV2() {
+		return nil, s.invalidArgument(ctx, "summary_labels and summary_labels_v2 cannot both be true")
+	}
+
 	user, err := s.getUser(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())
@@ -95,6 +99,7 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		Labels:                          labels,
 		LabelKeys:                       req.GetLabelKeys(),
 		SummaryLabels:                   req.GetSummaryLabels(),
+		SummaryLabelsV2:                 req.GetSummaryLabelsV2(),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)
@@ -110,6 +115,10 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 }
 
 func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.ListApprovalsRequest) (*guardianv1beta1.ListApprovalsResponse, error) {
+	if req.GetSummaryLabels() && req.GetSummaryLabelsV2() {
+		return nil, s.invalidArgument(ctx, "summary_labels and summary_labels_v2 cannot both be true")
+	}
+
 	// Extract labels from gRPC metadata
 	labels, err := s.extractLabels(ctx)
 	if err != nil {
@@ -183,6 +192,7 @@ func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.Lis
 		Labels:                          labels,
 		LabelKeys:                       req.GetLabelKeys(),
 		SummaryLabels:                   req.GetSummaryLabels(),
+		SummaryLabelsV2:                 req.GetSummaryLabelsV2(),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)

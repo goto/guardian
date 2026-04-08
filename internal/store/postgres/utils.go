@@ -120,6 +120,96 @@ func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*g
 	return ret, nil
 }
 
+func generateLabelSummariesV2(ctx context.Context, dbGenWithLabels func(context.Context, map[string][]string) (*gorm.DB, error), baseTableName, labelColumn string, labelFilters map[string][]string) ([]*domain.SummaryLabelV2, error) {
+	// Step 1: discover all available label keys using a V1-style query with no label filters applied.
+	// This ensures we always show ALL keys in the data (not just the ones currently filtered),
+	// which is the V1 baseline behavior. The other non-label filters (status, resource, etc.)
+	// are still respected because they come from the dbGenWithLabels closure.
+	db, err := dbGenWithLabels(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	var keyRows []struct{ Key string }
+	err = db.Table(baseTableName).
+		Select("DISTINCT key").
+		Joins(fmt.Sprintf("CROSS JOIN jsonb_each(%s)", labelColumn)).
+		Where(fmt.Sprintf("%s IS NOT NULL", labelColumn)).
+		Where(fmt.Sprintf("%s <> 'null'::jsonb", labelColumn)).
+		Where(fmt.Sprintf("%s <> '{}'::jsonb", labelColumn)).
+		Where("jsonb_typeof(value) = 'string'").
+		Where("trim(both '\"' from value::text) <> '<nil>'").
+		Order("key").
+		Scan(&keyRows).Error
+	if err != nil {
+		return nil, err
+	}
+	if len(keyRows) == 0 {
+		return nil, nil
+	}
+
+	keys := make([]string, len(keyRows))
+	for i, r := range keyRows {
+		keys[i] = r.Key
+	}
+
+	// Step 2: for each key, run a query with the label filters excluding that key.
+	// This gives proper faceted counts: for key K you see all values available
+	// under the current selection of every OTHER key.
+	ret := make([]*domain.SummaryLabelV2, len(keys))
+	eg, egCtx := errgroup.WithContext(ctx)
+
+	for idx, key := range keys {
+		idx, key := idx, key
+		eg.Go(func() error {
+			// build labels filter excluding the current key
+			filteredLabels := make(map[string][]string, len(labelFilters))
+			for k, v := range labelFilters {
+				if k != key {
+					filteredLabels[k] = v
+				}
+			}
+
+			db, err := dbGenWithLabels(egCtx, filteredLabels)
+			if err != nil {
+				return err
+			}
+
+			var rows []struct {
+				Key    string
+				Values pq.StringArray `gorm:"type:text[]"`
+			}
+
+			err = db.Table(baseTableName).
+				Select("key, array_agg(DISTINCT trim(both '\"' from value::text) ORDER BY trim(both '\"' from value::text)) as values").
+				Joins(fmt.Sprintf("CROSS JOIN jsonb_each(%s)", labelColumn)).
+				Where(fmt.Sprintf("%s IS NOT NULL", labelColumn)).
+				Where(fmt.Sprintf("%s <> 'null'::jsonb", labelColumn)).
+				Where(fmt.Sprintf("%s <> '{}'::jsonb", labelColumn)).
+				Where("jsonb_typeof(value) = 'string'").
+				Where("trim(both '\"' from value::text) <> '<nil>'").
+				Where("key = ?", key).
+				Group("key").
+				Scan(&rows).Error
+			if err != nil {
+				return err
+			}
+
+			item := &domain.SummaryLabelV2{Key: key}
+			if len(rows) > 0 {
+				item.Values = slicesUtil.GenericsStandardizeSlice(rows[0].Values)
+				item.Count = int32(len(item.Values))
+			}
+			ret[idx] = item
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
 func generateUniqueSummaries(ctx context.Context, dbGen func(context.Context) (*gorm.DB, error), baseTableName string, fields []string, entityGroupKeyMapping map[string]string) ([]*domain.SummaryUnique, error) {
 	ret := make([]*domain.SummaryUnique, 0, len(fields))
 	if len(fields) == 0 {
@@ -331,6 +421,9 @@ func generateSummaryResultCount(result *domain.SummaryResult) *domain.SummaryRes
 	var labelsCount int32
 	labelsCount = int32(len(result.SummaryLabels))
 
+	var labelsV2Count int32
+	labelsV2Count = int32(len(result.SummaryLabelsV2))
+
 	return &domain.SummaryResult{
 		SummaryGroups: result.SummaryGroups,
 		GroupsCount:   groupsCount,
@@ -340,6 +433,9 @@ func generateSummaryResultCount(result *domain.SummaryResult) *domain.SummaryRes
 
 		SummaryLabels: result.SummaryLabels,
 		LabelsCount:   labelsCount,
+
+		SummaryLabelsV2: result.SummaryLabelsV2,
+		LabelsV2Count:   labelsV2Count,
 	}
 }
 

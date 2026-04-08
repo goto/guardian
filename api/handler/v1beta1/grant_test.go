@@ -607,3 +607,38 @@ func (s *GrpcHandlersSuite) TestRevokeGrant() {
 		s.Equal(timestamppb.New(expectedGrant.UpdatedAt), res.Grant.UpdatedAt)
 	})
 }
+
+func (s *GrpcHandlersSuite) TestListGrantsSummaryLabelsValidation() {
+	s.Run("should return invalid argument if both summary_labels and summary_labels_v2 are true", func() {
+		s.setup()
+
+		req := &guardianv1beta1.ListGrantsRequest{
+			SummaryLabels:   true,
+			SummaryLabelsV2: true,
+		}
+		res, err := s.grpcServer.ListGrants(context.Background(), req)
+
+		s.Nil(res)
+		s.Error(err)
+		st, ok := status.FromError(err)
+		s.True(ok)
+		s.Equal(codes.InvalidArgument, st.Code())
+	})
+
+	s.Run("should return invalid argument for ListUserGrants if both summary_labels and summary_labels_v2 are true", func() {
+		s.setup()
+
+		req := &guardianv1beta1.ListUserGrantsRequest{
+			SummaryLabels:   true,
+			SummaryLabelsV2: true,
+		}
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.com")
+		res, err := s.grpcServer.ListUserGrants(ctx, req)
+
+		s.Nil(res)
+		s.Error(err)
+		st, ok := status.FromError(err)
+		s.True(ok)
+		s.Equal(codes.InvalidArgument, st.Code())
+	})
+}

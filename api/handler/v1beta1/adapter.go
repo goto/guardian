@@ -1247,6 +1247,12 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 		LabelsCount: s.LabelsCount,
 	}
 
+	// SummaryLabelsV2 (faceted search) takes priority over SummaryLabels when both are set
+	if len(s.SummaryLabelsV2) > 0 {
+		summaryProto.Labels = make([]*guardianv1beta1.SummaryResult_Label, len(s.SummaryLabelsV2))
+		summaryProto.LabelsCount = s.LabelsV2Count
+	}
+
 	// convert summary groups
 	for i, group := range s.SummaryGroups {
 		groupFields, err := toProtoMap(group.GroupFields)
@@ -1278,12 +1284,22 @@ func (a *adapter) ToSummaryProto(s *domain.SummaryResult) (*guardianv1beta1.Summ
 		}
 	}
 
-	// convert summary labels
-	for i, label := range s.SummaryLabels {
-		summaryProto.Labels[i] = &guardianv1beta1.SummaryResult_Label{
-			Key:    label.Key,
-			Values: label.Values,
-			Count:  label.Count,
+	// convert summary labels (V2 takes priority over V1)
+	if len(s.SummaryLabelsV2) > 0 {
+		for i, label := range s.SummaryLabelsV2 {
+			summaryProto.Labels[i] = &guardianv1beta1.SummaryResult_Label{
+				Key:    label.Key,
+				Values: label.Values,
+				Count:  label.Count,
+			}
+		}
+	} else {
+		for i, label := range s.SummaryLabels {
+			summaryProto.Labels[i] = &guardianv1beta1.SummaryResult_Label{
+				Key:    label.Key,
+				Values: label.Values,
+				Count:  label.Count,
+			}
 		}
 	}
 
