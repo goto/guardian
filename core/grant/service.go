@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bearaujus/bjson"
 	"github.com/go-playground/validator/v10"
 
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
@@ -196,37 +197,59 @@ func (s *Service) GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx context
 	return smartExcludedGrantIDs(activeGrants, inactiveGrants), nil
 }
 
+// ignoredInactiveGrantFilterKeys are fields that are always reset in the scoped inner queries
+// (pagination and status) and are therefore meaningless as scoping keys.
+var ignoredInactiveGrantFilterKeys = map[string]struct{}{
+	"offset":   {},
+	"size":     {},
+	"order_by": {},
+	"statuses": {},
+}
+
 // GenerateExcludedGrantIDsForSmartInactiveGrants handles the group/resource/provider-scoped
-// smart inactive grant dedup triggered by InactiveGrantPolicy=SMART + specific scoping IDs/types.
-// This is used by the admin ListGrants endpoint where no single owner email exists.
+// smart inactive grant dedup triggered by InactiveGrantPolicy=SMART
+// InactiveGrantFilterKeys must be non-empty (and each key must have a corresponding non-empty
+// value in the filter) to prevent accidentally fetching all grants at once.
+// Keys in ignoredInactiveGrantFilterKeys (offset, size, order_by, statuses) are silently
+// skipped — they are always reset in the inner queries and do not count toward the non-empty
+// requirement.
 func (s *Service) GenerateExcludedGrantIDsForSmartInactiveGrants(ctx context.Context, filter domain.ListGrantsFilter) ([]string, error) {
 	if filter.InactiveGrantPolicy != guardianv1beta1.ListGrantsRequest_INACTIVE_GRANT_POLICY_SMART ||
-		(filter.InactiveGrantGroupId == "" && filter.InactiveGrantGroupType == "" && filter.InactiveGrantResourceId == "" && filter.InactiveGrantProviderType == "") ||
 		(len(filter.Statuses) != 0 && !slices.Contains(filter.Statuses, string(domain.GrantStatusInactive))) {
 		return nil, nil
 	}
 
-	// Build scope slices: only set if the value is non-empty to avoid passing
-	// an empty IN () clause to the database (which would match nothing).
-	scopeField := func(v string) []string {
-		if v == "" {
-			return nil
+	// Strip pagination/status keys that are always reset in the inner queries.
+	effectiveKeys := make([]string, 0, len(filter.InactiveGrantFilterKeys))
+	for _, key := range filter.InactiveGrantFilterKeys {
+		if _, ignored := ignoredInactiveGrantFilterKeys[key]; !ignored {
+			effectiveKeys = append(effectiveKeys, key)
 		}
-		return []string{v}
 	}
-	scopeGroupIDs := scopeField(filter.InactiveGrantGroupId)
-	scopeGroupTypes := scopeField(filter.InactiveGrantGroupType)
-	scopeResourceIDs := scopeField(filter.InactiveGrantResourceId)
-	scopeProviderTypes := scopeField(filter.InactiveGrantProviderType)
+
+	if len(effectiveKeys) == 0 {
+		return nil, fmt.Errorf("inactive_grant_filter_keys must not be empty when using SMART inactive grant policy")
+	}
+
+	// Serialize the filter so we can inspect and copy individual fields by key name.
+	bjFilter, err := bjson.NewBJSON(filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build filter representation: %w", err)
+	}
+	for _, key := range effectiveKeys {
+		elem, err := bjFilter.GetElement(key)
+		if err != nil {
+			return nil, fmt.Errorf("inactive_grant_filter_keys error at key %q: %w", key, err)
+		}
+		if elem.Len() == 0 {
+			return nil, fmt.Errorf("inactive_grant_filter_keys contains %q but filter has no value", key)
+		}
+	}
 
 	// get inactive grants
 	inf := filter
 	inf.Offset, inf.Size, inf.OrderBy = 0, 0, nil
 	inf.Statuses = []string{string(domain.GrantStatusInactive)}
-	inf.GroupIDs = scopeGroupIDs
-	inf.GroupTypes = scopeGroupTypes
-	inf.ResourceIDs = scopeResourceIDs
-	inf.ProviderTypes = scopeProviderTypes
 	inactiveGrants, err := s.repo.List(ctx, inf)
 	if err != nil {
 		return nil, err
@@ -236,10 +259,6 @@ func (s *Service) GenerateExcludedGrantIDsForSmartInactiveGrants(ctx context.Con
 	acf := filter
 	acf.Offset, acf.Size, acf.OrderBy = 0, 0, nil
 	acf.Statuses = []string{string(domain.GrantStatusActive)}
-	acf.GroupIDs = scopeGroupIDs
-	acf.GroupTypes = scopeGroupTypes
-	acf.ResourceIDs = scopeResourceIDs
-	acf.ProviderTypes = scopeProviderTypes
 	activeGrants, err := s.repo.List(ctx, acf)
 	if err != nil {
 		return nil, err

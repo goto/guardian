@@ -1404,30 +1404,83 @@ func (s *ServiceTestSuite) TestGenerateExcludedGrantIDsForSmartInactiveGrants() 
 	s.Run("should return nil when policy is not SMART", func() {
 		s.setup()
 		filter := domain.ListGrantsFilter{
-			InactiveGrantPolicy:  guardianv1beta1.ListGrantsRequest_INACTIVE_GRANT_POLICY_UNSPECIFIED,
-			InactiveGrantGroupId: "group-1",
+			InactiveGrantPolicy:     guardianv1beta1.ListGrantsRequest_INACTIVE_GRANT_POLICY_UNSPECIFIED,
+			InactiveGrantFilterKeys: []string{"group_ids"},
+			GroupIDs:                []string{"group-1"},
 		}
 		ids, err := s.service.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
 		s.NoError(err)
 		s.Nil(ids)
 	})
 
-	s.Run("should return nil when no scoping IDs/types are set", func() {
+	s.Run("should return error when InactiveGrantFilterKeys is empty", func() {
 		s.setup()
 		filter := domain.ListGrantsFilter{
 			InactiveGrantPolicy: smartPolicy,
 		}
 		ids, err := s.service.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
-		s.NoError(err)
 		s.Nil(ids)
+		s.EqualError(err, "inactive_grant_filter_keys must not be empty when using SMART inactive grant policy")
+	})
+
+	s.Run("should return error when InactiveGrantFilterKeys contains only ignored keys (offset/size/order_by/statuses)", func() {
+		s.setup()
+		filter := domain.ListGrantsFilter{
+			InactiveGrantPolicy:     smartPolicy,
+			InactiveGrantFilterKeys: []string{"offset", "size", "order_by", "statuses"},
+			Offset:                  10,
+			Size:                    20,
+			OrderBy:                 []string{"created_at"},
+			Statuses:                []string{string(domain.GrantStatusInactive)},
+		}
+		ids, err := s.service.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.Nil(ids)
+		s.EqualError(err, "inactive_grant_filter_keys must not be empty when using SMART inactive grant policy")
+	})
+
+	s.Run("should ignore offset/size/order_by/statuses keys and process valid scoping keys", func() {
+		s.setup()
+		filter := domain.ListGrantsFilter{
+			InactiveGrantPolicy:     smartPolicy,
+			InactiveGrantFilterKeys: []string{"group_ids", "offset", "size"},
+			GroupIDs:                []string{"group-1"},
+			Offset:                  5,
+			Size:                    10,
+		}
+		inactiveGrants := []domain.Grant{{ID: "inactive-1", ResourceID: "r1", AccountID: "a1", Role: "role1", Status: domain.GrantStatusInactive}}
+		activeGrants := []domain.Grant{{ID: "active-1", ResourceID: "r1", AccountID: "a1", Role: "role1", Status: domain.GrantStatusActive}}
+		s.mockRepository.EXPECT().
+			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(f domain.ListGrantsFilter) bool {
+				return f.Statuses[0] == string(domain.GrantStatusInactive) && f.Offset == 0 && f.Size == 0
+			})).Return(inactiveGrants, nil).Once()
+		s.mockRepository.EXPECT().
+			List(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(f domain.ListGrantsFilter) bool {
+				return f.Statuses[0] == string(domain.GrantStatusActive) && f.Offset == 0 && f.Size == 0
+			})).Return(activeGrants, nil).Once()
+		ids, err := s.service.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.NoError(err)
+		s.Equal([]string{"inactive-1"}, ids)
+	})
+
+	s.Run("should return error when a filter key has no corresponding value", func() {
+		s.setup()
+		filter := domain.ListGrantsFilter{
+			InactiveGrantPolicy:     smartPolicy,
+			InactiveGrantFilterKeys: []string{"group_ids"},
+			// GroupIDs intentionally left empty
+		}
+		ids, err := s.service.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+		s.Nil(ids)
+		s.EqualError(err, `inactive_grant_filter_keys contains "group_ids" but filter has no value`)
 	})
 
 	s.Run("should return nil when statuses exclude inactive", func() {
 		s.setup()
 		filter := domain.ListGrantsFilter{
-			InactiveGrantPolicy:  smartPolicy,
-			InactiveGrantGroupId: "group-1",
-			Statuses:             []string{string(domain.GrantStatusActive)},
+			InactiveGrantPolicy:     smartPolicy,
+			InactiveGrantFilterKeys: []string{"group_ids"},
+			GroupIDs:                []string{"group-1"},
+			Statuses:                []string{string(domain.GrantStatusActive)},
 		}
 		ids, err := s.service.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
 		s.NoError(err)
@@ -1437,8 +1490,9 @@ func (s *ServiceTestSuite) TestGenerateExcludedGrantIDsForSmartInactiveGrants() 
 	s.Run("should exclude inactive grant that has active counterpart (scoped by group)", func() {
 		s.setup()
 		filter := domain.ListGrantsFilter{
-			InactiveGrantPolicy:  smartPolicy,
-			InactiveGrantGroupId: "group-1",
+			InactiveGrantPolicy:     smartPolicy,
+			InactiveGrantFilterKeys: []string{"group_ids"},
+			GroupIDs:                []string{"group-1"},
 		}
 		inactiveGrants := []domain.Grant{
 			{ID: "inactive-1", ResourceID: "res1", AccountID: "acc1", Role: "role1", Status: domain.GrantStatusInactive},
@@ -1465,9 +1519,10 @@ func (s *ServiceTestSuite) TestGenerateExcludedGrantIDsForSmartInactiveGrants() 
 		s.setup()
 		now := time.Now()
 		filter := domain.ListGrantsFilter{
-			InactiveGrantPolicy:       smartPolicy,
-			InactiveGrantResourceId:   "res1",
-			InactiveGrantProviderType: "bigquery",
+			InactiveGrantPolicy:     smartPolicy,
+			InactiveGrantFilterKeys: []string{"resource_ids", "provider_types"},
+			ResourceIDs:             []string{"res1"},
+			ProviderTypes:           []string{"bigquery"},
 		}
 		inactiveGrants := []domain.Grant{
 			{ID: "inactive-old", ResourceID: "res1", AccountID: "acc1", Role: "role1", Status: domain.GrantStatusInactive, UpdatedAt: now.Add(-2 * time.Hour)},
@@ -1492,8 +1547,9 @@ func (s *ServiceTestSuite) TestGenerateExcludedGrantIDsForSmartInactiveGrants() 
 	s.Run("should return error if repository returns error fetching inactive grants", func() {
 		s.setup()
 		filter := domain.ListGrantsFilter{
-			InactiveGrantPolicy:  smartPolicy,
-			InactiveGrantGroupId: "group-1",
+			InactiveGrantPolicy:     smartPolicy,
+			InactiveGrantFilterKeys: []string{"group_ids"},
+			GroupIDs:                []string{"group-1"},
 		}
 		expectedErr := errors.New("repository error")
 		s.mockRepository.EXPECT().

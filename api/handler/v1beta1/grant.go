@@ -91,11 +91,8 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		SummaryLabels:                   req.GetSummaryLabels(),
 		ExcludeEmptyAppeal:              req.GetExcludeEmptyAppeal(),
 
-		InactiveGrantPolicy:       req.GetInactiveGrantPolicy(),
-		InactiveGrantGroupId:      req.GetInactiveGrantGroupId(),
-		InactiveGrantGroupType:    req.GetInactiveGrantGroupType(),
-		InactiveGrantResourceId:   req.GetInactiveGrantResourceId(),
-		InactiveGrantProviderType: req.GetInactiveGrantProviderType(),
+		InactiveGrantPolicy:     req.GetInactiveGrantPolicy(),
+		InactiveGrantFilterKeys: req.GetInactiveGrantFilterKeys(),
 	}
 
 	excludedGrantIDs, err := s.grantService.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
