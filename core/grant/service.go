@@ -238,10 +238,7 @@ func (s *Service) GenerateExcludedGrantIDsForSmartInactiveGrants(ctx context.Con
 	}
 	for _, key := range effectiveKeys {
 		elem, err := bjFilter.GetElement(key)
-		if err != nil {
-			return nil, fmt.Errorf("inactive_grant_filter_keys error at key %q: %w", key, err)
-		}
-		if elem.Len() == 0 {
+		if err != nil || elem.Len() == 0 {
 			return nil, fmt.Errorf("inactive_grant_filter_keys contains %q but filter has no value", key)
 		}
 	}
