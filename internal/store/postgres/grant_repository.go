@@ -48,6 +48,26 @@ func (r *GrantRepository) List(ctx context.Context, filter domain.ListGrantsFilt
 		return nil, err
 	}
 
+	// Apply combined ORDER BY: exact-match priority (when Q is set) + user-specified order_by.
+	// This is intentionally outside applyGrantsFilter so it does not affect summary/count queries.
+	if filter.Q != "" || len(filter.OrderBy) > 0 {
+		var prependSQL string
+		var prependVars []interface{}
+		if filter.Q != "" {
+			prependSQL = `CASE WHEN "grants"."account_id" = ? THEN 0 WHEN "grants"."role" = ? THEN 0 WHEN "Resource"."urn" = ? THEN 0 WHEN "Resource"."name" = ? THEN 0 ELSE 1 END`
+			prependVars = []interface{}{filter.Q, filter.Q, filter.Q, filter.Q}
+		}
+		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
+			statusColumnName: `"grants"."status"`,
+			statusesOrder:    GrantStatusDefaultSort,
+			prependSQL:       prependSQL,
+			prependVars:      prependVars,
+		}, []string{"updated_at", "created_at"})
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	var models []model.Grant
 
 	query := db.Preload("Resource")
@@ -512,16 +532,6 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		db = db.Where(`"grants"."created_at" <= ?`, filter.EndTime)
 	}
 
-	if len(filter.OrderBy) > 0 {
-		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
-			statusColumnName: `"grants"."status"`,
-			statusesOrder:    GrantStatusDefaultSort,
-		}, []string{"updated_at", "created_at"})
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	// Label filtering
 	if len(filter.Labels) > 0 {
 		db = applyLabelFilter(db, `"_Appeal"."labels"`, filter.Labels)
@@ -529,6 +539,10 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 
 	if len(filter.LabelKeys) > 0 {
 		db = applyLabelKeyFilter(db, `"_Appeal"."labels"`, filter.LabelKeys)
+	}
+
+	if filter.ExcludeEmptyAppeal {
+		db = db.Where(`"grants"."appeal_id" IS NOT NULL`)
 	}
 
 	return db, nil

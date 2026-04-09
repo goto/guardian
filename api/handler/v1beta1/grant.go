@@ -89,6 +89,7 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		Labels:                          labels,
 		LabelKeys:                       req.GetLabelKeys(),
 		SummaryLabels:                   req.GetSummaryLabels(),
+		ExcludeEmptyAppeal:              req.GetExcludeEmptyAppeal(),
 
 		InactiveGrantPolicy:       req.GetInactiveGrantPolicy(),
 		InactiveGrantGroupId:      req.GetInactiveGrantGroupId(),
