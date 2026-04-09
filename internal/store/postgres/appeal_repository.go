@@ -146,8 +146,32 @@ func (r *AppealRepository) GenerateSummary(ctx context.Context, filters *domain.
 		return applyAppealsFilter(db, &f)
 	}
 
+	dbGenWithLabels := func(gCtx context.Context, labels map[string][]string) (*gorm.DB, error) {
+		// Override f.Labels so applyAppealsFilter only applies the given label filter,
+		// leaving all other (non-label) filter conditions intact.
+		// This is used by SummaryLabelsV2 (faceted search): for each label key K,
+		// we query with all label filters EXCEPT K, so that the results show which
+		// values for K are still available given the user's other active selections.
+		f := *filters
+		f.Offset = 0
+		f.Size = 0
+		f.OrderBy = nil
+		f.Labels = labels
+
+		db := r.db.WithContext(gCtx)
+		db = applyAppealsJoins(db)
+		return applyAppealsFilter(db, &f)
+	}
+
 	if filters.SummaryLabels {
 		sr.SummaryLabels, err = generateLabelSummaries(ctx, dbGen, "appeals", `"appeals"."labels"`)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if filters.SummaryLabelsV2 {
+		sr.SummaryLabelsV2, err = generateLabelSummariesV2(ctx, dbGenWithLabels, "appeals", `"appeals"."labels"`, filters.Labels)
 		if err != nil {
 			return nil, err
 		}
