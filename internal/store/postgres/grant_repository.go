@@ -531,5 +531,9 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		db = applyLabelKeyFilter(db, `"_Appeal"."labels"`, filter.LabelKeys)
 	}
 
+	if filter.ExcludeEmptyAppeal {
+		db = db.Where(`"grants"."appeal_id" IS NOT NULL`)
+	}
+
 	return db, nil
 }
