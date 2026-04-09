@@ -120,11 +120,54 @@ func generateLabelSummaries(ctx context.Context, dbGen func(context.Context) (*g
 	return ret, nil
 }
 
+// generateLabelSummariesV2 builds a faceted label summary for the UI filter panel.
+//
+// It implements the "faceted search" pattern: for each label key, the returned values
+// reflect what is still available given the user's OTHER active label filters — but
+// NOT filtered by the key itself. This lets the user see all options for a dimension
+// and freely change their current selection without getting stuck in a dead-end.
+//
+// Example dataset (grants table, labels column is JSONB):
+//
+//	id=1  labels={"env":"prod",    "team":"data"}
+//	id=2  labels={"env":"prod",    "team":"backend"}
+//	id=3  labels={"env":"staging", "team":"data"}
+//	id=4  labels={"env":"prod",    "team":"frontend"}
+//
+// If the user currently has labelFilters={"team":["data"]} active, this function returns:
+//
+//	[
+//	  {Key:"env",  Values:["prod","staging"],            Count:2},
+//	  {Key:"team", Values:["backend","data","frontend"],  Count:3},
+//	]
+//
+// Notice:
+//   - "env" shows both "prod" AND "staging" (respecting team=data, but not filtering env itself).
+//   - "team" shows all three teams (its own filter is excluded so the user can change it).
 func generateLabelSummariesV2(ctx context.Context, dbGenWithLabels func(context.Context, map[string][]string) (*gorm.DB, error), baseTableName, labelColumn string, labelFilters map[string][]string) ([]*domain.SummaryLabelV2, error) {
-	// Step 1: discover all available label keys using a V1-style query with no label filters applied.
-	// This ensures we always show ALL keys in the data (not just the ones currently filtered),
-	// which is the V1 baseline behavior. The other non-label filters (status, resource, etc.)
-	// are still respected because they come from the dbGenWithLabels closure.
+	// -------------------------------------------------------------------------
+	// Step 1: Discover all distinct label keys present in the data.
+	//
+	// We call dbGenWithLabels with nil (no label filters) so that non-label
+	// filters (e.g. status, resource_type) are still applied via the closure,
+	// but we never restrict which keys appear based on the user's label selection.
+	// This guarantees all dimensions are always visible in the UI filter panel.
+	//
+	// The CROSS JOIN jsonb_each(labels) "explodes" each JSONB object into one
+	// row per key-value pair. For example, the row:
+	//   id=1, labels={"env":"prod","team":"data"}
+	// becomes two rows:
+	//   (id=1, key="env",  value="prod")
+	//   (id=1, key="team", value="data")
+	//
+	// We then SELECT DISTINCT key across all exploded rows, giving us the full
+	// list of label dimensions: ["env", "team"].
+	//
+	// The WHERE clauses guard against degenerate JSONB values:
+	//   - IS NOT NULL / <> 'null'::jsonb / <> '{}'::jsonb → skip missing/empty labels
+	//   - jsonb_typeof(value) = 'string'                  → skip non-string values (arrays, objects, etc.)
+	//   - trim(...) <> '<nil>'                             → skip Go nil pointers serialised as the string "<nil>"
+	// -------------------------------------------------------------------------
 	db, err := dbGenWithLabels(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -147,21 +190,46 @@ func generateLabelSummariesV2(ctx context.Context, dbGenWithLabels func(context.
 		return nil, nil
 	}
 
+	// Flatten keyRows into a plain string slice, e.g. ["env", "team"].
 	keys := make([]string, len(keyRows))
 	for i, r := range keyRows {
 		keys[i] = r.Key
 	}
 
-	// Step 2: for each key, run a query with the label filters excluding that key.
-	// This gives proper faceted counts: for key K you see all values available
-	// under the current selection of every OTHER key.
+	// -------------------------------------------------------------------------
+	// Step 2: For each key, fetch the available values using faceted filtering.
+	//
+	// ret is pre-allocated so each goroutine can write to its own index (ret[idx])
+	// without any mutex — concurrent writes are safe because each goroutine owns
+	// a distinct slot.
+	//
+	// errgroup spins up all goroutines concurrently and collects the first error.
+	// eg.Wait() blocks until every goroutine has finished (or one has failed),
+	// keeping total latency equal to the slowest single key query rather than the
+	// sum of all key queries.
+	// -------------------------------------------------------------------------
 	ret := make([]*domain.SummaryLabelV2, len(keys))
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	for idx, key := range keys {
+		// Capture loop variables into new local variables.
+		// Without this, all goroutine closures would close over the same pointer
+		// and by the time they execute the loop may have advanced, causing every
+		// goroutine to process the last key (e.g. all would process "team").
 		idx, key := idx, key
 		eg.Go(func() error {
-			// build labels filter excluding the current key
+			// -----------------------------------------------------------------
+			// Build the label filter set for this key, excluding the key itself.
+			//
+			// Example: labelFilters = {"team": ["data"], "env": ["prod"]}
+			//          current key  = "env"
+			//          filteredLabels = {"team": ["data"]}   ← "env" dropped
+			//
+			// Dropping the current key's own filter is the core of faceted search:
+			// when computing what values are available for "env", we must NOT
+			// pre-filter by "env" — otherwise a user who selected env=prod would
+			// only ever see ["prod"] and could never switch to "staging".
+			// -----------------------------------------------------------------
 			filteredLabels := make(map[string][]string, len(labelFilters))
 			for k, v := range labelFilters {
 				if k != key {
@@ -169,6 +237,9 @@ func generateLabelSummariesV2(ctx context.Context, dbGenWithLabels func(context.
 				}
 			}
 
+			// dbGenWithLabels applies the remaining label filters (all keys except
+			// the current one) on top of the base query (non-label filters, joins,
+			// etc. are baked into the closure).
 			db, err := dbGenWithLabels(egCtx, filteredLabels)
 			if err != nil {
 				return err
@@ -179,6 +250,32 @@ func generateLabelSummariesV2(ctx context.Context, dbGenWithLabels func(context.
 				Values pq.StringArray `gorm:"type:text[]"`
 			}
 
+			// -----------------------------------------------------------------
+			// Query the available values for exactly this one key.
+			//
+			// After CROSS JOIN jsonb_each(labels), each original row is exploded
+			// into one row per key-value pair (same as Step 1). With filteredLabels
+			// = {"team":["data"]} the surviving rows are:
+			//
+			//   id=1, key="env",  value="prod"
+			//   id=1, key="team", value="data"
+			//   id=3, key="env",  value="staging"
+			//   id=3, key="team", value="data"
+			//
+			// WHERE key = "env" narrows this down to only the "env" rows:
+			//   id=1, key="env", value="prod"
+			//   id=3, key="env", value="staging"
+			//
+			// GROUP BY key collapses those two rows into a single result row.
+			// GROUP BY is required by SQL because "key" is a non-aggregate column
+			// in the SELECT — even though WHERE already guarantees only one distinct
+			// key value, Postgres still requires it to appear in GROUP BY.
+			//
+			// array_agg(DISTINCT ... ORDER BY ...) then collects every distinct
+			// value for that key into a sorted array: ["prod", "staging"].
+			//
+			// Final result row: {key="env", values=["prod","staging"]}
+			// -----------------------------------------------------------------
 			err = db.Table(baseTableName).
 				Select("key, array_agg(DISTINCT trim(both '\"' from value::text) ORDER BY trim(both '\"' from value::text)) as values").
 				Joins(fmt.Sprintf("CROSS JOIN jsonb_each(%s)", labelColumn)).
@@ -194,6 +291,10 @@ func generateLabelSummariesV2(ctx context.Context, dbGenWithLabels func(context.
 				return err
 			}
 
+			// Write the result into the pre-allocated slot for this key.
+			// If no rows came back (e.g. all records were filtered out by the
+			// other active filters), we still emit an entry with an empty Values
+			// slice so the UI key is preserved.
 			item := &domain.SummaryLabelV2{Key: key}
 			if len(rows) > 0 {
 				item.Values = slicesUtil.GenericsStandardizeSlice(rows[0].Values)
@@ -204,6 +305,10 @@ func generateLabelSummariesV2(ctx context.Context, dbGenWithLabels func(context.
 		})
 	}
 
+	// Block until all goroutines complete. If any goroutine returned an error,
+	// the first error is propagated here and the context passed to each goroutine
+	// (egCtx) is automatically cancelled, causing any in-flight DB queries to
+	// abort early.
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
