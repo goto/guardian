@@ -95,6 +95,13 @@ func (r *ResourceRepository) GetResourcesTotalCount(ctx context.Context, filter 
 	if err != nil {
 		return 0, err
 	}
+
+	if len(f.OrderBy) > 0 {
+		if _, err = addOrderByClause(db, f.OrderBy, addOrderByClauseOptions{}, []string{"updated_at", "created_at", "name", "urn", "global_urn"}); err != nil {
+			return 0, err
+		}
+	}
+
 	var count int64
 	err = db.Model(&model.Resource{}).Count(&count).Error
 
