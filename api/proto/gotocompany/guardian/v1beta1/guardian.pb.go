@@ -2579,7 +2579,8 @@ type ListUserAppealsRequest struct {
 	Labels                    map[string]*LabelValues `protobuf:"bytes,56,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	LabelKeys                 []string                `protobuf:"bytes,57,rep,name=label_keys,json=labelKeys,proto3" json:"label_keys,omitempty"`
 	SummaryLabels             bool                    `protobuf:"varint,58,opt,name=summary_labels,json=summaryLabels,proto3" json:"summary_labels,omitempty"`
-	SummaryLabelsV2           bool                    `protobuf:"varint,59,opt,name=summary_labels_v2,json=summaryLabelsV2,proto3" json:"summary_labels_v2,omitempty"`
+	// If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.
+	SummaryLabelsV2 bool `protobuf:"varint,59,opt,name=summary_labels_v2,json=summaryLabelsV2,proto3" json:"summary_labels_v2,omitempty"`
 }
 
 func (x *ListUserAppealsRequest) Reset() {
@@ -3155,7 +3156,8 @@ type ListAppealsRequest struct {
 	DetailsForSelfCriteria    []string                `protobuf:"bytes,58,rep,name=details_for_self_criteria,json=detailsForSelfCriteria,proto3" json:"details_for_self_criteria,omitempty"`
 	NotDetailsForSelfCriteria []string                `protobuf:"bytes,59,rep,name=not_details_for_self_criteria,json=notDetailsForSelfCriteria,proto3" json:"not_details_for_self_criteria,omitempty"`
 	SummaryLabels             bool                    `protobuf:"varint,60,opt,name=summary_labels,json=summaryLabels,proto3" json:"summary_labels,omitempty"`
-	SummaryLabelsV2           bool                    `protobuf:"varint,61,opt,name=summary_labels_v2,json=summaryLabelsV2,proto3" json:"summary_labels_v2,omitempty"`
+	// If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.
+	SummaryLabelsV2 bool `protobuf:"varint,61,opt,name=summary_labels_v2,json=summaryLabelsV2,proto3" json:"summary_labels_v2,omitempty"`
 }
 
 func (x *ListAppealsRequest) Reset() {
@@ -4869,7 +4871,8 @@ type ListUserApprovalsRequest struct {
 	Labels                          map[string]*LabelValues `protobuf:"bytes,59,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	LabelKeys                       []string                `protobuf:"bytes,60,rep,name=label_keys,json=labelKeys,proto3" json:"label_keys,omitempty"`
 	SummaryLabels                   bool                    `protobuf:"varint,61,opt,name=summary_labels,json=summaryLabels,proto3" json:"summary_labels,omitempty"`
-	SummaryLabelsV2                 bool                    `protobuf:"varint,62,opt,name=summary_labels_v2,json=summaryLabelsV2,proto3" json:"summary_labels_v2,omitempty"`
+	// If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.
+	SummaryLabelsV2 bool `protobuf:"varint,62,opt,name=summary_labels_v2,json=summaryLabelsV2,proto3" json:"summary_labels_v2,omitempty"`
 }
 
 func (x *ListUserApprovalsRequest) Reset() {
@@ -5460,7 +5463,8 @@ type ListApprovalsRequest struct {
 	Labels                          map[string]*LabelValues `protobuf:"bytes,59,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	LabelKeys                       []string                `protobuf:"bytes,60,rep,name=label_keys,json=labelKeys,proto3" json:"label_keys,omitempty"`
 	SummaryLabels                   bool                    `protobuf:"varint,61,opt,name=summary_labels,json=summaryLabels,proto3" json:"summary_labels,omitempty"`
-	SummaryLabelsV2                 bool                    `protobuf:"varint,62,opt,name=summary_labels_v2,json=summaryLabelsV2,proto3" json:"summary_labels_v2,omitempty"`
+	// If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.
+	SummaryLabelsV2 bool `protobuf:"varint,62,opt,name=summary_labels_v2,json=summaryLabelsV2,proto3" json:"summary_labels_v2,omitempty"`
 }
 
 func (x *ListApprovalsRequest) Reset() {
@@ -6798,71 +6802,72 @@ type ListGrantsRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Statuses                        []string                              `protobuf:"bytes,1,rep,name=statuses,proto3" json:"statuses,omitempty"`
-	AccountIds                      []string                              `protobuf:"bytes,2,rep,name=account_ids,json=accountIds,proto3" json:"account_ids,omitempty"`
-	AccountTypes                    []string                              `protobuf:"bytes,3,rep,name=account_types,json=accountTypes,proto3" json:"account_types,omitempty"`
-	ResourceIds                     []string                              `protobuf:"bytes,4,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
-	ProviderTypes                   []string                              `protobuf:"bytes,5,rep,name=provider_types,json=providerTypes,proto3" json:"provider_types,omitempty"`
-	ProviderUrns                    []string                              `protobuf:"bytes,6,rep,name=provider_urns,json=providerUrns,proto3" json:"provider_urns,omitempty"`
-	ResourceTypes                   []string                              `protobuf:"bytes,7,rep,name=resource_types,json=resourceTypes,proto3" json:"resource_types,omitempty"`
-	ResourceUrns                    []string                              `protobuf:"bytes,8,rep,name=resource_urns,json=resourceUrns,proto3" json:"resource_urns,omitempty"`
-	Roles                           []string                              `protobuf:"bytes,9,rep,name=roles,proto3" json:"roles,omitempty"`
-	CreatedBy                       string                                `protobuf:"bytes,10,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
-	OrderBy                         []string                              `protobuf:"bytes,11,rep,name=order_by,json=orderBy,proto3" json:"order_by,omitempty"`
-	Owner                           string                                `protobuf:"bytes,12,opt,name=owner,proto3" json:"owner,omitempty"`
-	Size                            uint32                                `protobuf:"varint,13,opt,name=size,proto3" json:"size,omitempty"`
-	Offset                          uint32                                `protobuf:"varint,14,opt,name=offset,proto3" json:"offset,omitempty"`
-	Q                               string                                `protobuf:"bytes,15,opt,name=q,proto3" json:"q,omitempty"`
-	GroupIds                        []string                              `protobuf:"bytes,16,rep,name=group_ids,json=groupIds,proto3" json:"group_ids,omitempty"`
-	GroupTypes                      []string                              `protobuf:"bytes,17,rep,name=group_types,json=groupTypes,proto3" json:"group_types,omitempty"`
-	WithApprovals                   bool                                  `protobuf:"varint,18,opt,name=with_approvals,json=withApprovals,proto3" json:"with_approvals,omitempty"`
-	SummaryGroupBys                 []string                              `protobuf:"bytes,19,rep,name=summary_group_bys,json=summaryGroupBys,proto3" json:"summary_group_bys,omitempty"`
-	SummaryUniques                  []string                              `protobuf:"bytes,20,rep,name=summary_uniques,json=summaryUniques,proto3" json:"summary_uniques,omitempty"`
-	ExpiringInDays                  uint32                                `protobuf:"varint,21,opt,name=expiring_in_days,json=expiringInDays,proto3" json:"expiring_in_days,omitempty"`
-	FieldMasks                      []string                              `protobuf:"bytes,23,rep,name=field_masks,json=fieldMasks,proto3" json:"field_masks,omitempty"`
-	WithPendingAppeal               bool                                  `protobuf:"varint,24,opt,name=with_pending_appeal,json=withPendingAppeal,proto3" json:"with_pending_appeal,omitempty"`
-	RoleStartsWith                  string                                `protobuf:"bytes,25,opt,name=role_starts_with,json=roleStartsWith,proto3" json:"role_starts_with,omitempty"`
-	RoleEndsWith                    string                                `protobuf:"bytes,26,opt,name=role_ends_with,json=roleEndsWith,proto3" json:"role_ends_with,omitempty"`
-	RoleContains                    string                                `protobuf:"bytes,27,opt,name=role_contains,json=roleContains,proto3" json:"role_contains,omitempty"`
-	StartTime                       *timestamppb.Timestamp                `protobuf:"bytes,28,opt,name=start_time,json=startTime,proto3,oneof" json:"start_time,omitempty"`
-	EndTime                         *timestamppb.Timestamp                `protobuf:"bytes,29,opt,name=end_time,json=endTime,proto3,oneof" json:"end_time,omitempty"`
-	SummaryDistinctCounts           []string                              `protobuf:"bytes,30,rep,name=summary_distinct_counts,json=summaryDistinctCounts,proto3" json:"summary_distinct_counts,omitempty"`
-	Owners                          []string                              `protobuf:"bytes,31,rep,name=owners,proto3" json:"owners,omitempty"`
-	ProviderUrnStartsWith           string                                `protobuf:"bytes,32,opt,name=provider_urn_starts_with,json=providerUrnStartsWith,proto3" json:"provider_urn_starts_with,omitempty"`
-	ProviderUrnEndsWith             string                                `protobuf:"bytes,33,opt,name=provider_urn_ends_with,json=providerUrnEndsWith,proto3" json:"provider_urn_ends_with,omitempty"`
-	ProviderUrnContains             string                                `protobuf:"bytes,34,opt,name=provider_urn_contains,json=providerUrnContains,proto3" json:"provider_urn_contains,omitempty"`
-	ProviderUrnNotStartsWith        string                                `protobuf:"bytes,35,opt,name=provider_urn_not_starts_with,json=providerUrnNotStartsWith,proto3" json:"provider_urn_not_starts_with,omitempty"`
-	ProviderUrnNotEndsWith          string                                `protobuf:"bytes,36,opt,name=provider_urn_not_ends_with,json=providerUrnNotEndsWith,proto3" json:"provider_urn_not_ends_with,omitempty"`
-	ProviderUrnNotContains          string                                `protobuf:"bytes,37,opt,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
-	AppealDurations                 []string                              `protobuf:"bytes,38,rep,name=appeal_durations,json=appealDurations,proto3" json:"appeal_durations,omitempty"`
-	NotAppealDurations              []string                              `protobuf:"bytes,39,rep,name=not_appeal_durations,json=notAppealDurations,proto3" json:"not_appeal_durations,omitempty"`
-	AppealDetailsPaths              []string                              `protobuf:"bytes,40,rep,name=appeal_details_paths,json=appealDetailsPaths,proto3" json:"appeal_details_paths,omitempty"`
-	AppealDetails                   []string                              `protobuf:"bytes,41,rep,name=appeal_details,json=appealDetails,proto3" json:"appeal_details,omitempty"`
-	NotAppealDetails                []string                              `protobuf:"bytes,42,rep,name=not_appeal_details,json=notAppealDetails,proto3" json:"not_appeal_details,omitempty"`
-	RoleNotStartsWith               string                                `protobuf:"bytes,43,opt,name=role_not_starts_with,json=roleNotStartsWith,proto3" json:"role_not_starts_with,omitempty"`
-	RoleNotEndsWith                 string                                `protobuf:"bytes,44,opt,name=role_not_ends_with,json=roleNotEndsWith,proto3" json:"role_not_ends_with,omitempty"`
-	RoleNotContains                 string                                `protobuf:"bytes,45,opt,name=role_not_contains,json=roleNotContains,proto3" json:"role_not_contains,omitempty"`
-	AppealDetailsStartsWith         string                                `protobuf:"bytes,46,opt,name=appeal_details_starts_with,json=appealDetailsStartsWith,proto3" json:"appeal_details_starts_with,omitempty"`
-	AppealDetailsEndsWith           string                                `protobuf:"bytes,47,opt,name=appeal_details_ends_with,json=appealDetailsEndsWith,proto3" json:"appeal_details_ends_with,omitempty"`
-	AppealDetailsContains           string                                `protobuf:"bytes,48,opt,name=appeal_details_contains,json=appealDetailsContains,proto3" json:"appeal_details_contains,omitempty"`
-	AppealDetailsNotStartsWith      string                                `protobuf:"bytes,49,opt,name=appeal_details_not_starts_with,json=appealDetailsNotStartsWith,proto3" json:"appeal_details_not_starts_with,omitempty"`
-	AppealDetailsNotEndsWith        string                                `protobuf:"bytes,50,opt,name=appeal_details_not_ends_with,json=appealDetailsNotEndsWith,proto3" json:"appeal_details_not_ends_with,omitempty"`
-	AppealDetailsNotContains        string                                `protobuf:"bytes,51,opt,name=appeal_details_not_contains,json=appealDetailsNotContains,proto3" json:"appeal_details_not_contains,omitempty"`
-	GroupTypeStartsWith             string                                `protobuf:"bytes,52,opt,name=group_type_starts_with,json=groupTypeStartsWith,proto3" json:"group_type_starts_with,omitempty"`
-	GroupTypeEndsWith               string                                `protobuf:"bytes,53,opt,name=group_type_ends_with,json=groupTypeEndsWith,proto3" json:"group_type_ends_with,omitempty"`
-	GroupTypeContains               string                                `protobuf:"bytes,54,opt,name=group_type_contains,json=groupTypeContains,proto3" json:"group_type_contains,omitempty"`
-	GroupTypeNotStartsWith          string                                `protobuf:"bytes,55,opt,name=group_type_not_starts_with,json=groupTypeNotStartsWith,proto3" json:"group_type_not_starts_with,omitempty"`
-	GroupTypeNotEndsWith            string                                `protobuf:"bytes,56,opt,name=group_type_not_ends_with,json=groupTypeNotEndsWith,proto3" json:"group_type_not_ends_with,omitempty"`
-	GroupTypeNotContains            string                                `protobuf:"bytes,57,opt,name=group_type_not_contains,json=groupTypeNotContains,proto3" json:"group_type_not_contains,omitempty"`
-	AppealDetailsForSelfCriteria    []string                              `protobuf:"bytes,58,rep,name=appeal_details_for_self_criteria,json=appealDetailsForSelfCriteria,proto3" json:"appeal_details_for_self_criteria,omitempty"`
-	NotAppealDetailsForSelfCriteria []string                              `protobuf:"bytes,59,rep,name=not_appeal_details_for_self_criteria,json=notAppealDetailsForSelfCriteria,proto3" json:"not_appeal_details_for_self_criteria,omitempty"`
-	Labels                          map[string]*LabelValues               `protobuf:"bytes,60,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	LabelKeys                       []string                              `protobuf:"bytes,61,rep,name=label_keys,json=labelKeys,proto3" json:"label_keys,omitempty"`
-	SummaryLabels                   bool                                  `protobuf:"varint,62,opt,name=summary_labels,json=summaryLabels,proto3" json:"summary_labels,omitempty"`
-	SummaryLabelsV2                 bool                                  `protobuf:"varint,63,opt,name=summary_labels_v2,json=summaryLabelsV2,proto3" json:"summary_labels_v2,omitempty"`
-	ExcludeEmptyAppeal              bool                                  `protobuf:"varint,64,opt,name=exclude_empty_appeal,json=excludeEmptyAppeal,proto3" json:"exclude_empty_appeal,omitempty"`
-	InactiveGrantPolicy             ListGrantsRequest_InactiveGrantPolicy `protobuf:"varint,65,opt,name=inactive_grant_policy,json=inactiveGrantPolicy,proto3,enum=gotocompany.guardian.v1beta1.ListGrantsRequest_InactiveGrantPolicy" json:"inactive_grant_policy,omitempty"`
-	InactiveGrantFilterKeys         []string                              `protobuf:"bytes,66,rep,name=inactive_grant_filter_keys,json=inactiveGrantFilterKeys,proto3" json:"inactive_grant_filter_keys,omitempty"`
+	Statuses                        []string                `protobuf:"bytes,1,rep,name=statuses,proto3" json:"statuses,omitempty"`
+	AccountIds                      []string                `protobuf:"bytes,2,rep,name=account_ids,json=accountIds,proto3" json:"account_ids,omitempty"`
+	AccountTypes                    []string                `protobuf:"bytes,3,rep,name=account_types,json=accountTypes,proto3" json:"account_types,omitempty"`
+	ResourceIds                     []string                `protobuf:"bytes,4,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
+	ProviderTypes                   []string                `protobuf:"bytes,5,rep,name=provider_types,json=providerTypes,proto3" json:"provider_types,omitempty"`
+	ProviderUrns                    []string                `protobuf:"bytes,6,rep,name=provider_urns,json=providerUrns,proto3" json:"provider_urns,omitempty"`
+	ResourceTypes                   []string                `protobuf:"bytes,7,rep,name=resource_types,json=resourceTypes,proto3" json:"resource_types,omitempty"`
+	ResourceUrns                    []string                `protobuf:"bytes,8,rep,name=resource_urns,json=resourceUrns,proto3" json:"resource_urns,omitempty"`
+	Roles                           []string                `protobuf:"bytes,9,rep,name=roles,proto3" json:"roles,omitempty"`
+	CreatedBy                       string                  `protobuf:"bytes,10,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	OrderBy                         []string                `protobuf:"bytes,11,rep,name=order_by,json=orderBy,proto3" json:"order_by,omitempty"`
+	Owner                           string                  `protobuf:"bytes,12,opt,name=owner,proto3" json:"owner,omitempty"`
+	Size                            uint32                  `protobuf:"varint,13,opt,name=size,proto3" json:"size,omitempty"`
+	Offset                          uint32                  `protobuf:"varint,14,opt,name=offset,proto3" json:"offset,omitempty"`
+	Q                               string                  `protobuf:"bytes,15,opt,name=q,proto3" json:"q,omitempty"`
+	GroupIds                        []string                `protobuf:"bytes,16,rep,name=group_ids,json=groupIds,proto3" json:"group_ids,omitempty"`
+	GroupTypes                      []string                `protobuf:"bytes,17,rep,name=group_types,json=groupTypes,proto3" json:"group_types,omitempty"`
+	WithApprovals                   bool                    `protobuf:"varint,18,opt,name=with_approvals,json=withApprovals,proto3" json:"with_approvals,omitempty"`
+	SummaryGroupBys                 []string                `protobuf:"bytes,19,rep,name=summary_group_bys,json=summaryGroupBys,proto3" json:"summary_group_bys,omitempty"`
+	SummaryUniques                  []string                `protobuf:"bytes,20,rep,name=summary_uniques,json=summaryUniques,proto3" json:"summary_uniques,omitempty"`
+	ExpiringInDays                  uint32                  `protobuf:"varint,21,opt,name=expiring_in_days,json=expiringInDays,proto3" json:"expiring_in_days,omitempty"`
+	FieldMasks                      []string                `protobuf:"bytes,23,rep,name=field_masks,json=fieldMasks,proto3" json:"field_masks,omitempty"`
+	WithPendingAppeal               bool                    `protobuf:"varint,24,opt,name=with_pending_appeal,json=withPendingAppeal,proto3" json:"with_pending_appeal,omitempty"`
+	RoleStartsWith                  string                  `protobuf:"bytes,25,opt,name=role_starts_with,json=roleStartsWith,proto3" json:"role_starts_with,omitempty"`
+	RoleEndsWith                    string                  `protobuf:"bytes,26,opt,name=role_ends_with,json=roleEndsWith,proto3" json:"role_ends_with,omitempty"`
+	RoleContains                    string                  `protobuf:"bytes,27,opt,name=role_contains,json=roleContains,proto3" json:"role_contains,omitempty"`
+	StartTime                       *timestamppb.Timestamp  `protobuf:"bytes,28,opt,name=start_time,json=startTime,proto3,oneof" json:"start_time,omitempty"`
+	EndTime                         *timestamppb.Timestamp  `protobuf:"bytes,29,opt,name=end_time,json=endTime,proto3,oneof" json:"end_time,omitempty"`
+	SummaryDistinctCounts           []string                `protobuf:"bytes,30,rep,name=summary_distinct_counts,json=summaryDistinctCounts,proto3" json:"summary_distinct_counts,omitempty"`
+	Owners                          []string                `protobuf:"bytes,31,rep,name=owners,proto3" json:"owners,omitempty"`
+	ProviderUrnStartsWith           string                  `protobuf:"bytes,32,opt,name=provider_urn_starts_with,json=providerUrnStartsWith,proto3" json:"provider_urn_starts_with,omitempty"`
+	ProviderUrnEndsWith             string                  `protobuf:"bytes,33,opt,name=provider_urn_ends_with,json=providerUrnEndsWith,proto3" json:"provider_urn_ends_with,omitempty"`
+	ProviderUrnContains             string                  `protobuf:"bytes,34,opt,name=provider_urn_contains,json=providerUrnContains,proto3" json:"provider_urn_contains,omitempty"`
+	ProviderUrnNotStartsWith        string                  `protobuf:"bytes,35,opt,name=provider_urn_not_starts_with,json=providerUrnNotStartsWith,proto3" json:"provider_urn_not_starts_with,omitempty"`
+	ProviderUrnNotEndsWith          string                  `protobuf:"bytes,36,opt,name=provider_urn_not_ends_with,json=providerUrnNotEndsWith,proto3" json:"provider_urn_not_ends_with,omitempty"`
+	ProviderUrnNotContains          string                  `protobuf:"bytes,37,opt,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
+	AppealDurations                 []string                `protobuf:"bytes,38,rep,name=appeal_durations,json=appealDurations,proto3" json:"appeal_durations,omitempty"`
+	NotAppealDurations              []string                `protobuf:"bytes,39,rep,name=not_appeal_durations,json=notAppealDurations,proto3" json:"not_appeal_durations,omitempty"`
+	AppealDetailsPaths              []string                `protobuf:"bytes,40,rep,name=appeal_details_paths,json=appealDetailsPaths,proto3" json:"appeal_details_paths,omitempty"`
+	AppealDetails                   []string                `protobuf:"bytes,41,rep,name=appeal_details,json=appealDetails,proto3" json:"appeal_details,omitempty"`
+	NotAppealDetails                []string                `protobuf:"bytes,42,rep,name=not_appeal_details,json=notAppealDetails,proto3" json:"not_appeal_details,omitempty"`
+	RoleNotStartsWith               string                  `protobuf:"bytes,43,opt,name=role_not_starts_with,json=roleNotStartsWith,proto3" json:"role_not_starts_with,omitempty"`
+	RoleNotEndsWith                 string                  `protobuf:"bytes,44,opt,name=role_not_ends_with,json=roleNotEndsWith,proto3" json:"role_not_ends_with,omitempty"`
+	RoleNotContains                 string                  `protobuf:"bytes,45,opt,name=role_not_contains,json=roleNotContains,proto3" json:"role_not_contains,omitempty"`
+	AppealDetailsStartsWith         string                  `protobuf:"bytes,46,opt,name=appeal_details_starts_with,json=appealDetailsStartsWith,proto3" json:"appeal_details_starts_with,omitempty"`
+	AppealDetailsEndsWith           string                  `protobuf:"bytes,47,opt,name=appeal_details_ends_with,json=appealDetailsEndsWith,proto3" json:"appeal_details_ends_with,omitempty"`
+	AppealDetailsContains           string                  `protobuf:"bytes,48,opt,name=appeal_details_contains,json=appealDetailsContains,proto3" json:"appeal_details_contains,omitempty"`
+	AppealDetailsNotStartsWith      string                  `protobuf:"bytes,49,opt,name=appeal_details_not_starts_with,json=appealDetailsNotStartsWith,proto3" json:"appeal_details_not_starts_with,omitempty"`
+	AppealDetailsNotEndsWith        string                  `protobuf:"bytes,50,opt,name=appeal_details_not_ends_with,json=appealDetailsNotEndsWith,proto3" json:"appeal_details_not_ends_with,omitempty"`
+	AppealDetailsNotContains        string                  `protobuf:"bytes,51,opt,name=appeal_details_not_contains,json=appealDetailsNotContains,proto3" json:"appeal_details_not_contains,omitempty"`
+	GroupTypeStartsWith             string                  `protobuf:"bytes,52,opt,name=group_type_starts_with,json=groupTypeStartsWith,proto3" json:"group_type_starts_with,omitempty"`
+	GroupTypeEndsWith               string                  `protobuf:"bytes,53,opt,name=group_type_ends_with,json=groupTypeEndsWith,proto3" json:"group_type_ends_with,omitempty"`
+	GroupTypeContains               string                  `protobuf:"bytes,54,opt,name=group_type_contains,json=groupTypeContains,proto3" json:"group_type_contains,omitempty"`
+	GroupTypeNotStartsWith          string                  `protobuf:"bytes,55,opt,name=group_type_not_starts_with,json=groupTypeNotStartsWith,proto3" json:"group_type_not_starts_with,omitempty"`
+	GroupTypeNotEndsWith            string                  `protobuf:"bytes,56,opt,name=group_type_not_ends_with,json=groupTypeNotEndsWith,proto3" json:"group_type_not_ends_with,omitempty"`
+	GroupTypeNotContains            string                  `protobuf:"bytes,57,opt,name=group_type_not_contains,json=groupTypeNotContains,proto3" json:"group_type_not_contains,omitempty"`
+	AppealDetailsForSelfCriteria    []string                `protobuf:"bytes,58,rep,name=appeal_details_for_self_criteria,json=appealDetailsForSelfCriteria,proto3" json:"appeal_details_for_self_criteria,omitempty"`
+	NotAppealDetailsForSelfCriteria []string                `protobuf:"bytes,59,rep,name=not_appeal_details_for_self_criteria,json=notAppealDetailsForSelfCriteria,proto3" json:"not_appeal_details_for_self_criteria,omitempty"`
+	Labels                          map[string]*LabelValues `protobuf:"bytes,60,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	LabelKeys                       []string                `protobuf:"bytes,61,rep,name=label_keys,json=labelKeys,proto3" json:"label_keys,omitempty"`
+	SummaryLabels                   bool                    `protobuf:"varint,62,opt,name=summary_labels,json=summaryLabels,proto3" json:"summary_labels,omitempty"`
+	// If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.
+	SummaryLabelsV2         bool                                  `protobuf:"varint,63,opt,name=summary_labels_v2,json=summaryLabelsV2,proto3" json:"summary_labels_v2,omitempty"`
+	ExcludeEmptyAppeal      bool                                  `protobuf:"varint,64,opt,name=exclude_empty_appeal,json=excludeEmptyAppeal,proto3" json:"exclude_empty_appeal,omitempty"`
+	InactiveGrantPolicy     ListGrantsRequest_InactiveGrantPolicy `protobuf:"varint,65,opt,name=inactive_grant_policy,json=inactiveGrantPolicy,proto3,enum=gotocompany.guardian.v1beta1.ListGrantsRequest_InactiveGrantPolicy" json:"inactive_grant_policy,omitempty"`
+	InactiveGrantFilterKeys []string                              `protobuf:"bytes,66,rep,name=inactive_grant_filter_keys,json=inactiveGrantFilterKeys,proto3" json:"inactive_grant_filter_keys,omitempty"`
 }
 
 func (x *ListGrantsRequest) Reset() {
@@ -7477,8 +7482,9 @@ type ListUserGrantsRequest struct {
 	Labels                          map[string]*LabelValues                   `protobuf:"bytes,55,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	LabelKeys                       []string                                  `protobuf:"bytes,56,rep,name=label_keys,json=labelKeys,proto3" json:"label_keys,omitempty"`
 	SummaryLabels                   bool                                      `protobuf:"varint,57,opt,name=summary_labels,json=summaryLabels,proto3" json:"summary_labels,omitempty"`
-	SummaryLabelsV2                 bool                                      `protobuf:"varint,58,opt,name=summary_labels_v2,json=summaryLabelsV2,proto3" json:"summary_labels_v2,omitempty"`
-	ExcludeEmptyAppeal              bool                                      `protobuf:"varint,59,opt,name=exclude_empty_appeal,json=excludeEmptyAppeal,proto3" json:"exclude_empty_appeal,omitempty"`
+	// If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.
+	SummaryLabelsV2    bool `protobuf:"varint,58,opt,name=summary_labels_v2,json=summaryLabelsV2,proto3" json:"summary_labels_v2,omitempty"`
+	ExcludeEmptyAppeal bool `protobuf:"varint,59,opt,name=exclude_empty_appeal,json=excludeEmptyAppeal,proto3" json:"exclude_empty_appeal,omitempty"`
 }
 
 func (x *ListUserGrantsRequest) Reset() {

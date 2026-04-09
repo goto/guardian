@@ -637,6 +637,7 @@
           },
           {
             "name": "summaryLabelsV2",
+            "description": "If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -1674,6 +1675,7 @@
           },
           {
             "name": "summaryLabelsV2",
+            "description": "If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -2201,6 +2203,7 @@
           },
           {
             "name": "summaryLabelsV2",
+            "description": "If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -2940,6 +2943,7 @@
           },
           {
             "name": "summaryLabelsV2",
+            "description": "If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -3433,6 +3437,7 @@
           },
           {
             "name": "summaryLabelsV2",
+            "description": "If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -3935,6 +3940,7 @@
           },
           {
             "name": "summaryLabelsV2",
+            "description": "If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.",
             "in": "query",
             "required": false,
             "type": "boolean"
