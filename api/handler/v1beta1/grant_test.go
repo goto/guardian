@@ -75,6 +75,9 @@ func (s *GrpcHandlersSuite) TestListGrants() {
 			ResourceIDs:  []string{"test-resource-id"},
 		}
 		s.grantService.EXPECT().
+			GenerateExcludedGrantIDsForSmartInactiveGrants(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedFilter).
+			Return(nil, nil).Once()
+		s.grantService.EXPECT().
 			List(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
 			Return(dummyGrants, nil).Once()
 		s.grantService.EXPECT().
@@ -150,6 +153,9 @@ func (s *GrpcHandlersSuite) TestListGrants() {
 			GroupTypes: []string{"test-group-type"},
 		}
 		s.grantService.EXPECT().
+			GenerateExcludedGrantIDsForSmartInactiveGrants(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedFilter).
+			Return(nil, nil).Once()
+		s.grantService.EXPECT().
 			List(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
 			Return(dummyGrants, nil).Once()
 		s.grantService.EXPECT().
@@ -171,6 +177,9 @@ func (s *GrpcHandlersSuite) TestListGrants() {
 		s.setup()
 
 		expectedError := errors.New("unexpected error")
+		s.grantService.EXPECT().
+			GenerateExcludedGrantIDsForSmartInactiveGrants(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("domain.ListGrantsFilter")).
+			Return(nil, nil).Once()
 		s.grantService.EXPECT().
 			List(mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("domain.ListGrantsFilter")).
 			Return(nil, expectedError).Once()
@@ -198,6 +207,9 @@ func (s *GrpcHandlersSuite) TestListGrants() {
 				},
 			},
 		}
+		s.grantService.EXPECT().
+			GenerateExcludedGrantIDsForSmartInactiveGrants(mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("domain.ListGrantsFilter")).
+			Return(nil, nil).Once()
 		s.grantService.EXPECT().
 			List(mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("domain.ListGrantsFilter")).
 			Return(expectedGrants, nil).Once()
@@ -605,6 +617,94 @@ func (s *GrpcHandlersSuite) TestRevokeGrant() {
 		s.NoError(err)
 		s.Equal(expectedGrant.ID, res.Grant.Id)
 		s.Equal(timestamppb.New(expectedGrant.UpdatedAt), res.Grant.UpdatedAt)
+	})
+}
+
+func (s *GrpcHandlersSuite) TestListUserGrants() {
+	s.Run("should return list of user grants on success", func() {
+		s.setup()
+		timeNow := time.Now()
+		expectedUser := "user@example.com"
+
+		dummyGrants := []domain.Grant{
+			{
+				ID:          "test-id",
+				Status:      "test-status",
+				AccountID:   "test-account-id",
+				AccountType: "test-account-type",
+				ResourceID:  "test-resource-id",
+				Permissions: []string{"test-permission"},
+				CreatedAt:   timeNow,
+				UpdatedAt:   timeNow,
+				Resource: &domain.Resource{
+					ID: "test-resource-id",
+				},
+				Appeal: &domain.Appeal{
+					ID: "test-appeal-id",
+				},
+			},
+		}
+		expectedFilter := domain.ListGrantsFilter{
+			Statuses:                []string{"active"},
+			ResourceIDs:             []string{"test-resource-id"},
+			Owner:                   expectedUser,
+			UserInactiveGrantPolicy: guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_UNSPECIFIED,
+		}
+		s.grantService.EXPECT().
+			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedFilter).
+			Return(nil, nil).Once()
+		s.grantService.EXPECT().
+			List(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
+			Return(dummyGrants, nil).Once()
+		s.grantService.EXPECT().
+			GetGrantsTotalCount(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
+			Return(int64(1), nil).Once()
+
+		req := &guardianv1beta1.ListUserGrantsRequest{
+			Statuses:    []string{"active"},
+			ResourceIds: []string{"test-resource-id"},
+		}
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, expectedUser)
+		res, err := s.grpcServer.ListUserGrants(ctx, req)
+
+		s.NoError(err)
+		s.Equal(int32(1), res.Total)
+		s.Len(res.Grants, 1)
+		s.Equal("test-id", res.Grants[0].Id)
+		s.grantService.AssertExpectations(s.T())
+	})
+
+	s.Run("should return error if user is not authenticated", func() {
+		s.setup()
+
+		req := &guardianv1beta1.ListUserGrantsRequest{}
+		res, err := s.grpcServer.ListUserGrants(context.Background(), req)
+
+		s.Nil(res)
+		s.Error(err)
+		st, ok := status.FromError(err)
+		s.True(ok)
+		s.Equal(codes.Unauthenticated, st.Code())
+	})
+
+	s.Run("should return error if GenerateUserExcludedGrantIDsForSmartInactiveGrants returns error", func() {
+		s.setup()
+
+		expectedFilter := domain.ListGrantsFilter{
+			Owner:                   "user@example.com",
+			UserInactiveGrantPolicy: guardianv1beta1.ListUserGrantsRequest_INACTIVE_GRANT_POLICY_UNSPECIFIED,
+		}
+		s.grantService.EXPECT().
+			GenerateUserExcludedGrantIDsForSmartInactiveGrants(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedFilter).
+			Return(nil, errors.New("generate error")).Once()
+
+		req := &guardianv1beta1.ListUserGrantsRequest{}
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.com")
+		res, err := s.grpcServer.ListUserGrants(ctx, req)
+
+		s.Nil(res)
+		s.Error(err)
+		s.grantService.AssertExpectations(s.T())
 	})
 }
 

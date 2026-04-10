@@ -22,11 +22,22 @@ type addOrderByClauseOptions struct {
 	statusColumnName string
 	statusesOrder    []string
 	searchQuery      string
+	// prependSQL and prependVars inject a prefix expression (e.g. CASE WHEN for exact-match
+	// priority) before the user-specified ORDER BY columns. The combined result is applied as
+	// a single clause so both coexist in the final ORDER BY.
+	prependSQL  string
+	prependVars []interface{}
 }
 
 func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClauseOptions, allowedColumns []string) (*gorm.DB, error) {
 	var orderByClauses []string
 	var vars []interface{}
+
+	// Prepend exact-match priority expression when set (e.g. CASE WHEN for Q search).
+	if options.prependSQL != "" {
+		orderByClauses = append(orderByClauses, options.prependSQL)
+		vars = append(vars, options.prependVars...)
+	}
 
 	for _, orderBy := range conditions {
 		if strings.Contains(orderBy, "status") {
@@ -51,6 +62,10 @@ func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClause
 				}
 			}
 		}
+	}
+
+	if len(orderByClauses) == 0 {
+		return db, nil
 	}
 
 	return db.Clauses(clause.OrderBy{

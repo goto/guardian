@@ -54,6 +54,27 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 	if err != nil {
 		return nil, err
 	}
+
+	// Apply combined ORDER BY: exact-match priority (when Q is set) + user-specified order_by.
+	// This is intentionally outside applyApprovalsFilter so it does not affect summary/count queries.
+	if filter.Q != "" || len(filter.OrderBy) > 0 {
+		var prependSQL string
+		var prependVars []interface{}
+		if filter.Q != "" {
+			prependSQL = `CASE WHEN "Appeal"."account_id" = ? THEN 0 WHEN "Appeal"."role" = ? THEN 0 WHEN "Appeal__Resource"."urn" = ? THEN 0 WHEN "Appeal__Resource"."name" = ? THEN 0 ELSE 1 END`
+			prependVars = []interface{}{filter.Q, filter.Q, filter.Q, filter.Q}
+		}
+		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
+			statusColumnName: `"approvals"."status"`,
+			statusesOrder:    AppealStatusDefaultSort,
+			prependSQL:       prependSQL,
+			prependVars:      prependVars,
+		}, []string{"updated_at", "created_at"})
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if filter.Size > 0 {
 		db = db.Limit(filter.Size)
 	}
@@ -434,16 +455,6 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		db = db.Where(`"Appeal"."created_at" >= ?`, filter.StartTime)
 	} else if !filter.EndTime.IsZero() {
 		db = db.Where(`"Appeal"."created_at" <= ?`, filter.EndTime)
-	}
-
-	if len(filter.OrderBy) > 0 {
-		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
-			statusColumnName: `"approvals"."status"`,
-			statusesOrder:    AppealStatusDefaultSort,
-		}, []string{"updated_at", "created_at"})
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	// Label filtering

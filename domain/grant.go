@@ -204,76 +204,80 @@ func (gu *GrantUpdate) Validate(current Grant) error {
 }
 
 type ListGrantsFilter struct {
-	NotIDs                          []string
-	Statuses                        []string
-	AccountIDs                      []string
-	AccountTypes                    []string
-	GroupIDs                        []string
-	GroupTypes                      []string
-	ResourceIDs                     []string
-	Roles                           []string
-	Permissions                     []string
-	ProviderTypes                   []string
-	ProviderURNs                    []string
-	ResourceTypes                   []string
-	ResourceURNs                    []string
-	CreatedBy                       string
-	Owner                           string
-	OrderBy                         []string
-	ExpirationDateLessThan          time.Time
-	ExpirationDateGreaterThan       time.Time
-	IsPermanent                     *bool
-	CreatedAtLte                    time.Time
-	WithApprovals                   bool
-	Size                            int    `mapstructure:"size" validate:"omitempty"`
-	Offset                          int    `mapstructure:"offset" validate:"omitempty"`
-	Q                               string `mapstructure:"q" validate:"omitempty"`
-	StartTime                       time.Time
-	EndTime                         time.Time
-	SummaryGroupBys                 []string
-	SummaryUniques                  []string
-	SummaryDistinctCounts           []string
-	ExpiringInDays                  int
-	FieldMasks                      []string
-	WithPendingAppeal               bool
-	RoleStartsWith                  string
-	RoleEndsWith                    string
-	RoleContains                    string
-	Owners                          []string
-	ProviderUrnStartsWith           string
-	ProviderUrnEndsWith             string
-	ProviderUrnContains             string
-	ProviderUrnNotStartsWith        string
-	ProviderUrnNotEndsWith          string
-	ProviderUrnNotContains          string
-	AppealDurations                 []string
-	NotAppealDurations              []string
-	AppealDetailsPaths              []string
-	AppealDetails                   []string
-	NotAppealDetails                []string
-	RoleNotStartsWith               string
-	RoleNotEndsWith                 string
-	RoleNotContains                 string
-	AppealDetailsStartsWith         string
-	AppealDetailsEndsWith           string
-	AppealDetailsContains           string
-	AppealDetailsNotStartsWith      string
-	AppealDetailsNotEndsWith        string
-	AppealDetailsNotContains        string
-	GroupTypeStartsWith             string
-	GroupTypeEndsWith               string
-	GroupTypeContains               string
-	GroupTypeNotStartsWith          string
-	GroupTypeNotEndsWith            string
-	GroupTypeNotContains            string
-	AppealDetailsForSelfCriteria    []string
-	NotAppealDetailsForSelfCriteria []string
-	Labels                          map[string][]string
-	LabelKeys                       []string
-	SummaryLabels                   bool
-	SummaryLabelsV2                 bool
+	NotIDs                          []string            `json:"not_ids,omitempty"`
+	Statuses                        []string            `json:"statuses,omitempty"`
+	AccountIDs                      []string            `json:"account_ids,omitempty"`
+	AccountTypes                    []string            `json:"account_types,omitempty"`
+	GroupIDs                        []string            `json:"group_ids,omitempty"`
+	GroupTypes                      []string            `json:"group_types,omitempty"`
+	ResourceIDs                     []string            `json:"resource_ids,omitempty"`
+	Roles                           []string            `json:"roles,omitempty"`
+	Permissions                     []string            `json:"permissions,omitempty"`
+	ProviderTypes                   []string            `json:"provider_types,omitempty"`
+	ProviderURNs                    []string            `json:"provider_urns,omitempty"`
+	ResourceTypes                   []string            `json:"resource_types,omitempty"`
+	ResourceURNs                    []string            `json:"resource_urns,omitempty"`
+	CreatedBy                       string              `json:"created_by,omitempty"`
+	Owner                           string              `json:"owner,omitempty"`
+	OrderBy                         []string            `json:"order_by,omitempty"`
+	ExpirationDateLessThan          time.Time           `json:"expiration_date_less_than,omitempty"`
+	ExpirationDateGreaterThan       time.Time           `json:"expiration_date_greater_than,omitempty"`
+	IsPermanent                     *bool               `json:"is_permanent,omitempty"`
+	CreatedAtLte                    time.Time           `json:"created_at_lte,omitempty"`
+	WithApprovals                   bool                `json:"with_approvals,omitempty"`
+	Size                            int                 `json:"size,omitempty" mapstructure:"size" validate:"omitempty"`
+	Offset                          int                 `json:"offset,omitempty" mapstructure:"offset" validate:"omitempty"`
+	Q                               string              `json:"q,omitempty" mapstructure:"q" validate:"omitempty"`
+	StartTime                       time.Time           `json:"start_time,omitempty"`
+	EndTime                         time.Time           `json:"end_time,omitempty"`
+	SummaryGroupBys                 []string            `json:"summary_group_bys,omitempty"`
+	SummaryUniques                  []string            `json:"summary_uniques,omitempty"`
+	SummaryDistinctCounts           []string            `json:"summary_distinct_counts,omitempty"`
+	ExpiringInDays                  int                 `json:"expiring_in_days,omitempty"`
+	FieldMasks                      []string            `json:"field_masks,omitempty"`
+	WithPendingAppeal               bool                `json:"with_pending_appeal,omitempty"`
+	RoleStartsWith                  string              `json:"role_starts_with,omitempty"`
+	RoleEndsWith                    string              `json:"role_ends_with,omitempty"`
+	RoleContains                    string              `json:"role_contains,omitempty"`
+	Owners                          []string            `json:"owners,omitempty"`
+	ProviderUrnStartsWith           string              `json:"provider_urn_starts_with,omitempty"`
+	ProviderUrnEndsWith             string              `json:"provider_urn_ends_with,omitempty"`
+	ProviderUrnContains             string              `json:"provider_urn_contains,omitempty"`
+	ProviderUrnNotStartsWith        string              `json:"provider_urn_not_starts_with,omitempty"`
+	ProviderUrnNotEndsWith          string              `json:"provider_urn_not_ends_with,omitempty"`
+	ProviderUrnNotContains          string              `json:"provider_urn_not_contains,omitempty"`
+	AppealDurations                 []string            `json:"appeal_durations,omitempty"`
+	NotAppealDurations              []string            `json:"not_appeal_durations,omitempty"`
+	AppealDetailsPaths              []string            `json:"appeal_details_paths,omitempty"`
+	AppealDetails                   []string            `json:"appeal_details,omitempty"`
+	NotAppealDetails                []string            `json:"not_appeal_details,omitempty"`
+	RoleNotStartsWith               string              `json:"role_not_starts_with,omitempty"`
+	RoleNotEndsWith                 string              `json:"role_not_ends_with,omitempty"`
+	RoleNotContains                 string              `json:"role_not_contains,omitempty"`
+	AppealDetailsStartsWith         string              `json:"appeal_details_starts_with,omitempty"`
+	AppealDetailsEndsWith           string              `json:"appeal_details_ends_with,omitempty"`
+	AppealDetailsContains           string              `json:"appeal_details_contains,omitempty"`
+	AppealDetailsNotStartsWith      string              `json:"appeal_details_not_starts_with,omitempty"`
+	AppealDetailsNotEndsWith        string              `json:"appeal_details_not_ends_with,omitempty"`
+	AppealDetailsNotContains        string              `json:"appeal_details_not_contains,omitempty"`
+	GroupTypeStartsWith             string              `json:"group_type_starts_with,omitempty"`
+	GroupTypeEndsWith               string              `json:"group_type_ends_with,omitempty"`
+	GroupTypeContains               string              `json:"group_type_contains,omitempty"`
+	GroupTypeNotStartsWith          string              `json:"group_type_not_starts_with,omitempty"`
+	GroupTypeNotEndsWith            string              `json:"group_type_not_ends_with,omitempty"`
+	GroupTypeNotContains            string              `json:"group_type_not_contains,omitempty"`
+	AppealDetailsForSelfCriteria    []string            `json:"appeal_details_for_self_criteria,omitempty"`
+	NotAppealDetailsForSelfCriteria []string            `json:"not_appeal_details_for_self_criteria,omitempty"`
+	Labels                          map[string][]string `json:"labels,omitempty"`
+	LabelKeys                       []string            `json:"label_keys,omitempty"`
+	SummaryLabels                   bool                `json:"summary_labels,omitempty"`
+	SummaryLabelsV2                 bool                `json:"summary_labels_v2,omitempty"`
+	ExcludeEmptyAppeal              bool                `json:"exclude_empty_appeal,omitempty"`
 
-	UserInactiveGrantPolicy guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy
+	UserInactiveGrantPolicy guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy `json:"user_inactive_grant_policy,omitempty"`
+
+	InactiveGrantPolicy     guardianv1beta1.ListGrantsRequest_InactiveGrantPolicy `json:"inactive_grant_policy,omitempty"`
+	InactiveGrantFilterKeys []string                                              `json:"inactive_grant_filter_keys,omitempty"`
 }
 
 func (gf ListGrantsFilter) WithSummary() bool {

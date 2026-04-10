@@ -94,6 +94,18 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		LabelKeys:                       req.GetLabelKeys(),
 		SummaryLabels:                   req.GetSummaryLabels(),
 		SummaryLabelsV2:                 req.GetSummaryLabelsV2(),
+		ExcludeEmptyAppeal:              req.GetExcludeEmptyAppeal(),
+
+		InactiveGrantPolicy:     req.GetInactiveGrantPolicy(),
+		InactiveGrantFilterKeys: req.GetInactiveGrantFilterKeys(),
+	}
+
+	excludedGrantIDs, err := s.grantService.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to generate excluded grant ids: %s", err)
+	}
+	if len(excludedGrantIDs) > 0 {
+		filter.NotIDs = slicesUtil.GenericsStandardizeSlice(append(filter.NotIDs, excludedGrantIDs...))
 	}
 
 	grants, total, summary, err := s.listGrants(ctx, filter)

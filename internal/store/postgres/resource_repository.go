@@ -43,6 +43,30 @@ func (r *ResourceRepository) Find(ctx context.Context, filter domain.ListResourc
 	if err != nil {
 		return nil, err
 	}
+
+	// Apply combined ORDER BY: exact-match priority (when Q is set) + user-specified order_by.
+	// This is intentionally outside applyResourceFilter so it does not affect summary/count queries.
+	if filter.Q != "" || filter.OrderBy != nil || filter.Offset >= 0 {
+		var prependSQL string
+		var prependVars []interface{}
+		if filter.Q != "" {
+			prependSQL = `CASE WHEN "urn" = ? THEN 0 WHEN "name" = ? THEN 0 WHEN "global_urn" = ? THEN 0 ELSE 1 END`
+			prependVars = []interface{}{filter.Q, filter.Q, filter.Q}
+		}
+		sortOrder := resourcesDefaultSort
+		if filter.OrderBy != nil {
+			sortOrder = filter.OrderBy
+		}
+		db, err = addOrderByClause(db, sortOrder, addOrderByClauseOptions{
+			searchQuery: filter.Q,
+			prependSQL:  prependSQL,
+			prependVars: prependVars,
+		}, []string{"updated_at", "created_at", "name", "urn", "global_urn"})
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	var models []*model.Resource
 	if err := db.Find(&models).Error; err != nil {
 		return nil, err
@@ -71,6 +95,13 @@ func (r *ResourceRepository) GetResourcesTotalCount(ctx context.Context, filter 
 	if err != nil {
 		return 0, err
 	}
+
+	if len(f.OrderBy) > 0 {
+		if _, err = addOrderByClause(db, f.OrderBy, addOrderByClauseOptions{}, []string{"updated_at", "created_at", "name", "urn", "global_urn"}); err != nil {
+			return 0, err
+		}
+	}
+
 	var count int64
 	err = db.Model(&model.Resource{}).Count(&count).Error
 
@@ -148,30 +179,6 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) (*gorm.
 
 	if filter.Offset > 0 {
 		db = db.Offset(int(filter.Offset))
-	}
-
-	var sortOrder []string
-
-	if filter.Offset >= 0 {
-		sortOrder = resourcesDefaultSort
-	}
-
-	if filter.OrderBy != nil {
-		sortOrder = filter.OrderBy
-	}
-
-	if len(sortOrder) != 0 {
-		var err error
-		db, err = addOrderByClause(db, sortOrder, addOrderByClauseOptions{
-			statusColumnName: "",
-			statusesOrder:    []string{},
-			searchQuery:      filter.Q,
-		},
-			[]string{"updated_at", "created_at", "name", "urn", "global_urn"})
-
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	for path, v := range filter.Details {
