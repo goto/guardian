@@ -634,6 +634,13 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "summaryLabelsV2",
+            "description": "If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -1665,6 +1672,13 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "summaryLabelsV2",
+            "description": "If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -2188,10 +2202,40 @@
             "type": "boolean"
           },
           {
+            "name": "summaryLabelsV2",
+            "description": "If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
             "name": "excludeEmptyAppeal",
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "inactiveGrantPolicy",
+            "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart deduplication mode scoped to a group, resource, or provider.\nRequires at least one of: inactive_grant_group_id, inactive_grant_group_type,\ninactive_grant_resource_id, or inactive_grant_provider_type to be set.\n- If a grant key (resource + account + role) has both active and inactive grants,\n  only the active ones are shown (inactive are excluded).\n- If all grants for a key are inactive, only the latest inactive grant is returned;\n  older duplicates are excluded.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "INACTIVE_GRANT_POLICY_UNSPECIFIED",
+              "INACTIVE_GRANT_POLICY_INCLUDE_ALL",
+              "INACTIVE_GRANT_POLICY_SMART"
+            ],
+            "default": "INACTIVE_GRANT_POLICY_UNSPECIFIED"
+          },
+          {
+            "name": "inactiveGrantFilterKeys",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -2896,6 +2940,13 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "summaryLabelsV2",
+            "description": "If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -3383,6 +3434,13 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "summaryLabelsV2",
+            "description": "If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -3643,7 +3701,7 @@
           },
           {
             "name": "inactiveGrantPolicy",
-            "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart visibility mode:\n- If a resource has both active and inactive grants, only active ones are shown.\n- If all grants for a resource are inactive, only the latest inactive grant is returned.",
+            "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart deduplication mode scoped to the authenticated user (X-Auth-Email).\n- If X-Auth-Email is not provided, the request will fail with Unauthenticated.\n- If a grant key (resource + account + role) has both active and inactive grants\n  for this user, only the active ones are shown (inactive are excluded).\n- If all grants for a key are inactive, only the latest inactive grant is returned;\n  older duplicates are excluded.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -3876,6 +3934,13 @@
           },
           {
             "name": "summaryLabels",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "summaryLabelsV2",
+            "description": "If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -4836,16 +4901,6 @@
       "properties": {
         "eq": {}
       }
-    },
-    "ListUserGrantsRequestInactiveGrantPolicy": {
-      "type": "string",
-      "enum": [
-        "INACTIVE_GRANT_POLICY_UNSPECIFIED",
-        "INACTIVE_GRANT_POLICY_INCLUDE_ALL",
-        "INACTIVE_GRANT_POLICY_SMART"
-      ],
-      "default": "INACTIVE_GRANT_POLICY_UNSPECIFIED",
-      "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart visibility mode:\n- If a resource has both active and inactive grants, only active ones are shown.\n- If all grants for a resource are inactive, only the latest inactive grant is returned."
     },
     "PolicyAppealConfigDurationOptions": {
       "type": "object",
@@ -6085,6 +6140,16 @@
         }
       }
     },
+    "v1beta1ListGrantsRequestInactiveGrantPolicy": {
+      "type": "string",
+      "enum": [
+        "INACTIVE_GRANT_POLICY_UNSPECIFIED",
+        "INACTIVE_GRANT_POLICY_INCLUDE_ALL",
+        "INACTIVE_GRANT_POLICY_SMART"
+      ],
+      "default": "INACTIVE_GRANT_POLICY_UNSPECIFIED",
+      "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart deduplication mode scoped to a group, resource, or provider.\nRequires at least one of: inactive_grant_group_id, inactive_grant_group_type,\ninactive_grant_resource_id, or inactive_grant_provider_type to be set.\n- If a grant key (resource + account + role) has both active and inactive grants,\n  only the active ones are shown (inactive are excluded).\n- If all grants for a key are inactive, only the latest inactive grant is returned;\n  older duplicates are excluded."
+    },
     "v1beta1ListGrantsResponse": {
       "type": "object",
       "properties": {
@@ -6201,6 +6266,16 @@
           "$ref": "#/definitions/v1beta1SummaryResult"
         }
       }
+    },
+    "v1beta1ListUserGrantsRequestInactiveGrantPolicy": {
+      "type": "string",
+      "enum": [
+        "INACTIVE_GRANT_POLICY_UNSPECIFIED",
+        "INACTIVE_GRANT_POLICY_INCLUDE_ALL",
+        "INACTIVE_GRANT_POLICY_SMART"
+      ],
+      "default": "INACTIVE_GRANT_POLICY_UNSPECIFIED",
+      "description": " - INACTIVE_GRANT_POLICY_UNSPECIFIED: Unspecified behavior. Defaults to INCLUDE_ALL.\nThe server should treat this as INACTIVE_GRANT_POLICY_INCLUDE_ALL.\n - INACTIVE_GRANT_POLICY_INCLUDE_ALL: Include all grants, both active and inactive.\nThis is the default behavior if no policy is specified.\n - INACTIVE_GRANT_POLICY_SMART: Smart deduplication mode scoped to the authenticated user (X-Auth-Email).\n- If X-Auth-Email is not provided, the request will fail with Unauthenticated.\n- If a grant key (resource + account + role) has both active and inactive grants\n  for this user, only the active ones are shown (inactive are excluded).\n- If all grants for a key are inactive, only the latest inactive grant is returned;\n  older duplicates are excluded."
     },
     "v1beta1ListUserGrantsResponse": {
       "type": "object",
