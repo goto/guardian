@@ -206,6 +206,21 @@ var ignoredInactiveGrantFilterKeys = map[string]struct{}{
 	"statuses": {},
 }
 
+// invalidInactiveGrantFilterKeys are fields that exist on ListGrantsFilter but must never be used
+// as scoping keys — either because they are policy/meta fields that would create circular logic,
+// or because they are output-control fields unrelated to grant scoping.
+var invalidInactiveGrantFilterKeys = map[string]struct{}{
+	"inactive_grant_policy":      {},
+	"inactive_grant_filter_keys": {},
+	"user_inactive_grant_policy": {},
+	"with_approvals":             {},
+	"field_masks":                {},
+	"summary_group_bys":          {},
+	"summary_labels":             {},
+	"summary_labels_v2":          {},
+	"exclude_empty_appeal":       {},
+}
+
 // GenerateExcludedGrantIDsForSmartInactiveGrants handles the group/resource/provider-scoped
 // smart inactive grant dedup triggered by InactiveGrantPolicy=SMART
 // InactiveGrantFilterKeys must be non-empty (and each key must have a corresponding non-empty
@@ -213,6 +228,7 @@ var ignoredInactiveGrantFilterKeys = map[string]struct{}{
 // Keys in ignoredInactiveGrantFilterKeys (offset, size, order_by, statuses) are silently
 // skipped — they are always reset in the inner queries and do not count toward the non-empty
 // requirement.
+// Keys in invalidInactiveGrantFilterKeys are rejected with an explicit error.
 func (s *Service) GenerateExcludedGrantIDsForSmartInactiveGrants(ctx context.Context, filter domain.ListGrantsFilter) ([]string, error) {
 	if filter.InactiveGrantPolicy != guardianv1beta1.ListGrantsRequest_INACTIVE_GRANT_POLICY_SMART ||
 		(len(filter.Statuses) != 0 && !slices.Contains(filter.Statuses, string(domain.GrantStatusInactive))) {
@@ -220,8 +236,12 @@ func (s *Service) GenerateExcludedGrantIDsForSmartInactiveGrants(ctx context.Con
 	}
 
 	// Strip pagination/status keys that are always reset in the inner queries.
+	// Reject keys that are policy/meta/output-control fields — they are not valid scoping keys.
 	effectiveKeys := make([]string, 0, len(filter.InactiveGrantFilterKeys))
 	for _, key := range filter.InactiveGrantFilterKeys {
+		if _, invalid := invalidInactiveGrantFilterKeys[key]; invalid {
+			return nil, fmt.Errorf("inactive_grant_filter_keys contains %q which is not a valid scoping key", key)
+		}
 		if _, ignored := ignoredInactiveGrantFilterKeys[key]; !ignored {
 			effectiveKeys = append(effectiveKeys, key)
 		}

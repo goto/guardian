@@ -1462,6 +1462,32 @@ func (s *ServiceTestSuite) TestGenerateExcludedGrantIDsForSmartInactiveGrants() 
 		s.Equal([]string{"inactive-1"}, ids)
 	})
 
+	s.Run("should return error when InactiveGrantFilterKeys contains an invalid meta/policy key", func() {
+		invalidKeys := []string{
+			"inactive_grant_policy",
+			"inactive_grant_filter_keys",
+			"user_inactive_grant_policy",
+			"with_approvals",
+			"field_masks",
+			"summary_group_bys",
+			"summary_labels",
+			"summary_labels_v2",
+			"exclude_empty_appeal",
+		}
+		for _, key := range invalidKeys {
+			s.Run(key, func() {
+				s.setup()
+				filter := domain.ListGrantsFilter{
+					InactiveGrantPolicy:     smartPolicy,
+					InactiveGrantFilterKeys: []string{key},
+				}
+				ids, err := s.service.GenerateExcludedGrantIDsForSmartInactiveGrants(ctx, filter)
+				s.Nil(ids)
+				s.EqualError(err, fmt.Sprintf("inactive_grant_filter_keys contains %q which is not a valid scoping key", key))
+			})
+		}
+	})
+
 	s.Run("should return error when a filter key has no corresponding value", func() {
 		s.setup()
 		filter := domain.ListGrantsFilter{
