@@ -200,6 +200,7 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		LabelKeys:                       req.GetLabelKeys(),
 		SummaryLabels:                   req.GetSummaryLabels(),
 		SummaryLabelsV2:                 req.GetSummaryLabelsV2(),
+		ExcludeEmptyAppeal:              req.GetExcludeEmptyAppeal(),
 
 		UserInactiveGrantPolicy: req.GetInactiveGrantPolicy(),
 	}
