@@ -2,6 +2,8 @@ package domain
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestApproval_IsExistingApprover(t *testing.T) {
@@ -48,4 +50,39 @@ func TestApproval_IsExistingApprover(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestApproval_Approve(t *testing.T) {
+	a := &Approval{Status: ApprovalStatusPending}
+	a.Approve()
+	assert.Equal(t, ApprovalStatusApproved, a.Status)
+}
+
+func TestApproval_Reject(t *testing.T) {
+	a := &Approval{Status: ApprovalStatusPending}
+	a.Reject()
+	assert.Equal(t, ApprovalStatusRejected, a.Status)
+}
+
+func TestApproval_Skip(t *testing.T) {
+	a := &Approval{Status: ApprovalStatusPending}
+	a.Skip()
+	assert.Equal(t, ApprovalStatusSkipped, a.Status)
+}
+
+func TestListApprovalsFilter_WithApprovals(t *testing.T) {
+	assert.True(t, ListApprovalsFilter{}.WithApprovals())
+	assert.False(t, ListApprovalsFilter{FieldMasks: []string{"approvals"}}.WithApprovals())
+}
+
+func TestListApprovalsFilter_WithTotal(t *testing.T) {
+	assert.True(t, ListApprovalsFilter{}.WithTotal())
+	assert.False(t, ListApprovalsFilter{FieldMasks: []string{"total"}}.WithTotal())
+}
+
+func TestListApprovalsFilter_WithSummary(t *testing.T) {
+	assert.False(t, ListApprovalsFilter{}.WithSummary())
+	assert.True(t, ListApprovalsFilter{SummaryGroupBys: []string{"status"}}.WithSummary())
+	assert.True(t, ListApprovalsFilter{SummaryLabels: true}.WithSummary())
+	assert.True(t, ListApprovalsFilter{SummaryLabelsV2: true}.WithSummary())
 }
