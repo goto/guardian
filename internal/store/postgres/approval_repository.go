@@ -178,8 +178,32 @@ func (r *ApprovalRepository) GenerateSummary(ctx context.Context, filter domain.
 		return applyApprovalsFilter(db, &f)
 	}
 
+	dbGenWithLabels := func(gCtx context.Context, labels map[string][]string) (*gorm.DB, error) {
+		// Override f.Labels so applyApprovalsFilter only applies the given label filter,
+		// leaving all other (non-label) filter conditions intact.
+		// This is used by SummaryLabelsV2 (faceted search): for each label key K,
+		// we query with all label filters EXCEPT K, so that the results show which
+		// values for K are still available given the user's other active selections.
+		f := filter
+		f.Offset = 0
+		f.Size = 0
+		f.OrderBy = nil
+		f.Labels = labels
+
+		db := r.db.WithContext(gCtx)
+		db = applyApprovalsSummaryJoins(db)
+		return applyApprovalsFilter(db, &f)
+	}
+
 	if filter.SummaryLabels {
 		sr.SummaryLabels, err = generateLabelSummaries(ctx, dbGen, "approvals", `"Appeal"."labels"`)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if filter.SummaryLabelsV2 {
+		sr.SummaryLabelsV2, err = generateLabelSummariesV2(ctx, dbGenWithLabels, "approvals", `"Appeal"."labels"`, filter.Labels)
 		if err != nil {
 			return nil, err
 		}

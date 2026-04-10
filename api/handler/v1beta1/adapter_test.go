@@ -1198,3 +1198,120 @@ func TestAdapter_ToGrantProto_ErrorHandling(t *testing.T) {
 		assert.Nil(t, result.Appeal)
 	})
 }
+
+func TestAdapter_ToSummaryProto(t *testing.T) {
+	adapter := v1beta1.NewAdapter()
+
+	t.Run("should return nil for nil input", func(t *testing.T) {
+		result, err := adapter.ToSummaryProto(nil)
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("should convert summary with V1 labels", func(t *testing.T) {
+		s := &domain.SummaryResult{
+			Count:       5,
+			LabelsCount: 2,
+			SummaryLabels: []*domain.SummaryLabel{
+				{Key: "env", Values: []string{"prod", "staging"}, Count: 2},
+				{Key: "team", Values: []string{"data", "backend"}, Count: 2},
+			},
+		}
+
+		result, err := adapter.ToSummaryProto(s)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, int32(5), result.Count)
+		assert.Equal(t, int32(2), result.LabelsCount)
+		assert.Len(t, result.Labels, 2)
+		assert.Equal(t, "env", result.Labels[0].Key)
+		assert.Equal(t, []string{"prod", "staging"}, result.Labels[0].Values)
+		assert.Equal(t, "team", result.Labels[1].Key)
+	})
+
+	t.Run("should convert summary with V2 labels (faceted search)", func(t *testing.T) {
+		s := &domain.SummaryResult{
+			Count:        3,
+			LabelsV2Count: 2,
+			SummaryLabelsV2: []*domain.SummaryLabelV2{
+				{Key: "env", Values: []string{"prod", "staging"}, Count: 2},
+				{Key: "team", Values: []string{"backend", "data", "frontend"}, Count: 3},
+			},
+		}
+
+		result, err := adapter.ToSummaryProto(s)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, int32(2), result.LabelsCount)
+		assert.Len(t, result.Labels, 2)
+		assert.Equal(t, "env", result.Labels[0].Key)
+		assert.Equal(t, []string{"prod", "staging"}, result.Labels[0].Values)
+		assert.Equal(t, int32(2), result.Labels[0].Count)
+		assert.Equal(t, "team", result.Labels[1].Key)
+		assert.Equal(t, []string{"backend", "data", "frontend"}, result.Labels[1].Values)
+		assert.Equal(t, int32(3), result.Labels[1].Count)
+	})
+
+	t.Run("should prefer V2 labels over V1 labels when both are set", func(t *testing.T) {
+		s := &domain.SummaryResult{
+			Count:        4,
+			LabelsCount:  1,
+			LabelsV2Count: 2,
+			SummaryLabels: []*domain.SummaryLabel{
+				{Key: "env", Values: []string{"prod"}, Count: 1},
+			},
+			SummaryLabelsV2: []*domain.SummaryLabelV2{
+				{Key: "env", Values: []string{"prod", "staging"}, Count: 2},
+				{Key: "team", Values: []string{"data"}, Count: 1},
+			},
+		}
+
+		result, err := adapter.ToSummaryProto(s)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		// V2 count takes priority
+		assert.Equal(t, int32(2), result.LabelsCount)
+		// V2 labels are used, not V1
+		assert.Len(t, result.Labels, 2)
+		assert.Equal(t, "env", result.Labels[0].Key)
+		assert.Equal(t, []string{"prod", "staging"}, result.Labels[0].Values)
+		assert.Equal(t, "team", result.Labels[1].Key)
+	})
+
+	t.Run("should return error when applied parameters filters cannot be parsed", func(t *testing.T) {
+		s := &domain.SummaryResult{
+			AppliedParameters: &domain.SummaryParameters{
+				Filters: map[string]interface{}{
+					"invalid": make(chan int),
+				},
+			},
+		}
+
+		result, err := adapter.ToSummaryProto(s)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "parsing filters")
+		assert.Nil(t, result)
+	})
+
+	t.Run("should convert summary with empty V2 labels slice", func(t *testing.T) {
+		s := &domain.SummaryResult{
+			Count:           2,
+			SummaryLabelsV2: []*domain.SummaryLabelV2{},
+			SummaryLabels: []*domain.SummaryLabel{
+				{Key: "env", Values: []string{"prod"}, Count: 1},
+			},
+		}
+
+		result, err := adapter.ToSummaryProto(s)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		// Empty V2 slice falls back to V1
+		assert.Len(t, result.Labels, 1)
+		assert.Equal(t, "env", result.Labels[0].Key)
+	})
+}

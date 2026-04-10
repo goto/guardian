@@ -17,6 +17,10 @@ import (
 )
 
 func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.ListUserAppealsRequest) (*guardianv1beta1.ListUserAppealsResponse, error) {
+	if req.GetSummaryLabels() && req.GetSummaryLabelsV2() {
+		return nil, s.invalidArgument(ctx, "summary_labels and summary_labels_v2 cannot both be true")
+	}
+
 	user, err := s.getUser(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())
@@ -93,6 +97,7 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 		DetailsForSelfCriteria:    req.GetDetailsForSelfCriteria(),
 		NotDetailsForSelfCriteria: req.GetNotDetailsForSelfCriteria(),
 		SummaryLabels:             req.GetSummaryLabels(),
+		SummaryLabelsV2:           req.GetSummaryLabelsV2(),
 	}
 
 	appeals, total, summary, err := s.listAppeals(ctx, filters)
@@ -108,6 +113,10 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 }
 
 func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListAppealsRequest) (*guardianv1beta1.ListAppealsResponse, error) {
+	if req.GetSummaryLabels() && req.GetSummaryLabelsV2() {
+		return nil, s.invalidArgument(ctx, "summary_labels and summary_labels_v2 cannot both be true")
+	}
+
 	// Extract labels from gRPC metadata
 	labels, err := s.extractLabels(ctx)
 	if err != nil {
@@ -180,6 +189,7 @@ func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListA
 		DetailsForSelfCriteria:    req.GetDetailsForSelfCriteria(),
 		NotDetailsForSelfCriteria: req.GetNotDetailsForSelfCriteria(),
 		SummaryLabels:             req.GetSummaryLabels(),
+		SummaryLabelsV2:           req.GetSummaryLabelsV2(),
 	}
 
 	appeals, total, summary, err := s.listAppeals(ctx, filters)
