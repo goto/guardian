@@ -27,6 +27,7 @@ const (
 	ProviderTypeGoogleGroup = "google_group"
 	ProviderTypeGuardian    = "guardian"
 	ProviderTypeCustomHTTP  = "custom_http"
+	ProviderTypeOptimus     = "optimus"
 )
 
 // Role is the configuration to define a role and mapping the permissions in the provider
@@ -68,7 +69,7 @@ type AppealConfig struct {
 }
 
 type ProviderConfig struct {
-	Type                string               `json:"type" yaml:"type" validate:"required,oneof=alicloud_ram alicloud_sso google_bigquery metabase grafana tableau gcloud_iam noop gcs shield"`
+	Type                string               `json:"type" yaml:"type" validate:"required,oneof=alicloud_ram alicloud_sso google_bigquery metabase grafana tableau gcloud_iam noop gcs shield optimus"`
 	URN                 string               `json:"urn" yaml:"urn" validate:"required"`
 	AllowedAccountTypes []string             `json:"allowed_account_types" yaml:"allowed_account_types" validate:"omitempty,min=1"`
 	Labels              map[string]string    `json:"labels,omitempty" yaml:"labels,omitempty"`

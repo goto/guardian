@@ -296,6 +296,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		if err := addResource(appeal, resources); err != nil {
 			return fmt.Errorf("couldn't find resource with id %q: %w", appeal.ResourceID, err)
 		}
+
 		provider, err := getProvider(appeal, providers)
 		if err != nil {
 			return err

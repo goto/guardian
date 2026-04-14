@@ -85,6 +85,7 @@ func newServiceTestHelper() *serviceTestHelper {
 	h.mockProviderService = new(appealmocks.ProviderService)
 	h.mockPolicyService = new(appealmocks.PolicyService)
 	h.mockGrantService = new(appealmocks.GrantService)
+
 	commentService := comment.NewService(comment.ServiceDeps{
 		Repository:  h.mockCommentRepo,
 		Logger:      logger,
