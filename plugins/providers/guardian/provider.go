@@ -58,23 +58,33 @@ func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*
 	return pv.GetRoles(pc, resourceType)
 }
 
-func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
+func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal, pc *domain.ProviderConfig) error {
 	if a.Resource == nil {
 		return errors.New("nil appeal resource")
 	}
 
+	switch {
+	case strings.HasPrefix(a.Resource.Type, resourceTypePackage):
+		return p.validatePackageAppeal(ctx, a)
+	case strings.HasPrefix(a.Resource.Type, resourceTypeAction),
+		strings.HasPrefix(a.Resource.Type, resourceTypeOptimus):
+		return p.validateActionAppeal(ctx, a, pc)
+	}
+
+	return nil
+}
+
+func (p *provider) validatePackageAppeal(ctx context.Context, a *domain.Appeal) error {
 	packageID := a.ResourceID
 	if packageID == "" {
 		packageID = a.Resource.ID
 	}
 
-	switch a.Resource.Type {
-	case resourceTypePackage:
-		switch a.Role {
-		case accountTypeBot:
-			// TODO add validation for bot user if required
+	switch a.Role {
+	case accountTypeBot:
+		// TODO add validation for bot user if required
 
-		case accountTypeUser:
+	case accountTypeUser:
 			var err error
 			var resources []*domain.Resource
 			var pkgInfo *PackageInfo
@@ -120,6 +130,53 @@ func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
 					return fmt.Errorf("invalid package config: unable to find required account type for provider type %q", requiredProviderType)
 				}
 			}
+	}
+
+	return nil
+}
+
+func (p *provider) validateActionAppeal(ctx context.Context, a *domain.Appeal, pc *domain.ProviderConfig) error {
+	var actionMetadata ActionMetadata
+
+	resourceDetails := a.Resource.Details
+	if resourceDetails != nil {
+		if err := mapstructure.Decode(resourceDetails, &actionMetadata); err == nil && len(actionMetadata.RequiredFields) > 0 {
+			return p.validateMetadataFields(a, actionMetadata.RequiredFields)
+		}
+	}
+
+	if pc != nil {
+		for _, rc := range pc.Resources {
+			if rc.Type == a.Resource.Type && rc.Details != nil {
+				if err := mapstructure.Decode(rc.Details, &actionMetadata); err == nil && len(actionMetadata.RequiredFields) > 0 {
+					return p.validateMetadataFields(a, actionMetadata.RequiredFields)
+				}
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *provider) validateMetadataFields(a *domain.Appeal, requiredFields []RequiredField) error {
+	appealParams, ok := a.Details[domain.ReservedDetailsKeyProviderParameters].(map[string]any)
+	if !ok || appealParams == nil {
+		return fmt.Errorf("missing %s in appeal details", domain.ReservedDetailsKeyProviderParameters)
+	}
+
+	metadata, ok := appealParams[providerParameterKeyMetadata].(map[string]any)
+	if !ok || metadata == nil {
+		return fmt.Errorf("missing %s.%s in appeal details", domain.ReservedDetailsKeyProviderParameters, providerParameterKeyMetadata)
+	}
+
+	for _, rf := range requiredFields {
+		value, exists := metadata[rf.Key]
+		if !exists {
+			return fmt.Errorf("required field %q is missing in %s.%s", rf.Key, domain.ReservedDetailsKeyProviderParameters, providerParameterKeyMetadata)
+		}
+		if value == nil || value == "" {
+			return fmt.Errorf("required field %q cannot be empty in %s.%s", rf.Key, domain.ReservedDetailsKeyProviderParameters, providerParameterKeyMetadata)
 		}
 	}
 
@@ -127,8 +184,11 @@ func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
 }
 
 func (p *provider) ValidateResourceIdentifiers(ctx context.Context, r *domain.Resource) error {
-	if !strings.HasPrefix(r.Type, resourceTypePackage) {
-		return fmt.Errorf("only resource type prefix %q is supported for provider type %q", resourceTypePackage, providerType)
+	if !strings.HasPrefix(r.Type, resourceTypePackage) &&
+		!strings.HasPrefix(r.Type, resourceTypeAction) &&
+		!strings.HasPrefix(r.Type, resourceTypeOptimus) {
+		return fmt.Errorf("only resource type prefix %q, %q, or %q is supported for provider type %q",
+			resourceTypePackage, resourceTypeAction, resourceTypeOptimus, providerType)
 	}
 	if r.URN == "" {
 		return fmt.Errorf("resource urn is required")
@@ -140,12 +200,27 @@ func (p *provider) ValidateResourceIdentifiers(ctx context.Context, r *domain.Re
 }
 
 func (p *provider) ValidateResourceDetails(ctx context.Context, r *domain.Resource) error {
-	var packageInfo *PackageInfo
-	if err := mapstructure.Decode(r.Details, &packageInfo); err != nil {
-		return fmt.Errorf("failed to decode resource details: %w", err)
-	}
-	if err := packageInfo.Validate(); err != nil {
-		return fmt.Errorf("invalid resource details: %w", err)
+	switch {
+	case strings.HasPrefix(r.Type, resourceTypePackage):
+		var packageInfo *PackageInfo
+		if err := mapstructure.Decode(r.Details, &packageInfo); err != nil {
+			return fmt.Errorf("failed to decode resource details: %w", err)
+		}
+		if err := packageInfo.Validate(); err != nil {
+			return fmt.Errorf("invalid resource details: %w", err)
+		}
+	case strings.HasPrefix(r.Type, resourceTypeAction),
+		strings.HasPrefix(r.Type, resourceTypeOptimus):
+		if r.Details == nil {
+			return nil
+		}
+		var actionMetadata ActionMetadata
+		if err := mapstructure.Decode(r.Details, &actionMetadata); err != nil {
+			return fmt.Errorf("failed to decode resource details: %w", err)
+		}
+		if err := actionMetadata.Validate(); err != nil {
+			return fmt.Errorf("invalid resource details: %w", err)
+		}
 	}
 	return nil
 }

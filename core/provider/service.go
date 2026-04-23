@@ -77,7 +77,7 @@ type resourceValidator interface {
 }
 
 type appealValidator interface {
-	ValidateAppeal(ctx context.Context, a *domain.Appeal) error
+	ValidateAppeal(ctx context.Context, a *domain.Appeal, pc *domain.ProviderConfig) error
 }
 
 //go:generate mockery --name=resourceService --exported --with-expecter
@@ -432,7 +432,7 @@ func (s *Service) ValidateAppeal(ctx context.Context, a *domain.Appeal, p *domai
 	}
 
 	if validator, ok := c.(appealValidator); ok {
-		if err := validator.ValidateAppeal(ctx, a); err != nil {
+		if err := validator.ValidateAppeal(ctx, a, p.Config); err != nil {
 			return err
 		}
 	}

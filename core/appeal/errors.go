@@ -14,6 +14,7 @@ var (
 	ErrAppealStatusRejected           = errors.New("appeal already rejected")
 	ErrAppealStatusUnrecognized       = errors.New("unrecognized appeal status")
 	ErrAppealDuplicate                = errors.New("appeal with identical account_id, resource, and role already exists")
+	ErrAppealDuplicateMetadata        = errors.New("appeal with identical metadata already exists")
 	ErrAppealInvalidExtensionDuration = errors.New("invalid configured appeal extension duration")
 	ErrAppealFoundActiveGrant         = errors.New("user still have an active grant")
 	ErrGrantNotEligibleForExtension   = errors.New("grant not eligible for extension")
