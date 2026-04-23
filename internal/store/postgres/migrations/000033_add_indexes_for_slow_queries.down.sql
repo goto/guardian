@@ -1,3 +1,0 @@
-DROP INDEX CONCURRENTLY IF EXISTS idx_resources_is_deleted_provider_type_type;
-DROP INDEX CONCURRENTLY IF EXISTS idx_policies_created_at_not_deleted;
-DROP INDEX CONCURRENTLY IF EXISTS idx_providers_created_at_not_deleted;
