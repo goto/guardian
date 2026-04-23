@@ -9,9 +9,12 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_resources_is_deleted_provider_type_t
     WHERE deleted_at IS NULL;
 
 -- Covers: SELECT * FROM policies WHERE deleted_at IS NULL ORDER BY created_at ASC
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_policies_deleted_at_created_at
-    ON policies (deleted_at, created_at);
+-- Partial index keeps it small (only live rows) and lets the planner satisfy ORDER BY from the index.
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_policies_created_at_not_deleted
+    ON policies (created_at)
+    WHERE deleted_at IS NULL;
 
 -- Covers: SELECT * FROM providers WHERE deleted_at IS NULL ORDER BY created_at ASC
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_providers_deleted_at_created_at
-    ON providers (deleted_at, created_at);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_providers_created_at_not_deleted
+    ON providers (created_at)
+    WHERE deleted_at IS NULL;
