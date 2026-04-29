@@ -273,6 +273,8 @@ type ListGrantsFilter struct {
 	SummaryLabels                   bool                `json:"summary_labels,omitempty"`
 	SummaryLabelsV2                 bool                `json:"summary_labels_v2,omitempty"`
 	ExcludeEmptyAppeal              bool                `json:"exclude_empty_appeal,omitempty"`
+	ResourceDetailsPaths            []string            `json:"resource_details_paths,omitempty"`
+	ResourceDetails                 []string            `json:"resource_details,omitempty"`
 
 	UserInactiveGrantPolicy guardianv1beta1.ListUserGrantsRequest_InactiveGrantPolicy `json:"user_inactive_grant_policy,omitempty"`
 
