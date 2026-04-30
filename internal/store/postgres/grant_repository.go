@@ -518,6 +518,14 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	if err != nil {
 		return nil, err
 	}
+	db, err = applyJSONBPathsLikeAndInFilter(db, `"Resource"."details"`, filter.ResourceDetailsPaths,
+		"", "", "",
+		"", "", "",
+		filter.ResourceDetails, nil, "resource_details",
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(filter.AppealDetailsForSelfCriteria) != 0 {
 		var exprs []string

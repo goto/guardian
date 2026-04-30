@@ -3,7 +3,7 @@ COMMIT := $(shell git rev-parse --short HEAD)
 TAG := "$(shell git rev-list --tags --max-count=1)"
 VERSION := "$(shell git describe --tags ${TAG})-next"
 BUILD_DIR=dist
-PROTON_COMMIT := "ea17d2b3c412c16711a434e81d6af230671cd5a7"
+PROTON_COMMIT := "e47c04642a6ad7abea6884b3c85a48a42cb37adb"
 
 .PHONY: all build clean test tidy vet proto setup format generate
 

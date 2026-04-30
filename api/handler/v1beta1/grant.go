@@ -95,6 +95,8 @@ func (s *GRPCServer) ListGrants(ctx context.Context, req *guardianv1beta1.ListGr
 		SummaryLabels:                   req.GetSummaryLabels(),
 		SummaryLabelsV2:                 req.GetSummaryLabelsV2(),
 		ExcludeEmptyAppeal:              req.GetExcludeEmptyAppeal(),
+		ResourceDetailsPaths:            req.GetResourceDetailsPaths(),
+		ResourceDetails:                 req.GetResourceDetails(),
 
 		InactiveGrantPolicy:     req.GetInactiveGrantPolicy(),
 		InactiveGrantFilterKeys: req.GetInactiveGrantFilterKeys(),
@@ -201,6 +203,8 @@ func (s *GRPCServer) ListUserGrants(ctx context.Context, req *guardianv1beta1.Li
 		SummaryLabels:                   req.GetSummaryLabels(),
 		SummaryLabelsV2:                 req.GetSummaryLabelsV2(),
 		ExcludeEmptyAppeal:              req.GetExcludeEmptyAppeal(),
+		ResourceDetailsPaths:            req.GetResourceDetailsPaths(),
+		ResourceDetails:                 req.GetResourceDetails(),
 
 		UserInactiveGrantPolicy: req.GetInactiveGrantPolicy(),
 	}
