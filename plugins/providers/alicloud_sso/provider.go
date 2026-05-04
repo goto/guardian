@@ -3,6 +3,7 @@ package alicloud_sso
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	sso "github.com/alibabacloud-go/cloudsso-20210515/client"
@@ -124,7 +125,8 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
 	switch g.Resource.Type {
 	case resourceTypeGroup:
-		if err := p.removeMemberFromGroup(ctx, pc, g); err != nil {
+		if err := p.removeMemberFromGroup(ctx, pc, g); err != nil &&
+			!strings.Contains(strings.ToLower(err.Error()), strings.ToLower("EntityNotExists.GroupMember")) {
 			return err
 		}
 
