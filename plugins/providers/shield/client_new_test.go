@@ -836,3 +836,128 @@ func (s *ShieldNewClientTestSuite) TestShieldNewGetSelfUser() {
 		s.Nil(actualError)
 	})
 }
+
+func (s *ShieldNewClientTestSuite) TestCreateTeam() {
+	s.Run("should create a team and return the created group on success", func() {
+		s.setup()
+
+		team := shield.Group{
+			Name:  "new_team",
+			Slug:  "new_team",
+			OrgId: "org_id_1",
+			Metadata: shield.Metadata{
+				Email:   "new_team@email.com",
+				Privacy: "public",
+				Slack:   "@new_team",
+			},
+		}
+
+		responseJson := `{
+			"group": {
+				"id": "new_team_id",
+				"name": "new_team",
+				"slug": "new_team",
+				"orgId": "org_id_1",
+				"metadata": {
+					"email": "new_team@email.com",
+					"privacy": "public",
+					"slack": "@new_team"
+				}
+			}
+		}`
+
+		resp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&resp, nil).Once()
+
+		result, err := s.client.CreateTeam(context.Background(), team)
+		s.Nil(err)
+		s.NotNil(result)
+		s.Equal("new_team_id", result.ID)
+		s.Equal("new_team", result.Name)
+	})
+
+	s.Run("should return error if http client returns error", func() {
+		s.setup()
+
+		team := shield.Group{Name: "new_team", OrgId: "org_id_1"}
+
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(nil, fmt.Errorf("network error")).Once()
+
+		result, err := s.client.CreateTeam(context.Background(), team)
+		s.Nil(result)
+		s.Error(err)
+	})
+
+	s.Run("should return error if response cannot be decoded", func() {
+		s.setup()
+
+		team := shield.Group{Name: "new_team", OrgId: "org_id_1"}
+
+		invalidJSON := []byte(`{invalid json}`)
+		resp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(invalidJSON))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&resp, nil).Once()
+
+		result, err := s.client.CreateTeam(context.Background(), team)
+		s.Nil(result)
+		s.Error(err)
+	})
+}
+
+func (s *ShieldNewClientTestSuite) TestGrantCreateTeamAccess() {
+	s.Run("should create a team and return the group on success", func() {
+		s.setup()
+
+		team := shield.Group{
+			Name:  "access_team",
+			Slug:  "access_team",
+			OrgId: "org_id_1",
+		}
+
+		responseJson := `{
+			"group": {
+				"id": "access_team_id",
+				"name": "access_team",
+				"slug": "access_team",
+				"orgId": "org_id_1"
+			}
+		}`
+
+		resp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&resp, nil).Once()
+
+		result, err := s.client.GrantCreateTeamAccess(context.Background(), team)
+		s.Nil(err)
+		s.NotNil(result)
+		s.Equal("access_team_id", result.ID)
+		s.Equal("access_team", result.Name)
+	})
+
+	s.Run("should return error if CreateTeam fails", func() {
+		s.setup()
+
+		team := shield.Group{Name: "access_team", OrgId: "org_id_1"}
+
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(nil, fmt.Errorf("network error")).Once()
+
+		result, err := s.client.GrantCreateTeamAccess(context.Background(), team)
+		s.Nil(result)
+		s.Error(err)
+		s.ErrorContains(err, "creating team in shield")
+	})
+}
+
+func (s *ShieldNewClientTestSuite) TestRevokeCreateTeamAccess() {
+	s.Run("should return nil without making any request", func() {
+		s.setup()
+
+		team := shield.Group{
+			ID:    "team_id_1",
+			Name:  "team_1",
+			OrgId: "org_id_1",
+		}
+
+		err := s.client.RevokeCreateTeamAccess(context.Background(), team)
+		s.Nil(err)
+		s.mockHttpClient.AssertNotCalled(s.T(), "Do")
+	})
+}
