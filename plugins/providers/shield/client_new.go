@@ -410,6 +410,41 @@ func (c *shieldNewclient) RevokeResourceAccess(ctx context.Context, resource *Re
 	return nil
 }
 
+func (c *shieldNewclient) CreateTeam(ctx context.Context, team Group) (*Group, error) {
+	req, err := c.newRequest(http.MethodPost, groupsEndpoint, team, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var createdGroup *Group
+	var response interface{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return nil, err
+	}
+
+	if v, ok := response.(map[string]interface{}); ok && v["group"] != nil {
+		if err := mapstructure.Decode(v["group"], &createdGroup); err != nil {
+			return nil, err
+		}
+	}
+
+	c.logger.Info(ctx, "Team created in shield", "id", createdGroup.ID, "name", createdGroup.Name)
+	return createdGroup, nil
+}
+
+func (c *shieldNewclient) GrantCreateTeamAccess(ctx context.Context, team Group) (*Group, error) {
+	createdGroup, err := c.CreateTeam(ctx, team)
+	if err != nil {
+		return nil, fmt.Errorf("creating team in shield: %w", err)
+	}
+	c.logger.Info(ctx, "Team access granted via team creation in shield", "id", createdGroup.ID, "name", createdGroup.Name)
+	return createdGroup, nil
+}
+
+func (c *shieldNewclient) RevokeCreateTeamAccess(ctx context.Context, team Group) error {
+	return nil
+}
+
 func (c *shieldNewclient) GetSelfUser(ctx context.Context, email string) (*User, error) {
 	req, err := c.newRequest(http.MethodGet, selfUserEndpoint, nil, email)
 	if err != nil {
