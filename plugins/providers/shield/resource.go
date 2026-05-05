@@ -24,6 +24,9 @@ type ShieldClient interface {
 	GrantResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error
 	RevokeResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error
 	GetSelfUser(ctx context.Context, email string) (*User, error)
+	CreateTeam(ctx context.Context, team Group) (*Group, error)
+	GrantCreateTeamAccess(ctx context.Context, team Group) (*Group, error)
+	RevokeCreateTeamAccess(ctx context.Context, team Group) error
 }
 
 const (
@@ -31,6 +34,7 @@ const (
 	ResourceTypeProject      = "project"
 	ResourceTypeOrganization = "organization"
 	ResourceTypeResource     = "resource"
+	ResourceTypeCreateTeam   = "create_team"
 )
 
 const (

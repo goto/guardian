@@ -412,3 +412,18 @@ func (c *client) GetNamespaces(ctx context.Context) ([]*Namespace, error) {
 	c.logger.Info(ctx, "GetNamespaces not implemented yet")
 	return nil, errors.New("GetNamespaces not implemented yet")
 }
+
+func (c *client) CreateTeam(ctx context.Context, team Group) (*Group, error) {
+	c.logger.Info(ctx, "CreateTeam not implemented yet")
+	return nil, errors.New("CreateTeam not implemented yet")
+}
+
+func (c *client) GrantCreateTeamAccess(ctx context.Context, team Group) (*Group, error) {
+	c.logger.Info(ctx, "GrantCreateTeamAccess not implemented yet")
+	return nil, errors.New("GrantCreateTeamAccess not implemented yet")
+}
+
+func (c *client) RevokeCreateTeamAccess(ctx context.Context, team Group) error {
+	c.logger.Info(ctx, "RevokeCreateTeamAccess not implemented yet")
+	return errors.New("RevokeCreateTeamAccess not implemented yet")
+}

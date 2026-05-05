@@ -114,7 +114,8 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 
 		if resourceType != ResourceTypeTeam &&
 			resourceType != ResourceTypeProject &&
-			resourceType != ResourceTypeOrganization {
+			resourceType != ResourceTypeOrganization &&
+			resourceType != ResourceTypeCreateTeam {
 			shieldResources, err = client.GetResources(ctx, resourceType)
 			if err != nil {
 				return nil, err
@@ -235,6 +236,15 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 			}
 		}
 		return nil
+	case ResourceTypeCreateTeam:
+		t := new(Group)
+		if err := t.FromDomain(a.Resource); err != nil {
+			return err
+		}
+		if _, err := client.GrantCreateTeamAccess(ctx, *t); err != nil {
+			return err
+		}
+		return nil
 	case ResourceTypeProject:
 		pj := new(Project)
 		if err := pj.FromDomain(a.Resource); err != nil {
@@ -300,6 +310,15 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 			}
 		}
 
+		return nil
+	case ResourceTypeCreateTeam:
+		t := new(Group)
+		if err := t.FromDomain(a.Resource); err != nil {
+			return err
+		}
+		if err := client.RevokeCreateTeamAccess(ctx, *t); err != nil {
+			return err
+		}
 		return nil
 	case ResourceTypeProject:
 		pj := new(Project)
