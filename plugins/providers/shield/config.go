@@ -88,7 +88,7 @@ func (c *Config) validateCredentials(value interface{}) (*Credentials, error) {
 }
 
 func (c *Config) validateResourceConfig(resource *domain.ResourceConfig, dynamicResourceTypes []string) error {
-	resourceTypes := append([]string{ResourceTypeTeam, ResourceTypeProject, ResourceTypeOrganization}, dynamicResourceTypes...)
+	resourceTypes := append([]string{ResourceTypeTeam, ResourceTypeProject, ResourceTypeOrganization, ResourceTypeCreateTeam}, dynamicResourceTypes...)
 	resourceTypeValidation := fmt.Sprintf("oneof=%s", strings.Join(resourceTypes, " "))
 	if err := c.validator.Var(resource.Type, resourceTypeValidation); err != nil {
 		return err
