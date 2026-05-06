@@ -2,6 +2,7 @@ package shield
 
 import (
 	"context"
+	"fmt"
 
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
@@ -355,4 +356,20 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		}
 		return nil
 	}
+}
+
+func (p *provider) ValidateResourceIdentifiers(_ context.Context, r *domain.Resource) error {
+	switch r.Type {
+	case ResourceTypeTeam, ResourceTypeProject, ResourceTypeOrganization, ResourceTypeResource, ResourceTypeCreateTeam:
+	default:
+		return fmt.Errorf("unsupported resource type %q for provider type %q", r.Type, p.typeName)
+	}
+	if r.URN == "" {
+		return fmt.Errorf("resource urn is required")
+	}
+	return nil
+}
+
+func (p *provider) ValidateResourceDetails(_ context.Context, _ *domain.Resource) error {
+	return nil
 }
