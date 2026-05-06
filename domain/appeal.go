@@ -586,6 +586,8 @@ type ListAppealsFilter struct {
 	NotDetailsForSelfCriteria []string `mapstructure:"not_details_for_self_criteria" json:"not_details_for_self_criteria,omitempty" validate:"omitempty"`
 	SummaryLabels             bool     `mapstructure:"summary_labels" json:"summary_labels,omitempty" validate:"omitempty"`
 	SummaryLabelsV2           bool     `mapstructure:"summary_labels_v2" json:"summary_labels_v2,omitempty" validate:"omitempty"`
+	ResourceDetailsPaths      []string `mapstructure:"resource_details_paths" json:"resource_details_paths,omitempty" validate:"omitempty"`
+	ResourceDetails           []string `mapstructure:"resource_details" json:"resource_details,omitempty" validate:"omitempty"`
 }
 
 func (af ListAppealsFilter) WithSummary() bool {

@@ -421,6 +421,14 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 	if err != nil {
 		return nil, err
 	}
+	db, err = applyJSONBPathsLikeAndInFilter(db, `"Resource"."details"`, filters.ResourceDetailsPaths,
+		"", "", "",
+		"", "", "",
+		filters.ResourceDetails, nil, "resource_details",
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(filters.DetailsForSelfCriteria) != 0 && len(filters.NotDetailsForSelfCriteria) != 0 {
 		return nil, fmt.Errorf("cannot use both details_for_self_criteria and not_details_for_self_criteria filters")

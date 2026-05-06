@@ -98,6 +98,8 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 		NotDetailsForSelfCriteria: req.GetNotDetailsForSelfCriteria(),
 		SummaryLabels:             req.GetSummaryLabels(),
 		SummaryLabelsV2:           req.GetSummaryLabelsV2(),
+		ResourceDetailsPaths:      req.GetResourceDetailsPaths(),
+		ResourceDetails:           req.GetResourceDetails(),
 	}
 
 	appeals, total, summary, err := s.listAppeals(ctx, filters)
@@ -190,6 +192,8 @@ func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListA
 		NotDetailsForSelfCriteria: req.GetNotDetailsForSelfCriteria(),
 		SummaryLabels:             req.GetSummaryLabels(),
 		SummaryLabelsV2:           req.GetSummaryLabelsV2(),
+		ResourceDetailsPaths:      req.GetResourceDetailsPaths(),
+		ResourceDetails:           req.GetResourceDetails(),
 	}
 
 	appeals, total, summary, err := s.listAppeals(ctx, filters)

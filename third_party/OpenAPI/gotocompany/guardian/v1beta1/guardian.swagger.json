@@ -641,6 +641,26 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "resourceDetailsPaths",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "resourceDetails",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -2236,6 +2256,26 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "resourceDetailsPaths",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "resourceDetails",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -2947,6 +2987,26 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "resourceDetailsPaths",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "resourceDetails",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -3950,6 +4010,26 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "resourceDetailsPaths",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "resourceDetails",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
