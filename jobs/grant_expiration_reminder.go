@@ -3,10 +3,13 @@ package jobs
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/goto/guardian/domain"
 )
+
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
 func (h *handler) GrantExpirationReminder(ctx context.Context, cfg Config) error {
 	h.logger.Info(ctx, "running grant expiration reminder job")
@@ -37,6 +40,16 @@ func (h *handler) GrantExpirationReminder(ctx context.Context, cfg Config) error
 		// TODO: group notifications by username
 		var notifications []domain.Notification
 		for _, g := range grants {
+			msgVars := map[string]interface{}{
+				"resource_name":             fmt.Sprintf("%s (%s: %s)", g.Resource.Name, g.Resource.ProviderType, g.Resource.URN),
+				"role":                      g.Role,
+				"expiration_date":           g.ExpirationDate,
+				"expiration_date_formatted": g.ExpirationDate.Format("Jan 02, 2006 15:04:05 UTC"),
+				"account_id":                g.AccountID,
+				"requestor":                 g.Owner,
+			}
+
+			// notify the creator (the person who submitted the appeal)
 			notifications = append(notifications, domain.Notification{
 				User: g.CreatedBy,
 				Labels: map[string]string{
@@ -44,17 +57,26 @@ func (h *handler) GrantExpirationReminder(ctx context.Context, cfg Config) error
 					"grant_id":  g.ID,
 				},
 				Message: domain.NotificationMessage{
-					Type: domain.NotificationTypeExpirationReminder,
-					Variables: map[string]interface{}{
-						"resource_name":             fmt.Sprintf("%s (%s: %s)", g.Resource.Name, g.Resource.ProviderType, g.Resource.URN),
-						"role":                      g.Role,
-						"expiration_date":           g.ExpirationDate,
-						"expiration_date_formatted": g.ExpirationDate.Format("Jan 02, 2006 15:04:05 UTC"),
-						"account_id":                g.AccountID,
-						"requestor":                 g.Owner,
-					},
+					Type:      domain.NotificationTypeExpirationReminder,
+					Variables: msgVars,
 				},
 			})
+
+			// for on-behalf appeals: if account_id is a valid email and different
+			// from the creator, also notify the actual access holder
+			if emailRegex.MatchString(g.AccountID) && g.AccountID != g.CreatedBy {
+				notifications = append(notifications, domain.Notification{
+					User: g.AccountID,
+					Labels: map[string]string{
+						"appeal_id": g.AppealID,
+						"grant_id":  g.ID,
+					},
+					Message: domain.NotificationMessage{
+						Type:      domain.NotificationTypeExpirationReminder,
+						Variables: msgVars,
+					},
+				})
+			}
 		}
 
 		if errs := h.notifier.Notify(ctx, notifications); errs != nil {
