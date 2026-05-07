@@ -3,6 +3,8 @@ package shield
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
@@ -246,6 +248,14 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 		if name, ok := details["team_name"].(string); ok {
 			t.Name = name
 		}
+		if t.Name == "" {
+			return fmt.Errorf("team_name is required in appeal details to create a team")
+		}
+		if slug, ok := details["slug"].(string); ok && slug != "" {
+			t.Slug = slug
+		} else {
+			t.Slug = toSlug(t.Name)
+		}
 		if orgId, ok := details["org_id"].(string); ok {
 			t.OrgId = orgId
 		}
@@ -253,9 +263,6 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 			if err := mapstructure.Decode(meta, &t.Metadata); err != nil {
 				return fmt.Errorf("decoding team metadata: %w", err)
 			}
-		}
-		if t.Name == "" {
-			return fmt.Errorf("team_name is required in appeal details to create a team")
 		}
 		if _, err := client.GrantCreateTeamAccess(ctx, *t); err != nil {
 			return err
@@ -387,4 +394,12 @@ func (p *provider) ValidateResourceIdentifiers(_ context.Context, r *domain.Reso
 
 func (p *provider) ValidateResourceDetails(_ context.Context, _ *domain.Resource) error {
 	return nil
+}
+
+var nonAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)
+
+func toSlug(name string) string {
+	s := strings.ToLower(strings.TrimSpace(name))
+	s = nonAlphanumeric.ReplaceAllString(s, "_")
+	return strings.Trim(s, "_")
 }
