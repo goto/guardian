@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -411,7 +410,16 @@ func (c *shieldNewclient) RevokeResourceAccess(ctx context.Context, resource *Re
 }
 
 func (c *shieldNewclient) CreateTeam(ctx context.Context, team Group) (*Group, error) {
-	req, err := c.newRequest(http.MethodPost, groupsEndpoint, team, "")
+	payload := map[string]interface{}{
+		"name":  team.Name,
+		"slug":  team.Slug,
+		"orgId": team.OrgId,
+	}
+	if team.Metadata != (Metadata{}) {
+		payload["metadata"] = team.Metadata
+	}
+
+	req, err := c.newRequest(http.MethodPost, groupsEndpoint, payload, "")
 	if err != nil {
 		return nil, err
 	}
@@ -478,9 +486,9 @@ func (c *shieldNewclient) do(ctx context.Context, req *http.Request, v interface
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusInternalServerError {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		byteData, _ := io.ReadAll(resp.Body)
-		return nil, errors.New(string(byteData))
+		return nil, fmt.Errorf("request to %s failed with status %d: %s", req.URL, resp.StatusCode, string(byteData))
 	}
 
 	if v != nil {
