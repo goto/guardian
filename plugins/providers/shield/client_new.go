@@ -428,6 +428,10 @@ func (c *shieldNewclient) CreateTeam(ctx context.Context, team Group) (*Group, e
 		}
 	}
 
+	if createdGroup == nil {
+		return nil, fmt.Errorf("unexpected response from shield: group not found in response body")
+	}
+
 	c.logger.Info(ctx, "Team created in shield", "id", createdGroup.ID, "name", createdGroup.Name)
 	return createdGroup, nil
 }
