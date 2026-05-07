@@ -238,9 +238,24 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 		}
 		return nil
 	case ResourceTypeCreateTeam:
-		t := new(Group)
-		if err := t.FromDomain(a.Resource); err != nil {
-			return err
+		if a.Appeal == nil {
+			return fmt.Errorf("appeal details are required to create a team")
+		}
+		details := a.Appeal.Details
+		t := &Group{}
+		if name, ok := details["team_name"].(string); ok {
+			t.Name = name
+		}
+		if orgId, ok := details["org_id"].(string); ok {
+			t.OrgId = orgId
+		}
+		if meta, ok := details["metadata"].(map[string]interface{}); ok {
+			if err := mapstructure.Decode(meta, &t.Metadata); err != nil {
+				return fmt.Errorf("decoding team metadata: %w", err)
+			}
+		}
+		if t.Name == "" {
+			return fmt.Errorf("team_name is required in appeal details to create a team")
 		}
 		if _, err := client.GrantCreateTeamAccess(ctx, *t); err != nil {
 			return err
