@@ -444,10 +444,13 @@ func (c *shieldNewclient) CreateTeam(ctx context.Context, team Group) (*Group, e
 	return createdGroup, nil
 }
 
-func (c *shieldNewclient) GrantCreateTeamAccess(ctx context.Context, team Group) (*Group, error) {
+func (c *shieldNewclient) GrantCreateTeamAccess(ctx context.Context, team Group, userId string) (*Group, error) {
 	createdGroup, err := c.CreateTeam(ctx, team)
 	if err != nil {
 		return nil, fmt.Errorf("creating team in shield: %w", err)
+	}
+	if err := c.CreateRelation(ctx, createdGroup.ID, groupNamespaceConst, fmt.Sprintf("%s:%s", userNamespaceConst, userId), managerRoleConst); err != nil {
+		return nil, fmt.Errorf("creating manager relation for team %s: %w", createdGroup.ID, err)
 	}
 	c.logger.Info(ctx, "Team access granted via team creation in shield", "id", createdGroup.ID, "name", createdGroup.Name)
 	return createdGroup, nil

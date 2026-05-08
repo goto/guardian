@@ -901,10 +901,39 @@ func (s *ShieldNewClientTestSuite) TestCreateTeam() {
 		s.Nil(result)
 		s.Error(err)
 	})
+
+	s.Run("should return error if shield returns non-2xx status", func() {
+		s.setup()
+
+		team := shield.Group{Name: "new_team", Slug: "new_team", OrgId: "org_id_1"}
+
+		errBody := []byte(`{"code":400,"message":"slug already taken"}`)
+		resp := http.Response{StatusCode: 400, Body: io.NopCloser(bytes.NewReader(errBody))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&resp, nil).Once()
+
+		result, err := s.client.CreateTeam(context.Background(), team)
+		s.Nil(result)
+		s.Error(err)
+		s.Contains(err.Error(), "400")
+	})
+
+	s.Run("should return error if response has no group key", func() {
+		s.setup()
+
+		team := shield.Group{Name: "new_team", Slug: "new_team", OrgId: "org_id_1"}
+
+		resp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(`{}`)))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&resp, nil).Once()
+
+		result, err := s.client.CreateTeam(context.Background(), team)
+		s.Nil(result)
+		s.Error(err)
+		s.Contains(err.Error(), "group not found in response body")
+	})
 }
 
 func (s *ShieldNewClientTestSuite) TestGrantCreateTeamAccess() {
-	s.Run("should create a team and return the group on success", func() {
+	s.Run("should create a team, assign manager relation, and return the group on success", func() {
 		s.setup()
 
 		team := shield.Group{
@@ -913,7 +942,7 @@ func (s *ShieldNewClientTestSuite) TestGrantCreateTeamAccess() {
 			OrgId: "org_id_1",
 		}
 
-		responseJson := `{
+		createTeamResponseJson := `{
 			"group": {
 				"id": "access_team_id",
 				"name": "access_team",
@@ -922,14 +951,28 @@ func (s *ShieldNewClientTestSuite) TestGrantCreateTeamAccess() {
 			}
 		}`
 
-		resp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
-		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&resp, nil).Once()
+		createRelationResponseJson := `{
+			"relation": {
+				"id": "relation_id",
+				"objectId": "access_team_id",
+				"objectNamespace": "shield/group",
+				"subject": "shield/user:user_123",
+				"roleName": "manager"
+			}
+		}`
 
-		result, err := s.client.GrantCreateTeamAccess(context.Background(), team)
+		createTeamResp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(createTeamResponseJson)))}
+		createRelationResp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(createRelationResponseJson)))}
+
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&createTeamResp, nil).Once()
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&createRelationResp, nil).Once()
+
+		result, err := s.client.GrantCreateTeamAccess(context.Background(), team, "user_123")
 		s.Nil(err)
 		s.NotNil(result)
 		s.Equal("access_team_id", result.ID)
 		s.Equal("access_team", result.Name)
+		s.mockHttpClient.AssertNumberOfCalls(s.T(), "Do", 2)
 	})
 
 	s.Run("should return error if CreateTeam fails", func() {
@@ -939,10 +982,34 @@ func (s *ShieldNewClientTestSuite) TestGrantCreateTeamAccess() {
 
 		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(nil, fmt.Errorf("network error")).Once()
 
-		result, err := s.client.GrantCreateTeamAccess(context.Background(), team)
+		result, err := s.client.GrantCreateTeamAccess(context.Background(), team, "user_123")
 		s.Nil(result)
 		s.Error(err)
 		s.ErrorContains(err, "creating team in shield")
+	})
+
+	s.Run("should return error if CreateRelation fails after team is created", func() {
+		s.setup()
+
+		team := shield.Group{Name: "access_team", Slug: "access_team", OrgId: "org_id_1"}
+
+		createTeamResponseJson := `{
+			"group": {
+				"id": "access_team_id",
+				"name": "access_team",
+				"slug": "access_team",
+				"orgId": "org_id_1"
+			}
+		}`
+
+		createTeamResp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(createTeamResponseJson)))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&createTeamResp, nil).Once()
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(nil, fmt.Errorf("relation creation failed")).Once()
+
+		result, err := s.client.GrantCreateTeamAccess(context.Background(), team, "user_123")
+		s.Nil(result)
+		s.Error(err)
+		s.ErrorContains(err, "creating manager relation for team")
 	})
 }
 
