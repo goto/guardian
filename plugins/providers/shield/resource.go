@@ -27,6 +27,7 @@ type ShieldClient interface {
 	CreateTeam(ctx context.Context, team Group) (*Group, error)
 	GrantCreateTeamAccess(ctx context.Context, team Group, userId string) (*Group, error)
 	RevokeCreateTeamAccess(ctx context.Context, team Group) error
+	CheckUserPermission(ctx context.Context, permissions []ResourcePermission) error
 }
 
 const (
@@ -46,6 +47,7 @@ const (
 	selfUserEndpoint     = "admin/v1beta1/users/self"
 	relationsEndpoint    = "/admin/v1beta1/relations"
 	objectEndpoint       = "/admin/v1beta1/object"
+	userCheckEndpoint    = "/admin/v1beta1/users/%s/check"
 
 	groupsConst        = "groups"
 	resourcesConst     = "resources"
@@ -62,6 +64,7 @@ const (
 	projectNamespaceConst      = "shield/project"
 	organizationNamespaceConst = "shield/organization"
 	managerRoleConst           = "manager"
+	editPermissionConst        = "edit"
 )
 
 type HTTPClient interface {
@@ -154,6 +157,12 @@ type DeleteRelation struct {
 	ObjectId  string `json:"object_id" mapstructure:"object_id"`
 	SubjectId string `json:"subject_id" mapstructure:"subject_id"`
 	Role      string `json:"role" mapstructure:"role"`
+}
+
+type ResourcePermission struct {
+	ObjectId        string `json:"object_id" mapstructure:"object_id"`
+	ObjectNamespace string `json:"object_namespace" mapstructure:"object_namespace"`
+	Permission      string `json:"permission" mapstructure:"permission"`
 }
 
 func (t *Group) FromDomain(r *domain.Resource) error {

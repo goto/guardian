@@ -444,7 +444,35 @@ func (c *shieldNewclient) CreateTeam(ctx context.Context, team Group) (*Group, e
 	return createdGroup, nil
 }
 
+func (c *shieldNewclient) CheckUserPermission(ctx context.Context, permissions []ResourcePermission) error {
+	endpoint := fmt.Sprintf(userCheckEndpoint, c.authEmail)
+	body := map[string]interface{}{
+		"resource_permissions": permissions,
+	}
+	req, err := c.newRequest(http.MethodPost, endpoint, body, "")
+	if err != nil {
+		return err
+	}
+
+	var response map[string]interface{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return fmt.Errorf("permission check failed: %w", err)
+	}
+
+	if status, ok := response["status"].(string); !ok || status != "allowed" {
+		return fmt.Errorf("permission denied: guardian service account does not have required permissions on the organization")
+	}
+	return nil
+}
+
 func (c *shieldNewclient) GrantCreateTeamAccess(ctx context.Context, team Group, userId string) (*Group, error) {
+	if team.OrgId != "" {
+		if err := c.CheckUserPermission(ctx, []ResourcePermission{
+			{ObjectId: team.OrgId, ObjectNamespace: organizationNamespaceConst, Permission: editPermissionConst},
+		}); err != nil {
+			return nil, fmt.Errorf("checking organization permission: %w", err)
+		}
+	}
 	createdGroup, err := c.CreateTeam(ctx, team)
 	if err != nil {
 		return nil, fmt.Errorf("creating team in shield: %w", err)
