@@ -427,3 +427,8 @@ func (c *client) RevokeCreateTeamAccess(ctx context.Context, team Group) error {
 	c.logger.Info(ctx, "RevokeCreateTeamAccess not implemented yet")
 	return errors.New("RevokeCreateTeamAccess not implemented yet")
 }
+
+func (c *client) CheckUserPermission(ctx context.Context, permissions []ResourcePermission) error {
+	c.logger.Info(ctx, "CheckUserPermission not implemented yet")
+	return errors.New("CheckUserPermission not implemented yet")
+}

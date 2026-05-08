@@ -932,8 +932,69 @@ func (s *ShieldNewClientTestSuite) TestCreateTeam() {
 	})
 }
 
+func (s *ShieldNewClientTestSuite) TestCheckUserPermission() {
+	s.Run("should return nil when permission check returns allowed", func() {
+		s.setup()
+
+		responseJson := `{"status": "allowed"}`
+		resp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&resp, nil).Once()
+
+		permissions := []shield.ResourcePermission{
+			{ObjectId: "org_id_1", ObjectNamespace: "shield/organization", Permission: "edit"},
+		}
+		err := s.client.CheckUserPermission(context.Background(), permissions)
+		s.Nil(err)
+	})
+
+	s.Run("should return error when permission check returns denied status", func() {
+		s.setup()
+
+		responseJson := `{"status": "denied"}`
+		resp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&resp, nil).Once()
+
+		permissions := []shield.ResourcePermission{
+			{ObjectId: "org_id_1", ObjectNamespace: "shield/organization", Permission: "edit"},
+		}
+		err := s.client.CheckUserPermission(context.Background(), permissions)
+		s.Error(err)
+		s.ErrorContains(err, "permission denied")
+	})
+
+	s.Run("should return error when http client returns error", func() {
+		s.setup()
+
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(nil, fmt.Errorf("network error")).Once()
+
+		permissions := []shield.ResourcePermission{
+			{ObjectId: "org_id_1", ObjectNamespace: "shield/organization", Permission: "edit"},
+		}
+		err := s.client.CheckUserPermission(context.Background(), permissions)
+		s.Error(err)
+		s.ErrorContains(err, "permission check failed")
+	})
+
+	s.Run("should return error when shield returns non-2xx status", func() {
+		s.setup()
+
+		errBody := []byte(`{"code":403,"message":"forbidden"}`)
+		resp := http.Response{StatusCode: 403, Body: io.NopCloser(bytes.NewReader(errBody))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&resp, nil).Once()
+
+		permissions := []shield.ResourcePermission{
+			{ObjectId: "org_id_1", ObjectNamespace: "shield/organization", Permission: "edit"},
+		}
+		err := s.client.CheckUserPermission(context.Background(), permissions)
+		s.Error(err)
+		s.ErrorContains(err, "permission check failed")
+	})
+}
+
 func (s *ShieldNewClientTestSuite) TestGrantCreateTeamAccess() {
-	s.Run("should create a team, assign manager relation, and return the group on success", func() {
+	checkPermissionResponseJson := `{"status": "allowed"}`
+
+	s.Run("should check permission, create a team, assign manager relation, and return the group on success", func() {
 		s.setup()
 
 		team := shield.Group{
@@ -961,6 +1022,76 @@ func (s *ShieldNewClientTestSuite) TestGrantCreateTeamAccess() {
 			}
 		}`
 
+		checkResp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(checkPermissionResponseJson)))}
+		createTeamResp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(createTeamResponseJson)))}
+		createRelationResp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(createRelationResponseJson)))}
+
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&checkResp, nil).Once()
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&createTeamResp, nil).Once()
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&createRelationResp, nil).Once()
+
+		result, err := s.client.GrantCreateTeamAccess(context.Background(), team, "user_123")
+		s.Nil(err)
+		s.NotNil(result)
+		s.Equal("access_team_id", result.ID)
+		s.Equal("access_team", result.Name)
+		s.mockHttpClient.AssertNumberOfCalls(s.T(), "Do", 3)
+	})
+
+	s.Run("should return error if permission check fails", func() {
+		s.setup()
+
+		team := shield.Group{Name: "access_team", Slug: "access_team", OrgId: "org_id_1"}
+
+		errBody := []byte(`{"code":403,"message":"forbidden"}`)
+		resp := http.Response{StatusCode: 403, Body: io.NopCloser(bytes.NewReader(errBody))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&resp, nil).Once()
+
+		result, err := s.client.GrantCreateTeamAccess(context.Background(), team, "user_123")
+		s.Nil(result)
+		s.Error(err)
+		s.ErrorContains(err, "checking organization permission")
+		s.mockHttpClient.AssertNumberOfCalls(s.T(), "Do", 1)
+	})
+
+	s.Run("should return error if CreateTeam fails after permission check passes", func() {
+		s.setup()
+
+		team := shield.Group{Name: "access_team", OrgId: "org_id_1"}
+
+		checkResp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(checkPermissionResponseJson)))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&checkResp, nil).Once()
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(nil, fmt.Errorf("network error")).Once()
+
+		result, err := s.client.GrantCreateTeamAccess(context.Background(), team, "user_123")
+		s.Nil(result)
+		s.Error(err)
+		s.ErrorContains(err, "creating team in shield")
+	})
+
+	s.Run("should skip permission check and succeed when org_id is empty", func() {
+		s.setup()
+
+		team := shield.Group{Name: "access_team", Slug: "access_team", OrgId: ""}
+
+		createTeamResponseJson := `{
+			"group": {
+				"id": "access_team_id",
+				"name": "access_team",
+				"slug": "access_team",
+				"orgId": ""
+			}
+		}`
+		createRelationResponseJson := `{
+			"relation": {
+				"id": "relation_id",
+				"objectId": "access_team_id",
+				"objectNamespace": "shield/group",
+				"subject": "shield/user:user_123",
+				"roleName": "manager"
+			}
+		}`
+
 		createTeamResp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(createTeamResponseJson)))}
 		createRelationResp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(createRelationResponseJson)))}
 
@@ -970,22 +1101,7 @@ func (s *ShieldNewClientTestSuite) TestGrantCreateTeamAccess() {
 		result, err := s.client.GrantCreateTeamAccess(context.Background(), team, "user_123")
 		s.Nil(err)
 		s.NotNil(result)
-		s.Equal("access_team_id", result.ID)
-		s.Equal("access_team", result.Name)
 		s.mockHttpClient.AssertNumberOfCalls(s.T(), "Do", 2)
-	})
-
-	s.Run("should return error if CreateTeam fails", func() {
-		s.setup()
-
-		team := shield.Group{Name: "access_team", OrgId: "org_id_1"}
-
-		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(nil, fmt.Errorf("network error")).Once()
-
-		result, err := s.client.GrantCreateTeamAccess(context.Background(), team, "user_123")
-		s.Nil(result)
-		s.Error(err)
-		s.ErrorContains(err, "creating team in shield")
 	})
 
 	s.Run("should return error if CreateRelation fails after team is created", func() {
@@ -1002,7 +1118,9 @@ func (s *ShieldNewClientTestSuite) TestGrantCreateTeamAccess() {
 			}
 		}`
 
+		checkResp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(checkPermissionResponseJson)))}
 		createTeamResp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(createTeamResponseJson)))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&checkResp, nil).Once()
 		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&createTeamResp, nil).Once()
 		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(nil, fmt.Errorf("relation creation failed")).Once()
 
