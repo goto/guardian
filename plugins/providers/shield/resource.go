@@ -157,7 +157,7 @@ type DeleteRelation struct {
 }
 
 func (t *Group) FromDomain(r *domain.Resource) error {
-	if r.Type != ResourceTypeTeam {
+	if r.Type != ResourceTypeTeam && r.Type != ResourceTypeCreateTeam {
 		return ErrInvalidResourceType
 	}
 
