@@ -25,7 +25,7 @@ type ShieldClient interface {
 	RevokeResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error
 	GetSelfUser(ctx context.Context, email string) (*User, error)
 	CreateTeam(ctx context.Context, team Group) (*Group, error)
-	GrantCreateTeamAccess(ctx context.Context, team Group) (*Group, error)
+	GrantCreateTeamAccess(ctx context.Context, team Group, userId string) (*Group, error)
 	RevokeCreateTeamAccess(ctx context.Context, team Group) error
 }
 

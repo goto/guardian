@@ -81,9 +81,9 @@ func (_c *ShieldClient_CreateTeam_Call) RunAndReturn(run func(context.Context, s
 	return _c
 }
 
-// GrantCreateTeamAccess provides a mock function with given fields: ctx, team
-func (_m *ShieldClient) GrantCreateTeamAccess(ctx context.Context, team shield.Group) (*shield.Group, error) {
-	ret := _m.Called(ctx, team)
+// GrantCreateTeamAccess provides a mock function with given fields: ctx, team, userId
+func (_m *ShieldClient) GrantCreateTeamAccess(ctx context.Context, team shield.Group, userId string) (*shield.Group, error) {
+	ret := _m.Called(ctx, team, userId)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GrantCreateTeamAccess")
@@ -91,19 +91,19 @@ func (_m *ShieldClient) GrantCreateTeamAccess(ctx context.Context, team shield.G
 
 	var r0 *shield.Group
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, shield.Group) (*shield.Group, error)); ok {
-		return rf(ctx, team)
+	if rf, ok := ret.Get(0).(func(context.Context, shield.Group, string) (*shield.Group, error)); ok {
+		return rf(ctx, team, userId)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, shield.Group) *shield.Group); ok {
-		r0 = rf(ctx, team)
+	if rf, ok := ret.Get(0).(func(context.Context, shield.Group, string) *shield.Group); ok {
+		r0 = rf(ctx, team, userId)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*shield.Group)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, shield.Group) error); ok {
-		r1 = rf(ctx, team)
+	if rf, ok := ret.Get(1).(func(context.Context, shield.Group, string) error); ok {
+		r1 = rf(ctx, team, userId)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -119,13 +119,14 @@ type ShieldClient_GrantCreateTeamAccess_Call struct {
 // GrantCreateTeamAccess is a helper method to define mock.On call
 //   - ctx context.Context
 //   - team shield.Group
-func (_e *ShieldClient_Expecter) GrantCreateTeamAccess(ctx interface{}, team interface{}) *ShieldClient_GrantCreateTeamAccess_Call {
-	return &ShieldClient_GrantCreateTeamAccess_Call{Call: _e.mock.On("GrantCreateTeamAccess", ctx, team)}
+//   - userId string
+func (_e *ShieldClient_Expecter) GrantCreateTeamAccess(ctx interface{}, team interface{}, userId interface{}) *ShieldClient_GrantCreateTeamAccess_Call {
+	return &ShieldClient_GrantCreateTeamAccess_Call{Call: _e.mock.On("GrantCreateTeamAccess", ctx, team, userId)}
 }
 
-func (_c *ShieldClient_GrantCreateTeamAccess_Call) Run(run func(ctx context.Context, team shield.Group)) *ShieldClient_GrantCreateTeamAccess_Call {
+func (_c *ShieldClient_GrantCreateTeamAccess_Call) Run(run func(ctx context.Context, team shield.Group, userId string)) *ShieldClient_GrantCreateTeamAccess_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(shield.Group))
+		run(args[0].(context.Context), args[1].(shield.Group), args[2].(string))
 	})
 	return _c
 }
@@ -135,7 +136,7 @@ func (_c *ShieldClient_GrantCreateTeamAccess_Call) Return(_a0 *shield.Group, _a1
 	return _c
 }
 
-func (_c *ShieldClient_GrantCreateTeamAccess_Call) RunAndReturn(run func(context.Context, shield.Group) (*shield.Group, error)) *ShieldClient_GrantCreateTeamAccess_Call {
+func (_c *ShieldClient_GrantCreateTeamAccess_Call) RunAndReturn(run func(context.Context, shield.Group, string) (*shield.Group, error)) *ShieldClient_GrantCreateTeamAccess_Call {
 	_c.Call.Return(run)
 	return _c
 }
