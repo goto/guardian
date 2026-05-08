@@ -1630,3 +1630,353 @@ func TestGetClient(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func TestValidateResourceIdentifiers(t *testing.T) {
+	logger := log.NewCtxLogger("info", []string{"test"})
+
+	t.Run("should return error for unsupported resource type", func(t *testing.T) {
+		p := shield.NewProvider("shield", logger)
+		r := &domain.Resource{
+			Type: "unsupported_type",
+			URN:  "some-urn",
+		}
+		err := p.ValidateResourceIdentifiers(context.Background(), r)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported resource type")
+	})
+
+	t.Run("should return error when URN is empty", func(t *testing.T) {
+		p := shield.NewProvider("shield", logger)
+		for _, rt := range []string{
+			shield.ResourceTypeTeam,
+			shield.ResourceTypeProject,
+			shield.ResourceTypeOrganization,
+			shield.ResourceTypeResource,
+			shield.ResourceTypeCreateTeam,
+		} {
+			err := p.ValidateResourceIdentifiers(context.Background(), &domain.Resource{Type: rt, URN: ""})
+			assert.Errorf(t, err, "expected error for resource type %q with empty URN", rt)
+			assert.Contains(t, err.Error(), "urn is required")
+		}
+	})
+
+	t.Run("should return nil for all supported resource types with non-empty URN", func(t *testing.T) {
+		p := shield.NewProvider("shield", logger)
+		for _, rt := range []string{
+			shield.ResourceTypeTeam,
+			shield.ResourceTypeProject,
+			shield.ResourceTypeOrganization,
+			shield.ResourceTypeResource,
+			shield.ResourceTypeCreateTeam,
+		} {
+			err := p.ValidateResourceIdentifiers(context.Background(), &domain.Resource{Type: rt, URN: "valid-urn"})
+			assert.NoErrorf(t, err, "unexpected error for resource type %q", rt)
+		}
+	})
+}
+
+func TestValidateResourceDetails(t *testing.T) {
+	logger := log.NewCtxLogger("info", []string{"test"})
+	p := shield.NewProvider("shield", logger)
+
+	t.Run("should always return nil", func(t *testing.T) {
+		err := p.ValidateResourceDetails(context.Background(), &domain.Resource{Type: shield.ResourceTypeTeam})
+		assert.NoError(t, err)
+	})
+}
+
+func TestValidateAppeal(t *testing.T) {
+	providerURN := "test-provider-urn"
+	logger := log.NewCtxLogger("info", []string{"test"})
+
+	t.Run("should return nil for non create_team resource types", func(t *testing.T) {
+		p := shield.NewProvider("shield", logger)
+		appeal := &domain.Appeal{
+			Resource: &domain.Resource{Type: shield.ResourceTypeTeam, ProviderURN: providerURN},
+			Details:  map[string]interface{}{},
+		}
+		assert.NoError(t, p.ValidateAppeal(context.Background(), appeal))
+	})
+
+	t.Run("should return nil when resource is nil", func(t *testing.T) {
+		p := shield.NewProvider("shield", logger)
+		appeal := &domain.Appeal{Resource: nil}
+		assert.NoError(t, p.ValidateAppeal(context.Background(), appeal))
+	})
+
+	t.Run("should return error when team_name is missing", func(t *testing.T) {
+		client := new(mocks.ShieldClient)
+		p := shield.NewProvider("shield", logger)
+		p.Clients = map[string]shield.ShieldClient{providerURN: client}
+
+		appeal := &domain.Appeal{
+			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
+			Details:  map[string]interface{}{},
+		}
+		err := p.ValidateAppeal(context.Background(), appeal)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "team_name is required")
+	})
+
+	t.Run("should return error when client is not initialized for provider", func(t *testing.T) {
+		p := shield.NewProvider("shield", logger)
+
+		appeal := &domain.Appeal{
+			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: "unknown-urn"},
+			Details:  map[string]interface{}{"team_name": "My Team"},
+		}
+		err := p.ValidateAppeal(context.Background(), appeal)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "shield client not initialized")
+	})
+
+	t.Run("should return error when GetGroups fails", func(t *testing.T) {
+		client := new(mocks.ShieldClient)
+		p := shield.NewProvider("shield", logger)
+		p.Clients = map[string]shield.ShieldClient{providerURN: client}
+
+		client.On("GetGroups", mock.Anything).Return(nil, errors.New("shield unavailable")).Once()
+
+		appeal := &domain.Appeal{
+			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
+			Details:  map[string]interface{}{"team_name": "My Team"},
+		}
+		err := p.ValidateAppeal(context.Background(), appeal)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "fetching existing teams from shield")
+		client.AssertExpectations(t)
+	})
+
+	t.Run("should return error when a team with the same name already exists", func(t *testing.T) {
+		client := new(mocks.ShieldClient)
+		p := shield.NewProvider("shield", logger)
+		p.Clients = map[string]shield.ShieldClient{providerURN: client}
+
+		existingGroups := []*shield.Group{
+			{ID: "existing-id", Name: "My Team", Slug: "my_team"},
+		}
+		client.On("GetGroups", mock.Anything).Return(existingGroups, nil).Once()
+
+		appeal := &domain.Appeal{
+			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
+			Details:  map[string]interface{}{"team_name": "My Team"},
+		}
+		err := p.ValidateAppeal(context.Background(), appeal)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "already exists")
+		client.AssertExpectations(t)
+	})
+
+	t.Run("should return error when a team with the same name exists case-insensitively", func(t *testing.T) {
+		client := new(mocks.ShieldClient)
+		p := shield.NewProvider("shield", logger)
+		p.Clients = map[string]shield.ShieldClient{providerURN: client}
+
+		existingGroups := []*shield.Group{
+			{ID: "existing-id", Name: "my team", Slug: "my_team"},
+		}
+		client.On("GetGroups", mock.Anything).Return(existingGroups, nil).Once()
+
+		appeal := &domain.Appeal{
+			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
+			Details:  map[string]interface{}{"team_name": "MY TEAM"},
+		}
+		err := p.ValidateAppeal(context.Background(), appeal)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "already exists")
+		client.AssertExpectations(t)
+	})
+
+	t.Run("should return error when a team with the same slug already exists", func(t *testing.T) {
+		client := new(mocks.ShieldClient)
+		p := shield.NewProvider("shield", logger)
+		p.Clients = map[string]shield.ShieldClient{providerURN: client}
+
+		existingGroups := []*shield.Group{
+			{ID: "existing-id", Name: "Existing Team", Slug: "new_team"},
+		}
+		client.On("GetGroups", mock.Anything).Return(existingGroups, nil).Once()
+
+		appeal := &domain.Appeal{
+			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
+			Details:  map[string]interface{}{"team_name": "New Team", "slug": "new_team"},
+		}
+		err := p.ValidateAppeal(context.Background(), appeal)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "slug")
+		assert.Contains(t, err.Error(), "already exists")
+		client.AssertExpectations(t)
+	})
+
+	t.Run("should return nil when team name and slug are unique", func(t *testing.T) {
+		client := new(mocks.ShieldClient)
+		p := shield.NewProvider("shield", logger)
+		p.Clients = map[string]shield.ShieldClient{providerURN: client}
+
+		existingGroups := []*shield.Group{
+			{ID: "other-id", Name: "Other Team", Slug: "other_team"},
+		}
+		client.On("GetGroups", mock.Anything).Return(existingGroups, nil).Once()
+
+		appeal := &domain.Appeal{
+			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
+			Details:  map[string]interface{}{"team_name": "My New Team", "slug": "my_new_team"},
+		}
+		err := p.ValidateAppeal(context.Background(), appeal)
+		assert.NoError(t, err)
+		client.AssertExpectations(t)
+	})
+
+	t.Run("should auto-generate slug from team_name when slug not provided", func(t *testing.T) {
+		client := new(mocks.ShieldClient)
+		p := shield.NewProvider("shield", logger)
+		p.Clients = map[string]shield.ShieldClient{providerURN: client}
+
+		existingGroups := []*shield.Group{
+			{ID: "other-id", Name: "Other Team", Slug: "other_team"},
+		}
+		client.On("GetGroups", mock.Anything).Return(existingGroups, nil).Once()
+
+		appeal := &domain.Appeal{
+			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
+			Details:  map[string]interface{}{"team_name": "My Brand New Team"},
+		}
+		err := p.ValidateAppeal(context.Background(), appeal)
+		assert.NoError(t, err)
+		client.AssertExpectations(t)
+	})
+}
+
+func TestGrantAccessCreateTeam(t *testing.T) {
+	ctx := context.Background()
+	mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
+	providerURN := "test-provider-urn"
+	logger := log.NewCtxLogger("info", []string{"test"})
+
+	basePC := &domain.ProviderConfig{
+		Credentials: shield.Credentials{
+			Host:      "localhost",
+			AuthEmail: "test_email",
+		},
+		Resources: []*domain.ResourceConfig{
+			{
+				Type: shield.ResourceTypeCreateTeam,
+				Roles: []*domain.Role{
+					{ID: "creator", Permissions: []interface{}{"create"}},
+				},
+			},
+		},
+		URN: providerURN,
+	}
+
+	t.Run("should return error when appeal is nil", func(t *testing.T) {
+		client := new(mocks.ShieldClient)
+		p := shield.NewProvider("shield", logger)
+		p.Clients = map[string]shield.ShieldClient{providerURN: client}
+
+		expectedUser := &shield.User{ID: "user_id", Email: "user@test.com"}
+		client.On("GetSelfUser", mockCtx, "user@test.com").Return(expectedUser, nil).Once()
+
+		a := domain.Grant{
+			Resource:  &domain.Resource{Type: shield.ResourceTypeCreateTeam},
+			AccountID: "user@test.com",
+			Appeal:    nil,
+		}
+		err := p.GrantAccess(ctx, basePC, a)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "appeal details are required")
+	})
+
+	t.Run("should return error when team_name is missing from appeal details", func(t *testing.T) {
+		client := new(mocks.ShieldClient)
+		p := shield.NewProvider("shield", logger)
+		p.Clients = map[string]shield.ShieldClient{providerURN: client}
+
+		expectedUser := &shield.User{ID: "user_id", Email: "user@test.com"}
+		client.On("GetSelfUser", mockCtx, "user@test.com").Return(expectedUser, nil).Once()
+
+		a := domain.Grant{
+			Resource:  &domain.Resource{Type: shield.ResourceTypeCreateTeam},
+			AccountID: "user@test.com",
+			Appeal:    &domain.Appeal{Details: map[string]interface{}{}},
+		}
+		err := p.GrantAccess(ctx, basePC, a)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "team_name is required")
+	})
+
+	t.Run("should return error when GrantCreateTeamAccess fails", func(t *testing.T) {
+		client := new(mocks.ShieldClient)
+		p := shield.NewProvider("shield", logger)
+		p.Clients = map[string]shield.ShieldClient{providerURN: client}
+
+		expectedUser := &shield.User{ID: "user_id", Email: "user@test.com"}
+		client.On("GetSelfUser", mockCtx, "user@test.com").Return(expectedUser, nil).Once()
+		client.On("GrantCreateTeamAccess", mockCtx, mock.Anything, "user_id").Return(nil, errors.New("shield error")).Once()
+
+		a := domain.Grant{
+			Resource:  &domain.Resource{Type: shield.ResourceTypeCreateTeam},
+			AccountID: "user@test.com",
+			Appeal: &domain.Appeal{Details: map[string]interface{}{
+				"team_name": "My Team",
+				"org_id":    "org-123",
+				"slug":      "my_team",
+			}},
+		}
+		err := p.GrantAccess(ctx, basePC, a)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "shield error")
+		client.AssertExpectations(t)
+	})
+
+	t.Run("should return nil when GrantCreateTeamAccess succeeds", func(t *testing.T) {
+		client := new(mocks.ShieldClient)
+		p := shield.NewProvider("shield", logger)
+		p.Clients = map[string]shield.ShieldClient{providerURN: client}
+
+		expectedUser := &shield.User{ID: "user_id", Email: "user@test.com"}
+		createdGroup := &shield.Group{ID: "new-team-id", Name: "My Team", Slug: "my_team"}
+		client.On("GetSelfUser", mockCtx, "user@test.com").Return(expectedUser, nil).Once()
+		client.On("GrantCreateTeamAccess", mockCtx, mock.MatchedBy(func(g shield.Group) bool {
+			return g.Name == "My Team" && g.Slug == "my_team" && g.OrgId == "org-123"
+		}), "user_id").Return(createdGroup, nil).Once()
+
+		a := domain.Grant{
+			Resource:  &domain.Resource{Type: shield.ResourceTypeCreateTeam},
+			AccountID: "user@test.com",
+			Appeal: &domain.Appeal{Details: map[string]interface{}{
+				"team_name": "My Team",
+				"org_id":    "org-123",
+				"slug":      "my_team",
+			}},
+		}
+		err := p.GrantAccess(ctx, basePC, a)
+		assert.NoError(t, err)
+		client.AssertExpectations(t)
+	})
+
+	t.Run("should auto-generate slug when not provided in appeal details", func(t *testing.T) {
+		client := new(mocks.ShieldClient)
+		p := shield.NewProvider("shield", logger)
+		p.Clients = map[string]shield.ShieldClient{providerURN: client}
+
+		expectedUser := &shield.User{ID: "user_id", Email: "user@test.com"}
+		createdGroup := &shield.Group{ID: "new-team-id", Name: "My Team", Slug: "my_team"}
+		client.On("GetSelfUser", mockCtx, "user@test.com").Return(expectedUser, nil).Once()
+		client.On("GrantCreateTeamAccess", mockCtx, mock.MatchedBy(func(g shield.Group) bool {
+			return g.Name == "My Team" && g.Slug == "my_team"
+		}), "user_id").Return(createdGroup, nil).Once()
+
+		a := domain.Grant{
+			Resource:  &domain.Resource{Type: shield.ResourceTypeCreateTeam},
+			AccountID: "user@test.com",
+			Appeal: &domain.Appeal{Details: map[string]interface{}{
+				"team_name": "My Team",
+				"org_id":    "org-123",
+			}},
+		}
+		err := p.GrantAccess(ctx, basePC, a)
+		assert.NoError(t, err)
+		client.AssertExpectations(t)
+	})
+}

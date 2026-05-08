@@ -264,7 +264,7 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 				return fmt.Errorf("decoding team metadata: %w", err)
 			}
 		}
-		if _, err := client.GrantCreateTeamAccess(ctx, *t); err != nil {
+		if _, err := client.GrantCreateTeamAccess(ctx, *t, user.ID); err != nil {
 			return err
 		}
 		return nil
@@ -393,6 +393,43 @@ func (p *provider) ValidateResourceIdentifiers(_ context.Context, r *domain.Reso
 }
 
 func (p *provider) ValidateResourceDetails(_ context.Context, _ *domain.Resource) error {
+	return nil
+}
+
+func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
+	if a.Resource == nil || a.Resource.Type != ResourceTypeCreateTeam {
+		return nil
+	}
+
+	teamName, _ := a.Details["team_name"].(string)
+	if teamName == "" {
+		return fmt.Errorf("team_name is required in appeal details for create_team resource type")
+	}
+
+	slug, _ := a.Details["slug"].(string)
+	if slug == "" {
+		slug = toSlug(teamName)
+	}
+
+	client, ok := p.Clients[a.Resource.ProviderURN]
+	if !ok {
+		return fmt.Errorf("shield client not initialized for provider %q", a.Resource.ProviderURN)
+	}
+
+	existingGroups, err := client.GetGroups(ctx)
+	if err != nil {
+		return fmt.Errorf("fetching existing teams from shield: %w", err)
+	}
+
+	for _, g := range existingGroups {
+		if strings.EqualFold(g.Name, teamName) {
+			return fmt.Errorf("a team with name %q already exists in Shield", teamName)
+		}
+		if strings.EqualFold(g.Slug, slug) {
+			return fmt.Errorf("a team with slug %q already exists in Shield", slug)
+		}
+	}
+
 	return nil
 }
 

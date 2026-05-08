@@ -418,7 +418,7 @@ func (c *client) CreateTeam(ctx context.Context, team Group) (*Group, error) {
 	return nil, errors.New("CreateTeam not implemented yet")
 }
 
-func (c *client) GrantCreateTeamAccess(ctx context.Context, team Group) (*Group, error) {
+func (c *client) GrantCreateTeamAccess(ctx context.Context, team Group, userId string) (*Group, error) {
 	c.logger.Info(ctx, "GrantCreateTeamAccess not implemented yet")
 	return nil, errors.New("GrantCreateTeamAccess not implemented yet")
 }
