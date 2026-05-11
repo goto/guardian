@@ -1019,13 +1019,14 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 	}
 
 	// validate previous approvals status
-	for i := 0; i < currentApproval.Index; i++ {
-		prevApproval := appeal.GetApprovalByIndex(i)
-		if prevApproval == nil {
-			return nil, fmt.Errorf("unable to find approval with index %d", i)
+	for _, prevIdx := range appeal.GetSortedStageIndices() {
+		if prevIdx >= currentApproval.Index {
+			break
 		}
-		if err := checkPreviousApprovalStatus(prevApproval.Status, prevApproval.Name); err != nil {
-			return nil, err
+		for _, prevApproval := range appeal.GetApprovalsByIndex(prevIdx) {
+			if err := checkPreviousApprovalStatus(prevApproval.Status, prevApproval.Name); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -1077,12 +1078,6 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 
 		currentApproval.Approve()
 
-		// mark next approval as pending
-		nextApproval := appeal.GetApprovalByIndex(currentApproval.Index + 1)
-		if nextApproval != nil {
-			nextApproval.Status = domain.ApprovalStatusPending
-		}
-
 		if err := appeal.AdvanceApproval(appeal.Policy); err != nil {
 			return nil, err
 		}
@@ -1090,16 +1085,16 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 		currentApproval.Reject()
 		appeal.Reject()
 
-		// mark the rest of approvals as skipped
-		i := currentApproval.Index
-		for {
-			nextApproval := appeal.GetApprovalByIndex(i + 1)
-			if nextApproval == nil {
-				break
+		// skip all other pending approvals in the same stage and all subsequent stages
+		for _, approval := range appeal.Approvals {
+			if approval.IsStale || approval == currentApproval {
+				continue
 			}
-			nextApproval.Skip()
-			nextApproval.UpdatedAt = TimeNow()
-			i++
+			if approval.Index > currentApproval.Index ||
+				(approval.Index == currentApproval.Index && approval.Status == domain.ApprovalStatusPending) {
+				approval.Skip()
+				approval.UpdatedAt = TimeNow()
+			}
 		}
 	} else {
 		return nil, ErrActionInvalidValue
@@ -1845,6 +1840,8 @@ func (s *Service) GrantAccessToProvider(ctx context.Context, a *domain.Appeal, o
 			Permissions:  dg.Permissions,
 			Size:         1,
 		})
+
+		// finding all account_id role resource_id account_type pair with duplicate grant and mark it as revoked in db
 		if err != nil {
 			return fmt.Errorf("failed to get existing active grant dependency: %w", err)
 		}
@@ -2364,11 +2361,11 @@ func (s *Service) prepareGrant(ctx context.Context, appeal *domain.Appeal) (newG
 		AccountIDs:  []string{appeal.AccountID},
 		ResourceIDs: []string{appeal.ResourceID},
 		Statuses:    []string{string(domain.GrantStatusActive)},
-		Permissions: appeal.Permissions,
+		Roles:       []string{appeal.Role},
 	}
 	revocationReason := RevokeReasonForExtension
 	if s.providerService.IsExclusiveRoleAssignment(ctx, appeal.Resource.ProviderType, appeal.Resource.Type) {
-		filter.Permissions = nil
+		filter.Roles = nil
 		revocationReason = RevokeReasonForOverride
 	}
 

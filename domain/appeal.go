@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -207,6 +208,62 @@ func (a *Appeal) GetApprovalByIndex(index int) *Approval {
 	return nil
 }
 
+// GetApprovalsByIndex returns all non-stale approvals sharing the given index (stage).
+func (a *Appeal) GetApprovalsByIndex(index int) []*Approval {
+	var result []*Approval
+	for _, approval := range a.Approvals {
+		if approval.Index == index && !approval.IsStale {
+			result = append(result, approval)
+		}
+	}
+	return result
+}
+
+// GetSortedStageIndices returns the distinct, sorted Approval.Index values for all non-stale approvals.
+func (a *Appeal) GetSortedStageIndices() []int {
+	seen := make(map[int]struct{})
+	for _, approval := range a.Approvals {
+		if !approval.IsStale {
+			seen[approval.Index] = struct{}{}
+		}
+	}
+	indices := make([]int, 0, len(seen))
+	for idx := range seen {
+		indices = append(indices, idx)
+	}
+	sort.Ints(indices)
+	return indices
+}
+
+// isStageResolved returns true when every approval in the stage has reached a terminal state
+// (approved, skipped, or rejected-with-AllowFailed).
+func isStageResolved(approvals []*Approval) bool {
+	for _, ap := range approvals {
+		switch ap.Status {
+		case ApprovalStatusApproved, ApprovalStatusSkipped:
+			// resolved
+		case ApprovalStatusRejected:
+			if !ap.AllowFailed {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// isStageRejected returns true when any approval in the stage is rejected without AllowFailed,
+// meaning the whole stage (and appeal) should be rejected.
+func isStageRejected(approvals []*Approval) bool {
+	for _, ap := range approvals {
+		if ap.Status == ApprovalStatusRejected && !ap.AllowFailed {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *Appeal) GetNextPendingApproval() *Approval {
 	for _, approval := range a.Approvals {
 		if approval.Status == ApprovalStatusPending && approval.IsManualApproval() && !approval.IsStale {
@@ -265,9 +322,15 @@ func (a Appeal) ToGrant() (*Grant, error) {
 }
 
 func (a *Appeal) ApplyPolicy(p *Policy) error {
+	stageIndex := p.StageIndex()
+
 	approvals := []*Approval{}
 	for i, step := range p.Steps {
-		approval, err := step.ToApproval(a, p, i)
+		idx := i
+		if step.Stage != "" {
+			idx = stageIndex[step.Stage]
+		}
+		approval, err := step.ToApproval(a, p, idx)
 		if err != nil {
 			return err
 		}
@@ -286,99 +349,95 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 		return fmt.Errorf("appeal has no policy")
 	}
 
-	policyStepCount := len(policy.Steps)
-	totalStepCount := policyStepCount
-	if policy.HasCustomSteps() {
-		nonStaleCount := 0
-		for _, approval := range a.Approvals {
-			if !approval.IsStale {
-				nonStaleCount++
+	sortedIndices := a.GetSortedStageIndices()
+
+	for idxPos, stageIdx := range sortedIndices {
+		stageApprovals := a.GetApprovalsByIndex(stageIdx)
+
+		for _, approval := range stageApprovals {
+			if approval.Status != ApprovalStatusPending {
+				continue
 			}
-		}
-		totalStepCount = nonStaleCount
-	}
-	for i := 0; i < totalStepCount; i++ {
-		approval := a.GetApprovalByIndex(i)
-		if approval == nil {
-			return fmt.Errorf(`unable to find approval with index %q under policy "%s:%d"`, i, policy.ID, policy.Version)
-		}
 
-		if approval.Status == ApprovalStatusRejected {
-			break
-		}
-		if approval.Status == ApprovalStatusPending {
-			if i < policyStepCount {
-				stepConfig := policy.Steps[approval.Index]
+			stepConfig := policy.GetStepByName(approval.Name)
+			if (stepConfig == nil || approval.Name == "") && approval.Index < len(policy.Steps) {
+				stepConfig = policy.Steps[approval.Index]
+			}
+			if stepConfig == nil {
+				continue
+			}
 
-				appealMap, err := a.ToMap()
+			appealMap, err := a.ToMap()
+			if err != nil {
+				return fmt.Errorf("parsing appeal struct to map: %w", err)
+			}
+
+			if stepConfig.When != "" {
+				v, err := evaluator.Expression(stepConfig.When).EvaluateWithVars(map[string]interface{}{
+					"appeal": appealMap,
+				})
 				if err != nil {
-					return fmt.Errorf("parsing appeal struct to map: %w", err)
+					return err
 				}
+				if reflect.ValueOf(v).IsZero() {
+					approval.Status = ApprovalStatusSkipped
+					continue
+				}
+			}
 
-				if stepConfig.When != "" {
-					v, err := evaluator.Expression(stepConfig.When).EvaluateWithVars(map[string]interface{}{
-						"appeal": appealMap,
-					})
-					if err != nil {
-						return err
-					}
-
-					isFalsy := reflect.ValueOf(v).IsZero()
-					if isFalsy {
-						// mark current as skipped
+			if stepConfig.Strategy == ApprovalStepStrategyAuto {
+				v, err := evaluator.Expression(stepConfig.ApproveIf).EvaluateWithVars(map[string]interface{}{
+					"appeal": appealMap,
+				})
+				if err != nil {
+					return err
+				}
+				if reflect.ValueOf(v).IsZero() {
+					if stepConfig.AllowFailed {
 						approval.Status = ApprovalStatusSkipped
-
-						// mark next as pending
-						nextApproval := a.GetApprovalByIndex(approval.Index + 1)
-						if nextApproval != nil {
-							nextApproval.Status = ApprovalStatusPending
-						}
-					}
-				}
-
-				if approval.Status != ApprovalStatusSkipped && stepConfig.Strategy == ApprovalStepStrategyAuto {
-					v, err := evaluator.Expression(stepConfig.ApproveIf).EvaluateWithVars(map[string]interface{}{
-						"appeal": appealMap,
-					})
-					if err != nil {
-						return err
-					}
-					isFalsy := reflect.ValueOf(v).IsZero()
-					if isFalsy {
-						if stepConfig.AllowFailed {
-							// mark current as skipped
-							approval.Status = ApprovalStatusSkipped
-
-							// mark next as pending
-							nextApproval := a.GetApprovalByIndex(approval.Index + 1)
-							if nextApproval != nil {
-								nextApproval.Status = ApprovalStatusPending
-							}
-						} else {
-							approval.Status = ApprovalStatusRejected
-							evaluatedRejectionReason, err := evaluateExpressionWithAppeal(a, stepConfig.RejectionReason)
-							if err != nil {
-								return err
-							}
-							approval.Reason = evaluatedRejectionReason
-							a.Status = AppealStatusRejected
-						}
 					} else {
-						// mark current as approved
-						approval.Status = ApprovalStatusApproved
-
-						// mark next as pending
-						nextApproval := a.GetApprovalByIndex(approval.Index + 1)
-						if nextApproval != nil {
-							nextApproval.Status = ApprovalStatusPending
+						approval.Status = ApprovalStatusRejected
+						evaluatedRejectionReason, err := evaluateExpressionWithAppeal(a, stepConfig.RejectionReason)
+						if err != nil {
+							return err
 						}
+						approval.Reason = evaluatedRejectionReason
 					}
+				} else {
+					approval.Status = ApprovalStatusApproved
 				}
 			}
 		}
-		isLastApproval := approval.Index == totalStepCount-1
-		if isLastApproval && (approval.Status == ApprovalStatusSkipped || approval.Status == ApprovalStatusApproved) {
+
+		if isStageRejected(stageApprovals) {
+			a.Status = AppealStatusRejected
+			for _, remainingIdx := range sortedIndices[idxPos+1:] {
+				for _, remaining := range a.GetApprovalsByIndex(remainingIdx) {
+					remaining.Skip()
+				}
+			}
+			for _, ap := range stageApprovals {
+				if ap.Status == ApprovalStatusPending {
+					ap.Skip()
+				}
+			}
+			return nil
+		}
+
+		if !isStageResolved(stageApprovals) {
+			return nil
+		}
+
+		isLastStage := idxPos == len(sortedIndices)-1
+		if isLastStage {
 			a.Status = AppealStatusApproved
+		} else {
+			nextIdx := sortedIndices[idxPos+1]
+			for _, nextApproval := range a.GetApprovalsByIndex(nextIdx) {
+				if nextApproval.Status == ApprovalStatusBlocked {
+					nextApproval.Status = ApprovalStatusPending
+				}
+			}
 		}
 	}
 
@@ -400,7 +459,10 @@ func (a *Appeal) DryRunAdvanceApproval(policy *Policy) error {
 		if !slices.GenericsSliceContainsOne([]string{ApprovalStatusBlocked, ApprovalStatusPending}, approval.Status) {
 			continue
 		}
-		stepConfig := policy.Steps[approval.Index]
+		stepConfig := policy.GetStepByName(approval.Name)
+		if stepConfig == nil {
+			continue
+		}
 		if stepConfig.When != "" {
 			v, err := evaluator.Expression(stepConfig.When).EvaluateWithVars(map[string]interface{}{
 				"appeal": appealMap,
@@ -410,7 +472,6 @@ func (a *Appeal) DryRunAdvanceApproval(policy *Policy) error {
 			}
 			isFalsy := reflect.ValueOf(v).IsZero()
 			if isFalsy {
-				// mark current as skipped
 				approval.Status = ApprovalStatusSkipped
 			}
 		}

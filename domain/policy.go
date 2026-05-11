@@ -74,6 +74,10 @@ type Step struct {
 	// Name used as the step identifier
 	Name string `json:"name" yaml:"name" validate:"required"`
 
+	// Stage references a name in Policy.Stages. Steps sharing the same stage run in parallel.
+	// If empty, steps execute sequentially by their slice position (backward-compatible behavior).
+	Stage string `json:"stage,omitempty" yaml:"stage,omitempty"`
+
 	// Description tells more details about the step
 	Description string `json:"description" yaml:"description"`
 
@@ -348,6 +352,9 @@ type Policy struct {
 	ID           string              `json:"id" yaml:"id" validate:"required"`
 	Version      uint                `json:"version" yaml:"version" validate:"required"`
 	Description  string              `json:"description" yaml:"description"`
+	// Stages defines the ordered list of stage names. Steps are assigned to stages via Step.Stage.
+	// Stages execute sequentially; steps within the same stage execute in parallel.
+	Stages       []string            `json:"stages,omitempty" yaml:"stages,omitempty"`
 	Steps        []*Step             `json:"steps" yaml:"steps" validate:"required,min=1,dive"`
 	CustomSteps  *CustomSteps        `json:"custom_steps" yaml:"custom_steps"`
 	AppealConfig *PolicyAppealConfig `json:"appeal" yaml:"appeal" validate:"omitempty,dive"`
@@ -385,6 +392,20 @@ func (p *Policy) GetStepByName(name string) *Step {
 		}
 	}
 	return nil
+}
+
+// HasStages returns true when the policy uses stage-based parallel approvals.
+func (p *Policy) HasStages() bool {
+	return len(p.Stages) > 0
+}
+
+// StageIndex returns a map from stage name to its sequential index position.
+func (p *Policy) StageIndex() map[string]int {
+	m := make(map[string]int, len(p.Stages))
+	for i, s := range p.Stages {
+		m[s] = i
+	}
+	return m
 }
 
 type PolicyAppealConfig struct {
