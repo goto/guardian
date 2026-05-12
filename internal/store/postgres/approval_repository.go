@@ -57,7 +57,11 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 
 	// Apply combined ORDER BY: exact-match priority (when Q is set) + user-specified order_by.
 	// This is intentionally outside applyApprovalsFilter so it does not affect summary/count queries.
-	if filter.Q != "" || len(filter.OrderBy) > 0 {
+	if filter.ExpirationSortDir != "" {
+		db = db.Joins(`LEFT JOIN "grants" "original_grant" ON "original_grant"."appeal_id" = ("Appeal"."details" ->> '__original_appeal_id') AND "original_grant"."status" = 'active'`)
+	}
+
+	if filter.Q != "" || len(filter.OrderBy) > 0 || filter.ExpirationSortDir != "" {
 		var prependSQL string
 		var prependVars []interface{}
 		if filter.Q != "" {
@@ -72,6 +76,11 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 		}, []string{"updated_at", "created_at"})
 		if err != nil {
 			return nil, err
+		}
+		if filter.ExpirationSortDir == "desc" {
+			db = db.Order(`"original_grant"."expiration_date" DESC NULLS LAST`)
+		} else if filter.ExpirationSortDir == "asc" {
+			db = db.Order(`"original_grant"."expiration_date" ASC NULLS LAST`)
 		}
 	}
 
@@ -455,6 +464,23 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		db = db.Where(`"Appeal"."created_at" >= ?`, filter.StartTime)
 	} else if !filter.EndTime.IsZero() {
 		db = db.Where(`"Appeal"."created_at" <= ?`, filter.EndTime)
+	}
+
+	hasExpirationStart, hasExpirationEnd := !filter.ExpirationStartTime.IsZero(), !filter.ExpirationEndTime.IsZero()
+	if hasExpirationStart || hasExpirationEnd {
+		subquery := `SELECT "grants"."appeal_id" FROM "grants" WHERE "grants"."status" = 'active'`
+		var args []interface{}
+		if hasExpirationStart && hasExpirationEnd {
+			subquery += ` AND "grants"."expiration_date" BETWEEN ? AND ?`
+			args = append(args, filter.ExpirationStartTime, filter.ExpirationEndTime)
+		} else if hasExpirationStart {
+			subquery += ` AND "grants"."expiration_date" >= ?`
+			args = append(args, filter.ExpirationStartTime)
+		} else {
+			subquery += ` AND "grants"."expiration_date" <= ?`
+			args = append(args, filter.ExpirationEndTime)
+		}
+		db = db.Where(`"Appeal"."details" ->> '__original_appeal_id' IN (`+subquery+`)`, args...)
 	}
 
 	// Label filtering

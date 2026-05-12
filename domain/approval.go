@@ -36,6 +36,9 @@ type Approval struct {
 	IsStale        bool `json:"is_stale,omitempty" yaml:"is_stale,omitempty"`
 	AppealRevision uint `json:"appeal_revision" yaml:"appeal_revision"`
 
+	// ExpirationDate is a transient field: the expiration date of the existing grant being renewed (not stored in DB)
+	ExpirationDate time.Time `json:"expiration_date,omitempty" yaml:"expiration_date,omitempty"`
+
 	CreatedAt time.Time `json:"created_at,omitempty" yaml:"created_at,omitempty"`
 	UpdatedAt time.Time `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
 }
@@ -87,6 +90,9 @@ type ListApprovalsFilter struct {
 	Actors                          []string            `mapstructure:"actors" json:"actors,omitempty" validate:"omitempty,min=1"`
 	StartTime                       time.Time           `mapstructure:"start_time" json:"start_time,omitempty"`
 	EndTime                         time.Time           `mapstructure:"end_time" json:"end_time,omitempty"`
+	ExpirationStartTime             time.Time           `mapstructure:"expiration_start_time" json:"expiration_start_time,omitempty"`
+	ExpirationEndTime               time.Time           `mapstructure:"expiration_end_time" json:"expiration_end_time,omitempty"`
+	ExpirationSortDir               string              `mapstructure:"expiration_sort_dir" json:"expiration_sort_dir,omitempty"`
 	FieldMasks                      []string            `mapstructure:"field_masks" json:"field_masks,omitempty"`
 	SummaryGroupBys                 []string            `mapstructure:"summary_group_bys" json:"summary_group_bys,omitempty"`
 	SummaryUniques                  []string            `mapstructure:"summary_uniques" json:"summary_uniques,omitempty"`

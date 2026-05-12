@@ -945,6 +945,9 @@ func (a *adapter) ToApprovalProto(approval *domain.Approval) (*guardianv1beta1.A
 		}
 		approvalProto.Details = details
 	}
+	if !approval.ExpirationDate.IsZero() {
+		approvalProto.ExpirationDate = timestamppb.New(approval.ExpirationDate)
+	}
 
 	if approval.Appeal != nil {
 		appeal, err := a.ToAppealProto(approval.Appeal)
