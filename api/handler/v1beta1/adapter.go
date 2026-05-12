@@ -944,6 +944,7 @@ func (a *adapter) ToApprovalProto(approval *domain.Approval) (*guardianv1beta1.A
 		AppealRevision:        uint32(approval.AppealRevision),
 		AllowFailed:           approval.AllowFailed,
 		DontAllowSelfApproval: approval.DontAllowSelfApproval,
+		Stage:                 approval.Stage,
 	}
 	if approval.Details != nil {
 		details, err := structpb.NewStruct(approval.Details)

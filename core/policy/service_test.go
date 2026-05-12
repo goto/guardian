@@ -756,6 +756,100 @@ func (s *ServiceTestSuite) TestPolicyRequirements() {
 	})
 }
 
+func (s *ServiceTestSuite) TestCreate_StagesValidation() {
+	validStep := func(name, stage string) *domain.Step {
+		return &domain.Step{
+			Name:      name,
+			Stage:     stage,
+			Strategy:  "manual",
+			Approvers: []string{"approver@example.com"},
+		}
+	}
+
+	s.Run("should accept a policy without stages (sequential, backward-compatible)", func() {
+		p := &domain.Policy{
+			ID:      "policy-no-stages",
+			Version: 1,
+			Steps: []*domain.Step{
+				validStep("step1", ""),
+				validStep("step2", ""),
+			},
+		}
+		s.mockPolicyRepository.EXPECT().
+			Create(mock.Anything, p).Return(nil).Once()
+		s.mockAuditLogger.EXPECT().
+			Log(mock.Anything, policy.AuditKeyPolicyCreate, mock.Anything).Return(nil).Once()
+
+		err := s.service.Create(context.Background(), p)
+		s.NoError(err)
+	})
+
+	s.Run("should accept a policy with valid stages where all steps have a matching stage", func() {
+		p := &domain.Policy{
+			ID:      "policy-with-stages",
+			Version: 1,
+			Stages:  []string{"review", "approve"},
+			Steps: []*domain.Step{
+				validStep("legal-review", "review"),
+				validStep("security-review", "review"),
+				validStep("manager-approve", "approve"),
+			},
+		}
+		s.mockPolicyRepository.EXPECT().
+			Create(mock.Anything, p).Return(nil).Once()
+		s.mockAuditLogger.EXPECT().
+			Log(mock.Anything, policy.AuditKeyPolicyCreate, mock.Anything).Return(nil).Once()
+
+		err := s.service.Create(context.Background(), p)
+		s.NoError(err)
+	})
+
+	s.Run("should return error when a step references a stage not defined in Stages", func() {
+		p := &domain.Policy{
+			ID:      "bad-stage-ref",
+			Version: 1,
+			Stages:  []string{"review"},
+			Steps: []*domain.Step{
+				validStep("step1", "nonexistent"),
+			},
+		}
+
+		err := s.service.Create(context.Background(), p)
+		s.Error(err)
+		s.Contains(err.Error(), "unknown stage")
+	})
+
+	s.Run("should return error when stages are defined but a step has no stage", func() {
+		p := &domain.Policy{
+			ID:      "missing-step-stage",
+			Version: 1,
+			Stages:  []string{"review"},
+			Steps: []*domain.Step{
+				validStep("step1", "review"),
+				validStep("step2", ""), // missing stage
+			},
+		}
+
+		err := s.service.Create(context.Background(), p)
+		s.Error(err)
+		s.Contains(err.Error(), "all steps must have a stage")
+	})
+
+	s.Run("should return error when a step has a stage but no Stages list is defined", func() {
+		p := &domain.Policy{
+			ID:      "step-stage-no-stages-list",
+			Version: 1,
+			Steps: []*domain.Step{
+				validStep("step1", "review"),
+			},
+		}
+
+		err := s.service.Create(context.Background(), p)
+		s.Error(err)
+		s.Contains(err.Error(), "no stages defined")
+	})
+}
+
 func (s *ServiceTestSuite) TestFind() {
 	s.Run("should return nil and error if got error from repository", func() {
 		expectedError := errors.New("error from repository")

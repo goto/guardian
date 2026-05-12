@@ -188,6 +188,7 @@ func (s Step) ToApproval(a *Appeal, p *Policy, index int) (*Approval, error) {
 	approval := &Approval{
 		Index:                 index,
 		Name:                  s.Name,
+		Stage:                 s.Stage,
 		PolicyID:              p.ID,
 		PolicyVersion:         p.Version,
 		Approvers:             approvers,
@@ -349,9 +350,9 @@ type Requirement struct {
 
 // Policy is the approval policy configuration
 type Policy struct {
-	ID           string              `json:"id" yaml:"id" validate:"required"`
-	Version      uint                `json:"version" yaml:"version" validate:"required"`
-	Description  string              `json:"description" yaml:"description"`
+	ID          string `json:"id" yaml:"id" validate:"required"`
+	Version     uint   `json:"version" yaml:"version" validate:"required"`
+	Description string `json:"description" yaml:"description"`
 	// Stages defines the ordered list of stage names. Steps are assigned to stages via Step.Stage.
 	// Stages execute sequentially; steps within the same stage execute in parallel.
 	Stages       []string            `json:"stages,omitempty" yaml:"stages,omitempty"`
@@ -406,6 +407,30 @@ func (p *Policy) StageIndex() map[string]int {
 		m[s] = i
 	}
 	return m
+}
+
+// ValidateStages checks that:
+// - every step with a non-empty Stage references a name that exists in Stages
+// - if any step has a Stage, Stages must not be empty
+func (p *Policy) ValidateStages() error {
+	if !p.HasStages() {
+		for _, step := range p.Steps {
+			if step.Stage != "" {
+				return fmt.Errorf("step %q has stage %q but policy has no stages defined", step.Name, step.Stage)
+			}
+		}
+		return nil
+	}
+	stageIndex := p.StageIndex()
+	for _, step := range p.Steps {
+		if step.Stage == "" {
+			return fmt.Errorf("step %q has no stage but policy defines stages; all steps must have a stage", step.Name)
+		}
+		if _, ok := stageIndex[step.Stage]; !ok {
+			return fmt.Errorf("step %q references unknown stage %q", step.Name, step.Stage)
+		}
+	}
+	return nil
 }
 
 type PolicyAppealConfig struct {

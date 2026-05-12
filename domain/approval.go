@@ -19,6 +19,7 @@ type Approval struct {
 	ID            string  `json:"id" yaml:"id"`
 	Name          string  `json:"name" yaml:"name"`
 	Index         int     `json:"-" yaml:"-"`
+	Stage         string  `json:"stage,omitempty" yaml:"stage,omitempty"`
 	AppealID      string  `json:"appeal_id" yaml:"appeal_id"`
 	Status        string  `json:"status" yaml:"status"`
 	Actor         *string `json:"actor" yaml:"actor"`

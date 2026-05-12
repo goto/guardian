@@ -24,6 +24,7 @@ type Approval struct {
 	PolicyID      string
 	PolicyVersion uint
 
+	Stage                 string
 	AllowFailed           bool
 	DontAllowSelfApproval bool
 	Details               datatypes.JSON
@@ -77,6 +78,7 @@ func (m *Approval) FromDomain(a *domain.Approval) error {
 	m.ID = id
 	m.Name = a.Name
 	m.Index = a.Index
+	m.Stage = a.Stage
 	m.AppealID = a.AppealID
 	m.Status = a.Status
 	m.Actor = a.Actor
@@ -125,6 +127,7 @@ func (m *Approval) ToDomain() (*domain.Approval, error) {
 		ID:                    m.ID.String(),
 		Name:                  m.Name,
 		Index:                 m.Index,
+		Stage:                 m.Stage,
 		AppealID:              m.AppealID,
 		Status:                m.Status,
 		Actor:                 m.Actor,

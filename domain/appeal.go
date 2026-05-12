@@ -328,7 +328,11 @@ func (a *Appeal) ApplyPolicy(p *Policy) error {
 	for i, step := range p.Steps {
 		idx := i
 		if step.Stage != "" {
-			idx = stageIndex[step.Stage]
+			stageIdx, ok := stageIndex[step.Stage]
+			if !ok {
+				return fmt.Errorf("step %q references unknown stage %q", step.Name, step.Stage)
+			}
+			idx = stageIdx
 		}
 		approval, err := step.ToApproval(a, p, idx)
 		if err != nil {

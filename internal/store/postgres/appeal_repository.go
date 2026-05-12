@@ -287,7 +287,6 @@ func (r *AppealRepository) Update(ctx context.Context, a *domain.Appeal) error {
 	}
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// need to check for race condition
 		if err := tx.Omit("Approvals.Approvers", "Resource", "Grant.Resource").Session(&gorm.Session{FullSaveAssociations: true}).Save(&m).Error; err != nil {
 			var pgError *pgconn.PgError
 			if errors.As(err, &pgError) && pgError.Code == pgUniqueViolationErrorCode && pgError.ConstraintName == grantUniqueConstraintName {
@@ -305,6 +304,70 @@ func (r *AppealRepository) Update(ctx context.Context, a *domain.Appeal) error {
 
 		return nil
 	})
+}
+
+// UpdateWithLock acquires a row-level lock on the appeal, re-reads the full appeal
+// from the database, calls fn with the fresh data, then saves the result — all within
+// a single transaction. This prevents lost-update races when parallel approvers submit
+// at the same time.
+func (r *AppealRepository) UpdateWithLock(ctx context.Context, appealID string, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
+	var result *domain.Appeal
+
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Acquire row-level lock before reading to serialize concurrent writers.
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Select("id").
+			Model(&model.Appeal{}).
+			Where("id = ?", appealID).
+			First(&model.Appeal{}).Error; err != nil {
+			return fmt.Errorf("locking appeal row: %w", err)
+		}
+
+		// Re-read the full appeal with all associations so fn operates on fresh state.
+		m := new(model.Appeal)
+		if err := tx.
+			Preload("Approvals", func(db *gorm.DB) *gorm.DB {
+				return db.Order("Approvals.index ASC")
+			}).
+			Preload("Approvals.Approvers").
+			Preload("Resource").
+			Preload("Grant").
+			First(m, "id = ?", appealID).Error; err != nil {
+			return fmt.Errorf("re-reading appeal: %w", err)
+		}
+
+		a, err := m.ToDomain()
+		if err != nil {
+			return fmt.Errorf("parsing appeal: %w", err)
+		}
+
+		if err := fn(a); err != nil {
+			return err
+		}
+
+		if err := m.FromDomain(a); err != nil {
+			return err
+		}
+
+		if err := tx.Omit("Approvals.Approvers", "Resource", "Grant.Resource").
+			Session(&gorm.Session{FullSaveAssociations: true}).
+			Save(m).Error; err != nil {
+			var pgError *pgconn.PgError
+			if errors.As(err, &pgError) && pgError.Code == pgUniqueViolationErrorCode && pgError.ConstraintName == grantUniqueConstraintName {
+				return domain.ErrDuplicateActiveGrant
+			}
+			return err
+		}
+
+		saved, err := m.ToDomain()
+		if err != nil {
+			return fmt.Errorf("parsing saved appeal: %w", err)
+		}
+		result = saved
+		return nil
+	})
+
+	return result, err
 }
 
 func applyAppealsJoins(db *gorm.DB) *gorm.DB {
