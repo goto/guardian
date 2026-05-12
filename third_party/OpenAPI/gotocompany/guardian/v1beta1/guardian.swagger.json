@@ -1699,6 +1699,20 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "expirationStartTime",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "expirationEndTime",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
           }
         ],
         "tags": [
@@ -3501,6 +3515,20 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "expirationStartTime",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "expirationEndTime",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
           }
         ],
         "tags": [
@@ -5608,6 +5636,10 @@
         },
         "details": {
           "type": "object"
+        },
+        "expirationDate": {
+          "type": "string",
+          "format": "date-time"
         }
       },
       "title": "Approval is an approval item that generated in an appeal based on the selected policy"

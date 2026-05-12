@@ -3,6 +3,7 @@ package v1beta1
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 
 	"github.com/mitchellh/mapstructure"
@@ -61,6 +62,8 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		FieldMasks:                      slicesUtil.GenericsStandardizeSliceNilAble(req.GetFieldMasks()),
 		StartTime:                       s.adapter.FromTimeProto(req.GetStartTime()),
 		EndTime:                         s.adapter.FromTimeProto(req.GetEndTime()),
+		ExpirationStartTime:             s.adapter.FromTimeProto(req.GetExpirationStartTime()),
+		ExpirationEndTime:               s.adapter.FromTimeProto(req.GetExpirationEndTime()),
 		ResourceUrns:                    slicesUtil.GenericsStandardizeSliceNilAble(req.GetResourceUrns()),
 		Roles:                           slicesUtil.GenericsStandardizeSliceNilAble(req.GetRoles()),
 		Requestors:                      slicesUtil.GenericsStandardizeSliceNilAble(req.GetRequestors()),
@@ -154,6 +157,8 @@ func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.Lis
 		FieldMasks:                      slicesUtil.GenericsStandardizeSliceNilAble(req.GetFieldMasks()),
 		StartTime:                       s.adapter.FromTimeProto(req.GetStartTime()),
 		EndTime:                         s.adapter.FromTimeProto(req.GetEndTime()),
+		ExpirationStartTime:             s.adapter.FromTimeProto(req.GetExpirationStartTime()),
+		ExpirationEndTime:               s.adapter.FromTimeProto(req.GetExpirationEndTime()),
 		ResourceUrns:                    slicesUtil.GenericsStandardizeSliceNilAble(req.GetResourceUrns()),
 		Roles:                           slicesUtil.GenericsStandardizeSliceNilAble(req.GetRoles()),
 		Requestors:                      slicesUtil.GenericsStandardizeSliceNilAble(req.GetRequestors()),
@@ -404,6 +409,9 @@ func (s *GRPCServer) UpdateApprovalStep(ctx context.Context, req *guardianv1beta
 }
 
 func (s *GRPCServer) listApprovals(ctx context.Context, filter *domain.ListApprovalsFilter) ([]*guardianv1beta1.Approval, int64, *guardianv1beta1.SummaryResult, error) {
+	// Extract expiration sort directive and store on filter so the repo can add the DB-level ORDER BY.
+	extractExpirationSortDir(filter)
+
 	eg, egCtx := errgroup.WithContext(ctx)
 	var approvals []*domain.Approval
 	var summary *domain.SummaryResult
@@ -454,6 +462,8 @@ func (s *GRPCServer) listApprovals(ctx context.Context, filter *domain.ListAppro
 	if err := eg.Wait(); err != nil {
 		return nil, 0, nil, err
 	}
+
+	approvals = s.enrichApprovalsWithExpirationDate(ctx, approvals)
 
 	var approvalsProto []*guardianv1beta1.Approval
 	for _, a := range approvals {
@@ -526,4 +536,66 @@ func (s *GRPCServer) listApprovalsSummaries(ctx context.Context, actor string, i
 		return nil, err
 	}
 	return summaryItems, nil
+}
+
+// extractExpirationSortDir removes expiration_date / expiration_in_days from filter.OrderBy
+// (not real DB columns) and stores the direction in filter.ExpirationSortDir for the repo to handle.
+func extractExpirationSortDir(filter *domain.ListApprovalsFilter) {
+	expirationKeys := map[string]bool{"expiration_date": true, "expiration_in_days": true}
+	remaining := filter.OrderBy[:0]
+	for _, ob := range filter.OrderBy {
+		parts := strings.SplitN(ob, ":", 2)
+		if expirationKeys[parts[0]] {
+			if filter.ExpirationSortDir == "" {
+				if len(parts) == 2 && parts[1] == "desc" {
+					filter.ExpirationSortDir = "desc"
+				} else {
+					filter.ExpirationSortDir = "asc"
+				}
+			}
+			continue
+		}
+		remaining = append(remaining, ob)
+	}
+	filter.OrderBy = remaining
+}
+
+// enrichApprovalsWithExpirationDate populates the transient ExpirationDate field on renewal approvals
+// by looking up the active grant for each original appeal. Sort is handled at the DB level.
+func (s *GRPCServer) enrichApprovalsWithExpirationDate(ctx context.Context, approvals []*domain.Approval) []*domain.Approval {
+	originalAppealIDs := make([]string, 0)
+	appealIDToApprovals := make(map[string][]*domain.Approval)
+	for _, a := range approvals {
+		if a.Appeal == nil || a.Appeal.Details == nil {
+			continue
+		}
+		origID, _ := a.Appeal.Details["__original_appeal_id"].(string)
+		if origID == "" {
+			continue
+		}
+		if _, seen := appealIDToApprovals[origID]; !seen {
+			originalAppealIDs = append(originalAppealIDs, origID)
+		}
+		appealIDToApprovals[origID] = append(appealIDToApprovals[origID], a)
+	}
+
+	if len(originalAppealIDs) == 0 {
+		return approvals
+	}
+
+	grants, err := s.grantService.List(ctx, domain.ListGrantsFilter{
+		AppealIDs: originalAppealIDs,
+		Statuses:  []string{string(domain.GrantStatusActive)},
+	})
+	if err == nil {
+		for i := range grants {
+			g := &grants[i]
+			if g.ExpirationDate != nil {
+				for _, a := range appealIDToApprovals[g.AppealID] {
+					a.ExpirationDate = *g.ExpirationDate
+				}
+			}
+		}
+	}
+	return approvals
 }

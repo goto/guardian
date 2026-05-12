@@ -205,6 +205,7 @@ func (gu *GrantUpdate) Validate(current Grant) error {
 
 type ListGrantsFilter struct {
 	NotIDs                          []string            `json:"not_ids,omitempty"`
+	AppealIDs                       []string            `json:"appeal_ids,omitempty"`
 	Statuses                        []string            `json:"statuses,omitempty"`
 	AccountIDs                      []string            `json:"account_ids,omitempty"`
 	AccountTypes                    []string            `json:"account_types,omitempty"`
