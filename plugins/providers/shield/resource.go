@@ -151,6 +151,8 @@ type Relation struct {
 	ObjectNamespace string `json:"object_namespace" mapstructure:"object_namespace"`
 	Subject         string `json:"subject" mapstructure:"subject"`
 	RoleName        string `json:"role_name" mapstructure:"role_name"`
+	SubjectType     string `json:"subject_type" mapstructure:"subject_type"`
+	ObjectType      string `json:"object_type" mapstructure:"object_type"`
 }
 
 type DeleteRelation struct {
