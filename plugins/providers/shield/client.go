@@ -419,8 +419,15 @@ func (c *client) CreateTeam(ctx context.Context, team Group) (*Group, error) {
 }
 
 func (c *client) GrantCreateTeamAccess(ctx context.Context, team Group, userId string) (*Group, error) {
-	c.logger.Info(ctx, "GrantCreateTeamAccess not implemented yet")
-	return nil, errors.New("GrantCreateTeamAccess not implemented yet")
+	createdGroup, err := c.CreateTeam(ctx, team)
+	if err != nil {
+		return nil, fmt.Errorf("creating team in shield: %w", err)
+	}
+	if err := c.CreateRelation(ctx, createdGroup.ID, groupNamespaceConst, fmt.Sprintf("%s:%s", userNamespaceConst, userId), managerRoleConst); err != nil {
+		return nil, fmt.Errorf("creating manager relation for team %s: %w", createdGroup.ID, err)
+	}
+	c.logger.Info(ctx, "Team access granted via team creation in shield", "id", createdGroup.ID, "name", createdGroup.Name)
+	return createdGroup, nil
 }
 
 func (c *client) RevokeCreateTeamAccess(ctx context.Context, team Group) error {
@@ -428,7 +435,53 @@ func (c *client) RevokeCreateTeamAccess(ctx context.Context, team Group) error {
 	return errors.New("RevokeCreateTeamAccess not implemented yet")
 }
 
+func (c *client) CreateRelation(ctx context.Context, objectId string, objectNamespace string, subject string, role string) error {
+	body := Relation{
+		ObjectId:        objectId,
+		ObjectNamespace: objectNamespace,
+		Subject:         subject,
+		RoleName:        role,
+	}
+
+	req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
+	if err != nil {
+		return err
+	}
+
+	var relation *Relation
+	var response interface{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return err
+	}
+
+	if v, ok := response.(map[string]interface{}); ok && v[relationConst] != nil {
+		err = mapstructure.Decode(v[relationConst], &relation)
+		if err != nil {
+			return err
+		}
+	}
+
+	c.logger.Info(ctx, "Relation created for namespace ", objectNamespace, "relation id", relation.Id)
+	return nil
+}
+
 func (c *client) CheckUserPermission(ctx context.Context, permissions []ResourcePermission) error {
-	c.logger.Info(ctx, "CheckUserPermission not implemented yet")
-	return errors.New("CheckUserPermission not implemented yet")
+	endpoint := fmt.Sprintf(userCheckEndpoint, c.authEmail)
+	body := map[string]interface{}{
+		"resource_permissions": permissions,
+	}
+	req, err := c.newRequest(http.MethodPost, endpoint, body, "")
+	if err != nil {
+		return err
+	}
+
+	var response map[string]interface{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return fmt.Errorf("permission check failed: %w", err)
+	}
+
+	if status, ok := response["status"].(string); !ok || status != "allowed" {
+		return fmt.Errorf("permission denied: guardian service account does not have required permissions on the organization")
+	}
+	return nil
 }
