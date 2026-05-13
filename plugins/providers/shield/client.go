@@ -437,10 +437,11 @@ func (c *client) RevokeCreateTeamAccess(ctx context.Context, team Group) error {
 
 func (c *client) CreateRelation(ctx context.Context, objectId string, objectNamespace string, subject string, role string) error {
 	body := Relation{
-		ObjectId:        objectId,
-		ObjectNamespace: objectNamespace,
-		Subject:         subject,
-		RoleName:        role,
+		ObjectId:    objectId,
+		ObjectType:  "team",
+		SubjectType: "user",
+		Subject:     subject,
+		RoleName:    "team_member",
 	}
 
 	req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
