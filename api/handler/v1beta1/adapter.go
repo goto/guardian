@@ -267,6 +267,7 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 				Approvers:             s.GetApprovers(),
 				DontAllowSelfApproval: s.GetDontAllowSelfApproval(),
 				TermsAndConditions:    s.GetTermsAndConditions(),
+				Stage:                 s.GetStage(),
 			}
 			if s.Details != nil {
 				stepProto.Details = s.GetDetails().AsMap()
@@ -281,6 +282,10 @@ func (a *adapter) FromPolicyProto(p *guardianv1beta1.Policy) *domain.Policy {
 			Type:   cs.GetType(),
 			Config: cs.GetConfig(),
 		}
+	}
+
+	if stages := p.GetStages(); len(stages) > 0 {
+		policy.Stages = stages
 	}
 
 	if p.GetRequirements() != nil {
@@ -459,6 +464,7 @@ func (a *adapter) ToPolicyProto(p *domain.Policy) (*guardianv1beta1.Policy, erro
 		Version:     uint32(p.Version),
 		Description: p.Description,
 		Labels:      p.Labels,
+		Stages:      p.Stages,
 	}
 
 	if p.Steps != nil {
@@ -475,6 +481,7 @@ func (a *adapter) ToPolicyProto(p *domain.Policy) (*guardianv1beta1.Policy, erro
 				Approvers:             s.Approvers,
 				DontAllowSelfApproval: s.DontAllowSelfApproval,
 				TermsAndConditions:    s.TermsAndConditions,
+				Stage:                 s.Stage,
 			}
 			if s.Details != nil {
 				details, err := structpb.NewStruct(s.Details)
@@ -937,6 +944,7 @@ func (a *adapter) ToApprovalProto(approval *domain.Approval) (*guardianv1beta1.A
 		AppealRevision:        uint32(approval.AppealRevision),
 		AllowFailed:           approval.AllowFailed,
 		DontAllowSelfApproval: approval.DontAllowSelfApproval,
+		Stage:                 approval.Stage,
 	}
 	if approval.Details != nil {
 		details, err := structpb.NewStruct(approval.Details)

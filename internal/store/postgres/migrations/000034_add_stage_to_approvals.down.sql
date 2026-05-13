@@ -1,0 +1,1 @@
+ALTER TABLE "approvals" DROP COLUMN IF EXISTS "stage";

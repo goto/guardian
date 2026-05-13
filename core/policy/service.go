@@ -435,6 +435,10 @@ func (s *Service) validatePolicy(ctx context.Context, p *domain.Policy, excluded
 		return err
 	}
 
+	if err := p.ValidateStages(); err != nil {
+		return err
+	}
+
 	if err := s.validateAppealConfig(p.AppealConfig); err != nil {
 		return err
 	}

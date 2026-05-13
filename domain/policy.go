@@ -74,6 +74,10 @@ type Step struct {
 	// Name used as the step identifier
 	Name string `json:"name" yaml:"name" validate:"required"`
 
+	// Stage references a name in Policy.Stages. Steps sharing the same stage run in parallel.
+	// If empty, steps execute sequentially by their slice position (backward-compatible behavior).
+	Stage string `json:"stage,omitempty" yaml:"stage,omitempty"`
+
 	// Description tells more details about the step
 	Description string `json:"description" yaml:"description"`
 
@@ -184,6 +188,7 @@ func (s Step) ToApproval(a *Appeal, p *Policy, index int) (*Approval, error) {
 	approval := &Approval{
 		Index:                 index,
 		Name:                  s.Name,
+		Stage:                 s.Stage,
 		PolicyID:              p.ID,
 		PolicyVersion:         p.Version,
 		Approvers:             approvers,
@@ -345,9 +350,12 @@ type Requirement struct {
 
 // Policy is the approval policy configuration
 type Policy struct {
-	ID           string              `json:"id" yaml:"id" validate:"required"`
-	Version      uint                `json:"version" yaml:"version" validate:"required"`
-	Description  string              `json:"description" yaml:"description"`
+	ID          string `json:"id" yaml:"id" validate:"required"`
+	Version     uint   `json:"version" yaml:"version" validate:"required"`
+	Description string `json:"description" yaml:"description"`
+	// Stages defines the ordered list of stage names. Steps are assigned to stages via Step.Stage.
+	// Stages execute sequentially; steps within the same stage execute in parallel.
+	Stages       []string            `json:"stages,omitempty" yaml:"stages,omitempty"`
 	Steps        []*Step             `json:"steps" yaml:"steps" validate:"required,min=1,dive"`
 	CustomSteps  *CustomSteps        `json:"custom_steps" yaml:"custom_steps"`
 	AppealConfig *PolicyAppealConfig `json:"appeal" yaml:"appeal" validate:"omitempty,dive"`
@@ -382,6 +390,44 @@ func (p *Policy) GetStepByName(name string) *Step {
 	for _, step := range p.Steps {
 		if step.Name == name {
 			return step
+		}
+	}
+	return nil
+}
+
+// HasStages returns true when the policy uses stage-based parallel approvals.
+func (p *Policy) HasStages() bool {
+	return len(p.Stages) > 0
+}
+
+// StageIndex returns a map from stage name to its sequential index position.
+func (p *Policy) StageIndex() map[string]int {
+	m := make(map[string]int, len(p.Stages))
+	for i, s := range p.Stages {
+		m[s] = i
+	}
+	return m
+}
+
+// ValidateStages checks that:
+// - every step with a non-empty Stage references a name that exists in Stages
+// - if any step has a Stage, Stages must not be empty
+func (p *Policy) ValidateStages() error {
+	if !p.HasStages() {
+		for _, step := range p.Steps {
+			if step.Stage != "" {
+				return fmt.Errorf("step %q has stage %q but policy has no stages defined", step.Name, step.Stage)
+			}
+		}
+		return nil
+	}
+	stageIndex := p.StageIndex()
+	for _, step := range p.Steps {
+		if step.Stage == "" {
+			return fmt.Errorf("step %q has no stage but policy defines stages; all steps must have a stage", step.Name)
+		}
+		if _, ok := stageIndex[step.Stage]; !ok {
+			return fmt.Errorf("step %q references unknown stage %q", step.Name, step.Stage)
 		}
 	}
 	return nil

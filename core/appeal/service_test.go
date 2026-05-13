@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -3218,6 +3219,7 @@ func (s *ServiceTestSuite) TestCreate__WithExistingAppealAndWithAutoApprovalStep
 			Statuses:    []string{string(domain.GrantStatusActive)},
 			AccountIDs:  []string{appeals[0].AccountID},
 			ResourceIDs: []string{appeals[0].ResourceID},
+			Roles:       []string{appeals[0].Role},
 			Permissions: []string{"test-permission"},
 		}).
 		Return(expectedExistingGrants, nil).Once()
@@ -5356,6 +5358,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			appealStatus  string
 			approvals     []*domain.Approval
 			expectedError error
+			needsLockMock bool
 		}{
 			{
 				name:          "appeal not eligible, status: canceled",
@@ -5405,6 +5408,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
+				needsLockMock: true,
 			},
 			{
 				name:         "found one previous approval is reject",
@@ -5434,6 +5438,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
+				needsLockMock: true,
 			},
 			{
 				name:         "invalid approval status",
@@ -5451,6 +5456,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					},
 				},
 				expectedError: appeal.ErrApprovalStatusUnrecognized,
+				needsLockMock: true,
 			},
 			{
 				name:         "approval step already approved",
@@ -5468,6 +5474,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
+				needsLockMock: true,
 			},
 			{
 				name:         "approval step already rejected",
@@ -5485,6 +5492,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
+				needsLockMock: true,
 			},
 			{
 				name:         "approval step already skipped",
@@ -5502,6 +5510,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					},
 				},
 				expectedError: appeal.ErrApprovalNotEligibleForAction,
+				needsLockMock: true,
 			},
 			{
 				name:         "invalid approval status",
@@ -5519,6 +5528,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					},
 				},
 				expectedError: appeal.ErrApprovalStatusUnrecognized,
+				needsLockMock: true,
 			},
 			{
 				name:         "user doesn't have permission",
@@ -5537,6 +5547,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					},
 				},
 				expectedError: appeal.ErrActionForbidden,
+				needsLockMock: true,
 			},
 			{
 				name:         "approval step not found",
@@ -5567,6 +5578,17 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 				h.mockRepository.EXPECT().
 					GetByID(h.ctxMatcher, validApprovalActionParam.AppealID).
 					Return(expectedAppeal, nil).Once()
+
+				if tc.needsLockMock {
+					h.mockPolicyService.EXPECT().
+						GetOne(mock.Anything, mock.Anything, mock.Anything).
+						Return(&domain.Policy{Steps: []*domain.Step{}}, nil).Once()
+					h.mockRepository.EXPECT().
+						UpdateWithLock(h.ctxMatcher, validApprovalActionParam.AppealID, mock.Anything).
+						RunAndReturn(func(ctx context.Context, id string, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
+							return nil, fn(expectedAppeal)
+						}).Once()
+				}
 
 				actualResult, actualError := h.service.UpdateApproval(context.Background(), validApprovalActionParam)
 
@@ -5685,6 +5707,14 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(dummyPolicy, nil).Once()
 		h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
 		h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
+		h.mockRepository.EXPECT().
+			UpdateWithLock(h.ctxMatcher, appealDetails.ID, mock.Anything).
+			RunAndReturn(func(ctx context.Context, id string, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
+				if err := fn(appealDetails); err != nil {
+					return nil, err
+				}
+				return appealDetails, nil
+			}).Once()
 		h.mockRepository.EXPECT().Update(h.ctxMatcher, appealDetails).Return(nil).Once()
 		h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 		h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, mock.Anything, mock.Anything).
@@ -6138,6 +6168,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 							AccountIDs:  []string{tc.expectedAppealDetails.AccountID},
 							ResourceIDs: []string{tc.expectedAppealDetails.ResourceID},
 							Statuses:    []string{string(domain.GrantStatusActive)},
+							Roles:       []string{tc.expectedAppealDetails.Role},
 							Permissions: tc.expectedAppealDetails.Permissions,
 						}).Return([]domain.Grant{}, nil).Once()
 					h.mockGrantService.EXPECT().
@@ -6147,17 +6178,27 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					h.mockProviderService.EXPECT().GrantAccess(mock.Anything, grantArgMatcher(*tc.expectedGrant)).Return(nil).Once()
 				}
 
-				h.mockRepository.EXPECT().Update(h.ctxMatcher, mock.MatchedBy(func(appeal *domain.Appeal) bool {
-					// Compare without Policy field as it may not be set during Update
-					return appeal.ID == tc.expectedResult.ID &&
-						appeal.ResourceID == tc.expectedResult.ResourceID &&
-						appeal.PolicyID == tc.expectedResult.PolicyID &&
-						appeal.PolicyVersion == tc.expectedResult.PolicyVersion &&
-						appeal.Status == tc.expectedResult.Status &&
-						appeal.AccountID == tc.expectedResult.AccountID &&
-						appeal.Role == tc.expectedResult.Role &&
-						appeal.CreatedBy == tc.expectedResult.CreatedBy
-				})).Return(nil).Once()
+				h.mockRepository.EXPECT().
+					UpdateWithLock(h.ctxMatcher, tc.expectedApprovalAction.AppealID, mock.Anything).
+					RunAndReturn(func(ctx context.Context, id string, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
+						if err := fn(tc.expectedAppealDetails); err != nil {
+							return nil, err
+						}
+						return tc.expectedAppealDetails, nil
+					}).Once()
+
+				if tc.expectedGrant != nil {
+					h.mockRepository.EXPECT().Update(h.ctxMatcher, mock.MatchedBy(func(appeal *domain.Appeal) bool {
+						return appeal.ID == tc.expectedResult.ID &&
+							appeal.ResourceID == tc.expectedResult.ResourceID &&
+							appeal.PolicyID == tc.expectedResult.PolicyID &&
+							appeal.PolicyVersion == tc.expectedResult.PolicyVersion &&
+							appeal.Status == tc.expectedResult.Status &&
+							appeal.AccountID == tc.expectedResult.AccountID &&
+							appeal.Role == tc.expectedResult.Role &&
+							appeal.CreatedBy == tc.expectedResult.CreatedBy
+					})).Return(nil).Once()
+				}
 				h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 				h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, mock.Anything, mock.Anything).
 					Return(nil).Once()
@@ -6307,6 +6348,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 							AccountIDs:  []string{tc.expectedAppealDetails.AccountID},
 							ResourceIDs: []string{tc.expectedAppealDetails.ResourceID},
 							Statuses:    []string{string(domain.GrantStatusActive)},
+							Roles:       []string{tc.expectedAppealDetails.Role},
 							Permissions: tc.expectedAppealDetails.Permissions,
 						}).Return([]domain.Grant{}, nil).Once()
 					h.mockGrantService.EXPECT().
@@ -6316,17 +6358,27 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					h.mockProviderService.EXPECT().GrantAccess(mock.Anything, grantArgMatcher(*tc.expectedGrant)).Return(nil).Once()
 				}
 
-				h.mockRepository.EXPECT().Update(h.ctxMatcher, mock.MatchedBy(func(appeal *domain.Appeal) bool {
-					// Compare without Policy field as it may not be set during Update
-					return appeal.ID == tc.expectedResult.ID &&
-						appeal.ResourceID == tc.expectedResult.ResourceID &&
-						appeal.PolicyID == tc.expectedResult.PolicyID &&
-						appeal.PolicyVersion == tc.expectedResult.PolicyVersion &&
-						appeal.Status == tc.expectedResult.Status &&
-						appeal.AccountID == tc.expectedResult.AccountID &&
-						appeal.Role == tc.expectedResult.Role &&
-						appeal.CreatedBy == tc.expectedResult.CreatedBy
-				})).Return(nil).Once()
+				h.mockRepository.EXPECT().
+					UpdateWithLock(h.ctxMatcher, tc.expectedApprovalAction.AppealID, mock.Anything).
+					RunAndReturn(func(ctx context.Context, id string, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
+						if err := fn(tc.expectedAppealDetails); err != nil {
+							return nil, err
+						}
+						return tc.expectedAppealDetails, nil
+					}).Once()
+
+				if tc.expectedGrant != nil {
+					h.mockRepository.EXPECT().Update(h.ctxMatcher, mock.MatchedBy(func(appeal *domain.Appeal) bool {
+						return appeal.ID == tc.expectedResult.ID &&
+							appeal.ResourceID == tc.expectedResult.ResourceID &&
+							appeal.PolicyID == tc.expectedResult.PolicyID &&
+							appeal.PolicyVersion == tc.expectedResult.PolicyVersion &&
+							appeal.Status == tc.expectedResult.Status &&
+							appeal.AccountID == tc.expectedResult.AccountID &&
+							appeal.Role == tc.expectedResult.Role &&
+							appeal.CreatedBy == tc.expectedResult.CreatedBy
+					})).Return(nil).Once()
+				}
 				h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
 				h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, mock.Anything, mock.Anything).
 					Return(nil).Once()
@@ -6411,26 +6463,11 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 					tc.expectedAppealDetails.Policy = mockPolicy
 				}
 
-				h.mockProviderService.EXPECT().
-					IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
-					Return(false).Once()
-				h.mockGrantService.EXPECT().
-					List(mock.Anything, domain.ListGrantsFilter{
-						AccountIDs:  []string{tc.expectedAppealDetails.AccountID},
-						ResourceIDs: []string{tc.expectedAppealDetails.ResourceID},
-						Statuses:    []string{string(domain.GrantStatusActive)},
-						Permissions: tc.expectedAppealDetails.Permissions,
-					}).Return([]domain.Grant{}, nil).Once()
-				h.mockGrantService.EXPECT().
-					Prepare(mock.Anything, mock.Anything).Return(nil, nil).Once()
-
-				h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
-				h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
-
-				h.mockRepository.EXPECT().Update(h.ctxMatcher, mock.Anything).Return(nil).Once()
-				h.mockNotifier.EXPECT().Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
-				h.mockAuditLogger.EXPECT().Log(h.ctxMatcher, mock.Anything, mock.Anything).
-					Return(nil).Once()
+				h.mockRepository.EXPECT().
+					UpdateWithLock(h.ctxMatcher, tc.expectedApprovalAction.AppealID, mock.Anything).
+					RunAndReturn(func(ctx context.Context, id string, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
+						return nil, fn(tc.expectedAppealDetails)
+					}).Once()
 
 				actualResult, actualError := h.service.UpdateApproval(context.Background(), tc.expectedApprovalAction)
 				s.Nil(actualResult)
@@ -6486,6 +6523,11 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		}
 
 		h.mockRepository.EXPECT().GetByID(h.ctxMatcher, appealID).Return(testAppeal, nil).Once()
+		h.mockRepository.EXPECT().
+			UpdateWithLock(h.ctxMatcher, appealID, mock.Anything).
+			RunAndReturn(func(ctx context.Context, id string, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
+				return nil, fn(testAppeal)
+			}).Once()
 
 		actualResult, actualError := h.service.UpdateApproval(context.Background(), action)
 
@@ -6541,6 +6583,14 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		}
 
 		h.mockRepository.EXPECT().GetByID(h.ctxMatcher, appealID).Return(testAppeal, nil).Once()
+		h.mockRepository.EXPECT().
+			UpdateWithLock(h.ctxMatcher, appealID, mock.Anything).
+			RunAndReturn(func(ctx context.Context, id string, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
+				if err := fn(testAppeal); err != nil {
+					return nil, err
+				}
+				return testAppeal, nil
+			}).Once()
 		h.mockProviderService.EXPECT().
 			IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).
 			Return(false).Once()
@@ -6549,6 +6599,7 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 				AccountIDs:  []string{testAppeal.AccountID},
 				ResourceIDs: []string{testAppeal.ResourceID},
 				Statuses:    []string{string(domain.GrantStatusActive)},
+				Roles:       []string{testAppeal.Role},
 				Permissions: testAppeal.Permissions,
 			}).Return([]domain.Grant{}, nil).Once()
 		h.mockGrantService.EXPECT().
@@ -6570,6 +6621,156 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 
 		s.NoError(actualError)
 		s.NotNil(actualResult)
+	})
+
+	s.Run("should reject the second concurrent approval when two approvers submit simultaneously", func() {
+		// Regression test for the parallel-approver race condition.
+		//
+		// Without UpdateWithLock (SELECT FOR UPDATE) both goroutines could read the
+		// same pending snapshot and both succeed, causing a double-approval.
+		// With the lock the second goroutine re-reads the already-approved row
+		// inside the transaction and must receive ErrApprovalNotEligibleForAction.
+		//
+		// We simulate this by sequencing two UpdateApproval calls against the same
+		// appeal where the first call succeeds and the second call's UpdateWithLock
+		// callback receives the post-approval state (mimicking the DB re-read).
+
+		sharedAppealID := uuid.New().String()
+		actor1 := "approver1@example.com"
+		actor2 := "approver2@example.com"
+		policy := &domain.Policy{
+			Steps: []*domain.Step{
+				{Name: "step1", Approvers: []string{actor1, actor2}},
+			},
+		}
+
+		pendingAppeal := &domain.Appeal{
+			ID:            sharedAppealID,
+			Status:        domain.AppealStatusPending,
+			PolicyID:      "policy-1",
+			PolicyVersion: 1,
+			AccountID:     "user@example.com",
+			CreatedBy:     "user@example.com",
+			ResourceID:    "resource-1",
+			Role:          "viewer",
+			Resource: &domain.Resource{
+				ID:           "resource-1",
+				URN:          "urn:resource:1",
+				Name:         "Resource One",
+				ProviderType: "bigquery",
+			},
+			Approvals: []*domain.Approval{
+				{
+					Name:      "step1",
+					Index:     0,
+					Status:    domain.ApprovalStatusPending,
+					Approvers: []string{actor1, actor2},
+				},
+			},
+		}
+
+		// The appeal as it looks after actor1 has already approved (inside the lock).
+		alreadyApprovedAppeal := &domain.Appeal{
+			ID:            sharedAppealID,
+			Status:        domain.AppealStatusPending,
+			PolicyID:      "policy-1",
+			PolicyVersion: 1,
+			AccountID:     "user@example.com",
+			CreatedBy:     "user@example.com",
+			ResourceID:    "resource-1",
+			Role:          "viewer",
+			Resource:      pendingAppeal.Resource,
+			Approvals: []*domain.Approval{
+				{
+					Name:      "step1",
+					Index:     0,
+					Status:    domain.ApprovalStatusApproved,
+					Approvers: []string{actor1, actor2},
+				},
+			},
+		}
+
+		action1 := domain.ApprovalAction{
+			AppealID:     sharedAppealID,
+			ApprovalName: "step1",
+			Actor:        actor1,
+			Action:       domain.AppealActionNameApprove,
+		}
+		action2 := domain.ApprovalAction{
+			AppealID:     sharedAppealID,
+			ApprovalName: "step1",
+			Actor:        actor2,
+			Action:       domain.AppealActionNameApprove,
+		}
+
+		h1 := newServiceTestHelper()
+		h2 := newServiceTestHelper()
+
+		// Both goroutines read the pending snapshot before the lock is acquired.
+		h1.mockRepository.EXPECT().GetByID(h1.ctxMatcher, sharedAppealID).Return(pendingAppeal, nil).Once()
+		h2.mockRepository.EXPECT().GetByID(h2.ctxMatcher, sharedAppealID).Return(pendingAppeal, nil).Once()
+
+		h1.mockPolicyService.EXPECT().GetOne(mock.Anything, "policy-1", uint(1)).Return(policy, nil).Once()
+		h2.mockPolicyService.EXPECT().GetOne(mock.Anything, "policy-1", uint(1)).Return(policy, nil).Once()
+
+		// Actor 1 wins the lock: callback runs against the still-pending appeal and succeeds.
+		h1.mockRepository.EXPECT().
+			UpdateWithLock(h1.ctxMatcher, sharedAppealID, mock.Anything).
+			RunAndReturn(func(ctx context.Context, id string, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
+				if err := fn(pendingAppeal); err != nil {
+					return nil, err
+				}
+				return pendingAppeal, nil
+			}).Once()
+
+		// Actor 1 post-lock: grant path.
+		h1.mockProviderService.EXPECT().IsExclusiveRoleAssignment(mock.Anything, mock.Anything, mock.Anything).Return(false).Once()
+		h1.mockGrantService.EXPECT().List(mock.Anything, mock.Anything).Return([]domain.Grant{}, nil).Once()
+		h1.mockGrantService.EXPECT().Prepare(mock.Anything, mock.Anything).Return(&domain.Grant{
+			Status:     domain.GrantStatusActive,
+			AccountID:  pendingAppeal.AccountID,
+			ResourceID: pendingAppeal.ResourceID,
+			Role:       pendingAppeal.Role,
+		}, nil).Once()
+		h1.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
+		h1.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
+		h1.mockRepository.EXPECT().Update(h1.ctxMatcher, mock.Anything).Return(nil).Once()
+		h1.mockNotifier.EXPECT().Notify(h1.ctxMatcher, mock.Anything).Return(nil).Once()
+		h1.mockAuditLogger.EXPECT().Log(h1.ctxMatcher, mock.Anything, mock.Anything).Return(nil).Once()
+
+		// Actor 2 acquires the lock after actor 1 has committed: the re-read inside
+		// the lock returns the already-approved state, so the callback must fail.
+		h2.mockRepository.EXPECT().
+			UpdateWithLock(h2.ctxMatcher, sharedAppealID, mock.Anything).
+			RunAndReturn(func(ctx context.Context, id string, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
+				return nil, fn(alreadyApprovedAppeal)
+			}).Once()
+
+		var wg sync.WaitGroup
+		var result1 *domain.Appeal
+		var err1, err2 error
+
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			result1, err1 = h1.service.UpdateApproval(context.Background(), action1)
+		}()
+		go func() {
+			defer wg.Done()
+			_, err2 = h2.service.UpdateApproval(context.Background(), action2)
+		}()
+		wg.Wait()
+
+		time.Sleep(200 * time.Millisecond)
+
+		s.NoError(err1)
+		s.NotNil(result1)
+
+		s.ErrorIs(err2, appeal.ErrApprovalNotEligibleForAction,
+			"second concurrent approval must be rejected because the step is already approved")
+
+		h1.assertExpectations(s.T())
+		h2.assertExpectations(s.T())
 	})
 }
 

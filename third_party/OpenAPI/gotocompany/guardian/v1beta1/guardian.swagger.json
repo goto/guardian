@@ -5064,6 +5064,9 @@
         },
         "termsAndConditions": {
           "type": "string"
+        },
+        "stage": {
+          "type": "string"
         }
       }
     },
@@ -5608,6 +5611,9 @@
         },
         "details": {
           "type": "object"
+        },
+        "stage": {
+          "type": "string"
         }
       },
       "title": "Approval is an approval item that generated in an appeal based on the selected policy"
@@ -5631,6 +5637,10 @@
           "type": "integer",
           "format": "int32",
           "title": "0 = append at end"
+        },
+        "stage": {
+          "type": "string",
+          "title": "stage name for parallel-stage appeals; joins the existing parallel group for that stage"
         }
       }
     },
@@ -6444,6 +6454,12 @@
         },
         "customSteps": {
           "$ref": "#/definitions/PolicyCustomSteps"
+        },
+        "stages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "title": "Policy is a configurable steps for appeal's approval"
