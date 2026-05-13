@@ -364,7 +364,12 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 			}
 
 			stepConfig := policy.GetStepByName(approval.Name)
-			if (stepConfig == nil || approval.Name == "") && approval.Index < len(policy.Steps) {
+			// For sequential (non-stage) policies, fall back to the step at the same
+			// positional index. The empty-name guard re-applies the positional lookup
+			// when multiple steps share an empty name (e.g. dynamically-built policies).
+			// Skip this fallback for stage-based policies: index no longer equals slice
+			// position, so a dynamically-added step without a policy entry stays manual.
+			if (stepConfig == nil || approval.Name == "") && !policy.HasStages() && approval.Index < len(policy.Steps) {
 				stepConfig = policy.Steps[approval.Index]
 			}
 			if stepConfig == nil {

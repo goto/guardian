@@ -5354,11 +5354,11 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		h := newServiceTestHelper()
 		defer h.assertExpectations(s.T())
 		testCases := []struct {
-			name           string
-			appealStatus   string
-			approvals      []*domain.Approval
-			expectedError  error
-			needsLockMock  bool
+			name          string
+			appealStatus  string
+			approvals     []*domain.Approval
+			expectedError error
+			needsLockMock bool
 		}{
 			{
 				name:          "appeal not eligible, status: canceled",

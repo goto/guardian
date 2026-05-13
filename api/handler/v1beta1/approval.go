@@ -344,6 +344,7 @@ func (s *GRPCServer) AddApprovalStep(ctx context.Context, req *guardianv1beta1.A
 			Approvers: s.GetApprovers(),
 			Details:   details,
 			Index:     int(s.GetIndex()),
+			Stage:     s.GetStage(),
 		})
 	}
 
