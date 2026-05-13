@@ -1434,6 +1434,10 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 
 	// Find max index among existing non-stale approvals and build a stage→index
 	// map for stage-based (parallel) appeals.
+	// appealHasStages is anchored to the policy definition, not to whether any
+	// existing approval happens to carry a stage label. This prevents a stray
+	// stage value on a dynamically-added step from accidentally "upgrading" a
+	// sequential appeal to stage-based on a subsequent AddApprovalStep call.
 	maxIndex := -1
 	stageToIndex := make(map[string]int)
 	for _, a := range appeal.Approvals {
@@ -1447,7 +1451,7 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 			stageToIndex[a.Stage] = a.Index
 		}
 	}
-	appealHasStages := len(stageToIndex) > 0
+	appealHasStages := appeal.Policy != nil && appeal.Policy.HasStages()
 
 	var toInsert []*domain.Approval
 	for i := range steps {
