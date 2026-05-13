@@ -1082,6 +1082,17 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 						}
 					}
 				}
+				// Also accept steps that were dynamically added via AddApprovalStep.
+				// These exist in the appeal's approval list but not in the policy definition.
+				if !isStepValid {
+					for _, ap := range freshAppeal.Approvals {
+						if !ap.IsStale && ap.Name == currentApproval.Name {
+							isStepValid = true
+							isSelfApprovalNotAllowed = ap.DontAllowSelfApproval
+							break
+						}
+					}
+				}
 				if !isStepValid {
 					return fmt.Errorf("%w: %q for appeal %q", ErrNoPolicyStepFound, approvalAction.ApprovalName, freshAppeal.ID)
 				}
