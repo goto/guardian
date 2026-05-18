@@ -1456,14 +1456,32 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 			stageToIndex[a.Stage] = a.Index
 		}
 	}
-	appealHasStages := appeal.Policy != nil && appeal.Policy.HasStages()
+
+	// appealHasStages: derived from incoming steps or existing approvals.
+	// We cannot rely on appeal.Policy since repo.GetByID does not load it.
+	appealHasStages := false
+	for _, step := range steps {
+		if step.Stage != "" {
+			appealHasStages = true
+			break
+		}
+	}
+	if !appealHasStages {
+		for _, a := range appeal.Approvals {
+			if !a.IsStale && a.Stage != "" {
+				appealHasStages = true
+				break
+			}
+		}
+	}
 
 	allApprovals := make([]*domain.Approval, 0, len(appeal.Approvals))
 	for _, a := range appeal.Approvals {
 		allApprovals = append(allApprovals, a)
 	}
 
-	// Pass 1: assign indexes to all incoming steps first
+	// Pass 1: assign indexes to all incoming steps first so that steps sharing
+	// the same stage all get the same index before any status check runs.
 	for i := range steps {
 		step := &steps[i]
 
@@ -1485,7 +1503,7 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 		}
 	}
 
-	// Pass 2: validate and determine status now that all indexes are resolved
+	// Pass 2: validate and determine status now that all indexes are resolved.
 	var toInsert []*domain.Approval
 	for i := range steps {
 		step := &steps[i]
