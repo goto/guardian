@@ -1443,12 +1443,6 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 		return nil, fmt.Errorf("%w: can't add approval step to appeal with %q status", ErrAppealNotEligibleForApproval, appeal.Status)
 	}
 
-	// Find max index among existing non-stale approvals and build a stage→index
-	// map for stage-based (parallel) appeals.
-	// appealHasStages is anchored to the policy definition, not to whether any
-	// existing approval happens to carry a stage label. This prevents a stray
-	// stage value on a dynamically-added step from accidentally "upgrading" a
-	// sequential appeal to stage-based on a subsequent AddApprovalStep call.
 	maxIndex := -1
 	stageToIndex := make(map[string]int)
 	for _, a := range appeal.Approvals {
@@ -1464,6 +1458,11 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 	}
 	appealHasStages := appeal.Policy != nil && appeal.Policy.HasStages()
 
+	allApprovals := make([]*domain.Approval, 0, len(appeal.Approvals))
+	for _, a := range appeal.Approvals {
+		allApprovals = append(allApprovals, a)
+	}
+
 	var toInsert []*domain.Approval
 	for i := range steps {
 		step := &steps[i]
@@ -1475,10 +1474,7 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 			return nil, ErrApprovalStepApproversEmpty
 		}
 
-		// For stage-based appeals: if the step declares a stage name, place it at
-		// the existing index for that stage so it joins the parallel group.
-		// If the stage name is new, append it after the current last index.
-		// For sequential appeals (no stages) the original positional logic applies.
+		// 1. Assign index first
 		if appealHasStages && step.Stage != "" {
 			if idx, ok := stageToIndex[step.Stage]; ok {
 				step.Index = idx
@@ -1488,7 +1484,6 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 				stageToIndex[step.Stage] = maxIndex
 			}
 		} else {
-			// Determine index: 0 means append at end
 			if step.Index == 0 {
 				maxIndex++
 				step.Index = maxIndex
@@ -1497,9 +1492,9 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 			}
 		}
 
-		// Determine status based on preceding approvals
+		// 2. Then determine status using allApprovals (includes previously queued steps)
 		step.Status = domain.ApprovalStatusPending
-		for _, a := range appeal.Approvals {
+		for _, a := range allApprovals {
 			if a.IsStale {
 				continue
 			}
@@ -1514,6 +1509,7 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 		step.AppealID = appealID
 		step.AppealRevision = appeal.Revision
 		toInsert = append(toInsert, step)
+		allApprovals = append(allApprovals, step) // 3. Track after everything is set
 	}
 
 	if err := s.approvalService.BulkInsert(ctx, toInsert); err != nil {
