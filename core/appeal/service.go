@@ -1463,18 +1463,10 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 		allApprovals = append(allApprovals, a)
 	}
 
-	var toInsert []*domain.Approval
+	// Pass 1: assign indexes to all incoming steps first
 	for i := range steps {
 		step := &steps[i]
 
-		if step.Name == "" {
-			return nil, ErrApprovalStepNameEmpty
-		}
-		if len(step.Approvers) == 0 {
-			return nil, ErrApprovalStepApproversEmpty
-		}
-
-		// 1. Assign index first
 		if appealHasStages && step.Stage != "" {
 			if idx, ok := stageToIndex[step.Stage]; ok {
 				step.Index = idx
@@ -1491,8 +1483,20 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 				maxIndex = step.Index
 			}
 		}
+	}
 
-		// 2. Then determine status using allApprovals (includes previously queued steps)
+	// Pass 2: validate and determine status now that all indexes are resolved
+	var toInsert []*domain.Approval
+	for i := range steps {
+		step := &steps[i]
+
+		if step.Name == "" {
+			return nil, ErrApprovalStepNameEmpty
+		}
+		if len(step.Approvers) == 0 {
+			return nil, ErrApprovalStepApproversEmpty
+		}
+
 		step.Status = domain.ApprovalStatusPending
 		for _, a := range allApprovals {
 			if a.IsStale {
@@ -1509,7 +1513,6 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 		step.AppealID = appealID
 		step.AppealRevision = appeal.Revision
 		toInsert = append(toInsert, step)
-		allApprovals = append(allApprovals, step) // 3. Track after everything is set
 	}
 
 	if err := s.approvalService.BulkInsert(ctx, toInsert); err != nil {
