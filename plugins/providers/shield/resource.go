@@ -150,6 +150,7 @@ type Relation struct {
 	ObjectId        string `json:"object_id" mapstructure:"object_id"`
 	ObjectNamespace string `json:"object_namespace" mapstructure:"object_namespace"`
 	Subject         string `json:"subject" mapstructure:"subject"`
+	SubjectId       string `json:"subject_id" mapstructure:"subject_id"`
 	RoleName        string `json:"role_name" mapstructure:"role_name"`
 	SubjectType     string `json:"subject_type" mapstructure:"subject_type"`
 	ObjectType      string `json:"object_type" mapstructure:"object_type"`

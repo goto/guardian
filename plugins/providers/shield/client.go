@@ -450,7 +450,7 @@ func (c *client) GrantCreateTeamAccess(ctx context.Context, team Group, userId s
 	if err != nil {
 		return nil, fmt.Errorf("creating team in shield: %w", err)
 	}
-	if err := c.CreateRelation(ctx, createdGroup.ID, groupNamespaceConst, userId, managerRoleConst); err != nil {
+	if err := c.CreateRelation(ctx, createdGroup.ID, groupNamespaceConst, userId); err != nil {
 		return nil, fmt.Errorf("creating manager relation for team %s: %w", createdGroup.ID, err)
 	}
 	c.logger.Info(ctx, "Team access granted via team creation in shield", "id", createdGroup.ID, "name", createdGroup.Name)
@@ -462,12 +462,12 @@ func (c *client) RevokeCreateTeamAccess(ctx context.Context, team Group) error {
 	return errors.New("RevokeCreateTeamAccess not implemented yet")
 }
 
-func (c *client) CreateRelation(ctx context.Context, objectId string, objectNamespace string, subject string, role string) error {
+func (c *client) CreateRelation(ctx context.Context, objectId string, objectNamespace string, subject string) error {
 	body := Relation{
 		ObjectId:    objectId,
 		ObjectType:  "team",
 		SubjectType: "user",
-		Subject:     subject,
+		SubjectId:   subject,
 		RoleName:    "team_member",
 	}
 
