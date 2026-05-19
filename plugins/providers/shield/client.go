@@ -468,7 +468,7 @@ func (c *client) CreateRelation(ctx context.Context, objectId string, objectName
 		ObjectType:  "team",
 		SubjectType: "user",
 		SubjectId:   subject,
-		RoleName:    "team_member",
+		RoleID:      "team_member",
 	}
 
 	req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
