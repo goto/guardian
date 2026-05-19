@@ -6624,17 +6624,6 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 	})
 
 	s.Run("should reject the second concurrent approval when two approvers submit simultaneously", func() {
-		// Regression test for the parallel-approver race condition.
-		//
-		// Without UpdateWithLock (SELECT FOR UPDATE) both goroutines could read the
-		// same pending snapshot and both succeed, causing a double-approval.
-		// With the lock the second goroutine re-reads the already-approved row
-		// inside the transaction and must receive ErrApprovalNotEligibleForAction.
-		//
-		// We simulate this by sequencing two UpdateApproval calls against the same
-		// appeal where the first call succeeds and the second call's UpdateWithLock
-		// callback receives the post-approval state (mimicking the DB re-read).
-
 		sharedAppealID := uuid.New().String()
 		actor1 := "approver1@example.com"
 		actor2 := "approver2@example.com"
@@ -6644,9 +6633,42 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 			},
 		}
 
-		pendingAppeal := &domain.Appeal{
+		newPendingAppeal := func() *domain.Appeal {
+			return &domain.Appeal{
+				ID:            sharedAppealID,
+				Status:        domain.AppealStatusPending,
+				PolicyID:      "policy-1",
+				PolicyVersion: 1,
+				AccountID:     "user@example.com",
+				CreatedBy:     "user@example.com",
+				ResourceID:    "resource-1",
+				Role:          "viewer",
+				Resource: &domain.Resource{
+					ID:           "resource-1",
+					URN:          "urn:resource:1",
+					Name:         "Resource One",
+					ProviderType: "bigquery",
+				},
+				Approvals: []*domain.Approval{
+					{
+						Name:      "step1",
+						Index:     0,
+						Status:    domain.ApprovalStatusPending,
+						Approvers: []string{actor1, actor2},
+					},
+				},
+			}
+		}
+
+		// Each goroutine gets its own independent copy — no shared pointer mutation.
+		appeal1 := newPendingAppeal()
+		appeal2 := newPendingAppeal()
+
+		// The appeal as it looks after actor1 has already approved (inside the lock).
+		// Status is approved so checkIfAppealStatusStillPending fires correctly.
+		alreadyApprovedAppeal := &domain.Appeal{
 			ID:            sharedAppealID,
-			Status:        domain.AppealStatusPending,
+			Status:        domain.AppealStatusApproved,
 			PolicyID:      "policy-1",
 			PolicyVersion: 1,
 			AccountID:     "user@example.com",
@@ -6659,27 +6681,6 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 				Name:         "Resource One",
 				ProviderType: "bigquery",
 			},
-			Approvals: []*domain.Approval{
-				{
-					Name:      "step1",
-					Index:     0,
-					Status:    domain.ApprovalStatusPending,
-					Approvers: []string{actor1, actor2},
-				},
-			},
-		}
-
-		// The appeal as it looks after actor1 has already approved (inside the lock).
-		alreadyApprovedAppeal := &domain.Appeal{
-			ID:            sharedAppealID,
-			Status:        domain.AppealStatusPending,
-			PolicyID:      "policy-1",
-			PolicyVersion: 1,
-			AccountID:     "user@example.com",
-			CreatedBy:     "user@example.com",
-			ResourceID:    "resource-1",
-			Role:          "viewer",
-			Resource:      pendingAppeal.Resource,
 			Approvals: []*domain.Approval{
 				{
 					Name:      "step1",
@@ -6706,9 +6707,9 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		h1 := newServiceTestHelper()
 		h2 := newServiceTestHelper()
 
-		// Both goroutines read the pending snapshot before the lock is acquired.
-		h1.mockRepository.EXPECT().GetByID(h1.ctxMatcher, sharedAppealID).Return(pendingAppeal, nil).Once()
-		h2.mockRepository.EXPECT().GetByID(h2.ctxMatcher, sharedAppealID).Return(pendingAppeal, nil).Once()
+		// Each goroutine reads its own independent pending snapshot.
+		h1.mockRepository.EXPECT().GetByID(h1.ctxMatcher, sharedAppealID).Return(appeal1, nil).Once()
+		h2.mockRepository.EXPECT().GetByID(h2.ctxMatcher, sharedAppealID).Return(appeal2, nil).Once()
 
 		h1.mockPolicyService.EXPECT().GetOne(mock.Anything, "policy-1", uint(1)).Return(policy, nil).Once()
 		h2.mockPolicyService.EXPECT().GetOne(mock.Anything, "policy-1", uint(1)).Return(policy, nil).Once()
@@ -6717,10 +6718,10 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		h1.mockRepository.EXPECT().
 			UpdateWithLock(h1.ctxMatcher, sharedAppealID, mock.Anything).
 			RunAndReturn(func(ctx context.Context, id string, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
-				if err := fn(pendingAppeal); err != nil {
+				if err := fn(appeal1); err != nil {
 					return nil, err
 				}
-				return pendingAppeal, nil
+				return appeal1, nil
 			}).Once()
 
 		// Actor 1 post-lock: grant path.
@@ -6728,9 +6729,9 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		h1.mockGrantService.EXPECT().List(mock.Anything, mock.Anything).Return([]domain.Grant{}, nil).Once()
 		h1.mockGrantService.EXPECT().Prepare(mock.Anything, mock.Anything).Return(&domain.Grant{
 			Status:     domain.GrantStatusActive,
-			AccountID:  pendingAppeal.AccountID,
-			ResourceID: pendingAppeal.ResourceID,
-			Role:       pendingAppeal.Role,
+			AccountID:  appeal1.AccountID,
+			ResourceID: appeal1.ResourceID,
+			Role:       appeal1.Role,
 		}, nil).Once()
 		h1.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
 		h1.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
@@ -6739,7 +6740,8 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		h1.mockAuditLogger.EXPECT().Log(h1.ctxMatcher, mock.Anything, mock.Anything).Return(nil).Once()
 
 		// Actor 2 acquires the lock after actor 1 has committed: the re-read inside
-		// the lock returns the already-approved state, so the callback must fail.
+		// the lock returns the already-approved state, so checkIfAppealStatusStillPending
+		// fires and returns ErrAppealNotEligibleForApproval.
 		h2.mockRepository.EXPECT().
 			UpdateWithLock(h2.ctxMatcher, sharedAppealID, mock.Anything).
 			RunAndReturn(func(ctx context.Context, id string, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
@@ -6766,8 +6768,8 @@ func (s *ServiceTestSuite) TestUpdateApproval() {
 		s.NoError(err1)
 		s.NotNil(result1)
 
-		s.ErrorIs(err2, appeal.ErrApprovalNotEligibleForAction,
-			"second concurrent approval must be rejected because the step is already approved")
+		s.ErrorIs(err2, appeal.ErrAppealNotEligibleForApproval,
+			"second concurrent approval must be rejected because the appeal is already approved")
 
 		h1.assertExpectations(s.T())
 		h2.assertExpectations(s.T())

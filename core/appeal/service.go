@@ -1443,14 +1443,23 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 		return nil, fmt.Errorf("%w: can't add approval step to appeal with %q status", ErrAppealNotEligibleForApproval, appeal.Status)
 	}
 
-	// Find max index among existing non-stale approvals and build a stage→index
-	// map for stage-based (parallel) appeals.
-	// appealHasStages is anchored to the policy definition, not to whether any
-	// existing approval happens to carry a stage label. This prevents a stray
-	// stage value on a dynamically-added step from accidentally "upgrading" a
-	// sequential appeal to stage-based on a subsequent AddApprovalStep call.
-	maxIndex := -1
+	policy, err := s.policyService.GetOne(ctx, appeal.PolicyID, appeal.PolicyVersion)
+	if err != nil {
+		return nil, fmt.Errorf("getting policy details: %w", err)
+	}
+
+	// Build stageToIndex from the policy's stage order — this is the canonical
+	// source of truth for which stage belongs at which index.
 	stageToIndex := make(map[string]int)
+	if policy.HasStages() {
+		for i, stage := range policy.Stages {
+			stageToIndex[stage] = i
+		}
+	}
+
+	// For any stages already in existing approvals but not in policy
+	// (e.g. dynamically added), fill in from actual DB indexes.
+	maxIndex := -1
 	for _, a := range appeal.Approvals {
 		if a.IsStale {
 			continue
@@ -1459,11 +1468,46 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 			maxIndex = a.Index
 		}
 		if a.Stage != "" {
-			stageToIndex[a.Stage] = a.Index
+			if _, ok := stageToIndex[a.Stage]; !ok {
+				stageToIndex[a.Stage] = a.Index
+			}
 		}
 	}
-	appealHasStages := appeal.Policy != nil && appeal.Policy.HasStages()
 
+	appealHasStages := policy.HasStages() || len(stageToIndex) > 0
+
+	allApprovals := make([]*domain.Approval, 0, len(appeal.Approvals))
+	for _, a := range appeal.Approvals {
+		allApprovals = append(allApprovals, a)
+	}
+
+	// Pass 1: assign indexes to all incoming steps first so that steps sharing
+	// the same stage all get the same index before any status check runs.
+	for i := range steps {
+		step := &steps[i]
+
+		if appealHasStages && step.Stage != "" {
+			if idx, ok := stageToIndex[step.Stage]; ok {
+				step.Index = idx
+			} else if policy.HasStages() {
+				return nil, fmt.Errorf("approval step %q has unknown stage %q: stage not found in policy %q version %d", step.Name, step.Stage, appeal.PolicyID, appeal.PolicyVersion)
+			} else {
+				// policy has no stages, fall back to sequential
+				maxIndex++
+				step.Index = maxIndex
+				stageToIndex[step.Stage] = maxIndex
+			}
+		} else {
+			if step.Index == 0 {
+				maxIndex++
+				step.Index = maxIndex
+			} else if step.Index > maxIndex {
+				maxIndex = step.Index
+			}
+		}
+	}
+
+	// Pass 2: validate and determine status now that all indexes are resolved.
 	var toInsert []*domain.Approval
 	for i := range steps {
 		step := &steps[i]
@@ -1475,31 +1519,8 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 			return nil, ErrApprovalStepApproversEmpty
 		}
 
-		// For stage-based appeals: if the step declares a stage name, place it at
-		// the existing index for that stage so it joins the parallel group.
-		// If the stage name is new, append it after the current last index.
-		// For sequential appeals (no stages) the original positional logic applies.
-		if appealHasStages && step.Stage != "" {
-			if idx, ok := stageToIndex[step.Stage]; ok {
-				step.Index = idx
-			} else {
-				maxIndex++
-				step.Index = maxIndex
-				stageToIndex[step.Stage] = maxIndex
-			}
-		} else {
-			// Determine index: 0 means append at end
-			if step.Index == 0 {
-				maxIndex++
-				step.Index = maxIndex
-			} else if step.Index > maxIndex {
-				maxIndex = step.Index
-			}
-		}
-
-		// Determine status based on preceding approvals
 		step.Status = domain.ApprovalStatusPending
-		for _, a := range appeal.Approvals {
+		for _, a := range allApprovals {
 			if a.IsStale {
 				continue
 			}
