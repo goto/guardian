@@ -1443,8 +1443,23 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 		return nil, fmt.Errorf("%w: can't add approval step to appeal with %q status", ErrAppealNotEligibleForApproval, appeal.Status)
 	}
 
-	maxIndex := -1
+	policy, err := s.policyService.GetOne(ctx, appeal.PolicyID, appeal.PolicyVersion)
+	if err != nil {
+		return nil, fmt.Errorf("getting policy details: %w", err)
+	}
+
+	// Build stageToIndex from the policy's stage order — this is the canonical
+	// source of truth for which stage belongs at which index.
 	stageToIndex := make(map[string]int)
+	if policy.HasStages() {
+		for i, stage := range policy.Stages {
+			stageToIndex[stage] = i
+		}
+	}
+
+	// For any stages already in existing approvals but not in policy
+	// (e.g. dynamically added), fill in from actual DB indexes.
+	maxIndex := -1
 	for _, a := range appeal.Approvals {
 		if a.IsStale {
 			continue
@@ -1453,27 +1468,13 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 			maxIndex = a.Index
 		}
 		if a.Stage != "" {
-			stageToIndex[a.Stage] = a.Index
-		}
-	}
-
-	// appealHasStages: derived from incoming steps or existing approvals.
-	// We cannot rely on appeal.Policy since repo.GetByID does not load it.
-	appealHasStages := false
-	for _, step := range steps {
-		if step.Stage != "" {
-			appealHasStages = true
-			break
-		}
-	}
-	if !appealHasStages {
-		for _, a := range appeal.Approvals {
-			if !a.IsStale && a.Stage != "" {
-				appealHasStages = true
-				break
+			if _, ok := stageToIndex[a.Stage]; !ok {
+				stageToIndex[a.Stage] = a.Index
 			}
 		}
 	}
+
+	appealHasStages := policy.HasStages() || len(stageToIndex) > 0
 
 	allApprovals := make([]*domain.Approval, 0, len(appeal.Approvals))
 	for _, a := range appeal.Approvals {
@@ -1488,7 +1489,10 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 		if appealHasStages && step.Stage != "" {
 			if idx, ok := stageToIndex[step.Stage]; ok {
 				step.Index = idx
+			} else if policy.HasStages() {
+				return nil, fmt.Errorf("approval step %q has unknown stage %q: stage not found in policy %q version %d", step.Name, step.Stage, appeal.PolicyID, appeal.PolicyVersion)
 			} else {
+				// policy has no stages, fall back to sequential
 				maxIndex++
 				step.Index = maxIndex
 				stageToIndex[step.Stage] = maxIndex
