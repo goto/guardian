@@ -450,7 +450,7 @@ func (c *client) GrantCreateTeamAccess(ctx context.Context, team Group, userId s
 	if err != nil {
 		return nil, fmt.Errorf("creating team in shield: %w", err)
 	}
-	if err := c.CreateRelation(ctx, createdGroup.ID, groupNamespaceConst, fmt.Sprintf("%s:%s", userNamespaceConst, userId), managerRoleConst); err != nil {
+	if err := c.CreateRelation(ctx, createdGroup.ID, groupNamespaceConst, userId, managerRoleConst); err != nil {
 		return nil, fmt.Errorf("creating manager relation for team %s: %w", createdGroup.ID, err)
 	}
 	c.logger.Info(ctx, "Team access granted via team creation in shield", "id", createdGroup.ID, "name", createdGroup.Name)
