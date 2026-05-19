@@ -414,8 +414,35 @@ func (c *client) GetNamespaces(ctx context.Context) ([]*Namespace, error) {
 }
 
 func (c *client) CreateTeam(ctx context.Context, team Group) (*Group, error) {
-	c.logger.Info(ctx, "CreateTeam not implemented yet")
-	return nil, errors.New("CreateTeam not implemented yet")
+	payload := map[string]interface{}{
+		"name":  team.Name,
+		"slug":  team.Slug,
+		"orgId": team.OrgId,
+	}
+
+	req, err := c.newRequest(http.MethodPost, groupsEndpoint, payload, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var createdGroup *Group
+	var response interface{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return nil, err
+	}
+
+	if v, ok := response.(map[string]interface{}); ok && v["group"] != nil {
+		if err := mapstructure.Decode(v["group"], &createdGroup); err != nil {
+			return nil, err
+		}
+	}
+
+	if createdGroup == nil {
+		return nil, fmt.Errorf("unexpected response from shield: group not found in response body")
+	}
+
+	c.logger.Info(ctx, "Team created in shield", "id", createdGroup.ID, "name", createdGroup.Name)
+	return createdGroup, nil
 }
 
 func (c *client) GrantCreateTeamAccess(ctx context.Context, team Group, userId string) (*Group, error) {
