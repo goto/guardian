@@ -1699,6 +1699,29 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "withPreviousGrant",
+            "description": "If true, populates previous_grant_expiration_date on each returned approval by looking up the latest grant matching the appeal's account_id, resource_id, and role.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "startExpirationDate",
+            "description": "When set together with end_expiration_date, only returns approvals whose previous_grant_expiration_date falls within [start_expiration_date, end_expiration_date]. Requires with_previous_grant=true.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "endExpirationDate",
+            "description": "When set together with start_expiration_date, only returns approvals whose previous_grant_expiration_date falls within [start_expiration_date, end_expiration_date]. Requires with_previous_grant=true.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
           }
         ],
         "tags": [
@@ -3501,6 +3524,29 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "withPreviousGrant",
+            "description": "If true, populates previous_grant_expiration_date on each returned approval by looking up the latest grant matching the appeal's account_id, resource_id, and role.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "startExpirationDate",
+            "description": "When set together with end_expiration_date, only returns approvals whose previous_grant_expiration_date falls within [start_expiration_date, end_expiration_date]. Requires with_previous_grant=true.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "endExpirationDate",
+            "description": "When set together with start_expiration_date, only returns approvals whose previous_grant_expiration_date falls within [start_expiration_date, end_expiration_date]. Requires with_previous_grant=true.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
           }
         ],
         "tags": [
@@ -5614,6 +5660,11 @@
         },
         "stage": {
           "type": "string"
+        },
+        "previousGrantExpirationDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Populated only when ListApprovals is called with with_previous_grant=true. Expiration date of the most recently created grant matching the appeal's (account_id, resource_id, role)."
         }
       },
       "title": "Approval is an approval item that generated in an appeal based on the selected policy"

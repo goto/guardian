@@ -4905,6 +4905,12 @@ type ListUserApprovalsRequest struct {
 	SummaryLabels                   bool                    `protobuf:"varint,61,opt,name=summary_labels,json=summaryLabels,proto3" json:"summary_labels,omitempty"`
 	// If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.
 	SummaryLabelsV2 bool `protobuf:"varint,62,opt,name=summary_labels_v2,json=summaryLabelsV2,proto3" json:"summary_labels_v2,omitempty"`
+	// If true, populates previous_grant_expiration_date on each returned approval by looking up the latest grant matching the appeal's account_id, resource_id, and role.
+	WithPreviousGrant bool `protobuf:"varint,63,opt,name=with_previous_grant,json=withPreviousGrant,proto3" json:"with_previous_grant,omitempty"`
+	// When set together with end_expiration_date, only returns approvals whose previous_grant_expiration_date falls within [start_expiration_date, end_expiration_date]. Requires with_previous_grant=true.
+	StartExpirationDate *timestamppb.Timestamp `protobuf:"bytes,64,opt,name=start_expiration_date,json=startExpirationDate,proto3,oneof" json:"start_expiration_date,omitempty"`
+	// When set together with start_expiration_date, only returns approvals whose previous_grant_expiration_date falls within [start_expiration_date, end_expiration_date]. Requires with_previous_grant=true.
+	EndExpirationDate *timestamppb.Timestamp `protobuf:"bytes,65,opt,name=end_expiration_date,json=endExpirationDate,proto3,oneof" json:"end_expiration_date,omitempty"`
 }
 
 func (x *ListUserApprovalsRequest) Reset() {
@@ -5366,6 +5372,27 @@ func (x *ListUserApprovalsRequest) GetSummaryLabelsV2() bool {
 	return false
 }
 
+func (x *ListUserApprovalsRequest) GetWithPreviousGrant() bool {
+	if x != nil {
+		return x.WithPreviousGrant
+	}
+	return false
+}
+
+func (x *ListUserApprovalsRequest) GetStartExpirationDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartExpirationDate
+	}
+	return nil
+}
+
+func (x *ListUserApprovalsRequest) GetEndExpirationDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndExpirationDate
+	}
+	return nil
+}
+
 type ListUserApprovalsResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -5497,6 +5524,12 @@ type ListApprovalsRequest struct {
 	SummaryLabels                   bool                    `protobuf:"varint,61,opt,name=summary_labels,json=summaryLabels,proto3" json:"summary_labels,omitempty"`
 	// If true, includes label summaries using faceted search: for each label key, available values are computed by applying all other active label filters except that key. Mutually exclusive with summary_labels.
 	SummaryLabelsV2 bool `protobuf:"varint,62,opt,name=summary_labels_v2,json=summaryLabelsV2,proto3" json:"summary_labels_v2,omitempty"`
+	// If true, populates previous_grant_expiration_date on each returned approval by looking up the latest grant matching the appeal's account_id, resource_id, and role.
+	WithPreviousGrant bool `protobuf:"varint,63,opt,name=with_previous_grant,json=withPreviousGrant,proto3" json:"with_previous_grant,omitempty"`
+	// When set together with end_expiration_date, only returns approvals whose previous_grant_expiration_date falls within [start_expiration_date, end_expiration_date]. Requires with_previous_grant=true.
+	StartExpirationDate *timestamppb.Timestamp `protobuf:"bytes,64,opt,name=start_expiration_date,json=startExpirationDate,proto3,oneof" json:"start_expiration_date,omitempty"`
+	// When set together with start_expiration_date, only returns approvals whose previous_grant_expiration_date falls within [start_expiration_date, end_expiration_date]. Requires with_previous_grant=true.
+	EndExpirationDate *timestamppb.Timestamp `protobuf:"bytes,65,opt,name=end_expiration_date,json=endExpirationDate,proto3,oneof" json:"end_expiration_date,omitempty"`
 }
 
 func (x *ListApprovalsRequest) Reset() {
@@ -5963,6 +5996,27 @@ func (x *ListApprovalsRequest) GetSummaryLabelsV2() bool {
 		return x.SummaryLabelsV2
 	}
 	return false
+}
+
+func (x *ListApprovalsRequest) GetWithPreviousGrant() bool {
+	if x != nil {
+		return x.WithPreviousGrant
+	}
+	return false
+}
+
+func (x *ListApprovalsRequest) GetStartExpirationDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartExpirationDate
+	}
+	return nil
+}
+
+func (x *ListApprovalsRequest) GetEndExpirationDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndExpirationDate
+	}
+	return nil
 }
 
 type ListApprovalsResponse struct {
@@ -9782,6 +9836,8 @@ type Approval struct {
 	DontAllowSelfApproval bool                   `protobuf:"varint,16,opt,name=dont_allow_self_approval,json=dontAllowSelfApproval,proto3" json:"dont_allow_self_approval,omitempty"`
 	Details               *structpb.Struct       `protobuf:"bytes,17,opt,name=details,proto3" json:"details,omitempty"`
 	Stage                 string                 `protobuf:"bytes,18,opt,name=stage,proto3" json:"stage,omitempty"`
+	// Populated only when ListApprovals is called with with_previous_grant=true. Expiration date of the most recently created grant matching the appeal's (account_id, resource_id, role).
+	PreviousGrantExpirationDate *timestamppb.Timestamp `protobuf:"bytes,19,opt,name=previous_grant_expiration_date,json=previousGrantExpirationDate,proto3" json:"previous_grant_expiration_date,omitempty"`
 }
 
 func (x *Approval) Reset() {
@@ -9940,6 +9996,13 @@ func (x *Approval) GetStage() string {
 		return x.Stage
 	}
 	return ""
+}
+
+func (x *Approval) GetPreviousGrantExpirationDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PreviousGrantExpirationDate
+	}
+	return nil
 }
 
 type AppealComment struct {

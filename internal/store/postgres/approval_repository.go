@@ -457,6 +457,37 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		db = db.Where(`"Appeal"."created_at" <= ?`, filter.EndTime)
 	}
 
+	// Restrict by previous-grant expiration date. The "previous grant" for an appeal is the
+	// grant with the latest created_at that matches the appeal's (account_id, resource_id, role).
+	if !filter.StartExpirationDate.IsZero() || !filter.EndExpirationDate.IsZero() {
+		conditions := []string{
+			`"prev_grant"."account_id" = "Appeal"."account_id"`,
+			`"prev_grant"."resource_id" = "Appeal"."resource_id"`,
+			`"prev_grant"."role" = "Appeal"."role"`,
+			`"prev_grant"."deleted_at" IS NULL`,
+			`"prev_grant"."created_at" = (
+				SELECT MAX("g2"."created_at") FROM "grants" "g2"
+				WHERE "g2"."account_id" = "prev_grant"."account_id"
+				  AND "g2"."resource_id" = "prev_grant"."resource_id"
+				  AND "g2"."role" = "prev_grant"."role"
+				  AND "g2"."deleted_at" IS NULL
+			)`,
+		}
+		args := []interface{}{}
+		if !filter.StartExpirationDate.IsZero() && !filter.EndExpirationDate.IsZero() {
+			conditions = append(conditions, `"prev_grant"."expiration_date" BETWEEN ? AND ?`)
+			args = append(args, filter.StartExpirationDate, filter.EndExpirationDate)
+		} else if !filter.StartExpirationDate.IsZero() {
+			conditions = append(conditions, `"prev_grant"."expiration_date" >= ?`)
+			args = append(args, filter.StartExpirationDate)
+		} else {
+			conditions = append(conditions, `"prev_grant"."expiration_date" <= ?`)
+			args = append(args, filter.EndExpirationDate)
+		}
+		sub := fmt.Sprintf(`EXISTS (SELECT 1 FROM "grants" "prev_grant" WHERE %s)`, strings.Join(conditions, " AND "))
+		db = db.Where(sub, args...)
+	}
+
 	// Label filtering
 	if len(filter.Labels) > 0 {
 		db = applyLabelFilter(db, `"Appeal"."labels"`, filter.Labels)
