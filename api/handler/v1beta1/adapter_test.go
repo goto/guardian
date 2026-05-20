@@ -1315,3 +1315,38 @@ func TestAdapter_ToSummaryProto(t *testing.T) {
 		assert.Equal(t, "env", result.Labels[0].Key)
 	})
 }
+
+func TestAdapter_ToApprovalProto_PreviousGrantExpirationDate(t *testing.T) {
+	adapter := v1beta1.NewAdapter()
+
+	t.Run("should populate previous_grant_expiration_date when set", func(t *testing.T) {
+		exp := time.Date(2026, 5, 20, 12, 0, 0, 0, time.UTC)
+		approval := &domain.Approval{
+			ID:                          "approval-1",
+			AppealID:                    "appeal-1",
+			Status:                      domain.ApprovalStatusPending,
+			PreviousGrantExpirationDate: &exp,
+		}
+
+		result, err := adapter.ToApprovalProto(approval)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.PreviousGrantExpirationDate)
+		assert.True(t, exp.Equal(result.PreviousGrantExpirationDate.AsTime()))
+	})
+
+	t.Run("should leave previous_grant_expiration_date nil when not set", func(t *testing.T) {
+		approval := &domain.Approval{
+			ID:       "approval-1",
+			AppealID: "appeal-1",
+			Status:   domain.ApprovalStatusPending,
+		}
+
+		result, err := adapter.ToApprovalProto(approval)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Nil(t, result.PreviousGrantExpirationDate)
+	})
+}
