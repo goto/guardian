@@ -2,6 +2,9 @@ package shield
 
 import (
 	"context"
+	"fmt"
+	"regexp"
+	"strings"
 
 	pv "github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
@@ -114,7 +117,8 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 
 		if resourceType != ResourceTypeTeam &&
 			resourceType != ResourceTypeProject &&
-			resourceType != ResourceTypeOrganization {
+			resourceType != ResourceTypeOrganization &&
+			resourceType != ResourceTypeCreateTeam {
 			shieldResources, err = client.GetResources(ctx, resourceType)
 			if err != nil {
 				return nil, err
@@ -235,6 +239,35 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 			}
 		}
 		return nil
+	case ResourceTypeCreateTeam:
+		if a.Appeal == nil {
+			return fmt.Errorf("appeal details are required to create a team")
+		}
+		details := a.Appeal.Details
+		t := &Group{}
+		if name, ok := details["team_name"].(string); ok {
+			t.Name = name
+		}
+		if t.Name == "" {
+			return fmt.Errorf("team_name is required in appeal details to create a team")
+		}
+		if slug, ok := details["slug"].(string); ok && slug != "" {
+			t.Slug = slug
+		} else {
+			t.Slug = toSlug(t.Name)
+		}
+		if orgId, ok := details["org_id"].(string); ok {
+			t.OrgId = orgId
+		}
+		if meta, ok := details["metadata"].(map[string]interface{}); ok {
+			if err := mapstructure.Decode(meta, &t.Metadata); err != nil {
+				return fmt.Errorf("decoding team metadata: %w", err)
+			}
+		}
+		if _, err := client.GrantCreateTeamAccess(ctx, *t, user.ID); err != nil {
+			return err
+		}
+		return nil
 	case ResourceTypeProject:
 		pj := new(Project)
 		if err := pj.FromDomain(a.Resource); err != nil {
@@ -301,6 +334,15 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		}
 
 		return nil
+	case ResourceTypeCreateTeam:
+		t := new(Group)
+		if err := t.FromDomain(a.Resource); err != nil {
+			return err
+		}
+		if err := client.RevokeCreateTeamAccess(ctx, *t); err != nil {
+			return err
+		}
+		return nil
 	case ResourceTypeProject:
 		pj := new(Project)
 		if err := pj.FromDomain(a.Resource); err != nil {
@@ -336,4 +378,65 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		}
 		return nil
 	}
+}
+
+func (p *provider) ValidateResourceIdentifiers(_ context.Context, r *domain.Resource) error {
+	switch r.Type {
+	case ResourceTypeTeam, ResourceTypeProject, ResourceTypeOrganization, ResourceTypeResource, ResourceTypeCreateTeam:
+	default:
+		return fmt.Errorf("unsupported resource type %q for provider type %q", r.Type, p.typeName)
+	}
+	if r.URN == "" {
+		return fmt.Errorf("resource urn is required")
+	}
+	return nil
+}
+
+func (p *provider) ValidateResourceDetails(_ context.Context, _ *domain.Resource) error {
+	return nil
+}
+
+func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
+	if a.Resource == nil || a.Resource.Type != ResourceTypeCreateTeam {
+		return nil
+	}
+
+	teamName, _ := a.Details["team_name"].(string)
+	if teamName == "" {
+		return fmt.Errorf("team_name is required in appeal details for create_team resource type")
+	}
+
+	slug, _ := a.Details["slug"].(string)
+	if slug == "" {
+		slug = toSlug(teamName)
+	}
+
+	client, ok := p.Clients[a.Resource.ProviderURN]
+	if !ok {
+		return fmt.Errorf("shield client not initialized for provider %q", a.Resource.ProviderURN)
+	}
+
+	existingGroups, err := client.GetGroups(ctx)
+	if err != nil {
+		return fmt.Errorf("fetching existing teams from shield: %w", err)
+	}
+
+	for _, g := range existingGroups {
+		if strings.EqualFold(g.Name, teamName) {
+			return fmt.Errorf("a team with name %q already exists in Shield", teamName)
+		}
+		if strings.EqualFold(g.Slug, slug) {
+			return fmt.Errorf("a team with slug %q already exists in Shield", slug)
+		}
+	}
+
+	return nil
+}
+
+var nonAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)
+
+func toSlug(name string) string {
+	s := strings.ToLower(strings.TrimSpace(name))
+	s = nonAlphanumeric.ReplaceAllString(s, "_")
+	return strings.Trim(s, "_")
 }

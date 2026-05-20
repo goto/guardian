@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -410,6 +409,85 @@ func (c *shieldNewclient) RevokeResourceAccess(ctx context.Context, resource *Re
 	return nil
 }
 
+func (c *shieldNewclient) CreateTeam(ctx context.Context, team Group) (*Group, error) {
+	payload := map[string]interface{}{
+		"name":  team.Name,
+		"slug":  team.Slug,
+		"orgId": team.OrgId,
+	}
+	if team.Metadata != (Metadata{}) {
+		payload["metadata"] = team.Metadata
+	}
+
+	req, err := c.newRequest(http.MethodPost, groupsEndpoint, payload, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var createdGroup *Group
+	var response interface{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return nil, err
+	}
+
+	if v, ok := response.(map[string]interface{}); ok && v["group"] != nil {
+		if err := mapstructure.Decode(v["group"], &createdGroup); err != nil {
+			return nil, err
+		}
+	}
+
+	if createdGroup == nil {
+		return nil, fmt.Errorf("unexpected response from shield: group not found in response body")
+	}
+
+	c.logger.Info(ctx, "Team created in shield", "id", createdGroup.ID, "name", createdGroup.Name)
+	return createdGroup, nil
+}
+
+func (c *shieldNewclient) CheckUserPermission(ctx context.Context, permissions []ResourcePermission) error {
+	endpoint := fmt.Sprintf(userCheckEndpoint, c.authEmail)
+	body := map[string]interface{}{
+		"resource_permissions": permissions,
+	}
+	req, err := c.newRequest(http.MethodPost, endpoint, body, "")
+	if err != nil {
+		return err
+	}
+
+	var response map[string]interface{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return fmt.Errorf("permission check failed: %w", err)
+	}
+
+	if status, ok := response["status"].(string); !ok || status != "allowed" {
+		return fmt.Errorf("permission denied: guardian service account does not have required permissions on the organization")
+	}
+	return nil
+}
+
+func (c *shieldNewclient) GrantCreateTeamAccess(ctx context.Context, team Group, userId string) (*Group, error) {
+	if team.OrgId != "" {
+		if err := c.CheckUserPermission(ctx, []ResourcePermission{
+			{ObjectId: team.OrgId, ObjectNamespace: organizationNamespaceConst, Permission: editPermissionConst},
+		}); err != nil {
+			return nil, fmt.Errorf("checking organization permission: %w", err)
+		}
+	}
+	createdGroup, err := c.CreateTeam(ctx, team)
+	if err != nil {
+		return nil, fmt.Errorf("creating team in shield: %w", err)
+	}
+	if err := c.CreateRelation(ctx, createdGroup.ID, groupNamespaceConst, fmt.Sprintf("%s:%s", userNamespaceConst, userId), managerRoleConst); err != nil {
+		return nil, fmt.Errorf("creating manager relation for team %s: %w", createdGroup.ID, err)
+	}
+	c.logger.Info(ctx, "Team access granted via team creation in shield", "id", createdGroup.ID, "name", createdGroup.Name)
+	return createdGroup, nil
+}
+
+func (c *shieldNewclient) RevokeCreateTeamAccess(ctx context.Context, team Group) error {
+	return nil
+}
+
 func (c *shieldNewclient) GetSelfUser(ctx context.Context, email string) (*User, error) {
 	req, err := c.newRequest(http.MethodGet, selfUserEndpoint, nil, email)
 	if err != nil {
@@ -439,9 +517,9 @@ func (c *shieldNewclient) do(ctx context.Context, req *http.Request, v interface
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusInternalServerError {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		byteData, _ := io.ReadAll(resp.Body)
-		return nil, errors.New(string(byteData))
+		return nil, fmt.Errorf("request to %s failed with status %d: %s", req.URL, resp.StatusCode, string(byteData))
 	}
 
 	if v != nil {

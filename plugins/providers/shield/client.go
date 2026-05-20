@@ -412,3 +412,106 @@ func (c *client) GetNamespaces(ctx context.Context) ([]*Namespace, error) {
 	c.logger.Info(ctx, "GetNamespaces not implemented yet")
 	return nil, errors.New("GetNamespaces not implemented yet")
 }
+
+func (c *client) CreateTeam(ctx context.Context, team Group) (*Group, error) {
+	payload := map[string]interface{}{
+		"name":  team.Name,
+		"slug":  team.Slug,
+		"orgId": team.OrgId,
+	}
+
+	req, err := c.newRequest(http.MethodPost, groupsEndpoint, payload, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var createdGroup *Group
+	var response interface{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return nil, err
+	}
+
+	if v, ok := response.(map[string]interface{}); ok && v["group"] != nil {
+		if err := mapstructure.Decode(v["group"], &createdGroup); err != nil {
+			return nil, err
+		}
+	}
+
+	if createdGroup == nil {
+		return nil, fmt.Errorf("unexpected response from shield: group not found in response body")
+	}
+
+	c.logger.Info(ctx, "Team created in shield", "id", createdGroup.ID, "name", createdGroup.Name)
+	return createdGroup, nil
+}
+
+func (c *client) GrantCreateTeamAccess(ctx context.Context, team Group, userId string) (*Group, error) {
+	createdGroup, err := c.CreateTeam(ctx, team)
+	if err != nil {
+		return nil, fmt.Errorf("creating team in shield: %w", err)
+	}
+	c.logger.Info(ctx, "Granting team access to user via team creation in shield", "teamId", createdGroup.ID, "userId", userId)
+	if err := c.CreateRelation(ctx, createdGroup.ID, groupNamespaceConst, userId); err != nil {
+		return nil, fmt.Errorf("creating manager relation for team %s: %w", createdGroup.ID, err)
+	}
+	c.logger.Info(ctx, "Team access granted via team creation in shield", "id", createdGroup.ID, "name", createdGroup.Name)
+	return createdGroup, nil
+}
+
+func (c *client) RevokeCreateTeamAccess(ctx context.Context, team Group) error {
+	c.logger.Info(ctx, "RevokeCreateTeamAccess not implemented yet")
+	return errors.New("RevokeCreateTeamAccess not implemented yet")
+}
+
+func (c *client) CreateRelation(ctx context.Context, objectId string, objectNamespace string, subject string) error {
+	body := Relation{
+		ObjectId:    objectId,
+		ObjectType:  "team",
+		SubjectType: "user",
+		SubjectId:   subject,
+		RoleID:      "team_member",
+	}
+	c.logger.Info(ctx, "Creating relation in shield", "objectId", objectId, "objectNamespace", objectNamespace, "subject", subject)
+
+	req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
+	if err != nil {
+		return err
+	}
+
+	var relation *Relation
+	var response interface{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return err
+	}
+
+	if v, ok := response.(map[string]interface{}); ok && v[relationConst] != nil {
+		err = mapstructure.Decode(v[relationConst], &relation)
+		if err != nil {
+			return err
+		}
+	}
+
+	c.logger.Info(ctx, "Relation created for namespace ", objectNamespace, "relation id", relation.Id)
+	return nil
+}
+
+func (c *client) CheckUserPermission(ctx context.Context, permissions []ResourcePermission) error {
+	endpoint := fmt.Sprintf(userCheckEndpoint, c.authEmail)
+	body := map[string]interface{}{
+		"resource_permissions": permissions,
+	}
+	req, err := c.newRequest(http.MethodPost, endpoint, body, "")
+	if err != nil {
+		return err
+	}
+
+	var response map[string]interface{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return fmt.Errorf("permission check failed: %w", err)
+	}
+
+	if status, ok := response["status"].(string); !ok || status != "allowed" {
+		return fmt.Errorf("permission denied: guardian service account does not have required permissions on the organization")
+	}
+	return nil
+}

@@ -24,6 +24,10 @@ type ShieldClient interface {
 	GrantResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error
 	RevokeResourceAccess(ctx context.Context, resource *Resource, userId string, role string) error
 	GetSelfUser(ctx context.Context, email string) (*User, error)
+	CreateTeam(ctx context.Context, team Group) (*Group, error)
+	GrantCreateTeamAccess(ctx context.Context, team Group, userId string) (*Group, error)
+	RevokeCreateTeamAccess(ctx context.Context, team Group) error
+	CheckUserPermission(ctx context.Context, permissions []ResourcePermission) error
 }
 
 const (
@@ -31,6 +35,7 @@ const (
 	ResourceTypeProject      = "project"
 	ResourceTypeOrganization = "organization"
 	ResourceTypeResource     = "resource"
+	ResourceTypeCreateTeam   = "create_team"
 )
 
 const (
@@ -42,6 +47,7 @@ const (
 	selfUserEndpoint     = "admin/v1beta1/users/self"
 	relationsEndpoint    = "/admin/v1beta1/relations"
 	objectEndpoint       = "/admin/v1beta1/object"
+	userCheckEndpoint    = "/admin/v1beta1/users/%s/check"
 
 	groupsConst        = "groups"
 	resourcesConst     = "resources"
@@ -58,6 +64,7 @@ const (
 	projectNamespaceConst      = "shield/project"
 	organizationNamespaceConst = "shield/organization"
 	managerRoleConst           = "manager"
+	editPermissionConst        = "edit"
 )
 
 type HTTPClient interface {
@@ -143,7 +150,11 @@ type Relation struct {
 	ObjectId        string `json:"object_id" mapstructure:"object_id"`
 	ObjectNamespace string `json:"object_namespace" mapstructure:"object_namespace"`
 	Subject         string `json:"subject" mapstructure:"subject"`
+	SubjectId       string `json:"subject_id" mapstructure:"subject_id"`
 	RoleName        string `json:"role_name" mapstructure:"role_name"`
+	RoleID          string `json:"role_id" mapstructure:"role_id"`
+	SubjectType     string `json:"subject_type" mapstructure:"subject_type"`
+	ObjectType      string `json:"object_type" mapstructure:"object_type"`
 }
 
 type DeleteRelation struct {
@@ -152,8 +163,14 @@ type DeleteRelation struct {
 	Role      string `json:"role" mapstructure:"role"`
 }
 
+type ResourcePermission struct {
+	ObjectId        string `json:"object_id" mapstructure:"object_id"`
+	ObjectNamespace string `json:"object_namespace" mapstructure:"object_namespace"`
+	Permission      string `json:"permission" mapstructure:"permission"`
+}
+
 func (t *Group) FromDomain(r *domain.Resource) error {
-	if r.Type != ResourceTypeTeam {
+	if r.Type != ResourceTypeTeam && r.Type != ResourceTypeCreateTeam {
 		return ErrInvalidResourceType
 	}
 
