@@ -410,7 +410,7 @@ func (c *client) RevokeResourceAccess(ctx context.Context, resource *Resource, u
 
 func (c *client) GetNamespaces(ctx context.Context) ([]*Namespace, error) {
 	c.logger.Info(ctx, "GetNamespaces not implemented yet")
-	return nil, nil
+	return nil, errors.New("GetNamespaces not implemented yet")
 }
 
 func (c *client) CreateTeam(ctx context.Context, team Group) (*Group, error) {
