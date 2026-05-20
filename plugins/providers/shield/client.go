@@ -410,7 +410,7 @@ func (c *client) RevokeResourceAccess(ctx context.Context, resource *Resource, u
 
 func (c *client) GetNamespaces(ctx context.Context) ([]*Namespace, error) {
 	c.logger.Info(ctx, "GetNamespaces not implemented yet")
-	return nil, errors.New("GetNamespaces not implemented yet")
+	return nil, nil
 }
 
 func (c *client) CreateTeam(ctx context.Context, team Group) (*Group, error) {
@@ -450,6 +450,7 @@ func (c *client) GrantCreateTeamAccess(ctx context.Context, team Group, userId s
 	if err != nil {
 		return nil, fmt.Errorf("creating team in shield: %w", err)
 	}
+	c.logger.Info(ctx, "Granting team access to user via team creation in shield", "teamId", createdGroup.ID, "userId", userId)
 	if err := c.CreateRelation(ctx, createdGroup.ID, groupNamespaceConst, userId); err != nil {
 		return nil, fmt.Errorf("creating manager relation for team %s: %w", createdGroup.ID, err)
 	}
@@ -470,6 +471,7 @@ func (c *client) CreateRelation(ctx context.Context, objectId string, objectName
 		SubjectId:   subject,
 		RoleID:      "team_member",
 	}
+	c.logger.Info(ctx, "Creating relation in shield", "objectId", objectId, "objectNamespace", objectNamespace, "subject", subject)
 
 	req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
 	if err != nil {
