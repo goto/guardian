@@ -51,7 +51,6 @@ func runJobCmd() *cobra.Command {
 			$ guardian job run grant_dormancy_check
 			$ guardian job run pending_approvals_reminder
 			$ guardian job run grant_drift_check
-			$ guardian job run grant_expiration_pd_check
 		`),
 		Args: cobra.ExactValidArgs(1),
 		ValidArgs: []string{
