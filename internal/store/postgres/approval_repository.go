@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -14,6 +15,17 @@ import (
 	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
+
+// approvalRowWithPreviousGrant is a scan-only wrapper used by ListApprovals when
+// WithPreviousGrant=true. The extra column is materialized by an aliased subquery in
+// the SELECT and scanned into PreviousGrantExpirationDate. It is intentionally NOT a
+// field on model.Approval — GORM would otherwise auto-include it in every Preload of
+// approvals (in appeal_repository, grant_repository, and this file), generating SQL
+// that references a non-existent column.
+type approvalRowWithPreviousGrant struct {
+	model.Approval
+	PreviousGrantExpirationDate sql.NullTime `gorm:"column:previous_grant_expiration_date"`
+}
 
 var (
 	ApprovalStatusDefaultSort = []string{
@@ -79,7 +91,7 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 	var columnSuffixes map[string]string
 	if filter.WithPreviousGrant {
 		// Hydrate the derived previous_grant_expiration_date column on each returned row.
-		// The aliased subquery is scanned into model.Approval.PreviousGrantExpirationDate.
+		// The aliased subquery is scanned into approvalRowWithPreviousGrant.PreviousGrantExpirationDate.
 		db = db.Select(`"approvals".*, ` + latestGrantExpirationDateSubquery + ` AS previous_grant_expiration_date`)
 
 		orderByList = append(orderByList, "previous_grant_expiration_date")
@@ -94,13 +106,6 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 		columnSuffixes = map[string]string{
 			"previous_grant_expiration_date": "NULLS LAST",
 		}
-	} else {
-		// model.Approval declares PreviousGrantExpirationDate so GORM can scan the aliased
-		// subquery when WithPreviousGrant=true. On the default path GORM would otherwise
-		// auto-include "approvals"."previous_grant_expiration_date" in the SELECT column
-		// list, which fails because that column doesn't actually exist. Explicitly restrict
-		// the SELECT to the real columns; the struct field stays at sql.NullTime{} zero.
-		db = db.Select(`"approvals".*`)
 	}
 
 	// Apply combined ORDER BY: exact-match priority (when Q is set) + user-specified order_by.
@@ -133,23 +138,40 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 		db = db.Offset(filter.Offset)
 	}
 
-	var models []*model.Approval
-	if err := db.Preload("Appeal.Resource").
+	db = db.Preload("Appeal.Resource").
 		Preload("Appeal.Approvals").
-		Preload("Appeal.Approvals.Approvers").
-		Find(&models).Error; err != nil {
-		return nil, err
+		Preload("Appeal.Approvals.Approvers")
+
+	if filter.WithPreviousGrant {
+		var rows []*approvalRowWithPreviousGrant
+		if err := db.Find(&rows).Error; err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			approval, err := row.Approval.ToDomain()
+			if err != nil {
+				return nil, err
+			}
+			if row.PreviousGrantExpirationDate.Valid {
+				t := row.PreviousGrantExpirationDate.Time
+				approval.PreviousGrantExpirationDate = &t
+			}
+			records = append(records, approval)
+		}
+		return records, nil
 	}
 
+	var models []*model.Approval
+	if err := db.Find(&models).Error; err != nil {
+		return nil, err
+	}
 	for _, m := range models {
 		approval, err := m.ToDomain()
 		if err != nil {
 			return nil, err
 		}
-
 		records = append(records, approval)
 	}
-
 	return records, nil
 }
 
