@@ -15,6 +15,7 @@ import (
 	"github.com/goto/guardian/jobs"
 	"github.com/goto/guardian/pkg/crypto"
 	"github.com/goto/guardian/plugins/notifiers"
+	"github.com/goto/guardian/plugins/notifiers/alertmanager"
 	"github.com/spf13/cobra"
 )
 
@@ -49,6 +50,8 @@ func runJobCmd() *cobra.Command {
 			$ guardian job run revoke_grants_by_user_criteria
 			$ guardian job run grant_dormancy_check
 			$ guardian job run pending_approvals_reminder
+			$ guardian job run grant_drift_check
+			$ guardian job run grant_expiration_pd_check
 		`),
 		Args: cobra.ExactValidArgs(1),
 		ValidArgs: []string{
@@ -58,6 +61,7 @@ func runJobCmd() *cobra.Command {
 			string(jobs.TypeRevokeGrantsByUserCriteria),
 			string(jobs.TypeGrantDormancyCheck),
 			string(jobs.TypePendingApprovalsReminder),
+			string(jobs.TypeGrantDriftCheck),
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configFile, err := cmd.Flags().GetString("config")
@@ -121,9 +125,12 @@ func runJobCmd() *cobra.Command {
 				return fmt.Errorf("initializing services: %w", err)
 			}
 
+			alerMgr := alertmanager.New(config.AlertManager, alertmanager.NewPDClient(), logger)
+
 			handler := jobs.NewHandler(
 				logger,
 				services.GrantService,
+				alerMgr,
 				services.ReportService,
 				services.ProviderService,
 				notifier,
@@ -158,6 +165,10 @@ func runJobCmd() *cobra.Command {
 				jobs.TypePendingApprovalsReminder: {
 					handler: handler.PendingApprovalsReminder,
 					config:  config.Jobs.PendingApprovalsReminder.Config,
+				},
+				jobs.TypeGrantDriftCheck: {
+					handler: handler.GrantDriftCheck,
+					config:  config.Jobs.GrantDriftCheck.Config,
 				},
 			}
 

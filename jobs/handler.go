@@ -18,6 +18,12 @@ type grantService interface {
 	BulkRevoke(ctx context.Context, filter domain.RevokeGrantsFilter, actor, reason string) ([]*domain.Grant, error)
 	Update(context.Context, *domain.GrantUpdate) (*domain.Grant, error)
 	DormancyCheck(context.Context, domain.DormancyCheckCriteria) error
+	GrantDriftCheck(context.Context, domain.GrantDriftCheckRequest) error
+}
+
+//go:generate mockery --name=alertManager --exported --with-expecter
+type alertManager interface {
+	NotifyDriftCheck(ctx context.Context, adminTeam string, issues []domain.GrantDriftIssue) []error
 }
 
 //go:generate mockery --name=providerService --exported
@@ -38,6 +44,7 @@ type crypto interface {
 type handler struct {
 	logger          log.Logger
 	grantService    grantService
+	alertManager    alertManager
 	reportService   reportService
 	providerService providerService
 	notifier        notifiers.Client
@@ -48,6 +55,7 @@ type handler struct {
 func NewHandler(
 	logger log.Logger,
 	grantService grantService,
+	alertManager alertManager,
 	reportService reportService,
 	providerService providerService,
 	notifier notifiers.Client,
@@ -57,6 +65,7 @@ func NewHandler(
 	return &handler{
 		logger:          logger,
 		grantService:    grantService,
+		alertManager:    alertManager,
 		reportService:   reportService,
 		providerService: providerService,
 		notifier:        notifier,

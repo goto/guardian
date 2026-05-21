@@ -9,6 +9,7 @@ import (
 	"github.com/goto/guardian/pkg/auth"
 	"github.com/goto/guardian/pkg/opentelemetry"
 	"github.com/goto/guardian/plugins/notifiers"
+	"github.com/goto/guardian/plugins/notifiers/alertmanager"
 	"github.com/goto/salt/config"
 )
 
@@ -29,6 +30,8 @@ type Jobs struct {
 	RevokeGrantsByUserCriteria jobs.Job `mapstructure:"revoke_grants_by_user_criteria"`
 	GrantDormancyCheck         jobs.Job `mapstructure:"grant_dormancy_check"`
 	PendingApprovalsReminder   jobs.Job `mapstructure:"pending_approvals_reminder"`
+	GrantDriftCheck            jobs.Job `mapstructure:"grant_drift_check"`
+	GrantExpirationPDCheck     jobs.Job `mapstructure:"grant_expiration_pd_check"`
 }
 
 type Config struct {
@@ -44,6 +47,7 @@ type Config struct {
 	AuthenticatedUserHeaderKey string               `mapstructure:"authenticated_user_header_key"`
 	AuditLogTraceIDHeaderKey   string               `mapstructure:"audit_log_trace_id_header_key" default:"X-Trace-Id"`
 	Jobs                       Jobs                 `mapstructure:"jobs"`
+	AlertManager               alertmanager.Config  `mapstructure:"alert_manager"`
 	Telemetry                  opentelemetry.Config `mapstructure:"telemetry"`
 
 	Auth Auth `mapstructure:"auth"`

@@ -27,6 +27,7 @@ import (
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/identities"
 	"github.com/goto/guardian/plugins/notifiers"
+	"github.com/goto/guardian/plugins/notifiers/alertmanager"
 	"github.com/goto/guardian/plugins/providers/alicloud_ram"
 	"github.com/goto/guardian/plugins/providers/alicloud_sso"
 	"github.com/goto/guardian/plugins/providers/bigquery"
@@ -181,6 +182,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		ProviderService: providerService,
 		ResourceService: resourceService,
 		Notifier:        deps.Notifier,
+		AlertManager:    alertmanager.New(deps.Config.AlertManager, alertmanager.NewPDClient(), deps.Logger),
 		Logger:          deps.Logger,
 		Validator:       deps.Validator,
 		AuditLogger:     auditLogger,

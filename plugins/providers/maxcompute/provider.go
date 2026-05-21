@@ -386,6 +386,37 @@ func (p *provider) getSchemaDefaultRoleName(pc *domain.ProviderConfig) (string, 
 	return creds.SchemaDefaultPolicy, nil
 }
 
+func (p *provider) ListAccess(ctx context.Context, pc domain.ProviderConfig, resources []*domain.Resource) (domain.MapResourceAccess, error) {
+	result := make(domain.MapResourceAccess)
+	var mu sync.Mutex
+	var errW error
+	w := pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
+	defer w.Shutdown()
+
+	for i := range resources {
+		resource := resources[i]
+		w.Do(func() error {
+			entries, err := p.listResourceAccess(ctx, "", &pc, resource)
+			if err != nil {
+				return fmt.Errorf("listing access for %q: %w", resource.URN, err)
+			}
+			if len(entries) > 0 {
+				mu.Lock()
+				result[resource.URN] = entries
+				mu.Unlock()
+			}
+
+			return nil
+		})
+	}
+
+	w.Wait()
+	if errW != nil {
+		return nil, errW
+	}
+	return result, nil
+}
+
 func getParametersFromGrant[T any](g domain.Grant, key string) (T, bool, error) {
 	var value T
 	if g.Appeal == nil {
