@@ -1689,19 +1689,34 @@ func TestValidateAppeal(t *testing.T) {
 	providerURN := "test-provider-urn"
 	logger := log.NewCtxLogger("info", []string{"test"})
 
+	newProvider := func(urn string) *domain.Provider {
+		return &domain.Provider{
+			URN: urn,
+			Config: &domain.ProviderConfig{
+				URN: urn,
+				Credentials: shield.Credentials{
+					Host:       "https://shield.test",
+					AuthHeader: "X-Auth-Email",
+					AuthEmail:  "admin@test.com",
+				},
+			},
+		}
+	}
+	pr := newProvider(providerURN)
+
 	t.Run("should return nil for non create_team resource types", func(t *testing.T) {
 		p := shield.NewProvider("shield", logger)
 		appeal := &domain.Appeal{
 			Resource: &domain.Resource{Type: shield.ResourceTypeTeam, ProviderURN: providerURN},
 			Details:  map[string]interface{}{},
 		}
-		assert.NoError(t, p.ValidateAppeal(context.Background(), appeal))
+		assert.NoError(t, p.ValidateAppeal(context.Background(), appeal, pr))
 	})
 
 	t.Run("should return nil when resource is nil", func(t *testing.T) {
 		p := shield.NewProvider("shield", logger)
 		appeal := &domain.Appeal{Resource: nil}
-		assert.NoError(t, p.ValidateAppeal(context.Background(), appeal))
+		assert.NoError(t, p.ValidateAppeal(context.Background(), appeal, pr))
 	})
 
 	t.Run("should return error when team_name is missing", func(t *testing.T) {
@@ -1713,21 +1728,21 @@ func TestValidateAppeal(t *testing.T) {
 			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
 			Details:  map[string]interface{}{},
 		}
-		err := p.ValidateAppeal(context.Background(), appeal)
+		err := p.ValidateAppeal(context.Background(), appeal, pr)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "team_name is required")
 	})
 
-	t.Run("should return error when client is not initialized for provider", func(t *testing.T) {
+	t.Run("should return error when provider config is nil", func(t *testing.T) {
 		p := shield.NewProvider("shield", logger)
 
 		appeal := &domain.Appeal{
-			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: "unknown-urn"},
+			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
 			Details:  map[string]interface{}{"team_name": "My Team"},
 		}
-		err := p.ValidateAppeal(context.Background(), appeal)
+		err := p.ValidateAppeal(context.Background(), appeal, nil)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "shield client not initialized")
+		assert.Contains(t, err.Error(), "provider config is required")
 	})
 
 	t.Run("should return error when GetGroups fails", func(t *testing.T) {
@@ -1741,7 +1756,7 @@ func TestValidateAppeal(t *testing.T) {
 			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
 			Details:  map[string]interface{}{"team_name": "My Team"},
 		}
-		err := p.ValidateAppeal(context.Background(), appeal)
+		err := p.ValidateAppeal(context.Background(), appeal, pr)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "fetching existing teams from shield")
 		client.AssertExpectations(t)
@@ -1761,7 +1776,7 @@ func TestValidateAppeal(t *testing.T) {
 			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
 			Details:  map[string]interface{}{"team_name": "My Team"},
 		}
-		err := p.ValidateAppeal(context.Background(), appeal)
+		err := p.ValidateAppeal(context.Background(), appeal, pr)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 		client.AssertExpectations(t)
@@ -1781,7 +1796,7 @@ func TestValidateAppeal(t *testing.T) {
 			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
 			Details:  map[string]interface{}{"team_name": "MY TEAM"},
 		}
-		err := p.ValidateAppeal(context.Background(), appeal)
+		err := p.ValidateAppeal(context.Background(), appeal, pr)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 		client.AssertExpectations(t)
@@ -1801,7 +1816,7 @@ func TestValidateAppeal(t *testing.T) {
 			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
 			Details:  map[string]interface{}{"team_name": "New Team", "slug": "new_team"},
 		}
-		err := p.ValidateAppeal(context.Background(), appeal)
+		err := p.ValidateAppeal(context.Background(), appeal, pr)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "slug")
 		assert.Contains(t, err.Error(), "already exists")
@@ -1822,7 +1837,7 @@ func TestValidateAppeal(t *testing.T) {
 			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
 			Details:  map[string]interface{}{"team_name": "My New Team", "slug": "my_new_team"},
 		}
-		err := p.ValidateAppeal(context.Background(), appeal)
+		err := p.ValidateAppeal(context.Background(), appeal, pr)
 		assert.NoError(t, err)
 		client.AssertExpectations(t)
 	})
@@ -1841,7 +1856,7 @@ func TestValidateAppeal(t *testing.T) {
 			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
 			Details:  map[string]interface{}{"team_name": "My Brand New Team"},
 		}
-		err := p.ValidateAppeal(context.Background(), appeal)
+		err := p.ValidateAppeal(context.Background(), appeal, pr)
 		assert.NoError(t, err)
 		client.AssertExpectations(t)
 	})
