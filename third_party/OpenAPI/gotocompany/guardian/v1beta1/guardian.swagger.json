@@ -1725,11 +1725,10 @@
           },
           {
             "name": "previousGrantState",
-            "description": "Filter approvals by the state of the previous grant. Valid values: \"expired\", \"expiring\", \"none\". expired: the latest grant matching the appeal's (account_id, resource_id, role) has expiration_date < now. expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted). none: no previous grant exists for the triple, or the latest grant is permanent (expiration_date IS NULL).",
+            "description": "Filter approvals by the state of the previous grant. Valid values: \"expired\", \"expiring\", \"none\".\n- expired: the latest grant matching the appeal's (account_id, resource_id, role) has expiration_date \u003c now.\n- expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted).\n- none: no previous grant exists for the triple, or the latest grant is permanent (expiration_date IS NULL).",
             "in": "query",
             "required": false,
-            "type": "string",
-            "enum": ["expired", "expiring", "none"]
+            "type": "string"
           },
           {
             "name": "expiringWithinDays",
@@ -3566,11 +3565,10 @@
           },
           {
             "name": "previousGrantState",
-            "description": "Filter approvals by the state of the previous grant. Valid values: \"expired\", \"expiring\", \"none\". expired: the latest grant matching the appeal's (account_id, resource_id, role) has expiration_date < now. expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted). none: no previous grant exists for the triple, or the latest grant is permanent (expiration_date IS NULL).",
+            "description": "Filter approvals by the state of the previous grant. Valid values: \"expired\", \"expiring\", \"none\".\n- expired: the latest grant matching the appeal's (account_id, resource_id, role) has expiration_date \u003c now.\n- expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted).\n- none: no previous grant exists for the triple, or the latest grant is permanent (expiration_date IS NULL).",
             "in": "query",
             "required": false,
-            "type": "string",
-            "enum": ["expired", "expiring", "none"]
+            "type": "string"
           },
           {
             "name": "expiringWithinDays",
