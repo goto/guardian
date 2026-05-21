@@ -27,6 +27,15 @@ type approvalRowWithPreviousGrant struct {
 	PreviousGrantExpirationDate sql.NullTime `gorm:"column:previous_grant_expiration_date"`
 }
 
+// TableName overrides GORM's default snake-case-pluralization of the struct name
+// (which would yield "approval_row_with_previous_grants"). Without this, every query
+// using this wrapper fails with `relation "approval_row_with_previous_grants" does
+// not exist`. The embedded model.Approval doesn't propagate its TableName to the outer
+// type, so we have to set it explicitly here.
+func (approvalRowWithPreviousGrant) TableName() string {
+	return "approvals"
+}
+
 var (
 	ApprovalStatusDefaultSort = []string{
 		domain.ApprovalStatusPending,
