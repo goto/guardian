@@ -189,7 +189,6 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		Repository:    approvalRepository,
 		PolicyService: policyService,
 	})
-	approvalService.SetGrantService(grantService)
 	commentService := comment.NewService(comment.ServiceDeps{
 		Repository:  commentRepository,
 		Logger:      deps.Logger,

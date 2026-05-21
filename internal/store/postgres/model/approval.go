@@ -1,6 +1,7 @@
 package model
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -34,6 +35,12 @@ type Approval struct {
 
 	IsStale        bool
 	AppealRevision uint
+
+	// PreviousGrantExpirationDate is not stored on the approvals table — it is populated
+	// on ListApprovals when WithPreviousGrant=true via a SELECT subquery aliased to this
+	// column name. The `->` tag makes it scan-only (no INSERT/UPDATE), and `-:migration`
+	// keeps GORM auto-migrate (used by some tests) from trying to add a real column.
+	PreviousGrantExpirationDate sql.NullTime `gorm:"->;column:previous_grant_expiration_date;-:migration"`
 
 	CreatedAt time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
@@ -123,7 +130,7 @@ func (m *Approval) ToDomain() (*domain.Approval, error) {
 		appeal = a
 	}
 
-	return &domain.Approval{
+	approval := &domain.Approval{
 		ID:                    m.ID.String(),
 		Name:                  m.Name,
 		Index:                 m.Index,
@@ -143,5 +150,10 @@ func (m *Approval) ToDomain() (*domain.Approval, error) {
 		AppealRevision:        m.AppealRevision,
 		CreatedAt:             m.CreatedAt,
 		UpdatedAt:             m.UpdatedAt,
-	}, nil
+	}
+	if m.PreviousGrantExpirationDate.Valid {
+		t := m.PreviousGrantExpirationDate.Time
+		approval.PreviousGrantExpirationDate = &t
+	}
+	return approval, nil
 }

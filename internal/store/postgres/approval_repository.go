@@ -32,6 +32,21 @@ var (
 	}
 )
 
+// latestGrantExpirationDateSubquery is the canonical SQL for "expiration date of the most
+// recently created grant matching the appeal's (account_id, resource_id, role)". It is the
+// single source of truth used by ListApprovals' SELECT, the start/end_expiration_date WHERE
+// filter, and the order_by=previous_grant_expiration_date sort. Returns NULL when no
+// matching grant exists. Joins on "Appeal" because applyApprovalsJoins aliases the appeals
+// table that way.
+const latestGrantExpirationDateSubquery = `(
+	SELECT "g"."expiration_date" FROM "grants" "g"
+	WHERE "g"."account_id" = "Appeal"."account_id"
+	  AND "g"."resource_id" = "Appeal"."resource_id"
+	  AND "g"."role" = "Appeal"."role"
+	  AND "g"."deleted_at" IS NULL
+	ORDER BY "g"."created_at" DESC LIMIT 1
+)`
+
 type ApprovalRepository struct {
 	db *gorm.DB
 }
@@ -60,8 +75,18 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 		"created_at",
 	}
 
+	var columnExpressions map[string]string
 	if filter.WithPreviousGrant {
+		// Hydrate the derived previous_grant_expiration_date column on each returned row.
+		// The aliased subquery is scanned into model.Approval.PreviousGrantExpirationDate.
+		db = db.Select(`"approvals".*, ` + latestGrantExpirationDateSubquery + ` AS previous_grant_expiration_date`)
+
 		orderByList = append(orderByList, "previous_grant_expiration_date")
+		// "previous_grant_expiration_date" isn't a real column; resolve it to the same
+		// subquery used in SELECT/WHERE so all three stay consistent.
+		columnExpressions = map[string]string{
+			"previous_grant_expiration_date": latestGrantExpirationDateSubquery,
+		}
 	}
 
 	// Apply combined ORDER BY: exact-match priority (when Q is set) + user-specified order_by.
@@ -74,10 +99,11 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 			prependVars = []interface{}{filter.Q, filter.Q, filter.Q, filter.Q}
 		}
 		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
-			statusColumnName: `"approvals"."status"`,
-			statusesOrder:    AppealStatusDefaultSort,
-			prependSQL:       prependSQL,
-			prependVars:      prependVars,
+			statusColumnName:  `"approvals"."status"`,
+			statusesOrder:     AppealStatusDefaultSort,
+			prependSQL:        prependSQL,
+			prependVars:       prependVars,
+			columnExpressions: columnExpressions,
 		}, orderByList)
 		if err != nil {
 			return nil, err
@@ -468,32 +494,21 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 
 	// Restrict by previous-grant expiration date. The "previous grant" for an appeal is the
 	// grant with the latest created_at that matches the appeal's (account_id, resource_id, role).
+	// Filter against latestGrantExpirationDateSubquery so the WHERE clause is consistent with
+	// the SELECT and the order_by=previous_grant_expiration_date sort.
 	if !filter.StartExpirationDate.IsZero() || !filter.EndExpirationDate.IsZero() {
-		conditions := []string{
-			`"prev_grant"."account_id" = "Appeal"."account_id"`,
-			`"prev_grant"."resource_id" = "Appeal"."resource_id"`,
-			`"prev_grant"."role" = "Appeal"."role"`,
-			`"prev_grant"."deleted_at" IS NULL`,
-			`"prev_grant"."created_at" = (
-				SELECT MAX("g2"."created_at") FROM "grants" "g2"
-				WHERE "g2"."account_id" = "prev_grant"."account_id"
-				  AND "g2"."resource_id" = "prev_grant"."resource_id"
-				  AND "g2"."role" = "prev_grant"."role"
-				  AND "g2"."deleted_at" IS NULL
-			)`,
-		}
+		var sub string
 		args := []interface{}{}
 		if !filter.StartExpirationDate.IsZero() && !filter.EndExpirationDate.IsZero() {
-			conditions = append(conditions, `"prev_grant"."expiration_date" BETWEEN ? AND ?`)
+			sub = latestGrantExpirationDateSubquery + ` BETWEEN ? AND ?`
 			args = append(args, filter.StartExpirationDate, filter.EndExpirationDate)
 		} else if !filter.StartExpirationDate.IsZero() {
-			conditions = append(conditions, `"prev_grant"."expiration_date" >= ?`)
+			sub = latestGrantExpirationDateSubquery + ` >= ?`
 			args = append(args, filter.StartExpirationDate)
 		} else {
-			conditions = append(conditions, `"prev_grant"."expiration_date" <= ?`)
+			sub = latestGrantExpirationDateSubquery + ` <= ?`
 			args = append(args, filter.EndExpirationDate)
 		}
-		sub := fmt.Sprintf(`EXISTS (SELECT 1 FROM "grants" "prev_grant" WHERE %s)`, strings.Join(conditions, " AND "))
 		db = db.Where(sub, args...)
 	}
 
