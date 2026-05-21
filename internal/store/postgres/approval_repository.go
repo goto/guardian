@@ -55,6 +55,15 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 		return nil, err
 	}
 
+	orderByList := []string{
+		"updated_at",
+		"created_at",
+	}
+
+	if filter.WithPreviousGrant {
+		orderByList = append(orderByList, "previous_grant_expiration_date")
+	}
+
 	// Apply combined ORDER BY: exact-match priority (when Q is set) + user-specified order_by.
 	// This is intentionally outside applyApprovalsFilter so it does not affect summary/count queries.
 	if filter.Q != "" || len(filter.OrderBy) > 0 {
@@ -69,7 +78,7 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 			statusesOrder:    AppealStatusDefaultSort,
 			prependSQL:       prependSQL,
 			prependVars:      prependVars,
-		}, []string{"updated_at", "created_at"})
+		}, orderByList)
 		if err != nil {
 			return nil, err
 		}
