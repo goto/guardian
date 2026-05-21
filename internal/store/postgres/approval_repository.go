@@ -94,6 +94,13 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 		columnSuffixes = map[string]string{
 			"previous_grant_expiration_date": "NULLS LAST",
 		}
+	} else {
+		// model.Approval declares PreviousGrantExpirationDate so GORM can scan the aliased
+		// subquery when WithPreviousGrant=true. On the default path GORM would otherwise
+		// auto-include "approvals"."previous_grant_expiration_date" in the SELECT column
+		// list, which fails because that column doesn't actually exist. Explicitly restrict
+		// the SELECT to the real columns; the struct field stays at sql.NullTime{} zero.
+		db = db.Select(`"approvals".*`)
 	}
 
 	// Apply combined ORDER BY: exact-match priority (when Q is set) + user-specified order_by.
