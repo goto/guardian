@@ -76,6 +76,7 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 	}
 
 	var columnExpressions map[string]string
+	var columnSuffixes map[string]string
 	if filter.WithPreviousGrant {
 		// Hydrate the derived previous_grant_expiration_date column on each returned row.
 		// The aliased subquery is scanned into model.Approval.PreviousGrantExpirationDate.
@@ -86,6 +87,12 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 		// subquery used in SELECT/WHERE so all three stay consistent.
 		columnExpressions = map[string]string{
 			"previous_grant_expiration_date": latestGrantExpirationDateSubquery,
+		}
+		// Force NULLS LAST on both :asc and :desc so approvals with no previous grant
+		// always sink to the bottom of the page, regardless of direction. Without this,
+		// Postgres's default (NULLS FIRST on DESC) would put a wall of nulls on top.
+		columnSuffixes = map[string]string{
+			"previous_grant_expiration_date": "NULLS LAST",
 		}
 	}
 
@@ -104,6 +111,7 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 			prependSQL:        prependSQL,
 			prependVars:       prependVars,
 			columnExpressions: columnExpressions,
+			columnSuffixes:    columnSuffixes,
 		}, orderByList)
 		if err != nil {
 			return nil, err
