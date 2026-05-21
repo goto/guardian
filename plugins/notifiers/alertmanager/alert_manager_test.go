@@ -25,9 +25,8 @@ func (m *mockPDSender) Send(ctx context.Context, event alertmanager.Event) error
 
 type AlertManagerTestSuite struct {
 	suite.Suite
-	pd     *mockPDSender
-	config alertmanager.Config
-	svc    *alertmanager.AlertManager
+	pd  *mockPDSender
+	svc *alertmanager.AlertManager
 }
 
 func TestAlertManager(t *testing.T) {
@@ -36,8 +35,7 @@ func TestAlertManager(t *testing.T) {
 
 func (s *AlertManagerTestSuite) setupManager() {
 	s.pd = new(mockPDSender)
-	s.config = alertmanager.Config{AdminRoutingKey: "test-routing-key"}
-	s.svc = alertmanager.New(s.config, s.pd, log.NewNoop())
+	s.svc = alertmanager.New(s.pd, log.NewNoop())
 }
 
 func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
@@ -46,6 +44,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 
 	resource1 := &domain.Resource{
 		URN:          "mc://project1/table1",
+		GlobalURN:    "urn:maxcompute:123456:table:project1.default.table1",
 		Name:         "table1",
 		ProviderType: "maxcompute",
 	}
@@ -65,7 +64,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 		}
 
 		s.pd.On("Send", ctx, mock.MatchedBy(func(e alertmanager.Event) bool {
-			return e.RoutingKey == s.config.AdminRoutingKey &&
+			return e.RoutingKey == adminTeam &&
 				e.Severity == "warning" &&
 				e.EventAction == "trigger" &&
 				strings.Contains(e.Summary, "2 drifted grant(s)") &&
@@ -95,8 +94,8 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 		}
 
 		s.pd.On("Send", ctx, mock.MatchedBy(func(e alertmanager.Event) bool {
-			return e.Severity == "critical" &&
-				strings.Contains(e.Summary, "1 failed")
+			return strings.Contains(e.Summary, "1 failed") &&
+				strings.Contains(e.Summary, "2 critical bot(s)")
 		})).Return(nil).Once()
 
 		errs := s.svc.NotifyDriftCheck(ctx, adminTeam, issues)
@@ -120,11 +119,12 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 			if !strings.Contains(e.Summary, "1 not_applicable") {
 				return false
 			}
-			grants, ok := e.CustomDetails["grants"].([]map[string]interface{})
-			if !ok || len(grants) != 1 {
+			accounts, ok := e.CustomDetails["accounts"].([]map[string]interface{})
+			if !ok || len(accounts) != 1 {
 				return false
 			}
-			return grants[0]["remediation_status"] == "not_applicable"
+			grants, ok := accounts[0]["grants"].([]map[string]interface{})
+			return ok && len(grants) == 1 && grants[0]["remediation_status"] == "not_applicable"
 		})).Return(nil).Once()
 
 		errs := s.svc.NotifyDriftCheck(ctx, adminTeam, issues)
@@ -146,11 +146,13 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 		}
 
 		s.pd.On("Send", ctx, mock.MatchedBy(func(e alertmanager.Event) bool {
-			grants, ok := e.CustomDetails["grants"].([]map[string]interface{})
-			if !ok || len(grants) != 1 {
+			accounts, ok := e.CustomDetails["accounts"].([]map[string]interface{})
+			if !ok || len(accounts) != 1 {
 				return false
 			}
-			return grants[0]["remediation_status"] == "failed" &&
+			grants, ok := accounts[0]["grants"].([]map[string]interface{})
+			return ok && len(grants) == 1 &&
+				grants[0]["remediation_status"] == "failed" &&
 				grants[0]["remediation_error"] == remediationErr
 		})).Return(nil).Once()
 
@@ -171,14 +173,16 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 		}
 
 		s.pd.On("Send", ctx, mock.MatchedBy(func(e alertmanager.Event) bool {
-			grants, ok := e.CustomDetails["grants"].([]map[string]interface{})
+			accounts, ok := e.CustomDetails["accounts"].([]map[string]interface{})
+			if !ok || len(accounts) != 1 {
+				return false
+			}
+			grants, ok := accounts[0]["grants"].([]map[string]interface{})
 			if !ok || len(grants) != 1 {
 				return false
 			}
 			resourceStr, ok := grants[0]["resource"].(string)
-			return ok &&
-				strings.Contains(resourceStr, resource1.Name) &&
-				strings.Contains(resourceStr, resource1.URN)
+			return ok && resourceStr == resource1.GlobalURN
 		})).Return(nil).Once()
 
 		errs := s.svc.NotifyDriftCheck(ctx, adminTeam, issues)
@@ -216,10 +220,10 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 
 		s.pd.On("Send", ctx, mock.MatchedBy(func(e alertmanager.Event) bool {
 			return strings.Contains(e.Summary, "4 drifted grant(s)") &&
+				strings.Contains(e.Summary, "4 critical bot(s)") &&
 				strings.Contains(e.Summary, "2 recreated") &&
 				strings.Contains(e.Summary, "1 failed") &&
-				strings.Contains(e.Summary, "1 not_applicable") &&
-				e.Severity == "critical"
+				strings.Contains(e.Summary, "1 not_applicable")
 		})).Return(nil).Once()
 
 		errs := s.svc.NotifyDriftCheck(ctx, adminTeam, issues)

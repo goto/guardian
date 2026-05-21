@@ -182,7 +182,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		ProviderService: providerService,
 		ResourceService: resourceService,
 		Notifier:        deps.Notifier,
-		AlertManager:    alertmanager.New(deps.Config.AlertManager, alertmanager.NewPDClient(), deps.Logger),
+		AlertManager:    alertmanager.New(alertmanager.NewPDClient(), deps.Logger),
 		Logger:          deps.Logger,
 		Validator:       deps.Validator,
 		AuditLogger:     auditLogger,
