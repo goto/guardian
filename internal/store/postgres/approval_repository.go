@@ -520,6 +520,23 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		db = db.Where(sub, args...)
 	}
 
+	// Filter by previous-grant state. NULL from the subquery means either no previous grant
+	// exists at all or the latest grant is permanent (expiration_date IS NULL) — both fall
+	// under "none". For "expired" and "expiring", NULL is excluded automatically because any
+	// comparison with NULL is NULL (falsy) in WHERE.
+	switch filter.PreviousGrantState {
+	case domain.PreviousGrantStateExpired:
+		db = db.Where(latestGrantExpirationDateSubquery + ` < NOW()`)
+	case domain.PreviousGrantStateExpiring:
+		days := filter.ExpiringWithinDays
+		if days == 0 {
+			days = domain.DefaultExpiringWithinDays
+		}
+		db = db.Where(latestGrantExpirationDateSubquery+` BETWEEN NOW() AND NOW() + (? * INTERVAL '1 day')`, days)
+	case domain.PreviousGrantStateNone:
+		db = db.Where(latestGrantExpirationDateSubquery + ` IS NULL`)
+	}
+
 	// Label filtering
 	if len(filter.Labels) > 0 {
 		db = applyLabelFilter(db, `"Appeal"."labels"`, filter.Labels)

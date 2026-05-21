@@ -4911,6 +4911,10 @@ type ListUserApprovalsRequest struct {
 	StartExpirationDate *timestamppb.Timestamp `protobuf:"bytes,64,opt,name=start_expiration_date,json=startExpirationDate,proto3,oneof" json:"start_expiration_date,omitempty"`
 	// When set together with start_expiration_date, only returns approvals whose previous_grant_expiration_date falls within [start_expiration_date, end_expiration_date]. Requires with_previous_grant=true.
 	EndExpirationDate *timestamppb.Timestamp `protobuf:"bytes,65,opt,name=end_expiration_date,json=endExpirationDate,proto3,oneof" json:"end_expiration_date,omitempty"`
+	// Filter approvals by the state of the previous grant. Valid values: "expired", "expiring", "none".
+	PreviousGrantState string `protobuf:"bytes,66,opt,name=previous_grant_state,json=previousGrantState,proto3" json:"previous_grant_state,omitempty"`
+	// Number of days from now used to define the "expiring" window. Defaults to 7 when previous_grant_state=expiring and this is omitted or 0.
+	ExpiringWithinDays uint32 `protobuf:"varint,67,opt,name=expiring_within_days,json=expiringWithinDays,proto3" json:"expiring_within_days,omitempty"`
 }
 
 func (x *ListUserApprovalsRequest) Reset() {
@@ -5393,6 +5397,20 @@ func (x *ListUserApprovalsRequest) GetEndExpirationDate() *timestamppb.Timestamp
 	return nil
 }
 
+func (x *ListUserApprovalsRequest) GetPreviousGrantState() string {
+	if x != nil {
+		return x.PreviousGrantState
+	}
+	return ""
+}
+
+func (x *ListUserApprovalsRequest) GetExpiringWithinDays() uint32 {
+	if x != nil {
+		return x.ExpiringWithinDays
+	}
+	return 0
+}
+
 type ListUserApprovalsResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -5530,6 +5548,10 @@ type ListApprovalsRequest struct {
 	StartExpirationDate *timestamppb.Timestamp `protobuf:"bytes,64,opt,name=start_expiration_date,json=startExpirationDate,proto3,oneof" json:"start_expiration_date,omitempty"`
 	// When set together with start_expiration_date, only returns approvals whose previous_grant_expiration_date falls within [start_expiration_date, end_expiration_date]. Requires with_previous_grant=true.
 	EndExpirationDate *timestamppb.Timestamp `protobuf:"bytes,65,opt,name=end_expiration_date,json=endExpirationDate,proto3,oneof" json:"end_expiration_date,omitempty"`
+	// Filter approvals by the state of the previous grant. Valid values: "expired", "expiring", "none".
+	PreviousGrantState string `protobuf:"bytes,66,opt,name=previous_grant_state,json=previousGrantState,proto3" json:"previous_grant_state,omitempty"`
+	// Number of days from now used to define the "expiring" window. Defaults to 7 when previous_grant_state=expiring and this is omitted or 0.
+	ExpiringWithinDays uint32 `protobuf:"varint,67,opt,name=expiring_within_days,json=expiringWithinDays,proto3" json:"expiring_within_days,omitempty"`
 }
 
 func (x *ListApprovalsRequest) Reset() {
@@ -6017,6 +6039,20 @@ func (x *ListApprovalsRequest) GetEndExpirationDate() *timestamppb.Timestamp {
 		return x.EndExpirationDate
 	}
 	return nil
+}
+
+func (x *ListApprovalsRequest) GetPreviousGrantState() string {
+	if x != nil {
+		return x.PreviousGrantState
+	}
+	return ""
+}
+
+func (x *ListApprovalsRequest) GetExpiringWithinDays() uint32 {
+	if x != nil {
+		return x.ExpiringWithinDays
+	}
+	return 0
 }
 
 type ListApprovalsResponse struct {

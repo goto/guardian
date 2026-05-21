@@ -1722,6 +1722,22 @@
             "required": false,
             "type": "string",
             "format": "date-time"
+          },
+          {
+            "name": "previousGrantState",
+            "description": "Filter approvals by the state of the previous grant. Valid values: \"expired\", \"expiring\", \"none\". expired: the latest grant matching the appeal's (account_id, resource_id, role) has expiration_date < now. expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted). none: no previous grant exists for the triple, or the latest grant is permanent (expiration_date IS NULL).",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": ["expired", "expiring", "none"]
+          },
+          {
+            "name": "expiringWithinDays",
+            "description": "Number of days from now used to define the \"expiring\" window. Defaults to 7 when previous_grant_state=expiring and this is omitted or 0. Ignored otherwise.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
           }
         ],
         "tags": [
@@ -3547,6 +3563,22 @@
             "required": false,
             "type": "string",
             "format": "date-time"
+          },
+          {
+            "name": "previousGrantState",
+            "description": "Filter approvals by the state of the previous grant. Valid values: \"expired\", \"expiring\", \"none\". expired: the latest grant matching the appeal's (account_id, resource_id, role) has expiration_date < now. expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted). none: no previous grant exists for the triple, or the latest grant is permanent (expiration_date IS NULL).",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": ["expired", "expiring", "none"]
+          },
+          {
+            "name": "expiringWithinDays",
+            "description": "Number of days from now used to define the \"expiring\" window. Defaults to 7 when previous_grant_state=expiring and this is omitted or 0. Ignored otherwise.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
           }
         ],
         "tags": [

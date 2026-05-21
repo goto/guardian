@@ -15,6 +15,18 @@ const (
 	ApprovalStatusRejected = "rejected"
 )
 
+// PreviousGrantState values accepted by ListApprovalsFilter.PreviousGrantState. See the
+// applyApprovalsFilter implementation for the exact SQL semantics.
+const (
+	PreviousGrantStateExpired  = "expired"
+	PreviousGrantStateExpiring = "expiring"
+	PreviousGrantStateNone     = "none"
+
+	// DefaultExpiringWithinDays is the window used for previous_grant_state=expiring
+	// when expiring_within_days is omitted or zero.
+	DefaultExpiringWithinDays = 7
+)
+
 type Approval struct {
 	ID            string  `json:"id" yaml:"id"`
 	Name          string  `json:"name" yaml:"name"`
@@ -135,6 +147,8 @@ type ListApprovalsFilter struct {
 	WithPreviousGrant               bool                `mapstructure:"with_previous_grant" json:"with_previous_grant,omitempty" validate:"omitempty"`
 	StartExpirationDate             time.Time           `mapstructure:"start_expiration_date" json:"start_expiration_date,omitempty"`
 	EndExpirationDate               time.Time           `mapstructure:"end_expiration_date" json:"end_expiration_date,omitempty"`
+	PreviousGrantState              string              `mapstructure:"previous_grant_state" json:"previous_grant_state,omitempty" validate:"omitempty,oneof=expired expiring none"`
+	ExpiringWithinDays              uint32              `mapstructure:"expiring_within_days" json:"expiring_within_days,omitempty" validate:"omitempty"`
 }
 
 func (af ListApprovalsFilter) WithSummary() bool {
