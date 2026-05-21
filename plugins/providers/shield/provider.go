@@ -54,13 +54,14 @@ func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
 
 	var validResourceTypes []string
 
-	namespaces, err := client.GetNamespaces(context.Background())
-	if err != nil {
-		return err
-	}
-
-	for _, namespace := range namespaces {
-		validResourceTypes = append(validResourceTypes, namespace.Name)
+	if creds.ClientVersion == "new" {
+		namespaces, err := client.GetNamespaces(context.Background())
+		if err != nil {
+			return err
+		}
+		for _, namespace := range namespaces {
+			validResourceTypes = append(validResourceTypes, namespace.Name)
+		}
 	}
 
 	return c.ParseAndValidate(validResourceTypes)
@@ -396,7 +397,7 @@ func (p *provider) ValidateResourceDetails(_ context.Context, _ *domain.Resource
 	return nil
 }
 
-func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
+func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal, pr *domain.Provider) error {
 	if a.Resource == nil || a.Resource.Type != ResourceTypeCreateTeam {
 		return nil
 	}
@@ -411,9 +412,16 @@ func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
 		slug = toSlug(teamName)
 	}
 
-	client, ok := p.Clients[a.Resource.ProviderURN]
-	if !ok {
-		return fmt.Errorf("shield client not initialized for provider %q", a.Resource.ProviderURN)
+	if pr == nil || pr.Config == nil {
+		return fmt.Errorf("provider config is required to validate appeal for resource %q", a.Resource.ProviderURN)
+	}
+	var creds Credentials
+	if err := mapstructure.Decode(pr.Config.Credentials, &creds); err != nil {
+		return fmt.Errorf("decoding shield credentials: %w", err)
+	}
+	client, err := p.GetClient(pr.URN, creds)
+	if err != nil {
+		return fmt.Errorf("getting shield client for provider %q: %w", pr.URN, err)
 	}
 
 	existingGroups, err := client.GetGroups(ctx)
