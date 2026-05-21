@@ -1047,7 +1047,7 @@ func (s *Service) GrantDriftCheck(ctx context.Context, req domain.GrantDriftChec
 }
 
 // remediateDriftedGrants attempts to recreate each drifted grant in the provider,
-// groups the results by team, and returns the issues map ready for alerting.
+// groups the results by team, and returns the issues map ready for alerting
 func (s *Service) remediateDriftedGrants(ctx context.Context, drifted []domain.Grant) []domain.GrantDriftIssue {
 	issues := make([]domain.GrantDriftIssue, 0, len(drifted))
 	for _, g := range drifted {
@@ -1135,12 +1135,12 @@ func (s *Service) detectDriftedGrants(ctx context.Context, botAccountIDs []strin
 
 	activeGrantsMap := buildActiveGrantsMap(activeGrants)
 	for _, provider := range providers {
-		// As we confirm access in each provider, matching entries are deleted.
-		// What remains at the end are the drifted grants.
+		// As we confirm access in each provider, confirmed grants are deleted from activeGrantsMap
 		s.reconcileProviderAccess(ctx, provider, activeGrantsMap)
 	}
 
-	drifted := collectRemainingGrants(activeGrantsMap)
+	// What remains here will be the drifted grants
+	drifted := activeGrantsMap.Flatten()
 
 	s.logger.Info(ctx, "drift detection complete",
 		"active_grants_checked", len(activeGrants),
@@ -1172,29 +1172,21 @@ func (s *Service) prepareActiveGrants(ctx context.Context, botAccountIDs []strin
 
 // buildActiveGrantsMap indexes active grants as [resourceURN][accountSig][permissionsKey] → *Grant.
 // Grants without a resource are skipped.
-func buildActiveGrantsMap(grants []domain.Grant) map[string]map[string]map[string]*domain.Grant {
-	m := map[string]map[string]map[string]*domain.Grant{}
+func buildActiveGrantsMap(grants []domain.Grant) domain.MapGrantByResourceAccountPermission {
+	m := domain.MapGrantByResourceAccountPermission{}
 	for i := range grants {
 		g := &grants[i]
 		if g.Resource == nil {
 			continue
 		}
-		rURN := g.Resource.URN
-		sig := getAccountSignature(g.AccountType, g.AccountID)
-		if m[rURN] == nil {
-			m[rURN] = map[string]map[string]*domain.Grant{}
-		}
-		if m[rURN][sig] == nil {
-			m[rURN][sig] = map[string]*domain.Grant{}
-		}
-		m[rURN][sig][g.PermissionsKey()] = g
+		m.AddEntry(g)
 	}
 	return m
 }
 
 // reconcileProviderAccess fetches live access from a single provider and removes confirmed
-// grants from activeGrantsMap. Errors are logged but never fatal — the provider is skipped.
-func (s *Service) reconcileProviderAccess(ctx context.Context, provider *domain.Provider, activeGrantsMap map[string]map[string]map[string]*domain.Grant) {
+// grants from activeGrantsMap. Remaining ones will be the drifted grants
+func (s *Service) reconcileProviderAccess(ctx context.Context, provider *domain.Provider, activeGrantsMap domain.MapGrantByResourceAccountPermission) {
 	// directly fetch resource from the grants, deduplicating by URN
 	resourcesByURN := make(map[string]*domain.Resource)
 	for rURN := range activeGrantsMap {
@@ -1211,7 +1203,7 @@ func (s *Service) reconcileProviderAccess(ctx context.Context, provider *domain.
 		resources = append(resources, r)
 	}
 
-	resourceAccess, err := s.fetchAccessForProvider(ctx, provider, resources)
+	resourceAccess, err := s.providerService.ListAccess(ctx, *provider, resources)
 	if err != nil {
 		s.logger.Error(ctx, "failed to fetch access for provider, skipping", "provider_urn", provider.URN, "error", err)
 		return
@@ -1237,9 +1229,7 @@ func (s *Service) reconcileProviderAccess(ctx context.Context, provider *domain.
 				providerGrants = reduceGrantsByProviderRole(*rc, providerGrants)
 			}
 			for _, g := range providerGrants {
-				if activeGrantsMap[rURN] != nil && activeGrantsMap[rURN][accountSig] != nil {
-					delete(activeGrantsMap[rURN][accountSig], g.PermissionsKey())
-				}
+				activeGrantsMap.RemoveByPermission(rURN, accountSig, g.PermissionsKey())
 			}
 		}
 	}
@@ -1253,20 +1243,6 @@ func accessEntriesToGrants(entries []domain.AccessEntry, resource domain.Resourc
 		grants = append(grants, &g)
 	}
 	return grants
-}
-
-// collectRemainingGrants flattens the three-level activeGrantsMap into a slice.
-// The remaining entries are grants that were not confirmed by any provider — i.e. drifted.
-func collectRemainingGrants(m map[string]map[string]map[string]*domain.Grant) []domain.Grant {
-	var drifted []domain.Grant
-	for _, byAccount := range m {
-		for _, byPerm := range byAccount {
-			for _, g := range byPerm {
-				drifted = append(drifted, *g)
-			}
-		}
-	}
-	return drifted
 }
 
 func (s *Service) fetchPackageGrants(ctx context.Context, botAccountIDs []string, providerTypes []string) ([]domain.Grant, error) {
@@ -1312,15 +1288,4 @@ func (s *Service) fetchPackageGrants(ctx context.Context, botAccountIDs []string
 	}
 
 	return botAccessPackageGrants, nil
-}
-
-// fetchAccessForProvider calls ListAccess for the given provider and resources.
-// Returns nil, false on error (error is logged).
-func (s *Service) fetchAccessForProvider(ctx context.Context, provider *domain.Provider, resources []*domain.Resource) (domain.MapResourceAccess, error) {
-	access, err := s.providerService.ListAccess(ctx, *provider, resources)
-	if err != nil {
-		s.logger.Error(ctx, "failed to fetch access from provider, skipping", "provider_urn", provider.URN, "error", err)
-		return nil, err
-	}
-	return access, nil
 }
