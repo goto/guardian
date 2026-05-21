@@ -11,19 +11,17 @@ import (
 	"github.com/goto/guardian/pkg/log"
 )
 
-type Config struct {
-	AdminRoutingKey string `mapstructure:"admin_routing_key"`
+type accountGroup struct {
+	grants []map[string]interface{}
 }
 
 type AlertManager struct {
-	config Config
 	pd     PDSender
 	logger log.Logger
 }
 
-func New(config Config, pdClient PDSender, logger log.Logger) *AlertManager {
+func New(pdClient PDSender, logger log.Logger) *AlertManager {
 	return &AlertManager{
-		config: config,
 		pd:     pdClient,
 		logger: logger,
 	}
@@ -31,25 +29,19 @@ func New(config Config, pdClient PDSender, logger log.Logger) *AlertManager {
 
 // NotifyDriftCheck sends a single PagerDuty summary alert to adminTeam listing all drifted
 // dedup_key: drift-check:admin:{hash(sorted accountIDs)}
-func (m *AlertManager) NotifyDriftCheck(ctx context.Context, adminTeam string, issues []domain.GrantDriftIssue) []error {
-	totalDrifted := 0
+func (m *AlertManager) NotifyDriftCheck(ctx context.Context, adminTeamKey string, issues []domain.GrantDriftIssue) []error {
 	totalFailures := 0
 	totalNotApplicable := 0
-	allAccountIDs := []string{}
-	details := []map[string]interface{}{}
+
+	grouped := make(map[string]*accountGroup, len(issues))
 
 	for _, issue := range issues {
 		d := map[string]interface{}{
-			"account_id":   issue.AccountID,
-			"account_type": issue.Grant.AccountType,
-			"grant_id":     issue.Grant.ID,
-			"role":         issue.Grant.Role,
+			"grant_id": issue.Grant.ID,
+			"role":     issue.Grant.Role,
 		}
 		if issue.Grant.Resource != nil {
-			d["resource"] = fmt.Sprintf("%s (%s: %s)",
-				issue.Grant.Resource.Name,
-				issue.Grant.Resource.ProviderType,
-				issue.Grant.Resource.URN)
+			d["resource"] = issue.Grant.Resource.GlobalURN
 		}
 		if issue.Grant.ExpirationDate != nil {
 			d["expiration_date"] = issue.Grant.ExpirationDate.Format("Jan 02, 2006 15:04:05 UTC")
@@ -65,13 +57,30 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, adminTeam string, i
 		default:
 			d["remediation_status"] = "recreated"
 		}
-		allAccountIDs = append(allAccountIDs, issue.AccountID)
-		details = append(details, d)
+		if _, ok := grouped[issue.AccountID]; !ok {
+			grouped[issue.AccountID] = &accountGroup{}
+		}
+		grouped[issue.AccountID].grants = append(grouped[issue.AccountID].grants, d)
 	}
 
-	totalDrifted += len(issues)
+	totalDrifted := len(issues)
+	totalAccounts := len(grouped)
 
-	dedupKey := fmt.Sprintf("drift-check:admin:%s", hashAccountIDs(allAccountIDs))
+	accountIDs := make([]string, 0, len(grouped))
+	for id := range grouped {
+		accountIDs = append(accountIDs, id)
+	}
+	sort.Strings(accountIDs)
+
+	accounts := make([]map[string]interface{}, 0, len(grouped))
+	for _, id := range accountIDs {
+		accounts = append(accounts, map[string]interface{}{
+			"account_id": id,
+			"grants":     grouped[id].grants,
+		})
+	}
+
+	dedupKey := fmt.Sprintf("drift-check:admin:%s", hashAccountIDs(accountIDs))
 
 	severity := severityWarning
 	if totalFailures > 0 {
@@ -79,11 +88,11 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, adminTeam string, i
 	}
 
 	recreated := totalDrifted - totalFailures - totalNotApplicable
-	summary := fmt.Sprintf("Guardian: %d drifted grant(s) across %d team(s) (%d recreated, %d failed, %d not_applicable)",
-		totalDrifted, len(issues), recreated, totalFailures, totalNotApplicable)
+	summary := fmt.Sprintf("Guardian: %d drifted grant(s) across %d critical bot(s) (%d recreated, %d failed, %d not_applicable)",
+		totalDrifted, totalAccounts, recreated, totalFailures, totalNotApplicable)
 
 	event := Event{
-		RoutingKey:  m.config.AdminRoutingKey,
+		RoutingKey:  adminTeamKey,
 		DedupKey:    dedupKey,
 		EventAction: eventActionTrigger,
 		Summary:     summary,
@@ -93,16 +102,16 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, adminTeam string, i
 			"total_drifted":              totalDrifted,
 			"remediation_failures":       totalFailures,
 			"remediation_not_applicable": totalNotApplicable,
-			"grants":                     details,
+			"accounts":                   accounts,
 		},
 	}
 
 	if err := m.pd.Send(ctx, event); err != nil {
-		m.logger.Error(ctx, "failed to trigger drift check alert", "admin_team", adminTeam, "error", err)
+		m.logger.Error(ctx, "failed to trigger drift check alert", "error", err)
 		return []error{err}
 	}
 
-	m.logger.Info(ctx, "pagerduty drift-check alert triggered", "admin_team", adminTeam, "dedup_key", dedupKey)
+	m.logger.Info(ctx, "pagerduty drift-check alert triggered", "dedup_key", dedupKey)
 	return nil
 }
 

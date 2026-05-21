@@ -124,7 +124,7 @@ func runJobCmd() *cobra.Command {
 				return fmt.Errorf("initializing services: %w", err)
 			}
 
-			alerMgr := alertmanager.New(config.AlertManager, alertmanager.NewPDClient(), logger)
+			alerMgr := alertmanager.New(alertmanager.NewPDClient(), logger)
 
 			handler := jobs.NewHandler(
 				logger,

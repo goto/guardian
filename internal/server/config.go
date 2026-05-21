@@ -9,7 +9,6 @@ import (
 	"github.com/goto/guardian/pkg/auth"
 	"github.com/goto/guardian/pkg/opentelemetry"
 	"github.com/goto/guardian/plugins/notifiers"
-	"github.com/goto/guardian/plugins/notifiers/alertmanager"
 	"github.com/goto/salt/config"
 )
 
@@ -46,7 +45,6 @@ type Config struct {
 	AuthenticatedUserHeaderKey string               `mapstructure:"authenticated_user_header_key"`
 	AuditLogTraceIDHeaderKey   string               `mapstructure:"audit_log_trace_id_header_key" default:"X-Trace-Id"`
 	Jobs                       Jobs                 `mapstructure:"jobs"`
-	AlertManager               alertmanager.Config  `mapstructure:"alert_manager"`
 	Telemetry                  opentelemetry.Config `mapstructure:"telemetry"`
 
 	Auth Auth `mapstructure:"auth"`
