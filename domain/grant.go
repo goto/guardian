@@ -352,3 +352,24 @@ func (c DormancyCheckCriteria) Validate() error {
 	}
 	return nil
 }
+
+type GrantDriftCheckRequest struct {
+	ProviderTypes []string
+	BotAccountIDs []string
+
+	AdminTeam string
+	DryRun    bool
+}
+
+type GrantDriftIssue struct {
+	AccountID                string
+	Grant                    *Grant
+	RemediationError         string // empty = remediation succeeded
+	RemediationNotApplicable bool   // true when the provider does not support automatic remediation
+}
+
+type GrantExpiryItem struct {
+	Grant           Grant
+	DaysUntilExpiry int
+	PendingAppeal   *Appeal
+}
