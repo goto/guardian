@@ -387,15 +387,11 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 
 	// Separate auto-approved appeals from pending appeals for optimized processing
 	// Auto-approved appeals need to be persisted before GrantAccessToProvider is called
-	// so that post hooks can retrieve the appeal from the database
+	// so that post hooks can retrieve the appeal from the database.
 	var autoApprovedAppeals []*domain.Appeal
 	for _, appeal := range appeals {
-		for _, approval := range appeal.Approvals {
-			// TODO: direcly check on appeal.Status==domain.AppealStatusApproved instead of manual looping through approvals
-			if approval.Index == len(appeal.Approvals)-1 && (approval.Status == domain.ApprovalStatusApproved || appeal.Status == domain.AppealStatusApproved) {
-				autoApprovedAppeals = append(autoApprovedAppeals, appeal)
-				break
-			}
+		if appeal.Status == domain.AppealStatusApproved {
+			autoApprovedAppeals = append(autoApprovedAppeals, appeal)
 		}
 	}
 
@@ -803,46 +799,44 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 	appeal.Policy = nil
 
 	notifications := []domain.Notification{}
-	for _, approval := range appeal.Approvals {
-		if approval.Index == len(appeal.Approvals)-1 && (approval.Status == domain.ApprovalStatusApproved || appeal.Status == domain.AppealStatusApproved) {
-			newGrant, revokedGrant, err := s.prepareGrant(ctx, appeal)
-			if err != nil {
-				return fmt.Errorf("preparing grant: %w", err)
-			}
-			newGrant.Resource = appeal.Resource
-			appeal.Grant = newGrant
-			if revokedGrant != nil {
-				if _, err := s.grantService.Revoke(ctx, revokedGrant.ID, domain.SystemActorName, revokedGrant.RevokeReason,
-					grant.SkipNotifications(),
-					grant.SkipRevokeAccessInProvider(),
-				); err != nil {
-					return fmt.Errorf("revoking previous grant: %w", err)
-				}
-			} else {
-				if err := s.GrantAccessToProvider(ctx, appeal); err != nil {
-					return fmt.Errorf("granting access: %w", err)
-				}
-			}
-
-			notifications = append(notifications, domain.Notification{
-				User: appeal.CreatedBy,
-				Labels: map[string]string{
-					"appeal_id": appeal.ID,
-				},
-				Message: domain.NotificationMessage{
-					Type: domain.NotificationTypeAppealApproved,
-					Variables: map[string]interface{}{
-						"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-						"role":          appeal.Role,
-						"account_id":    appeal.AccountID,
-						"appeal_id":     appeal.ID,
-						"requestor":     appeal.CreatedBy,
-					},
-				},
-			})
-
-			notifications = addOnBehalfApprovedNotification(appeal, notifications)
+	if appeal.Status == domain.AppealStatusApproved {
+		newGrant, revokedGrant, err := s.prepareGrant(ctx, appeal)
+		if err != nil {
+			return fmt.Errorf("preparing grant: %w", err)
 		}
+		newGrant.Resource = appeal.Resource
+		appeal.Grant = newGrant
+		if revokedGrant != nil {
+			if _, err := s.grantService.Revoke(ctx, revokedGrant.ID, domain.SystemActorName, revokedGrant.RevokeReason,
+				grant.SkipNotifications(),
+				grant.SkipRevokeAccessInProvider(),
+			); err != nil {
+				return fmt.Errorf("revoking previous grant: %w", err)
+			}
+		} else {
+			if err := s.GrantAccessToProvider(ctx, appeal); err != nil {
+				return fmt.Errorf("granting access: %w", err)
+			}
+		}
+
+		notifications = append(notifications, domain.Notification{
+			User: appeal.CreatedBy,
+			Labels: map[string]string{
+				"appeal_id": appeal.ID,
+			},
+			Message: domain.NotificationMessage{
+				Type: domain.NotificationTypeAppealApproved,
+				Variables: map[string]interface{}{
+					"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+					"role":          appeal.Role,
+					"account_id":    appeal.AccountID,
+					"appeal_id":     appeal.ID,
+					"requestor":     appeal.CreatedBy,
+				},
+			},
+		})
+
+		notifications = addOnBehalfApprovedNotification(appeal, notifications)
 	}
 
 	newApprovals := appeal.Approvals
