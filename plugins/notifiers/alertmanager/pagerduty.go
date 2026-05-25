@@ -8,8 +8,6 @@ import (
 )
 
 const (
-	severityCritical   = "critical"
-	severityWarning    = "warning"
 	eventActionTrigger = "trigger"
 )
 
