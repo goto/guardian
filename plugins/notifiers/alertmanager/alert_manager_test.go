@@ -72,7 +72,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 				strings.Contains(e.Summary, "0 failed")
 		})).Return(nil).Once()
 
-		errs := s.svc.NotifyDriftCheck(ctx, adminTeam, issues)
+		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues, OnSuccessSeverity: "warning"})
 
 		s.Nil(errs)
 		s.pd.AssertExpectations(s.T())
@@ -98,7 +98,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 				strings.Contains(e.Summary, "2 critical bot(s)")
 		})).Return(nil).Once()
 
-		errs := s.svc.NotifyDriftCheck(ctx, adminTeam, issues)
+		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
 		s.Nil(errs)
 		s.pd.AssertExpectations(s.T())
@@ -127,7 +127,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 			return ok && len(grants) == 1 && grants[0]["remediation_status"] == "not_applicable"
 		})).Return(nil).Once()
 
-		errs := s.svc.NotifyDriftCheck(ctx, adminTeam, issues)
+		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
 		s.Nil(errs)
 		s.pd.AssertExpectations(s.T())
@@ -156,7 +156,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 				grants[0]["remediation_error"] == remediationErr
 		})).Return(nil).Once()
 
-		errs := s.svc.NotifyDriftCheck(ctx, adminTeam, issues)
+		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
 		s.Nil(errs)
 		s.pd.AssertExpectations(s.T())
@@ -182,10 +182,10 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 				return false
 			}
 			resourceStr, ok := grants[0]["resource"].(string)
-			return ok && resourceStr == resource1.GlobalURN
+			return ok && resourceStr == resource1.URN
 		})).Return(nil).Once()
 
-		errs := s.svc.NotifyDriftCheck(ctx, adminTeam, issues)
+		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
 		s.Nil(errs)
 		s.pd.AssertExpectations(s.T())
@@ -201,7 +201,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 
 		s.pd.On("Send", ctx, mock.Anything).Return(pdErr).Once()
 
-		errs := s.svc.NotifyDriftCheck(ctx, adminTeam, issues)
+		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
 		s.Require().Len(errs, 1)
 		s.ErrorIs(errs[0], pdErr)
@@ -226,7 +226,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 				strings.Contains(e.Summary, "1 not_applicable")
 		})).Return(nil).Once()
 
-		errs := s.svc.NotifyDriftCheck(ctx, adminTeam, issues)
+		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
 		s.Nil(errs)
 		s.pd.AssertExpectations(s.T())

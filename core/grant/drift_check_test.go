@@ -10,6 +10,7 @@ import (
 	"github.com/goto/guardian/core/grant/mocks"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/goto/guardian/plugins/notifiers/alertmanager"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -370,12 +371,12 @@ func (s *GrantDriftCheckTestSuite) TestGrantDriftCheck() {
 			})).Return(nil).Once()
 
 		s.mockAlertManager.EXPECT().
-			NotifyDriftCheck(mock.Anything, adminTeam, mock.MatchedBy(func(issues []domain.GrantDriftIssue) bool {
-				if len(issues) != 2 {
+			NotifyDriftCheck(mock.Anything, mock.MatchedBy(func(req alertmanager.NotifyDriftCheckRequest) bool {
+				if req.AdminTeam != adminTeam || len(req.Issues) != 2 {
 					return false
 				}
 				seen := map[string]bool{}
-				for _, issue := range issues {
+				for _, issue := range req.Issues {
 					if issue.RemediationError != "" {
 						return false
 					}
@@ -464,12 +465,12 @@ func (s *GrantDriftCheckTestSuite) TestGrantDriftCheck() {
 			})).Return(remediationErr).Once()
 
 		s.mockAlertManager.EXPECT().
-			NotifyDriftCheck(mock.Anything, adminTeam, mock.MatchedBy(func(issues []domain.GrantDriftIssue) bool {
-				if len(issues) != 2 {
+			NotifyDriftCheck(mock.Anything, mock.MatchedBy(func(req alertmanager.NotifyDriftCheckRequest) bool {
+				if req.AdminTeam != adminTeam || len(req.Issues) != 2 {
 					return false
 				}
 				seen := map[string]bool{}
-				for _, issue := range issues {
+				for _, issue := range req.Issues {
 					switch issue.Grant.ID {
 					case grantID:
 						if issue.RemediationError != remediationErr.Error() {
@@ -563,11 +564,11 @@ func (s *GrantDriftCheckTestSuite) TestGrantDriftCheck() {
 			})).Return(nil).Once()
 
 		s.mockAlertManager.EXPECT().
-			NotifyDriftCheck(mock.Anything, adminTeam, mock.MatchedBy(func(issues []domain.GrantDriftIssue) bool {
-				if len(issues) != 1 {
+			NotifyDriftCheck(mock.Anything, mock.MatchedBy(func(req alertmanager.NotifyDriftCheckRequest) bool {
+				if req.AdminTeam != adminTeam || len(req.Issues) != 1 {
 					return false
 				}
-				issue := issues[0]
+				issue := req.Issues[0]
 				return issue.Grant.ID == grantID &&
 					issue.RemediationError == "" &&
 					len(issue.Grant.Permissions) == 3 &&

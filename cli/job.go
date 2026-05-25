@@ -15,7 +15,6 @@ import (
 	"github.com/goto/guardian/jobs"
 	"github.com/goto/guardian/pkg/crypto"
 	"github.com/goto/guardian/plugins/notifiers"
-	"github.com/goto/guardian/plugins/notifiers/alertmanager"
 	"github.com/spf13/cobra"
 )
 
@@ -124,12 +123,9 @@ func runJobCmd() *cobra.Command {
 				return fmt.Errorf("initializing services: %w", err)
 			}
 
-			alerMgr := alertmanager.New(alertmanager.NewPDClient(), logger)
-
 			handler := jobs.NewHandler(
 				logger,
 				services.GrantService,
-				alerMgr,
 				services.ReportService,
 				services.ProviderService,
 				notifier,

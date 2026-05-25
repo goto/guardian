@@ -357,8 +357,11 @@ type GrantDriftCheckRequest struct {
 	ProviderTypes []string
 	BotAccountIDs []string
 
-	AdminTeam string
-	DryRun    bool
+	DryRun            bool
+	AdminTeam         string
+	AlertingEnabled   bool
+	OnFailureSeverity string
+	OnSuccessSeverity string
 }
 
 type MapGrantByResourceAccountPermission map[string]map[string]map[string]*Grant

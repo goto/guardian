@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	domain "github.com/goto/guardian/domain"
+	alertmanager "github.com/goto/guardian/plugins/notifiers/alertmanager"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -23,17 +23,17 @@ func (_m *AlertManager) EXPECT() *AlertManager_Expecter {
 	return &AlertManager_Expecter{mock: &_m.Mock}
 }
 
-// NotifyDriftCheck provides a mock function with given fields: ctx, adminTeam, issues
-func (_m *AlertManager) NotifyDriftCheck(ctx context.Context, adminTeam string, issues []domain.GrantDriftIssue) []error {
-	ret := _m.Called(ctx, adminTeam, issues)
+// NotifyDriftCheck provides a mock function with given fields: ctx, req
+func (_m *AlertManager) NotifyDriftCheck(ctx context.Context, req alertmanager.NotifyDriftCheckRequest) []error {
+	ret := _m.Called(ctx, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for NotifyDriftCheck")
 	}
 
 	var r0 []error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []domain.GrantDriftIssue) []error); ok {
-		r0 = rf(ctx, adminTeam, issues)
+	if rf, ok := ret.Get(0).(func(context.Context, alertmanager.NotifyDriftCheckRequest) []error); ok {
+		r0 = rf(ctx, req)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]error)
@@ -50,15 +50,14 @@ type AlertManager_NotifyDriftCheck_Call struct {
 
 // NotifyDriftCheck is a helper method to define mock.On call
 //   - ctx context.Context
-//   - adminTeam string
-//   - issues []domain.GrantDriftIssue
-func (_e *AlertManager_Expecter) NotifyDriftCheck(ctx interface{}, adminTeam interface{}, issues interface{}) *AlertManager_NotifyDriftCheck_Call {
-	return &AlertManager_NotifyDriftCheck_Call{Call: _e.mock.On("NotifyDriftCheck", ctx, adminTeam, issues)}
+//   - req alertmanager.NotifyDriftCheckRequest
+func (_e *AlertManager_Expecter) NotifyDriftCheck(ctx interface{}, req interface{}) *AlertManager_NotifyDriftCheck_Call {
+	return &AlertManager_NotifyDriftCheck_Call{Call: _e.mock.On("NotifyDriftCheck", ctx, req)}
 }
 
-func (_c *AlertManager_NotifyDriftCheck_Call) Run(run func(ctx context.Context, adminTeam string, issues []domain.GrantDriftIssue)) *AlertManager_NotifyDriftCheck_Call {
+func (_c *AlertManager_NotifyDriftCheck_Call) Run(run func(ctx context.Context, req alertmanager.NotifyDriftCheckRequest)) *AlertManager_NotifyDriftCheck_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].([]domain.GrantDriftIssue))
+		run(args[0].(context.Context), args[1].(alertmanager.NotifyDriftCheckRequest))
 	})
 	return _c
 }
@@ -68,7 +67,7 @@ func (_c *AlertManager_NotifyDriftCheck_Call) Return(_a0 []error) *AlertManager_
 	return _c
 }
 
-func (_c *AlertManager_NotifyDriftCheck_Call) RunAndReturn(run func(context.Context, string, []domain.GrantDriftIssue) []error) *AlertManager_NotifyDriftCheck_Call {
+func (_c *AlertManager_NotifyDriftCheck_Call) RunAndReturn(run func(context.Context, alertmanager.NotifyDriftCheckRequest) []error) *AlertManager_NotifyDriftCheck_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -3,6 +3,7 @@ package alertmanager
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -15,11 +16,20 @@ type accountGroup struct {
 	grants []map[string]interface{}
 }
 
+type NotifyDriftCheckRequest struct {
+	DryRun            bool
+	AdminTeam         string
+	Issues            []domain.GrantDriftIssue
+	OnSuccessSeverity string
+	OnFailureSeverity string
+}
+
 type AlertManager struct {
 	pd     PDSender
 	logger log.Logger
 }
 
+// TODO: implementation of alert manager should utilize shield team instead of direct PD integration
 func New(pdClient PDSender, logger log.Logger) *AlertManager {
 	return &AlertManager{
 		pd:     pdClient,
@@ -27,24 +37,20 @@ func New(pdClient PDSender, logger log.Logger) *AlertManager {
 	}
 }
 
-// NotifyDriftCheck sends a single PagerDuty summary alert to adminTeam listing all drifted
+// NotifyDriftCheck sends a single summary alert to adminTeam listing all drifted
 // dedup_key: drift-check:admin:{hash(sorted accountIDs)}
-func (m *AlertManager) NotifyDriftCheck(ctx context.Context, adminTeamKey string, issues []domain.GrantDriftIssue) []error {
+func (m *AlertManager) NotifyDriftCheck(ctx context.Context, req NotifyDriftCheckRequest) []error {
 	totalFailures := 0
 	totalNotApplicable := 0
 
-	grouped := make(map[string]*accountGroup, len(issues))
+	grouped := make(map[string]*accountGroup, len(req.Issues))
 
-	for _, issue := range issues {
+	for _, issue := range req.Issues {
 		d := map[string]interface{}{
-			"grant_id": issue.Grant.ID,
-			"role":     issue.Grant.Role,
+			"role": issue.Grant.Role,
 		}
 		if issue.Grant.Resource != nil {
-			d["resource"] = issue.Grant.Resource.GlobalURN
-		}
-		if issue.Grant.ExpirationDate != nil {
-			d["expiration_date"] = issue.Grant.ExpirationDate.Format("Jan 02, 2006 15:04:05 UTC")
+			d["resource"] = issue.Grant.Resource.URN
 		}
 		switch {
 		case issue.RemediationNotApplicable:
@@ -63,7 +69,7 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, adminTeamKey string
 		grouped[issue.AccountID].grants = append(grouped[issue.AccountID].grants, d)
 	}
 
-	totalDrifted := len(issues)
+	totalDrifted := len(req.Issues)
 	totalAccounts := len(grouped)
 
 	accountIDs := make([]string, 0, len(grouped))
@@ -82,9 +88,9 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, adminTeamKey string
 
 	dedupKey := fmt.Sprintf("drift-check:admin:%s", hashAccountIDs(accountIDs))
 
-	severity := severityWarning
+	severity := req.OnSuccessSeverity
 	if totalFailures > 0 {
-		severity = severityCritical
+		severity = req.OnFailureSeverity
 	}
 
 	recreated := totalDrifted - totalFailures - totalNotApplicable
@@ -92,7 +98,7 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, adminTeamKey string
 		totalDrifted, totalAccounts, recreated, totalFailures, totalNotApplicable)
 
 	event := Event{
-		RoutingKey:  adminTeamKey,
+		RoutingKey:  req.AdminTeam,
 		DedupKey:    dedupKey,
 		EventAction: eventActionTrigger,
 		Summary:     summary,
@@ -106,12 +112,18 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, adminTeamKey string
 		},
 	}
 
+	if req.DryRun {
+		eventJSON, _ := json.Marshal(event)
+		m.logger.Info(ctx, "dry run enabled: skipping sending drift check alert", "event", string(eventJSON))
+		return nil
+	}
+
 	if err := m.pd.Send(ctx, event); err != nil {
 		m.logger.Error(ctx, "failed to trigger drift check alert", "error", err)
 		return []error{err}
 	}
 
-	m.logger.Info(ctx, "pagerduty drift-check alert triggered", "dedup_key", dedupKey)
+	m.logger.Info(ctx, "notify drift-check alert triggered", "dedup_key", dedupKey)
 	return nil
 }
 

@@ -10,12 +10,15 @@ import (
 
 	"github.com/bearaujus/bjson"
 	"github.com/go-playground/validator/v10"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
 	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/plugins/notifiers"
+	"github.com/goto/guardian/plugins/notifiers/alertmanager"
 	"github.com/goto/guardian/utils"
 )
 
@@ -78,7 +81,7 @@ type notifier interface {
 
 //go:generate mockery --name=alertManager --exported --with-expecter
 type alertManager interface {
-	NotifyDriftCheck(ctx context.Context, adminTeam string, issues []domain.GrantDriftIssue) []error
+	NotifyDriftCheck(ctx context.Context, req alertmanager.NotifyDriftCheckRequest) []error
 }
 
 type grantCreation struct {
@@ -1037,7 +1040,13 @@ func (s *Service) GrantDriftCheck(ctx context.Context, req domain.GrantDriftChec
 		return nil
 	}
 
-	if errs := s.alertManager.NotifyDriftCheck(ctx, req.AdminTeam, issues); len(errs) > 0 {
+	if errs := s.alertManager.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{
+		AdminTeam:         req.AdminTeam,
+		Issues:            issues,
+		DryRun:            !req.AlertingEnabled,
+		OnFailureSeverity: req.OnFailureSeverity,
+		OnSuccessSeverity: req.OnSuccessSeverity,
+	}); len(errs) > 0 {
 		for _, e := range errs {
 			s.logger.Error(ctx, "pagerduty drift notification failed", "error", e)
 		}
@@ -1064,6 +1073,7 @@ func (s *Service) remediateDriftedGrant(ctx context.Context, g domain.Grant) dom
 		Grant:     &g,
 	}
 
+	remediationStatus := "unknown"
 	if err := s.providerService.GrantAccess(ctx, g); err != nil {
 		s.logger.Error(ctx, "drift remediation failed: could not recreate grant in provider",
 			"grant_id", g.ID,
@@ -1071,11 +1081,13 @@ func (s *Service) remediateDriftedGrant(ctx context.Context, g domain.Grant) dom
 			"error", err,
 		)
 		issue.RemediationError = err.Error()
+		remediationStatus = "failed"
 	} else {
 		s.logger.Info(ctx, "drift remediation succeeded: grant recreated in provider",
 			"grant_id", g.ID,
 			"account_id", g.AccountID,
 		)
+		remediationStatus = "recreated"
 	}
 
 	go func() {
@@ -1084,12 +1096,22 @@ func (s *Service) remediateDriftedGrant(ctx context.Context, g domain.Grant) dom
 			"grant_id":   g.ID,
 			"account_id": g.AccountID,
 		}
-		if issue.RemediationError != "" {
+		if remediationStatus == "failed" {
 			auditData["error"] = issue.RemediationError
 		}
 		if err := s.auditLogger.Log(auditCtx, AuditKeyDriftRemediaton, auditData); err != nil {
 			s.logger.Error(ctx, "failed to record drift remediation audit log", "error", err)
 		}
+
+		// send metrics for monitoring drift remediation outcomes
+		metricDriftRemediation.Add(ctx, 1,
+			metric.WithAttributes(
+				attribute.String("status", remediationStatus),
+				attribute.String("provider_urn", g.Resource.ProviderURN),
+				attribute.String("resource_urn", g.Resource.URN),
+				attribute.String("account_id", g.AccountID),
+			),
+		)
 	}()
 
 	return issue
