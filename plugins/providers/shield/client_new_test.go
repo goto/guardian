@@ -936,7 +936,7 @@ func (s *ShieldNewClientTestSuite) TestCheckUserPermission() {
 	s.Run("should return nil when permission check returns allowed", func() {
 		s.setup()
 
-		responseJson := `{"status": "allowed"}`
+		responseJson := `{"resourcePermissions":[{"objectId":"org_id_1","objectNamespace":"shield/organization","permission":"edit","allowed":true}]}`
 		resp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
 		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&resp, nil).Once()
 
@@ -950,7 +950,7 @@ func (s *ShieldNewClientTestSuite) TestCheckUserPermission() {
 	s.Run("should return error when permission check returns denied status", func() {
 		s.setup()
 
-		responseJson := `{"status": "denied"}`
+		responseJson := `{"resourcePermissions":[{"objectId":"org_id_1","objectNamespace":"shield/organization","permission":"edit","allowed":false}]}`
 		resp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
 		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&resp, nil).Once()
 
@@ -960,6 +960,21 @@ func (s *ShieldNewClientTestSuite) TestCheckUserPermission() {
 		err := s.client.CheckUserPermission(context.Background(), permissions)
 		s.Error(err)
 		s.ErrorContains(err, "permission denied")
+	})
+
+	s.Run("should return error when response has no resource permissions", func() {
+		s.setup()
+
+		responseJson := `{"resourcePermissions":[]}`
+		resp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&resp, nil).Once()
+
+		permissions := []shield.ResourcePermission{
+			{ObjectId: "org_id_1", ObjectNamespace: "shield/organization", Permission: "edit"},
+		}
+		err := s.client.CheckUserPermission(context.Background(), permissions)
+		s.Error(err)
+		s.ErrorContains(err, "no results")
 	})
 
 	s.Run("should return error when http client returns error", func() {
@@ -992,7 +1007,7 @@ func (s *ShieldNewClientTestSuite) TestCheckUserPermission() {
 }
 
 func (s *ShieldNewClientTestSuite) TestGrantCreateTeamAccess() {
-	checkPermissionResponseJson := `{"status": "allowed"}`
+	checkPermissionResponseJson := `{"resourcePermissions":[{"objectId":"org_id_1","objectNamespace":"shield/organization","permission":"edit","allowed":true}]}`
 
 	s.Run("should check permission, create a team, assign manager relation, and return the group on success", func() {
 		s.setup()
