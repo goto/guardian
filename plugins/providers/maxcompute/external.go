@@ -736,10 +736,10 @@ func odpsShouldRetry(ctx context.Context, err error) bool {
 // ---------------------------------------------------------------------------------------------------------------------
 
 func inferAccountType(member string) string {
-	if strings.HasPrefix(member, "RAM$") {
-		return accountTypeRAMUser
+	if strings.Contains(member, ":role/") {
+		return accountTypeRAMRole
 	}
-	return accountTypeRAMRole
+	return accountTypeRAMUser
 }
 
 func (p *provider) listResourceAccess(ctx context.Context, overrideRAMRole string, pc *domain.ProviderConfig, resource *domain.Resource) ([]domain.AccessEntry, error) {
@@ -935,10 +935,7 @@ func (p *provider) listTableAccess(ctx context.Context, overrideRAMRole string, 
 				continue
 			}
 			accountID := after[:idx]
-			accountType := accountTypeRAMUser
-			if strings.Contains(accountID, ":role/") {
-				accountType = accountTypeRAMRole
-			}
+			accountType := inferAccountType(accountID)
 			for _, action := range entry.Action {
 				entries = append(entries, domain.AccessEntry{
 					AccountID:   accountID,
