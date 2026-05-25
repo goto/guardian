@@ -454,13 +454,25 @@ func (c *shieldNewclient) CheckUserPermission(ctx context.Context, permissions [
 		return err
 	}
 
-	var response map[string]interface{}
+	var response struct {
+		ResourcePermissions []struct {
+			ObjectId        string `json:"objectId"`
+			ObjectNamespace string `json:"objectNamespace"`
+			Permission      string `json:"permission"`
+			Allowed         bool   `json:"allowed"`
+		} `json:"resourcePermissions"`
+	}
 	if _, err := c.do(ctx, req, &response); err != nil {
 		return fmt.Errorf("permission check failed: %w", err)
 	}
 
-	if status, ok := response["status"].(string); !ok || status != "allowed" {
-		return fmt.Errorf("permission denied: guardian service account does not have required permissions on the organization")
+	if len(response.ResourcePermissions) == 0 {
+		return fmt.Errorf("permission check returned no results")
+	}
+	for _, rp := range response.ResourcePermissions {
+		if !rp.Allowed {
+			return fmt.Errorf("permission denied: guardian service account does not have %q on %s:%s", rp.Permission, rp.ObjectNamespace, rp.ObjectId)
+		}
 	}
 	return nil
 }
