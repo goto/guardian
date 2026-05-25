@@ -943,7 +943,7 @@ func (p *provider) listTableAccess(ctx context.Context, overrideRAMRole string, 
 				entries = append(entries, domain.AccessEntry{
 					AccountID:   accountID,
 					AccountType: accountType,
-					Permission:  strings.ToLower(action),
+					Permission:  strings.ToUpper(action),
 				})
 			}
 		}
