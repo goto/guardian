@@ -16,6 +16,7 @@ import (
 	"github.com/aliyun/aliyun-odps-go-sdk/odps/security"
 	"github.com/bearaujus/bptr"
 	"github.com/bearaujus/bworker/pool"
+
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/alicatalogapis"
 	"github.com/goto/guardian/pkg/aliclientmanager"
@@ -166,23 +167,7 @@ func (p *provider) getTablesFromSchema(ctx context.Context, pc *domain.ProviderC
 			if end > len(tables) {
 				end = len(tables)
 			}
-			loaded, batchErr := invoker.BatchLoadTables(tables[i:end])
-			if batchErr != nil {
-				p.logger.Warn(ctx, "BatchLoadTables failed, retrying one by one", "project", project.Name, "schema", schema.Name, "error", batchErr)
-				for _, tableName := range tables[i:end] {
-					singleLoaded, singleErr := invoker.BatchLoadTables([]string{tableName})
-					if singleErr != nil {
-						p.logger.Warn(ctx, "table failed to load, skipping", "project", project.Name, "schema", schema.Name, "table", tableName, "error", singleErr)
-						continue
-					}
-					for _, t := range singleLoaded {
-						if comment := extractComment(t); comment != nil {
-							tableComments[t.Name()] = comment
-						}
-					}
-				}
-				continue
-			}
+			loaded := p.batchLoadTablesSkippingFailures(ctx, invoker.BatchLoadTables, tables[i:end], project.Name, schema.Name)
 			for _, t := range loaded {
 				comment := extractComment(t)
 				if comment != nil {
@@ -212,6 +197,31 @@ func (p *provider) getTablesFromSchema(ctx context.Context, pc *domain.ProviderC
 		ret = append(ret, r)
 	}
 	return ret, nil
+}
+
+func (p *provider) batchLoadTablesSkippingFailures(ctx context.Context, loadTables func([]string) ([]*odps.Table, error), tableNames []string, projectName, schemaName string) []*odps.Table {
+	if len(tableNames) == 0 {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		p.logger.Warn(ctx, "BatchLoadTables skipped because context is done", "project", projectName, "schema", schemaName, "table_count", len(tableNames), "error", err)
+		return nil
+	}
+
+	loaded, err := loadTables(tableNames)
+	if err == nil {
+		return loaded
+	}
+
+	if len(tableNames) == 1 {
+		p.logger.Warn(ctx, "table failed to load, skipping", "project", projectName, "schema", schemaName, "table", tableNames[0], "error", err)
+		return nil
+	}
+
+	p.logger.Warn(ctx, "BatchLoadTables failed, splitting batch", "project", projectName, "schema", schemaName, "table_count", len(tableNames), "error", err)
+	mid := len(tableNames) / 2
+	loaded = p.batchLoadTablesSkippingFailures(ctx, loadTables, tableNames[:mid], projectName, schemaName)
+	return append(loaded, p.batchLoadTablesSkippingFailures(ctx, loadTables, tableNames[mid:], projectName, schemaName)...)
 }
 
 // extractComment reads the full comment JSON from a table's metadata.
