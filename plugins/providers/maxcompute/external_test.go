@@ -3,7 +3,11 @@ package maxcompute
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
+
+	"github.com/aliyun/aliyun-odps-go-sdk/odps"
+	"github.com/goto/guardian/pkg/log"
 )
 
 func TestODPSShouldRetry(t *testing.T) {
@@ -56,4 +60,84 @@ func TestODPSShouldRetry(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBatchLoadTablesSkippingFailuresSplitsOnlyFailedBatch(t *testing.T) {
+	p := &provider{logger: log.NewNoop()}
+	input := []string{"a", "b", "bad", "c", "d", "e", "f", "g"}
+	var calls [][]string
+
+	loadTables := func(tableNames []string) ([]*odps.Table, error) {
+		calls = append(calls, append([]string(nil), tableNames...))
+		for _, tableName := range tableNames {
+			if tableName == "bad" {
+				return nil, errors.New("bad table")
+			}
+		}
+
+		loaded := make([]*odps.Table, 0, len(tableNames))
+		for _, tableName := range tableNames {
+			loaded = append(loaded, odps.NewTable(nil, "project", "schema", tableName))
+		}
+		return loaded, nil
+	}
+
+	loaded := p.batchLoadTablesSkippingFailures(context.Background(), loadTables, input, "project", "schema")
+
+	wantLoadedNames := []string{"a", "b", "c", "d", "e", "f", "g"}
+	if got := tableNamesFromODPSTables(loaded); !reflect.DeepEqual(got, wantLoadedNames) {
+		t.Fatalf("loaded table names = %v, want %v", got, wantLoadedNames)
+	}
+
+	wantCalls := [][]string{
+		{"a", "b", "bad", "c", "d", "e", "f", "g"},
+		{"a", "b", "bad", "c"},
+		{"a", "b"},
+		{"bad", "c"},
+		{"bad"},
+		{"c"},
+		{"d", "e", "f", "g"},
+	}
+	if !reflect.DeepEqual(calls, wantCalls) {
+		t.Fatalf("load calls = %v, want %v", calls, wantCalls)
+	}
+}
+
+func TestBatchLoadTablesSkippingFailuresSkipsMultipleFailedTables(t *testing.T) {
+	p := &provider{logger: log.NewNoop()}
+	input := []string{"1", "2", "bad1", "3", "bad2", "5", "6", "7", "bad3", "9"}
+	failingTables := map[string]bool{
+		"bad1": true,
+		"bad2": true,
+		"bad3": true,
+	}
+
+	loadTables := func(tableNames []string) ([]*odps.Table, error) {
+		for _, tableName := range tableNames {
+			if failingTables[tableName] {
+				return nil, errors.New("bad table")
+			}
+		}
+
+		loaded := make([]*odps.Table, 0, len(tableNames))
+		for _, tableName := range tableNames {
+			loaded = append(loaded, odps.NewTable(nil, "project", "schema", tableName))
+		}
+		return loaded, nil
+	}
+
+	loaded := p.batchLoadTablesSkippingFailures(context.Background(), loadTables, input, "project", "schema")
+
+	wantLoadedNames := []string{"1", "2", "3", "5", "6", "7", "9"}
+	if got := tableNamesFromODPSTables(loaded); !reflect.DeepEqual(got, wantLoadedNames) {
+		t.Fatalf("loaded table names = %v, want %v", got, wantLoadedNames)
+	}
+}
+
+func tableNamesFromODPSTables(tables []*odps.Table) []string {
+	names := make([]string, 0, len(tables))
+	for _, table := range tables {
+		names = append(names, table.Name())
+	}
+	return names
 }
