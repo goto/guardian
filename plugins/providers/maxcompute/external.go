@@ -168,8 +168,20 @@ func (p *provider) getTablesFromSchema(ctx context.Context, pc *domain.ProviderC
 			}
 			loaded, batchErr := invoker.BatchLoadTables(tables[i:end])
 			if batchErr != nil {
-				p.logger.Warn(ctx, "BatchLoadTables failed, skipping comment extraction", "project", project.Name, "schema", schema.Name, "error", batchErr)
-				break
+				p.logger.Warn(ctx, "BatchLoadTables failed, retrying one by one", "project", project.Name, "schema", schema.Name, "error", batchErr)
+				for _, tableName := range tables[i:end] {
+					singleLoaded, singleErr := invoker.BatchLoadTables([]string{tableName})
+					if singleErr != nil {
+						p.logger.Warn(ctx, "table failed to load, skipping", "project", project.Name, "schema", schema.Name, "table", tableName, "error", singleErr)
+						continue
+					}
+					for _, t := range singleLoaded {
+						if comment := extractComment(t); comment != nil {
+							tableComments[t.Name()] = comment
+						}
+					}
+				}
+				continue
 			}
 			for _, t := range loaded {
 				comment := extractComment(t)
