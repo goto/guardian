@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -14,6 +15,26 @@ import (
 	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
+
+// approvalRowWithPreviousGrant is a scan-only wrapper used by ListApprovals when
+// WithPreviousGrant=true. The extra column is materialized by an aliased subquery in
+// the SELECT and scanned into PreviousGrantExpirationDate. It is intentionally NOT a
+// field on model.Approval — GORM would otherwise auto-include it in every Preload of
+// approvals (in appeal_repository, grant_repository, and this file), generating SQL
+// that references a non-existent column.
+type approvalRowWithPreviousGrant struct {
+	model.Approval
+	PreviousGrantExpirationDate sql.NullTime `gorm:"column:previous_grant_expiration_date"`
+}
+
+// TableName overrides GORM's default snake-case-pluralization of the struct name
+// (which would yield "approval_row_with_previous_grants"). Without this, every query
+// using this wrapper fails with `relation "approval_row_with_previous_grants" does
+// not exist`. The embedded model.Approval doesn't propagate its TableName to the outer
+// type, so we have to set it explicitly here.
+func (approvalRowWithPreviousGrant) TableName() string {
+	return "approvals"
+}
 
 var (
 	ApprovalStatusDefaultSort = []string{
@@ -31,6 +52,21 @@ var (
 		"approval": "approvals",
 	}
 )
+
+// latestGrantExpirationDateSubquery is the canonical SQL for "expiration date of the most
+// recently created grant matching the appeal's (account_id, resource_id, role)". It is the
+// single source of truth used by ListApprovals' SELECT, the start/end_expiration_date WHERE
+// filter, and the order_by=previous_grant_expiration_date sort. Returns NULL when no
+// matching grant exists. Joins on "Appeal" because applyApprovalsJoins aliases the appeals
+// table that way.
+const latestGrantExpirationDateSubquery = `(
+	SELECT "g"."expiration_date" FROM "grants" "g"
+	WHERE "g"."account_id" = "Appeal"."account_id"
+	  AND "g"."resource_id" = "Appeal"."resource_id"
+	  AND "g"."role" = "Appeal"."role"
+	  AND "g"."deleted_at" IS NULL
+	ORDER BY "g"."created_at" DESC LIMIT 1
+)`
 
 type ApprovalRepository struct {
 	db *gorm.DB
@@ -55,6 +91,32 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 		return nil, err
 	}
 
+	orderByList := []string{
+		"updated_at",
+		"created_at",
+	}
+
+	var columnExpressions map[string]string
+	var columnSuffixes map[string]string
+	if filter.WithPreviousGrant {
+		// Hydrate the derived previous_grant_expiration_date column on each returned row.
+		// The aliased subquery is scanned into approvalRowWithPreviousGrant.PreviousGrantExpirationDate.
+		db = db.Select(`"approvals".*, ` + latestGrantExpirationDateSubquery + ` AS previous_grant_expiration_date`)
+
+		orderByList = append(orderByList, "previous_grant_expiration_date")
+		// "previous_grant_expiration_date" isn't a real column; resolve it to the same
+		// subquery used in SELECT/WHERE so all three stay consistent.
+		columnExpressions = map[string]string{
+			"previous_grant_expiration_date": latestGrantExpirationDateSubquery,
+		}
+		// Force NULLS LAST on both :asc and :desc so approvals with no previous grant
+		// always sink to the bottom of the page, regardless of direction. Without this,
+		// Postgres's default (NULLS FIRST on DESC) would put a wall of nulls on top.
+		columnSuffixes = map[string]string{
+			"previous_grant_expiration_date": "NULLS LAST",
+		}
+	}
+
 	// Apply combined ORDER BY: exact-match priority (when Q is set) + user-specified order_by.
 	// This is intentionally outside applyApprovalsFilter so it does not affect summary/count queries.
 	if filter.Q != "" || len(filter.OrderBy) > 0 {
@@ -65,11 +127,13 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 			prependVars = []interface{}{filter.Q, filter.Q, filter.Q, filter.Q}
 		}
 		db, err = addOrderByClause(db, filter.OrderBy, addOrderByClauseOptions{
-			statusColumnName: `"approvals"."status"`,
-			statusesOrder:    AppealStatusDefaultSort,
-			prependSQL:       prependSQL,
-			prependVars:      prependVars,
-		}, []string{"updated_at", "created_at"})
+			statusColumnName:  `"approvals"."status"`,
+			statusesOrder:     AppealStatusDefaultSort,
+			prependSQL:        prependSQL,
+			prependVars:       prependVars,
+			columnExpressions: columnExpressions,
+			columnSuffixes:    columnSuffixes,
+		}, orderByList)
 		if err != nil {
 			return nil, err
 		}
@@ -83,23 +147,40 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 		db = db.Offset(filter.Offset)
 	}
 
-	var models []*model.Approval
-	if err := db.Preload("Appeal.Resource").
+	db = db.Preload("Appeal.Resource").
 		Preload("Appeal.Approvals").
-		Preload("Appeal.Approvals.Approvers").
-		Find(&models).Error; err != nil {
-		return nil, err
+		Preload("Appeal.Approvals.Approvers")
+
+	if filter.WithPreviousGrant {
+		var rows []*approvalRowWithPreviousGrant
+		if err := db.Find(&rows).Error; err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			approval, err := row.Approval.ToDomain()
+			if err != nil {
+				return nil, err
+			}
+			if row.PreviousGrantExpirationDate.Valid {
+				t := row.PreviousGrantExpirationDate.Time
+				approval.PreviousGrantExpirationDate = &t
+			}
+			records = append(records, approval)
+		}
+		return records, nil
 	}
 
+	var models []*model.Approval
+	if err := db.Find(&models).Error; err != nil {
+		return nil, err
+	}
 	for _, m := range models {
 		approval, err := m.ToDomain()
 		if err != nil {
 			return nil, err
 		}
-
 		records = append(records, approval)
 	}
-
 	return records, nil
 }
 
@@ -455,6 +536,43 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		db = db.Where(`"Appeal"."created_at" >= ?`, filter.StartTime)
 	} else if !filter.EndTime.IsZero() {
 		db = db.Where(`"Appeal"."created_at" <= ?`, filter.EndTime)
+	}
+
+	// Restrict by previous-grant expiration date. The "previous grant" for an appeal is the
+	// grant with the latest created_at that matches the appeal's (account_id, resource_id, role).
+	// Filter against latestGrantExpirationDateSubquery so the WHERE clause is consistent with
+	// the SELECT and the order_by=previous_grant_expiration_date sort.
+	if !filter.StartExpirationDate.IsZero() || !filter.EndExpirationDate.IsZero() {
+		var sub string
+		args := []interface{}{}
+		if !filter.StartExpirationDate.IsZero() && !filter.EndExpirationDate.IsZero() {
+			sub = latestGrantExpirationDateSubquery + ` BETWEEN ? AND ?`
+			args = append(args, filter.StartExpirationDate, filter.EndExpirationDate)
+		} else if !filter.StartExpirationDate.IsZero() {
+			sub = latestGrantExpirationDateSubquery + ` >= ?`
+			args = append(args, filter.StartExpirationDate)
+		} else {
+			sub = latestGrantExpirationDateSubquery + ` <= ?`
+			args = append(args, filter.EndExpirationDate)
+		}
+		db = db.Where(sub, args...)
+	}
+
+	// Filter by previous-grant state. NULL from the subquery means either no previous grant
+	// exists at all or the latest grant is permanent (expiration_date IS NULL) — both fall
+	// under "none". For "expired" and "expiring", NULL is excluded automatically because any
+	// comparison with NULL is NULL (falsy) in WHERE.
+	switch filter.PreviousGrantState {
+	case domain.PreviousGrantStateExpired:
+		db = db.Where(latestGrantExpirationDateSubquery + ` < NOW()`)
+	case domain.PreviousGrantStateExpiring:
+		days := filter.ExpiringWithinDays
+		if days == 0 {
+			days = domain.DefaultExpiringWithinDays
+		}
+		db = db.Where(latestGrantExpirationDateSubquery+` BETWEEN NOW() AND NOW() + (? * INTERVAL '1 day')`, days)
+	case domain.PreviousGrantStateNone:
+		db = db.Where(latestGrantExpirationDateSubquery + ` IS NULL`)
 	}
 
 	// Label filtering

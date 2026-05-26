@@ -27,6 +27,15 @@ type addOrderByClauseOptions struct {
 	// a single clause so both coexist in the final ORDER BY.
 	prependSQL  string
 	prependVars []interface{}
+	// columnExpressions maps a logical column name (as it appears in order_by) to a raw SQL
+	// expression. When set, the expression replaces the default quoted identifier for that
+	// column. Use this for derived/computed columns that aren't actual table columns.
+	columnExpressions map[string]string
+	// columnSuffixes maps a logical column name to a SQL fragment appended after the sort
+	// direction in the ORDER BY clause. Example: `"x" -> "NULLS LAST"` emits `... x ASC NULLS LAST`.
+	// Useful for forcing NULL placement on derived columns whose default ordering would put
+	// NULLs in a surprising spot.
+	columnSuffixes map[string]string
 }
 
 func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClauseOptions, allowedColumns []string) (*gorm.DB, error) {
@@ -49,14 +58,22 @@ func addOrderByClause(db *gorm.DB, conditions []string, options addOrderByClause
 			if !utils.ContainsString(allowedColumns, columnName) {
 				return nil, fmt.Errorf("cannot order by column %q", columnName)
 			}
+			columnExpr := fmt.Sprintf(`"%s"`, columnName)
+			if expr, ok := options.columnExpressions[columnName]; ok {
+				columnExpr = expr
+			}
+			suffix := ""
+			if s, ok := options.columnSuffixes[columnName]; ok && s != "" {
+				suffix = " " + s
+			}
 			if len(columnOrder) == 1 {
-				orderByClauses = append(orderByClauses, fmt.Sprintf(`"%s"`, columnName))
+				orderByClauses = append(orderByClauses, columnExpr+suffix)
 			} else if len(columnOrder) == 2 {
 				orderDirection := columnOrder[1]
 				if utils.ContainsString([]string{"asc", "desc"}, orderDirection) {
-					orderByClauses = append(orderByClauses, fmt.Sprintf(`"%s" %s`, columnName, orderDirection))
+					orderByClauses = append(orderByClauses, fmt.Sprintf(`%s %s%s`, columnExpr, orderDirection, suffix))
 				} else if orderDirection == "exact_asc" && columnName == "name" {
-					orderByClauses = append(orderByClauses, fmt.Sprintf(`(CASE WHEN lower("%s") = '%s' THEN 1 ELSE 2 END)`, columnName, strings.ToLower(options.searchQuery)))
+					orderByClauses = append(orderByClauses, fmt.Sprintf(`(CASE WHEN lower(%s) = '%s' THEN 1 ELSE 2 END)`, columnExpr, strings.ToLower(options.searchQuery)))
 				} else {
 					return nil, fmt.Errorf("invalid order by direction: %s", orderDirection)
 				}

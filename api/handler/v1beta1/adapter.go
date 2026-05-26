@@ -973,6 +973,10 @@ func (a *adapter) ToApprovalProto(approval *domain.Approval) (*guardianv1beta1.A
 		approvalProto.UpdatedAt = timestamppb.New(approval.UpdatedAt)
 	}
 
+	if approval.PreviousGrantExpirationDate != nil {
+		approvalProto.PreviousGrantExpirationDate = timestamppb.New(*approval.PreviousGrantExpirationDate)
+	}
+
 	return approvalProto, nil
 }
 
