@@ -29,6 +29,7 @@ type Jobs struct {
 	RevokeGrantsByUserCriteria jobs.Job `mapstructure:"revoke_grants_by_user_criteria"`
 	GrantDormancyCheck         jobs.Job `mapstructure:"grant_dormancy_check"`
 	PendingApprovalsReminder   jobs.Job `mapstructure:"pending_approvals_reminder"`
+	GrantDriftCheck            jobs.Job `mapstructure:"grant_drift_check"`
 }
 
 type Config struct {
