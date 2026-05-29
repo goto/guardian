@@ -52,7 +52,7 @@ type repository interface {
 	GetByID(ctx context.Context, id string) (*domain.Appeal, error)
 	UpdateByID(context.Context, *domain.Appeal) error
 	Update(context.Context, *domain.Appeal) error
-	UpdateWithLock(ctx context.Context, appealID string, fn func(*domain.Appeal) error) (*domain.Appeal, error)
+	UpdateWithLock(ctx context.Context, appealID string, prevGrant *domain.Grant, fn func(*domain.Appeal) error) (*domain.Appeal, error)
 	UpdateLabels(context.Context, *domain.Appeal) error
 	GetAppealsTotalCount(context.Context, *domain.ListAppealsFilter) (int64, error)
 	GenerateSummary(context.Context, *domain.ListAppealsFilter) (*domain.SummaryResult, error)
@@ -991,12 +991,21 @@ func validatePatchReq(appeal, existingAppeal *domain.Appeal) (bool, error) {
 }
 
 // UpdateApproval Approve an approval step
+//
+// Flow:
+//  1. Pre-checks on an unlocked snapshot — fail fast on obviously invalid requests.
+//  2. For approve actions that would fully approve the appeal, run side effects (post hooks,
+//     provider GrantAccess) WHILE THE APPEAL IS STILL PENDING. Any failure here leaves the
+//     appeal in a retryable state instead of stuck "approved with no grant".
+//  3. Atomic commit under row lock: re-validate on fresh data, then flip status, attach the
+//     new grant, and revoke the previous grant in a single transaction.
+//  4. Notifications + audit (async, unchanged).
 func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.ApprovalAction) (*domain.Appeal, error) {
 	if err := approvalAction.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidUpdateApprovalParameter, err)
 	}
 
-	// Fast pre-checks on a non-locked snapshot — early returns for obviously invalid requests.
+	// Phase 1: fast pre-checks on a non-locked snapshot.
 	initialAppeal, err := s.GetByID(ctx, approvalAction.AppealID)
 	if err != nil {
 		if errors.Is(err, ErrAppealNotFound) {
@@ -1023,139 +1032,79 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 		}
 	}
 
-	// Locked phase: acquire a row-level lock, re-read the appeal, re-validate all state on
-	// fresh data, then apply the action and save — all in one transaction. This serializes
-	// concurrent approvals for the same appeal and prevents lost-update races.
-	appeal, err := s.repo.UpdateWithLock(ctx, approvalAction.AppealID, func(freshAppeal *domain.Appeal) error {
-		if err := checkIfAppealStatusStillPending(freshAppeal.Status); err != nil {
-			return err
+	// Phase 2 + 3: For approve actions, simulate the mutation on a working copy of the snapshot
+	// to predict whether the appeal would become fully approved. If yes, prepare the grant and
+	// run side effects (post hooks, provider GrantAccess) BEFORE the locked commit phase. A
+	// failure here leaves the appeal pending so the actor can fix the upstream issue and retry
+	// cleanly — rather than the previous behavior, which committed "approved" first and left
+	// the appeal stuck without a grant when side effects failed.
+	//
+	// We operate on a working copy so the initialAppeal snapshot remains pristine — the Phase 4
+	// callback receives a freshly read appeal in production, and tests that re-derive their
+	// fresh fixture from the same source can rely on initialAppeal still being pending here.
+	var newGrant, prevGrant *domain.Grant
+	var workingAppeal *domain.Appeal
+	if approvalAction.Action == domain.AppealActionNameApprove {
+		workingAppeal = cloneAppealForMutation(initialAppeal)
+		workingAppeal.Policy = policyObj
+		if err := applyApprovalMutation(workingAppeal, approvalAction, policyObj); err != nil {
+			return nil, err
 		}
 
-		currentApproval := freshAppeal.GetApproval(approvalAction.ApprovalName)
-		if currentApproval == nil {
-			return fmt.Errorf("%w: %q", ErrApprovalNotFound, approvalAction.ApprovalName)
-		}
-
-		// Validate all previous stages are resolved on fresh data.
-		for _, prevIdx := range freshAppeal.GetSortedStageIndices() {
-			if prevIdx >= currentApproval.Index {
-				break
+		if workingAppeal.Status == domain.AppealStatusApproved {
+			newGrant, prevGrant, err = s.prepareGrant(ctx, workingAppeal)
+			if err != nil {
+				return nil, fmt.Errorf("preparing grant: %w", err)
 			}
-			for _, prevApproval := range freshAppeal.GetApprovalsByIndex(prevIdx) {
-				if err := checkPreviousApprovalStatus(prevApproval.Status, prevApproval.Name); err != nil {
-					return err
-				}
+			newGrant.Resource = workingAppeal.Resource
+			workingAppeal.Grant = newGrant
+
+			if err := s.GrantAccessToProvider(ctx, workingAppeal); err != nil {
+				return nil, fmt.Errorf("granting access: %w", err)
 			}
 		}
+	}
 
-		// Critical race guard: rejects double-submit on the same step.
-		if err := checkApprovalStatus(currentApproval.Status); err != nil {
-			return err
-		}
-
-		if !currentApproval.IsExistingApprover(approvalAction.Actor) {
-			return ErrActionForbidden
-		}
-
-		currentApproval.Actor = &approvalAction.Actor
-		currentApproval.Reason = approvalAction.Reason
-		currentApproval.UpdatedAt = TimeNow()
-
+	// Phase 4: locked atomic commit. Re-validate on fresh data and apply the same mutation,
+	// then save the appeal (with new grant attached) and revoke the previous grant — all in
+	// one transaction. If the re-validation fails (e.g., another approver acted concurrently),
+	// the side effects from phase 2 are wasted but the DB stays coherent.
+	appeal, err := s.repo.UpdateWithLock(ctx, approvalAction.AppealID, prevGrant, func(freshAppeal *domain.Appeal) error {
 		if approvalAction.Action == domain.AppealActionNameApprove {
 			freshAppeal.Policy = policyObj
-
-			isSelfApprovalNotAllowed := false
-			policyStep := policyObj.GetStepByName(currentApproval.Name)
-			if policyStep == nil {
-				isStepValid := false
-				if policyObj.HasCustomSteps() {
-					for _, ap := range freshAppeal.Approvals {
-						if ap.Name == currentApproval.Name {
-							isStepValid = true
-							isSelfApprovalNotAllowed = ap.DontAllowSelfApproval
-						}
-					}
-				}
-				// Also accept steps that were dynamically added via AddApprovalStep.
-				// These exist in the appeal's approval list but not in the policy definition.
-				if !isStepValid {
-					for _, ap := range freshAppeal.Approvals {
-						if !ap.IsStale && ap.Name == currentApproval.Name {
-							isStepValid = true
-							isSelfApprovalNotAllowed = ap.DontAllowSelfApproval
-							break
-						}
-					}
-				}
-				if !isStepValid {
-					return fmt.Errorf("%w: %q for appeal %q", ErrNoPolicyStepFound, approvalAction.ApprovalName, freshAppeal.ID)
-				}
-			} else {
-				isSelfApprovalNotAllowed = policyStep.DontAllowSelfApproval
-			}
-
-			if isSelfApprovalNotAllowed && approvalAction.Actor == freshAppeal.CreatedBy {
-				return ErrSelfApprovalNotAllowed
-			}
-
-			currentApproval.Approve()
-
-			if err := freshAppeal.AdvanceApproval(policyObj); err != nil {
-				return err
-			}
-		} else if approvalAction.Action == domain.AppealActionNameReject {
-			currentApproval.Reject()
-			freshAppeal.Reject()
-
-			for _, approval := range freshAppeal.Approvals {
-				if approval.IsStale || approval == currentApproval {
-					continue
-				}
-				if approval.Index > currentApproval.Index ||
-					(approval.Index == currentApproval.Index && approval.Status == domain.ApprovalStatusPending) {
-					approval.Skip()
-					approval.UpdatedAt = TimeNow()
-				}
-			}
-		} else {
-			return ErrActionInvalidValue
 		}
-
+		if err := applyApprovalMutation(freshAppeal, approvalAction, policyObj); err != nil {
+			return err
+		}
+		if freshAppeal.Status == domain.AppealStatusApproved && newGrant != nil {
+			// Use the expiration date computed in phase 2 so the persisted appeal options
+			// stay consistent with what was granted upstream.
+			if workingAppeal != nil && workingAppeal.Options != nil && workingAppeal.Options.ExpirationDate != nil {
+				if freshAppeal.Options == nil {
+					freshAppeal.Options = &domain.AppealOptions{}
+				}
+				freshAppeal.Options.ExpirationDate = workingAppeal.Options.ExpirationDate
+			}
+			freshAppeal.Grant = newGrant
+		}
 		return nil
 	})
 	if err != nil {
+		// Phase 4 failed after phase 3 side effects may have already landed upstream.
+		//
+		// Compensate (revoke upstream access) only when the failure looks like a DB save error
+		// — never when it's a race-detection error from the callback's re-validation. If two
+		// approvers act on the same step concurrently, the loser's compensation would revoke
+		// the access the winner just granted, leaving the user without access until manual
+		// intervention. ErrDuplicateActiveGrant skips compensation for the same reason as
+		// before (the upstream grant wasn't actually changed when the constraint fired).
+		if newGrant != nil && shouldRevokeOnCommitFailure(err) {
+			if revokeErr := s.providerService.RevokeAccess(ctx, *newGrant); revokeErr != nil {
+				s.logger.Error(ctx, "failed to revoke upstream access after commit failure",
+					"appeal_id", approvalAction.AppealID, "error", revokeErr)
+			}
+		}
 		return nil, err
-	}
-
-	// Post-lock: grant operations run after the approval state is safely committed.
-	if appeal.Status == domain.AppealStatusApproved {
-		newGrant, prevGrant, err := s.prepareGrant(ctx, appeal)
-		if err != nil {
-			return nil, fmt.Errorf("preparing grant: %w", err)
-		}
-		newGrant.Resource = appeal.Resource
-		appeal.Grant = newGrant
-		if prevGrant != nil {
-			if _, err := s.grantService.Revoke(ctx, prevGrant.ID, domain.SystemActorName, prevGrant.RevokeReason,
-				grant.SkipNotifications(),
-				grant.SkipRevokeAccessInProvider(),
-			); err != nil {
-				return nil, fmt.Errorf("revoking previous grant: %w", err)
-			}
-		}
-
-		if err := s.GrantAccessToProvider(ctx, appeal); err != nil {
-			return nil, fmt.Errorf("granting access: %w", err)
-		}
-
-		if err := s.Update(ctx, appeal); err != nil {
-			if !errors.Is(err, domain.ErrDuplicateActiveGrant) {
-				if err := s.providerService.RevokeAccess(ctx, *appeal.Grant); err != nil {
-					return nil, fmt.Errorf("revoking access: %w", err)
-				}
-			}
-			return nil, fmt.Errorf("updating appeal: %w", err)
-		}
 	}
 
 	notifications := []domain.Notification{}
@@ -1224,6 +1173,163 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 	}
 
 	return appeal, nil
+}
+
+// cloneAppealForMutation returns a working copy of the appeal whose Approvals and Options
+// can be mutated without affecting the source. Phase 2/3 of UpdateApproval mutates these
+// fields heavily (status flip, approval state advancement, expiration date) while predicting
+// whether the action would result in full approval; keeping the source snapshot pristine
+// lets later phases re-derive state from it if needed and keeps test fixtures usable as
+// "still pending" reference state.
+//
+// Resource and Policy are shared by reference: they are read-only in this flow.
+func cloneAppealForMutation(a *domain.Appeal) *domain.Appeal {
+	if a == nil {
+		return nil
+	}
+	clone := *a
+	if a.Approvals != nil {
+		clone.Approvals = make([]*domain.Approval, len(a.Approvals))
+		for i, ap := range a.Approvals {
+			if ap == nil {
+				continue
+			}
+			c := *ap
+			clone.Approvals[i] = &c
+		}
+	}
+	if a.Options != nil {
+		opts := *a.Options
+		clone.Options = &opts
+	}
+	return &clone
+}
+
+// shouldRevokeOnCommitFailure reports whether the upstream access granted in phase 3 should
+// be revoked when UpdateWithLock returns an error. We only compensate for failures that
+// look like DB save errors. If the error is from the callback's re-validation (i.e. another
+// approver resolved the appeal first, or the appeal state changed during phase 3), the winner
+// has already granted access and our "compensation" would revoke it — leaving the user with
+// no access at all. ErrDuplicateActiveGrant also skips compensation: the unique constraint
+// fired before the upstream grant was changed in a meaningful way.
+func shouldRevokeOnCommitFailure(err error) bool {
+	switch {
+	case errors.Is(err, domain.ErrDuplicateActiveGrant),
+		errors.Is(err, ErrAppealNotEligibleForApproval),
+		errors.Is(err, ErrApprovalNotFound),
+		errors.Is(err, ErrApprovalNotEligibleForAction),
+		errors.Is(err, ErrApprovalStatusUnrecognized),
+		errors.Is(err, ErrActionForbidden),
+		errors.Is(err, ErrSelfApprovalNotAllowed),
+		errors.Is(err, ErrNoPolicyStepFound),
+		errors.Is(err, ErrAppealStatusUnrecognized):
+		return false
+	}
+	return true
+}
+
+// applyApprovalMutation applies the approve/reject action to an appeal as part of an
+// UpdateApproval call. Called twice during a single UpdateApproval: once on the snapshot
+// before phase 3 side effects (to predict whether the appeal would become Approved), and
+// once inside the locked commit transaction on the freshly read appeal. Both invocations
+// must apply identical mutations so the prediction matches the commit.
+func applyApprovalMutation(
+	appeal *domain.Appeal,
+	approvalAction domain.ApprovalAction,
+	policyObj *domain.Policy,
+) error {
+	if err := checkIfAppealStatusStillPending(appeal.Status); err != nil {
+		return err
+	}
+
+	currentApproval := appeal.GetApproval(approvalAction.ApprovalName)
+	if currentApproval == nil {
+		return fmt.Errorf("%w: %q", ErrApprovalNotFound, approvalAction.ApprovalName)
+	}
+
+	for _, prevIdx := range appeal.GetSortedStageIndices() {
+		if prevIdx >= currentApproval.Index {
+			break
+		}
+		for _, prevApproval := range appeal.GetApprovalsByIndex(prevIdx) {
+			if err := checkPreviousApprovalStatus(prevApproval.Status, prevApproval.Name); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := checkApprovalStatus(currentApproval.Status); err != nil {
+		return err
+	}
+
+	if !currentApproval.IsExistingApprover(approvalAction.Actor) {
+		return ErrActionForbidden
+	}
+
+	currentApproval.Actor = &approvalAction.Actor
+	currentApproval.Reason = approvalAction.Reason
+	currentApproval.UpdatedAt = TimeNow()
+
+	switch approvalAction.Action {
+	case domain.AppealActionNameApprove:
+		isSelfApprovalNotAllowed := false
+		policyStep := policyObj.GetStepByName(currentApproval.Name)
+		if policyStep == nil {
+			isStepValid := false
+			if policyObj.HasCustomSteps() {
+				for _, ap := range appeal.Approvals {
+					if ap.Name == currentApproval.Name {
+						isStepValid = true
+						isSelfApprovalNotAllowed = ap.DontAllowSelfApproval
+					}
+				}
+			}
+			// Also accept steps that were dynamically added via AddApprovalStep — they exist on
+			// the appeal but not in the policy definition.
+			if !isStepValid {
+				for _, ap := range appeal.Approvals {
+					if !ap.IsStale && ap.Name == currentApproval.Name {
+						isStepValid = true
+						isSelfApprovalNotAllowed = ap.DontAllowSelfApproval
+						break
+					}
+				}
+			}
+			if !isStepValid {
+				return fmt.Errorf("%w: %q for appeal %q", ErrNoPolicyStepFound, approvalAction.ApprovalName, appeal.ID)
+			}
+		} else {
+			isSelfApprovalNotAllowed = policyStep.DontAllowSelfApproval
+		}
+
+		if isSelfApprovalNotAllowed && approvalAction.Actor == appeal.CreatedBy {
+			return ErrSelfApprovalNotAllowed
+		}
+
+		currentApproval.Approve()
+
+		if err := appeal.AdvanceApproval(policyObj); err != nil {
+			return err
+		}
+	case domain.AppealActionNameReject:
+		currentApproval.Reject()
+		appeal.Reject()
+
+		for _, approval := range appeal.Approvals {
+			if approval.IsStale || approval == currentApproval {
+				continue
+			}
+			if approval.Index > currentApproval.Index ||
+				(approval.Index == currentApproval.Index && approval.Status == domain.ApprovalStatusPending) {
+				approval.Skip()
+				approval.UpdatedAt = TimeNow()
+			}
+		}
+	default:
+		return ErrActionInvalidValue
+	}
+
+	return nil
 }
 
 func (s *Service) Update(ctx context.Context, appeal *domain.Appeal) error {
