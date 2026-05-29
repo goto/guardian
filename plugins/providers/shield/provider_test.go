@@ -334,6 +334,9 @@ func TestGetResources(t *testing.T) {
 					Type: shield.ResourceTypeOrganization,
 				},
 				{
+					Type: shield.ResourceTypeCreateTeam,
+				},
+				{
 					Type: "dynamic_resource_type",
 				},
 			},
@@ -426,6 +429,14 @@ func TestGetResources(t *testing.T) {
 					"admins": []string{"testOrganizationAdmin@gmail.com"},
 				},
 				GlobalURN: "urn:shield:test-provider-urn:organization:org_id",
+			},
+			{
+				Type:         shield.ResourceTypeCreateTeam,
+				URN:          "create_team:dummy-resource",
+				ProviderType: "",
+				ProviderURN:  providerURN,
+				Name:         "Request to create team",
+				GlobalURN:    "urn:shield:test-provider-urn:create_team:dummy-resource",
 			},
 			{
 				Type:        "dynamic_resource_type",
