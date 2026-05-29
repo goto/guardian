@@ -113,6 +113,17 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 		resources = p.addOrganizations(pc, organizations, resources)
 	}
 
+	if _, ok := resourceTypes[ResourceTypeCreateTeam]; ok {
+		resources = append(resources, &domain.Resource{
+			ProviderType: pc.Type,
+			ProviderURN:  pc.URN,
+			Type:         ResourceTypeCreateTeam,
+			URN:          fmt.Sprintf("%s:%s", ResourceTypeCreateTeam, createTeamDummyID),
+			Name:         "Request to create team",
+			GlobalURN:    utils.GetGlobalURN("shield", pc.URN, ResourceTypeCreateTeam, createTeamDummyID),
+		})
+	}
+
 	for resourceType := range resourceTypes {
 		var shieldResources []*Resource
 

@@ -36,6 +36,8 @@ const (
 	ResourceTypeOrganization = "organization"
 	ResourceTypeResource     = "resource"
 	ResourceTypeCreateTeam   = "create_team"
+
+	createTeamDummyID = "dummy-resource"
 )
 
 const (
