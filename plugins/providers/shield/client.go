@@ -469,7 +469,7 @@ func (c *client) CreateRelation(ctx context.Context, objectId string, objectName
 		ObjectType:  "team",
 		SubjectType: "user",
 		SubjectId:   subject,
-		RoleID:      "team_member",
+		RoleID:      "team_admin",
 	}
 	c.logger.Info(ctx, "Creating relation in shield", "objectId", objectId, "objectNamespace", objectNamespace, "subject", subject)
 
