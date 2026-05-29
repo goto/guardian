@@ -306,11 +306,19 @@ func (r *AppealRepository) Update(ctx context.Context, a *domain.Appeal) error {
 	})
 }
 
-// UpdateWithLock acquires a row-level lock on the appeal, re-reads the full appeal
-// from the database, calls fn with the fresh data, then saves the result — all within
-// a single transaction. This prevents lost-update races when parallel approvers submit
-// at the same time.
-func (r *AppealRepository) UpdateWithLock(ctx context.Context, appealID string, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
+// UpdateWithLock acquires a row-level lock on the appeal, re-reads the full appeal from the
+// database, calls fn with the fresh data, then saves the result — all within a single
+// transaction. This prevents lost-update races when parallel approvers submit at the same time.
+//
+// When prevGrant is non-nil its status/revoked_* fields are written in the same transaction
+// before the appeal save, so attaching a new grant to the appeal via the Grant association
+// does not collide with the active-grant unique constraint (used for the extension flow).
+func (r *AppealRepository) UpdateWithLock(
+	ctx context.Context,
+	appealID string,
+	prevGrant *domain.Grant,
+	fn func(*domain.Appeal) error,
+) (*domain.Appeal, error) {
 	var result *domain.Appeal
 
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -347,6 +355,19 @@ func (r *AppealRepository) UpdateWithLock(ctx context.Context, appealID string, 
 
 		if err := m.FromDomain(a); err != nil {
 			return err
+		}
+
+		if prevGrant != nil {
+			if err := tx.Model(&model.Grant{}).
+				Where("id = ?", prevGrant.ID).
+				Updates(map[string]interface{}{
+					"status":        prevGrant.Status,
+					"revoked_at":    prevGrant.RevokedAt,
+					"revoked_by":    prevGrant.RevokedBy,
+					"revoke_reason": prevGrant.RevokeReason,
+				}).Error; err != nil {
+				return fmt.Errorf("revoking previous grant: %w", err)
+			}
 		}
 
 		if err := tx.Omit("Approvals.Approvers", "Resource", "Grant.Resource").

@@ -350,9 +350,9 @@ func (_c *Repository_Update_Call) RunAndReturn(run func(context.Context, *domain
 	return _c
 }
 
-// UpdateWithLock provides a mock function with given fields: ctx, appealID, fn
-func (_m *Repository) UpdateWithLock(ctx context.Context, appealID string, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
-	ret := _m.Called(ctx, appealID, fn)
+// UpdateWithLock provides a mock function with given fields: ctx, appealID, prevGrant, fn
+func (_m *Repository) UpdateWithLock(ctx context.Context, appealID string, prevGrant *domain.Grant, fn func(*domain.Appeal) error) (*domain.Appeal, error) {
+	ret := _m.Called(ctx, appealID, prevGrant, fn)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateWithLock")
@@ -360,18 +360,18 @@ func (_m *Repository) UpdateWithLock(ctx context.Context, appealID string, fn fu
 
 	var r0 *domain.Appeal
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, func(*domain.Appeal) error) (*domain.Appeal, error)); ok {
-		return rf(ctx, appealID, fn)
+	if rf, ok := ret.Get(0).(func(context.Context, string, *domain.Grant, func(*domain.Appeal) error) (*domain.Appeal, error)); ok {
+		return rf(ctx, appealID, prevGrant, fn)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, func(*domain.Appeal) error) *domain.Appeal); ok {
-		r0 = rf(ctx, appealID, fn)
+	if rf, ok := ret.Get(0).(func(context.Context, string, *domain.Grant, func(*domain.Appeal) error) *domain.Appeal); ok {
+		r0 = rf(ctx, appealID, prevGrant, fn)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*domain.Appeal)
 		}
 	}
-	if rf, ok := ret.Get(1).(func(context.Context, string, func(*domain.Appeal) error) error); ok {
-		r1 = rf(ctx, appealID, fn)
+	if rf, ok := ret.Get(1).(func(context.Context, string, *domain.Grant, func(*domain.Appeal) error) error); ok {
+		r1 = rf(ctx, appealID, prevGrant, fn)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -386,14 +386,19 @@ type Repository_UpdateWithLock_Call struct {
 // UpdateWithLock is a helper method to define mock.On call
 //   - ctx context.Context
 //   - appealID string
+//   - prevGrant *domain.Grant
 //   - fn func(*domain.Appeal) error
-func (_e *Repository_Expecter) UpdateWithLock(ctx interface{}, appealID interface{}, fn interface{}) *Repository_UpdateWithLock_Call {
-	return &Repository_UpdateWithLock_Call{Call: _e.mock.On("UpdateWithLock", ctx, appealID, fn)}
+func (_e *Repository_Expecter) UpdateWithLock(ctx interface{}, appealID interface{}, prevGrant interface{}, fn interface{}) *Repository_UpdateWithLock_Call {
+	return &Repository_UpdateWithLock_Call{Call: _e.mock.On("UpdateWithLock", ctx, appealID, prevGrant, fn)}
 }
 
-func (_c *Repository_UpdateWithLock_Call) Run(run func(ctx context.Context, appealID string, fn func(*domain.Appeal) error)) *Repository_UpdateWithLock_Call {
+func (_c *Repository_UpdateWithLock_Call) Run(run func(ctx context.Context, appealID string, prevGrant *domain.Grant, fn func(*domain.Appeal) error)) *Repository_UpdateWithLock_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(func(*domain.Appeal) error))
+		var prev *domain.Grant
+		if args[2] != nil {
+			prev = args[2].(*domain.Grant)
+		}
+		run(args[0].(context.Context), args[1].(string), prev, args[3].(func(*domain.Appeal) error))
 	})
 	return _c
 }
@@ -403,7 +408,7 @@ func (_c *Repository_UpdateWithLock_Call) Return(_a0 *domain.Appeal, _a1 error) 
 	return _c
 }
 
-func (_c *Repository_UpdateWithLock_Call) RunAndReturn(run func(context.Context, string, func(*domain.Appeal) error) (*domain.Appeal, error)) *Repository_UpdateWithLock_Call {
+func (_c *Repository_UpdateWithLock_Call) RunAndReturn(run func(context.Context, string, *domain.Grant, func(*domain.Appeal) error) (*domain.Appeal, error)) *Repository_UpdateWithLock_Call {
 	_c.Call.Return(run)
 	return _c
 }
