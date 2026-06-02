@@ -41,7 +41,6 @@ func New(pdClient PDSender, logger log.Logger) *AlertManager {
 // dedup_key: drift-check:admin:{hash(sorted accountIDs)}
 func (m *AlertManager) NotifyDriftCheck(ctx context.Context, req NotifyDriftCheckRequest) []error {
 	totalFailures := 0
-	totalNotApplicable := 0
 
 	grouped := make(map[string]*accountGroup, len(req.Issues))
 
@@ -52,15 +51,11 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, req NotifyDriftChec
 		if issue.Grant.Resource != nil {
 			d["resource"] = issue.Grant.Resource.URN
 		}
-		switch {
-		case issue.RemediationNotApplicable:
-			d["remediation_status"] = "not_applicable"
-			totalNotApplicable++
-		case issue.RemediationError != "":
+		if issue.RemediationError != "" {
 			d["remediation_status"] = "failed"
 			d["remediation_error"] = issue.RemediationError
 			totalFailures++
-		default:
+		} else {
 			d["remediation_status"] = "recreated"
 		}
 		if _, ok := grouped[issue.AccountID]; !ok {
@@ -93,9 +88,9 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, req NotifyDriftChec
 		severity = req.OnFailureSeverity
 	}
 
-	recreated := totalDrifted - totalFailures - totalNotApplicable
-	summary := fmt.Sprintf("Guardian: %d drifted grant(s) across %d critical bot(s) (%d recreated, %d failed, %d not_applicable)",
-		totalDrifted, totalAccounts, recreated, totalFailures, totalNotApplicable)
+	recreated := totalDrifted - totalFailures
+	summary := fmt.Sprintf("Guardian: %d drifted grant(s) across %d critical bot(s) (%d recreated, %d failed)",
+		totalDrifted, totalAccounts, recreated, totalFailures)
 
 	event := Event{
 		RoutingKey:  req.AdminTeam,
@@ -105,10 +100,9 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, req NotifyDriftChec
 		Source:      "guardian",
 		Severity:    severity,
 		CustomDetails: map[string]interface{}{
-			"total_drifted":              totalDrifted,
-			"remediation_failures":       totalFailures,
-			"remediation_not_applicable": totalNotApplicable,
-			"accounts":                   accounts,
+			"total_drifted":        totalDrifted,
+			"remediation_failures": totalFailures,
+			"accounts":             accounts,
 		},
 	}
 

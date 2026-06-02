@@ -409,8 +409,7 @@ func (m MapGrantByResourceAccountPermission) RemoveByPermission(resourceURN, acc
 }
 
 type GrantDriftIssue struct {
-	AccountID                string
-	Grant                    *Grant
-	RemediationError         string // empty = remediation succeeded
-	RemediationNotApplicable bool   // true when the provider does not support automatic remediation
+	AccountID        string
+	Grant            *Grant
+	RemediationError string // empty = remediation succeeded
 }

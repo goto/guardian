@@ -104,35 +104,6 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 		s.pd.AssertExpectations(s.T())
 	})
 
-	s.Run("marks not_applicable issues in details and counts them correctly", func() {
-		s.setupManager()
-
-		issues := []domain.GrantDriftIssue{
-			{
-				AccountID:                "user-1",
-				Grant:                    &domain.Grant{ID: "g-1"},
-				RemediationNotApplicable: true,
-			},
-		}
-
-		s.pd.On("Send", ctx, mock.MatchedBy(func(e alertmanager.Event) bool {
-			if !strings.Contains(e.Summary, "1 not_applicable") {
-				return false
-			}
-			accounts, ok := e.CustomDetails["accounts"].([]map[string]interface{})
-			if !ok || len(accounts) != 1 {
-				return false
-			}
-			grants, ok := accounts[0]["grants"].([]map[string]interface{})
-			return ok && len(grants) == 1 && grants[0]["remediation_status"] == "not_applicable"
-		})).Return(nil).Once()
-
-		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
-
-		s.Nil(errs)
-		s.pd.AssertExpectations(s.T())
-	})
-
 	s.Run("marks failed remediation in details with error message", func() {
 		s.setupManager()
 
@@ -214,16 +185,14 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 		issues := []domain.GrantDriftIssue{
 			{AccountID: "u-1", Grant: &domain.Grant{ID: "g-1"}},
 			{AccountID: "u-2", Grant: &domain.Grant{ID: "g-2"}, RemediationError: "err"},
-			{AccountID: "u-3", Grant: &domain.Grant{ID: "g-3"}, RemediationNotApplicable: true},
-			{AccountID: "u-4", Grant: &domain.Grant{ID: "g-4"}},
+			{AccountID: "u-3", Grant: &domain.Grant{ID: "g-3"}},
 		}
 
 		s.pd.On("Send", ctx, mock.MatchedBy(func(e alertmanager.Event) bool {
-			return strings.Contains(e.Summary, "4 drifted grant(s)") &&
-				strings.Contains(e.Summary, "4 critical bot(s)") &&
+			return strings.Contains(e.Summary, "3 drifted grant(s)") &&
+				strings.Contains(e.Summary, "3 critical bot(s)") &&
 				strings.Contains(e.Summary, "2 recreated") &&
-				strings.Contains(e.Summary, "1 failed") &&
-				strings.Contains(e.Summary, "1 not_applicable")
+				strings.Contains(e.Summary, "1 failed")
 		})).Return(nil).Once()
 
 		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})

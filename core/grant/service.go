@@ -29,10 +29,10 @@ const (
 	AuditKeyDriftRemediaton = "grant.drift_remediation"
 
 	// guardianProviderType is the provider type for Guardian-managed resources (e.g. packages).
-	// GrantAccess for this provider is a no-op, so automatic drift remediation is not supported.
 	guardianProviderType                     = "guardian"
 	guardianGroupTypePackageUser             = "package_user"
 	guardianGroupTypePackageAccessBotRAMRole = "package_access_bot_ram_role"
+	guardianGroupTypePackageAccessBotRAMUser = "package_access_bot_ram_user"
 )
 
 //go:generate mockery --name=repository --exported --with-expecter
@@ -1129,17 +1129,17 @@ func (s *Service) detectDriftedGrants(ctx context.Context, botAccountIDs []strin
 		return nil, nil
 	}
 
-	providerURNMap := make(map[string]string)
+	providerURNMap := make(map[string]struct{})
 	for _, g := range activeGrants {
 		// get the provider urns
 		if g.Resource == nil {
 			continue
 		}
-		providerURNMap[g.Resource.ProviderURN] = g.Resource.ProviderURN
+		providerURNMap[g.Resource.ProviderURN] = struct{}{}
 	}
 
 	providerURNs := make([]string, 0, len(providerURNMap))
-	for _, urn := range providerURNMap {
+	for urn := range providerURNMap {
 		providerURNs = append(providerURNs, urn)
 	}
 
@@ -1284,12 +1284,12 @@ func (s *Service) fetchPackageGrants(ctx context.Context, botAccountIDs []string
 	}
 
 	// for each package membership, fetch all the active grants
-	groupIDMap := make(map[string]string)
+	groupIDMap := make(map[string]struct{})
 	for _, pg := range packageMembershipGrants {
 		if pg.Resource == nil {
 			continue
 		}
-		groupIDMap[pg.Resource.ID] = pg.GroupID
+		groupIDMap[pg.Resource.ID] = struct{}{}
 	}
 	groupIDs := make([]string, 0, len(groupIDMap))
 	for groupID := range groupIDMap {
@@ -1300,7 +1300,10 @@ func (s *Service) fetchPackageGrants(ctx context.Context, botAccountIDs []string
 		Statuses:      []string{string(domain.GrantStatusActive)},
 		ProviderTypes: providerTypes,
 		GroupIDs:      groupIDs,
-		GroupTypes:    []string{guardianGroupTypePackageAccessBotRAMRole},
+		GroupTypes: []string{
+			guardianGroupTypePackageAccessBotRAMRole,
+			guardianGroupTypePackageAccessBotRAMUser,
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("listing package access grants: %w", err)

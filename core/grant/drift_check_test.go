@@ -206,7 +206,7 @@ func (s *GrantDriftCheckTestSuite) TestGrantDriftCheck() {
 			Return([]domain.Grant{packageMembershipGrant}, nil).Once()
 		s.mockRepo.EXPECT().
 			List(mock.Anything, domain.ListGrantsFilter{
-				GroupTypes:    []string{"package_access_bot_ram_role"},
+				GroupTypes:    []string{"package_access_bot_ram_role", "package_access_bot_ram_user"},
 				ProviderTypes: []string{provType},
 				Statuses:      []string{string(domain.GrantStatusActive)},
 				GroupIDs:      []string{groupID},
@@ -249,7 +249,7 @@ func (s *GrantDriftCheckTestSuite) TestGrantDriftCheck() {
 			Return([]domain.Grant{packageMembershipGrant}, nil).Once()
 		s.mockRepo.EXPECT().
 			List(mock.Anything, domain.ListGrantsFilter{
-				GroupTypes:    []string{"package_access_bot_ram_role"},
+				GroupTypes:    []string{"package_access_bot_ram_role", "package_access_bot_ram_user"},
 				ProviderTypes: []string{provType},
 				Statuses:      []string{string(domain.GrantStatusActive)},
 				GroupIDs:      []string{groupID},
@@ -327,7 +327,7 @@ func (s *GrantDriftCheckTestSuite) TestGrantDriftCheck() {
 			Return([]domain.Grant{packageMembershipGrant}, nil).Once()
 		s.mockRepo.EXPECT().
 			List(mock.Anything, domain.ListGrantsFilter{
-				GroupTypes:    []string{"package_access_bot_ram_role"},
+				GroupTypes:    []string{"package_access_bot_ram_role", "package_access_bot_ram_user"},
 				ProviderTypes: []string{provType},
 				Statuses:      []string{string(domain.GrantStatusActive)},
 				GroupIDs:      []string{groupID},
@@ -421,7 +421,7 @@ func (s *GrantDriftCheckTestSuite) TestGrantDriftCheck() {
 			Return([]domain.Grant{packageMembershipGrant}, nil).Once()
 		s.mockRepo.EXPECT().
 			List(mock.Anything, domain.ListGrantsFilter{
-				GroupTypes:    []string{"package_access_bot_ram_role"},
+				GroupTypes:    []string{"package_access_bot_ram_role", "package_access_bot_ram_user"},
 				ProviderTypes: []string{provType},
 				Statuses:      []string{string(domain.GrantStatusActive)},
 				GroupIDs:      []string{groupID},
