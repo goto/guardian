@@ -177,12 +177,14 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		Logger:          deps.Logger,
 		AuditLogger:     auditLogger,
 	})
+
+	alertClient := alertmanager.GetAlertManagerSender(deps.Config.AlertManager)
 	grantService := grant.NewService(grant.ServiceDeps{
 		Repository:      grantRepository,
 		ProviderService: providerService,
 		ResourceService: resourceService,
 		Notifier:        deps.Notifier,
-		AlertManager:    alertmanager.New(alertmanager.NewPDClient(), deps.Logger),
+		AlertManager:    alertmanager.New(alertClient, deps.Logger),
 		Logger:          deps.Logger,
 		Validator:       deps.Validator,
 		AuditLogger:     auditLogger,

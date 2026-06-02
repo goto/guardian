@@ -9,6 +9,7 @@ import (
 	"github.com/goto/guardian/pkg/auth"
 	"github.com/goto/guardian/pkg/opentelemetry"
 	"github.com/goto/guardian/plugins/notifiers"
+	"github.com/goto/guardian/plugins/notifiers/alertmanager"
 	"github.com/goto/salt/config"
 )
 
@@ -47,7 +48,8 @@ type Config struct {
 	Jobs                       Jobs                 `mapstructure:"jobs"`
 	Telemetry                  opentelemetry.Config `mapstructure:"telemetry"`
 
-	Auth Auth `mapstructure:"auth"`
+	Auth         Auth                            `mapstructure:"auth"`
+	AlertManager alertmanager.AlertManagerConfig `mapstructure:"alert_manager"`
 }
 
 type GRPCConfig struct {

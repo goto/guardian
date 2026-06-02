@@ -12,6 +12,48 @@ import (
 	"github.com/goto/guardian/pkg/log"
 )
 
+const (
+	GrantDriftCheckEvent = "grant_drift_check"
+)
+
+// NotificationSender is the interface for delivering events to a notifier.
+type NotificationSender interface {
+	Send(ctx context.Context, event Event) error
+}
+type AlertManagerConfig struct {
+	Provider    string `mapstructure:"provider" default:"siren"`
+	Endpoint    string `mapstructure:"endpoint"`
+	Environment string `mapstructure:"environment" default:"development"`
+}
+
+func GetAlertManagerSender(cfg AlertManagerConfig) NotificationSender {
+	switch cfg.Provider {
+	case "siren":
+		if cfg.Endpoint != "" {
+			return NewSirenClient(cfg.Endpoint, cfg.Environment)
+		}
+	case "pagerduty":
+		return NewPDClient()
+	}
+	return &NoOpSender{}
+}
+
+type NoOpSender struct{}
+
+func (s *NoOpSender) Send(_ context.Context, _ Event) error {
+	return nil
+}
+
+type Event struct {
+	Title    string
+	Summary  string
+	Data     map[string]interface{}
+	DedupKey string
+	Team     string
+	Severity string
+	Labels   map[string]string
+}
+
 type accountGroup struct {
 	grants []map[string]interface{}
 }
@@ -25,21 +67,20 @@ type NotifyDriftCheckRequest struct {
 }
 
 type AlertManager struct {
-	pd     PDSender
-	logger log.Logger
+	notificationSender NotificationSender
+	logger             log.Logger
 }
 
-// TODO: implementation of alert manager should utilize shield team instead of direct PD integration
-func New(pdClient PDSender, logger log.Logger) *AlertManager {
+func New(notificationSender NotificationSender, logger log.Logger) *AlertManager {
 	return &AlertManager{
-		pd:     pdClient,
-		logger: logger,
+		notificationSender: notificationSender,
+		logger:             logger,
 	}
 }
 
 // NotifyDriftCheck sends a single summary alert to adminTeam listing all drifted
 // dedup_key: drift-check:admin:{hash(sorted accountIDs)}
-func (m *AlertManager) NotifyDriftCheck(ctx context.Context, req NotifyDriftCheckRequest) []error {
+func (m *AlertManager) NotifyDriftCheck(ctx context.Context, req NotifyDriftCheckRequest) error {
 	totalFailures := 0
 
 	grouped := make(map[string]*accountGroup, len(req.Issues))
@@ -93,17 +134,15 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, req NotifyDriftChec
 		totalDrifted, totalAccounts, recreated, totalFailures)
 
 	event := Event{
-		RoutingKey:  req.AdminTeam,
-		DedupKey:    dedupKey,
-		EventAction: eventActionTrigger,
-		Summary:     summary,
-		Source:      "guardian",
-		Severity:    severity,
-		CustomDetails: map[string]interface{}{
+		Summary:  summary,
+		DedupKey: dedupKey,
+		Data: map[string]interface{}{
 			"total_drifted":        totalDrifted,
 			"remediation_failures": totalFailures,
 			"accounts":             accounts,
 		},
+		Team:     req.AdminTeam,
+		Severity: severity,
 	}
 
 	if req.DryRun {
@@ -112,9 +151,9 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, req NotifyDriftChec
 		return nil
 	}
 
-	if err := m.pd.Send(ctx, event); err != nil {
+	if err := m.notificationSender.Send(ctx, event); err != nil {
 		m.logger.Error(ctx, "failed to trigger drift check alert", "error", err)
-		return []error{err}
+		return err
 	}
 
 	m.logger.Info(ctx, "notify drift-check alert triggered", "dedup_key", dedupKey)

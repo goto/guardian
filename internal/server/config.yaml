@@ -58,8 +58,12 @@ JOBS:
       BOT_ACCOUNT_IDS:
         - bot_account_id_1
         - bot_account_id_2
-      ADMIN_TEAM: "admin_team_name"
       DRY_RUN: true
+      ALERTING:
+        ENABLED: true
+        ADMIN_TEAM: "admin_team_name"
+        ON_FAILURE_SEVERITY: "critical"
+        ON_SUCCESS_SEVERITY: "info"
 TELEMETRY:
   ENABLED: true
   SERVICE_NAME: "guardian"
@@ -77,3 +81,7 @@ AUTH:
   OIDC:
     AUDIENCE: "some-kind-of-audience.com"
     ELIGIBLE_EMAIL_DOMAINS: "emaildomain1.com,emaildomain2.com"
+ALERT_MANAGER:
+  PROVIDER: siren
+  ENDPOINT: http://localhost:3001
+  ENVIRONMENT: development

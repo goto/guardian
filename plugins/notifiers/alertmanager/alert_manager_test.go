@@ -13,19 +13,19 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// mockPDSender is a testify mock for alertmanager.PDSender.
-type mockPDSender struct {
+// mockSender is a testify mock for alertmanager.PDSender.
+type mockSender struct {
 	mock.Mock
 }
 
-func (m *mockPDSender) Send(ctx context.Context, event alertmanager.Event) error {
+func (m *mockSender) Send(ctx context.Context, event alertmanager.Event) error {
 	args := m.Called(ctx, event)
 	return args.Error(0)
 }
 
 type AlertManagerTestSuite struct {
 	suite.Suite
-	pd  *mockPDSender
+	pd  *mockSender
 	svc *alertmanager.AlertManager
 }
 
@@ -34,7 +34,7 @@ func TestAlertManager(t *testing.T) {
 }
 
 func (s *AlertManagerTestSuite) setupManager() {
-	s.pd = new(mockPDSender)
+	s.pd = new(mockSender)
 	s.svc = alertmanager.New(s.pd, log.NewNoop())
 }
 
@@ -64,17 +64,16 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 		}
 
 		s.pd.On("Send", ctx, mock.MatchedBy(func(e alertmanager.Event) bool {
-			return e.RoutingKey == adminTeam &&
+			return e.Team == adminTeam &&
 				e.Severity == "warning" &&
-				e.EventAction == "trigger" &&
 				strings.Contains(e.Summary, "2 drifted grant(s)") &&
 				strings.Contains(e.Summary, "2 recreated") &&
 				strings.Contains(e.Summary, "0 failed")
 		})).Return(nil).Once()
 
-		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues, OnSuccessSeverity: "warning"})
+		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues, OnSuccessSeverity: "warning"})
 
-		s.Nil(errs)
+		s.Nil(err)
 		s.pd.AssertExpectations(s.T())
 	})
 
@@ -98,9 +97,9 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 				strings.Contains(e.Summary, "2 critical bot(s)")
 		})).Return(nil).Once()
 
-		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
+		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
-		s.Nil(errs)
+		s.Nil(err)
 		s.pd.AssertExpectations(s.T())
 	})
 
@@ -117,7 +116,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 		}
 
 		s.pd.On("Send", ctx, mock.MatchedBy(func(e alertmanager.Event) bool {
-			accounts, ok := e.CustomDetails["accounts"].([]map[string]interface{})
+			accounts, ok := e.Data["accounts"].([]map[string]interface{})
 			if !ok || len(accounts) != 1 {
 				return false
 			}
@@ -127,9 +126,9 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 				grants[0]["remediation_error"] == remediationErr
 		})).Return(nil).Once()
 
-		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
+		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
-		s.Nil(errs)
+		s.Nil(err)
 		s.pd.AssertExpectations(s.T())
 	})
 
@@ -144,7 +143,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 		}
 
 		s.pd.On("Send", ctx, mock.MatchedBy(func(e alertmanager.Event) bool {
-			accounts, ok := e.CustomDetails["accounts"].([]map[string]interface{})
+			accounts, ok := e.Data["accounts"].([]map[string]interface{})
 			if !ok || len(accounts) != 1 {
 				return false
 			}
@@ -156,9 +155,9 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 			return ok && resourceStr == resource1.URN
 		})).Return(nil).Once()
 
-		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
+		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
-		s.Nil(errs)
+		s.Nil(err)
 		s.pd.AssertExpectations(s.T())
 	})
 
@@ -172,10 +171,9 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 
 		s.pd.On("Send", ctx, mock.Anything).Return(pdErr).Once()
 
-		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
+		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
-		s.Require().Len(errs, 1)
-		s.ErrorIs(errs[0], pdErr)
+		s.ErrorIs(err, pdErr)
 		s.pd.AssertExpectations(s.T())
 	})
 
@@ -195,9 +193,9 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 				strings.Contains(e.Summary, "1 failed")
 		})).Return(nil).Once()
 
-		errs := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
+		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
-		s.Nil(errs)
+		s.Nil(err)
 		s.pd.AssertExpectations(s.T())
 	})
 }
