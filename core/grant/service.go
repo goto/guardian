@@ -10,19 +10,29 @@ import (
 
 	"github.com/bearaujus/bjson"
 	"github.com/go-playground/validator/v10"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
 	slicesUtil "github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/plugins/notifiers"
+	"github.com/goto/guardian/plugins/notifiers/alertmanager"
 	"github.com/goto/guardian/utils"
 )
 
 const (
-	AuditKeyRevoke  = "grant.revoke"
-	AuditKeyUpdate  = "grant.update"
-	AuditKeyRestore = "grant.restore"
+	AuditKeyRevoke          = "grant.revoke"
+	AuditKeyUpdate          = "grant.update"
+	AuditKeyRestore         = "grant.restore"
+	AuditKeyDriftRemediaton = "grant.drift_remediation"
+
+	// guardianProviderType is the provider type for Guardian-managed resources (e.g. packages).
+	guardianProviderType                     = "guardian"
+	guardianGroupTypePackageUser             = "package_user"
+	guardianGroupTypePackageAccessBotRAMRole = "package_access_bot_ram_role"
+	guardianGroupTypePackageAccessBotRAMUser = "package_access_bot_ram_user"
 )
 
 //go:generate mockery --name=repository --exported --with-expecter
@@ -48,6 +58,7 @@ type providerService interface {
 	GetByID(context.Context, string) (*domain.Provider, error)
 	GrantAccess(context.Context, domain.Grant) error
 	RevokeAccess(context.Context, domain.Grant) error
+	Find(context.Context, domain.ListProvidersFilter) ([]*domain.Provider, error)
 	ListAccess(context.Context, domain.Provider, []*domain.Resource) (domain.MapResourceAccess, error)
 	ListActivities(context.Context, domain.Provider, domain.ListActivitiesFilter) ([]*domain.Activity, error)
 	CorrelateGrantActivities(context.Context, domain.Provider, []*domain.Grant, []*domain.Activity) error
@@ -68,6 +79,11 @@ type notifier interface {
 	notifiers.Client
 }
 
+//go:generate mockery --name=alertManager --exported --with-expecter
+type alertManager interface {
+	NotifyDriftCheck(ctx context.Context, req alertmanager.NotifyDriftCheckRequest) []error
+}
+
 type grantCreation struct {
 	AppealStatus string `validate:"required,eq=approved"`
 	AccountID    string `validate:"required"`
@@ -81,10 +97,11 @@ type Service struct {
 	providerService providerService
 	resourceService resourceService
 
-	notifier    notifier
-	validator   *validator.Validate
-	logger      log.Logger
-	auditLogger auditLogger
+	notifier     notifier
+	alertManager alertManager
+	validator    *validator.Validate
+	logger       log.Logger
+	auditLogger  auditLogger
 }
 
 type ServiceDeps struct {
@@ -92,10 +109,11 @@ type ServiceDeps struct {
 	ProviderService providerService
 	ResourceService resourceService
 
-	Notifier    notifier
-	Validator   *validator.Validate
-	Logger      log.Logger
-	AuditLogger auditLogger
+	Notifier     notifier
+	AlertManager alertManager
+	Validator    *validator.Validate
+	Logger       log.Logger
+	AuditLogger  auditLogger
 }
 
 func NewService(deps ServiceDeps) *Service {
@@ -104,10 +122,11 @@ func NewService(deps ServiceDeps) *Service {
 		providerService: deps.ProviderService,
 		resourceService: deps.ResourceService,
 
-		notifier:    deps.Notifier,
-		validator:   deps.Validator,
-		logger:      deps.Logger,
-		auditLogger: deps.AuditLogger,
+		notifier:     deps.Notifier,
+		alertManager: deps.AlertManager,
+		validator:    deps.Validator,
+		logger:       deps.Logger,
+		auditLogger:  deps.AuditLogger,
 	}
 }
 
@@ -988,4 +1007,310 @@ func (s *Service) ListUserRoles(ctx context.Context, owner string) ([]string, er
 		return nil, ErrEmptyOwner
 	}
 	return s.repo.ListUserRoles(ctx, owner)
+}
+
+// GrantDriftCheck orchestrates drift detection, remediation, and alerting
+// for all managed bot accounts.
+// A grant is "drifted" when Guardian records it as active but the provider no longer has the access.
+// All findings are sent as a single summary alert to adminTeam.
+func (s *Service) GrantDriftCheck(ctx context.Context, req domain.GrantDriftCheckRequest) error {
+	drifted, err := s.detectDriftedGrants(ctx, req.BotAccountIDs, req.ProviderTypes)
+	if err != nil {
+		return fmt.Errorf("detecting drifted grants: %w", err)
+	}
+
+	if len(drifted) == 0 {
+		s.logger.Info(ctx, "no drifted grants found")
+		return nil
+	}
+
+	if req.DryRun {
+		s.logger.Info(ctx, "drifted grants detected (dry run mode, no remediation will be performed)", "drifted_grants", len(drifted))
+		return nil
+	}
+
+	issues := s.remediateDriftedGrants(ctx, drifted)
+
+	s.logger.Info(ctx, "grant drift check complete",
+		"drifted_grants", len(drifted),
+		"issues_found", len(issues),
+	)
+
+	if len(issues) == 0 {
+		return nil
+	}
+
+	if errs := s.alertManager.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{
+		AdminTeam:         req.AdminTeam,
+		Issues:            issues,
+		DryRun:            !req.AlertingEnabled,
+		OnFailureSeverity: req.OnFailureSeverity,
+		OnSuccessSeverity: req.OnSuccessSeverity,
+	}); len(errs) > 0 {
+		for _, e := range errs {
+			s.logger.Error(ctx, "pagerduty drift notification failed", "error", e)
+		}
+	}
+
+	return nil
+}
+
+// remediateDriftedGrants attempts to recreate each drifted grant in the provider,
+// groups the results by team, and returns the issues map ready for alerting
+func (s *Service) remediateDriftedGrants(ctx context.Context, drifted []domain.Grant) []domain.GrantDriftIssue {
+	issues := make([]domain.GrantDriftIssue, 0, len(drifted))
+	for _, g := range drifted {
+		issue := s.remediateDriftedGrant(ctx, g)
+		issues = append(issues, issue)
+	}
+	return issues
+}
+
+// remediateDriftedGrant attempts to recreate an active grant to the provider
+func (s *Service) remediateDriftedGrant(ctx context.Context, g domain.Grant) domain.GrantDriftIssue {
+	issue := domain.GrantDriftIssue{
+		AccountID: g.AccountID,
+		Grant:     &g,
+	}
+
+	remediationStatus := "unknown"
+	if err := s.providerService.GrantAccess(ctx, g); err != nil {
+		s.logger.Error(ctx, "drift remediation failed: could not recreate grant in provider",
+			"grant_id", g.ID,
+			"account_id", g.AccountID,
+			"error", err,
+		)
+		issue.RemediationError = err.Error()
+		remediationStatus = "failed"
+	} else {
+		s.logger.Info(ctx, "drift remediation succeeded: grant recreated in provider",
+			"grant_id", g.ID,
+			"account_id", g.AccountID,
+		)
+		remediationStatus = "recreated"
+	}
+
+	go func() {
+		auditCtx := context.WithoutCancel(ctx)
+		auditData := map[string]interface{}{
+			"grant_id":   g.ID,
+			"account_id": g.AccountID,
+		}
+		if remediationStatus == "failed" {
+			auditData["error"] = issue.RemediationError
+		}
+		if err := s.auditLogger.Log(auditCtx, AuditKeyDriftRemediaton, auditData); err != nil {
+			s.logger.Error(ctx, "failed to record drift remediation audit log", "error", err)
+		}
+
+		// send metrics for monitoring drift remediation outcomes
+		metricDriftRemediation.Add(ctx, 1,
+			metric.WithAttributes(
+				attribute.String("status", remediationStatus),
+				attribute.String("provider_urn", g.Resource.ProviderURN),
+				attribute.String("resource_urn", g.Resource.URN),
+				attribute.String("account_id", g.AccountID),
+			),
+		)
+	}()
+
+	return issue
+}
+
+// detectDriftedGrants returns active grants (filtered to botAccountIDs and providerTypes)
+// that are present in Guardian but no longer present in the provider.
+func (s *Service) detectDriftedGrants(ctx context.Context, botAccountIDs []string, providerTypes []string) ([]domain.Grant, error) {
+	activeGrants, err := s.prepareActiveGrants(ctx, botAccountIDs, providerTypes)
+	if err != nil {
+		return nil, fmt.Errorf("preparing active grants: %w", err)
+	}
+	if len(activeGrants) == 0 {
+		s.logger.Info(ctx, "no active grants found for drift check")
+		return nil, nil
+	}
+
+	providerURNMap := make(map[string]struct{})
+	for _, g := range activeGrants {
+		// get the provider urns
+		if g.Resource == nil {
+			continue
+		}
+		providerURNMap[g.Resource.ProviderURN] = struct{}{}
+	}
+
+	providerURNs := make([]string, 0, len(providerURNMap))
+	for urn := range providerURNMap {
+		providerURNs = append(providerURNs, urn)
+	}
+
+	providers, err := s.providerService.Find(ctx, domain.ListProvidersFilter{
+		Types: providerTypes,
+		URNs:  providerURNs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("finding providers: %w", err)
+	}
+	if len(providers) == 0 {
+		s.logger.Info(ctx, "no providers found for drift check", "provider_types", providerTypes)
+		return nil, nil
+	}
+
+	activeGrantsMap := buildActiveGrantsMap(activeGrants)
+	for _, provider := range providers {
+		// As we confirm access in each provider, confirmed grants are deleted from activeGrantsMap
+		s.reconcileProviderAccess(ctx, provider, activeGrantsMap)
+	}
+
+	// What remains here will be the drifted grants
+	drifted := activeGrantsMap.Flatten()
+
+	s.logger.Info(ctx, "drift detection complete",
+		"active_grants_checked", len(activeGrants),
+		"drifted_grants_found", len(drifted),
+	)
+	return drifted, nil
+}
+
+func (s *Service) prepareActiveGrants(ctx context.Context, botAccountIDs []string, providerTypes []string) ([]domain.Grant, error) {
+	// fetch direct ram bot grants first
+	activeGrants, err := s.repo.List(ctx, domain.ListGrantsFilter{
+		Statuses:      []string{string(domain.GrantStatusActive)},
+		AccountIDs:    botAccountIDs,
+		ProviderTypes: providerTypes,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing active grants: %w", err)
+	}
+
+	// then fetch package grants the bot accounts are part of
+	packageActiveGrants, err := s.fetchPackageGrants(ctx, botAccountIDs, providerTypes)
+	if err != nil {
+		return nil, fmt.Errorf("fetching package grants: %w", err)
+	}
+	activeGrants = append(activeGrants, packageActiveGrants...)
+
+	return activeGrants, nil
+}
+
+// buildActiveGrantsMap indexes active grants as [resourceURN][accountSig][permissionsKey] → *Grant.
+// Grants without a resource are skipped.
+func buildActiveGrantsMap(grants []domain.Grant) domain.MapGrantByResourceAccountPermission {
+	m := domain.MapGrantByResourceAccountPermission{}
+	for i := range grants {
+		g := &grants[i]
+		if g.Resource == nil {
+			continue
+		}
+		m.AddEntry(g)
+	}
+	return m
+}
+
+// reconcileProviderAccess fetches live access from a single provider and removes confirmed
+// grants from activeGrantsMap. Remaining ones will be the drifted grants
+func (s *Service) reconcileProviderAccess(ctx context.Context, provider *domain.Provider, activeGrantsMap domain.MapGrantByResourceAccountPermission) {
+	// directly fetch resource from the grants, deduplicating by URN
+	resourcesByURN := make(map[string]*domain.Resource)
+	for rURN := range activeGrantsMap {
+		for _, byAccount := range activeGrantsMap[rURN] {
+			for _, g := range byAccount {
+				if g.Resource != nil && g.Resource.ProviderURN == provider.URN {
+					resourcesByURN[rURN] = g.Resource
+				}
+			}
+		}
+	}
+	resources := make([]*domain.Resource, 0, len(resourcesByURN))
+	for _, r := range resourcesByURN {
+		resources = append(resources, r)
+	}
+
+	resourceAccess, err := s.providerService.ListAccess(ctx, *provider, resources)
+	if err != nil {
+		s.logger.Error(ctx, "failed to fetch access for provider, skipping", "provider_urn", provider.URN, "error", err)
+		return
+	}
+
+	resourceConfigs := make(map[string]*domain.ResourceConfig, len(provider.Config.Resources))
+	for _, rc := range provider.Config.Resources {
+		resourceConfigs[rc.Type] = rc
+	}
+	resourcesMap := make(map[string]*domain.Resource, len(resources))
+	for _, r := range resources {
+		resourcesMap[r.URN] = r
+	}
+
+	for rURN, entries := range resourceAccess {
+		resource, ok := resourcesMap[rURN]
+		if !ok {
+			continue
+		}
+		for accountSig, accountEntries := range groupAccessEntriesByAccount(entries) {
+			providerGrants := accessEntriesToGrants(accountEntries, *resource)
+			if rc, ok := resourceConfigs[resource.Type]; ok {
+				providerGrants = reduceGrantsByProviderRole(*rc, providerGrants)
+			}
+			for _, g := range providerGrants {
+				activeGrantsMap.RemoveByPermission(rURN, accountSig, g.PermissionsKey())
+			}
+		}
+	}
+}
+
+// accessEntriesToGrants converts access entries to grants for a given resource.
+func accessEntriesToGrants(entries []domain.AccessEntry, resource domain.Resource) []*domain.Grant {
+	grants := make([]*domain.Grant, 0, len(entries))
+	for _, ae := range entries {
+		g := ae.ToGrant(resource)
+		grants = append(grants, &g)
+	}
+	return grants
+}
+
+func (s *Service) fetchPackageGrants(ctx context.Context, botAccountIDs []string, providerTypes []string) ([]domain.Grant, error) {
+	// fetch all active package membership of specified bot accounts.
+	packageMembershipGrants, err := s.repo.List(ctx, domain.ListGrantsFilter{
+		Statuses:      []string{string(domain.GrantStatusActive)},
+		AccountIDs:    botAccountIDs,
+		ProviderTypes: []string{guardianProviderType},
+		GroupTypes:    []string{guardianGroupTypePackageUser},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing active package grants: %w", err)
+	}
+	if len(packageMembershipGrants) == 0 {
+		s.logger.Info(ctx, "no active package grants found for drift check")
+		return nil, nil
+	}
+
+	// for each package membership, fetch all the active grants
+	groupIDMap := make(map[string]struct{})
+	for _, pg := range packageMembershipGrants {
+		if pg.Resource == nil {
+			continue
+		}
+		groupIDMap[pg.Resource.ID] = struct{}{}
+	}
+	groupIDs := make([]string, 0, len(groupIDMap))
+	for groupID := range groupIDMap {
+		groupIDs = append(groupIDs, groupID)
+	}
+
+	botAccessPackageGrants, err := s.repo.List(ctx, domain.ListGrantsFilter{
+		Statuses:      []string{string(domain.GrantStatusActive)},
+		ProviderTypes: providerTypes,
+		GroupIDs:      groupIDs,
+		GroupTypes: []string{
+			guardianGroupTypePackageAccessBotRAMRole,
+			guardianGroupTypePackageAccessBotRAMUser,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing package access grants: %w", err)
+	}
+	if len(botAccessPackageGrants) == 0 {
+		return nil, nil
+	}
+
+	return botAccessPackageGrants, nil
 }

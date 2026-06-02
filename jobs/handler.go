@@ -18,6 +18,7 @@ type grantService interface {
 	BulkRevoke(ctx context.Context, filter domain.RevokeGrantsFilter, actor, reason string) ([]*domain.Grant, error)
 	Update(context.Context, *domain.GrantUpdate) (*domain.Grant, error)
 	DormancyCheck(context.Context, domain.DormancyCheckCriteria) error
+	GrantDriftCheck(context.Context, domain.GrantDriftCheckRequest) error
 }
 
 //go:generate mockery --name=providerService --exported

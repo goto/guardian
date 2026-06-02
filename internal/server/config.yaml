@@ -51,6 +51,15 @@ JOBS:
           URL: http://example.com/users/{user_id}
       USER_CRITERIA: '$user.is_active == true'
       REASSIGN_OWNERSHIP_TO: '$user.manager_email'
+  GRANT_DRIFT_CHECK:
+    CONFIG:
+      PROVIDER_TYPES:
+        - sample_provider
+      BOT_ACCOUNT_IDS:
+        - bot_account_id_1
+        - bot_account_id_2
+      ADMIN_TEAM: "admin_team_name"
+      DRY_RUN: true
 TELEMETRY:
   ENABLED: true
   SERVICE_NAME: "guardian"

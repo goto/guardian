@@ -752,3 +752,220 @@ func odpsShouldRetry(ctx context.Context, err error) bool {
 		return false
 	}
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// List Access
+// ---------------------------------------------------------------------------------------------------------------------
+
+func inferAccountType(member string) string {
+	if strings.Contains(member, ":role/") {
+		return accountTypeRAMRole
+	}
+	return accountTypeRAMUser
+}
+
+func (p *provider) listResourceAccess(ctx context.Context, overrideRAMRole string, pc *domain.ProviderConfig, resource *domain.Resource) ([]domain.AccessEntry, error) {
+	switch resource.Type {
+	case resourceTypeProject:
+		return p.listProjectAccess(ctx, overrideRAMRole, pc, resource.URN)
+	case resourceTypeSchema:
+		parts := strings.SplitN(resource.URN, ".", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid schema URN %q: expected project.schema", resource.URN)
+		}
+		return p.listSchemaAccess(ctx, overrideRAMRole, pc, parts[0], parts[1])
+	case resourceTypeTable:
+		parts := strings.SplitN(resource.URN, ".", 3)
+		if len(parts) != 3 {
+			return nil, fmt.Errorf("invalid table URN %q: expected project.schema.table", resource.URN)
+		}
+		return p.listTableAccess(ctx, overrideRAMRole, pc, parts[0], parts[1], parts[2])
+	default:
+		return nil, fmt.Errorf("unsupported resource type: %s", resource.Type)
+	}
+}
+
+func (p *provider) listProjectAccess(ctx context.Context, overrideRAMRole string, pc *domain.ProviderConfig, project string) ([]domain.AccessEntry, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("listing project access for %q: %w", project, err)
+	}
+
+	odpsClient, err := p.getOdpsClient(pc, overrideRAMRole)
+	if err != nil {
+		return nil, fmt.Errorf("listing project access for %q: %w", project, err)
+	}
+
+	invoker := odpsClient.Project(project).SecurityManager()
+
+	// LIST USERS returns the set of RAM users added to the project via ADD USER.
+	// Response format: {"Users": ["RAM$accId:userName", ...]}
+	rawUsers, err := odpsExecuteQueryOnSecurityManager(ctx, invoker, "LIST USERS;")
+	if err != nil {
+		var restErr restclient.HttpError
+		if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
+			return nil, fmt.Errorf("listing project users for %q: %s", project, restErr.ErrorMessage.Message)
+		}
+		return nil, fmt.Errorf("listing project users for %q: %w", project, err)
+	}
+
+	var listUsersResponse []string
+	if err = json.Unmarshal([]byte(rawUsers), &listUsersResponse); err != nil {
+		return nil, fmt.Errorf("listing project access for %q: failed to parse users response: %w", project, err)
+	}
+
+	type userGrants struct {
+		userID string
+		roles  []string
+	}
+
+	var mu sync.Mutex
+	var errW error
+	results := make([]userGrants, 0, len(listUsersResponse))
+	w := pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
+	defer w.Shutdown()
+
+	for i := range listUsersResponse {
+		uid := strings.TrimSpace(listUsersResponse[i])
+		if uid == "" {
+			continue
+		}
+		w.Do(func() error {
+			rawGrants, err := odpsExecuteQueryOnSecurityManager(ctx, invoker, fmt.Sprintf("SHOW GRANTS FOR `%s`;", uid))
+			if err != nil {
+				var restErr restclient.HttpError
+				if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
+					return fmt.Errorf("listing grants for %q in project %q: %s", uid, project, restErr.ErrorMessage.Message)
+				}
+				return fmt.Errorf("listing grants for %q in project %q: %w", uid, project, err)
+			}
+			type grantsResponse struct {
+				Roles []string `json:"Roles"`
+			}
+			var grantsData grantsResponse
+			if err = json.Unmarshal([]byte(rawGrants), &grantsData); err != nil {
+				return fmt.Errorf("parsing grants for %q in project %q: %w", uid, project, err)
+			}
+			mu.Lock()
+			results = append(results, userGrants{userID: uid, roles: grantsData.Roles})
+			mu.Unlock()
+			return nil
+		})
+	}
+	w.Wait()
+	if errW != nil {
+		return nil, errW
+	}
+
+	var entries []domain.AccessEntry
+	for _, ug := range results {
+		// Being listed as a project user means the ADD USER grant was applied.
+		entries = append(entries, domain.AccessEntry{
+			AccountID:   ug.userID,
+			AccountType: inferAccountType(ug.userID),
+			Permission:  projectPermissionMember,
+		})
+		for _, role := range ug.roles {
+			entries = append(entries, domain.AccessEntry{
+				AccountID:   ug.userID,
+				AccountType: inferAccountType(ug.userID),
+				Permission:  role,
+			})
+		}
+	}
+	return entries, nil
+}
+
+func (p *provider) listSchemaAccess(ctx context.Context, overrideRAMRole string, pc *domain.ProviderConfig, project, schema string) ([]domain.AccessEntry, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("listing schema access for %q.%q: %w", project, schema, err)
+	}
+
+	client, err := p.getCatalogAPIsClient(pc, overrideRAMRole)
+	if err != nil {
+		return nil, fmt.Errorf("listing schema access for %q.%q: %w", project, schema, err)
+	}
+
+	binding, err := client.RoleBindingSchemaGetAll(ctx, &alicatalogapis.RoleBindingSchemaGetAllRequest{
+		Project: project,
+		Schema:  schema,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing schema access for %q.%q: %w", project, schema, err)
+	}
+
+	var entries []domain.AccessEntry
+	for _, b := range binding.Policy.Bindings {
+		for _, member := range b.Members {
+			member = strings.TrimSpace(member)
+			if member == "" {
+				continue
+			}
+			entries = append(entries, domain.AccessEntry{
+				AccountID:   member,
+				AccountType: inferAccountType(member),
+				Permission:  b.Role,
+			})
+		}
+	}
+	return entries, nil
+}
+
+func (p *provider) listTableAccess(ctx context.Context, overrideRAMRole string, pc *domain.ProviderConfig, project, schema, table string) ([]domain.AccessEntry, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("listing table access for %q.%q.%q: %w", project, schema, table, err)
+	}
+
+	odpsClient, err := p.getOdpsClient(pc, overrideRAMRole)
+	if err != nil {
+		return nil, fmt.Errorf("listing table access for %q.%q.%q: %w", project, schema, table, err)
+	}
+
+	var invoker = odpsClient.Project(project).SecurityManager()
+	var query = fmt.Sprintf("SHOW GRANTS ON TABLE `%s`.`%s`.`%s`;", project, schema, table)
+	rawData, err := odpsExecuteQueryOnSecurityManager(ctx, invoker, query)
+	if err != nil {
+		var restErr restclient.HttpError
+		if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
+			return nil, fmt.Errorf("listing table access for %q.%q.%q: %s", project, schema, table, restErr.ErrorMessage.Message)
+		}
+		return nil, fmt.Errorf("listing table access for %q.%q.%q: %w", project, schema, table, err)
+	}
+
+	type aclEntry struct {
+		Action    []string `json:"Action"`
+		Effect    string   `json:"Effect"`
+		Principal []string `json:"Principal"`
+	}
+	type tableGrantsResponse struct {
+		ACL map[string][]aclEntry `json:"ACL"`
+	}
+	var data tableGrantsResponse
+	if err = json.Unmarshal([]byte(rawData), &data); err != nil {
+		return nil, fmt.Errorf("listing table access for %q.%q.%q: failed to parse response: %w", project, schema, table, err)
+	}
+
+	var entries []domain.AccessEntry
+	for _, entry := range data.ACL[""] {
+		for _, principal := range entry.Principal {
+			// Principal format: "user/RAM$ACCOUNTID:ROLEORUSER(acs:odps:*:...)"
+			after, ok := strings.CutPrefix(principal, "user/")
+			if !ok {
+				continue
+			}
+			idx := strings.Index(after, "(")
+			if idx == -1 {
+				continue
+			}
+			accountID := after[:idx]
+			accountType := inferAccountType(accountID)
+			for _, action := range entry.Action {
+				entries = append(entries, domain.AccessEntry{
+					AccountID:   accountID,
+					AccountType: accountType,
+					Permission:  strings.ToUpper(action),
+				})
+			}
+		}
+	}
+	return entries, nil
+}

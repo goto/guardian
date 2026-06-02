@@ -352,3 +352,64 @@ func (c DormancyCheckCriteria) Validate() error {
 	}
 	return nil
 }
+
+type GrantDriftCheckRequest struct {
+	ProviderTypes []string
+	BotAccountIDs []string
+
+	DryRun            bool
+	AdminTeam         string
+	AlertingEnabled   bool
+	OnFailureSeverity string
+	OnSuccessSeverity string
+}
+
+type MapGrantByResourceAccountPermission map[string]map[string]map[string]*Grant
+
+// Flatten converts the nested three level map to a flat list of grants.
+func (m MapGrantByResourceAccountPermission) Flatten() []Grant {
+	var grants []Grant
+	for _, byAccount := range m {
+		for _, byPermission := range byAccount {
+			for _, g := range byPermission {
+				grants = append(grants, *g)
+			}
+		}
+	}
+	return grants
+}
+
+func (m MapGrantByResourceAccountPermission) AddEntry(grant *Grant) {
+	rURN := grant.Resource.URN
+	accountSig := accountSignature(grant.AccountType, grant.AccountID)
+	if m[rURN] == nil {
+		m[rURN] = map[string]map[string]*Grant{}
+	}
+	if m[rURN][accountSig] == nil {
+		m[rURN][accountSig] = map[string]*Grant{}
+	}
+	m[rURN][accountSig][grant.PermissionsKey()] = grant
+}
+
+func accountSignature(accountType, accountID string) string {
+	return fmt.Sprintf("%s:%s", accountType, accountID)
+}
+
+// Remove removes a matching grant from the map
+func (m MapGrantByResourceAccountPermission) RemoveByPermission(resourceURN, accountSig, permissionKey string) {
+	if m[resourceURN] != nil && m[resourceURN][accountSig] != nil {
+		delete(m[resourceURN][accountSig], permissionKey)
+		if len(m[resourceURN][accountSig]) == 0 {
+			delete(m[resourceURN], accountSig)
+		}
+		if len(m[resourceURN]) == 0 {
+			delete(m, resourceURN)
+		}
+	}
+}
+
+type GrantDriftIssue struct {
+	AccountID        string
+	Grant            *Grant
+	RemediationError string // empty = remediation succeeded
+}
