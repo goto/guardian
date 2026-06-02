@@ -47,7 +47,7 @@ func (c *PDClient) Send(ctx context.Context, event Event) error {
 		},
 	}
 	if _, err := pagerduty.ManageEventWithContext(ctx, v2event); err != nil {
-		return fmt.Errorf("sending pagerduty event: %w", err)
+		return fmt.Errorf("error sending pagerduty event: %w", err)
 	}
 	return nil
 }
