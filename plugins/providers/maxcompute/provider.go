@@ -389,8 +389,7 @@ func (p *provider) getSchemaDefaultRoleName(pc *domain.ProviderConfig) (string, 
 func (p *provider) ListAccess(ctx context.Context, pc domain.ProviderConfig, resources []*domain.Resource) (domain.MapResourceAccess, error) {
 	result := make(domain.MapResourceAccess)
 	var mu sync.Mutex
-	var errW error
-	w := pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
+	w := pool.NewBWorkerPool(p.concurrency)
 	defer w.Shutdown()
 
 	for i := range resources {
@@ -398,7 +397,8 @@ func (p *provider) ListAccess(ctx context.Context, pc domain.ProviderConfig, res
 		w.Do(func() error {
 			entries, err := p.listResourceAccess(ctx, "", &pc, resource)
 			if err != nil {
-				return fmt.Errorf("listing access for %q: %w", resource.URN, err)
+				p.logger.Warn(ctx, fmt.Sprintf("listing access for %q: %v", resource.URN, err))
+				return nil
 			}
 			if len(entries) > 0 {
 				mu.Lock()
@@ -411,9 +411,6 @@ func (p *provider) ListAccess(ctx context.Context, pc domain.ProviderConfig, res
 	}
 
 	w.Wait()
-	if errW != nil {
-		return nil, errW
-	}
 	return result, nil
 }
 
