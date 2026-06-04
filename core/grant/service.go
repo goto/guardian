@@ -81,7 +81,7 @@ type notifier interface {
 
 //go:generate mockery --name=alertManager --exported --with-expecter
 type alertManager interface {
-	NotifyDriftCheck(ctx context.Context, req alertmanager.NotifyDriftCheckRequest) []error
+	NotifyDriftCheck(ctx context.Context, req alertmanager.NotifyDriftCheckRequest) error
 }
 
 type grantCreation struct {
@@ -1040,16 +1040,14 @@ func (s *Service) GrantDriftCheck(ctx context.Context, req domain.GrantDriftChec
 		return nil
 	}
 
-	if errs := s.alertManager.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{
+	if err := s.alertManager.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{
 		AdminTeam:         req.AdminTeam,
 		Issues:            issues,
 		DryRun:            !req.AlertingEnabled,
 		OnFailureSeverity: req.OnFailureSeverity,
 		OnSuccessSeverity: req.OnSuccessSeverity,
-	}); len(errs) > 0 {
-		for _, e := range errs {
-			s.logger.Error(ctx, "pagerduty drift notification failed", "error", e)
-		}
+	}); err != nil {
+		s.logger.Error(ctx, "pagerduty drift notification failed", "error", err)
 	}
 
 	return nil

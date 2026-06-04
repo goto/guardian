@@ -24,19 +24,19 @@ func (_m *AlertManager) EXPECT() *AlertManager_Expecter {
 }
 
 // NotifyDriftCheck provides a mock function with given fields: ctx, req
-func (_m *AlertManager) NotifyDriftCheck(ctx context.Context, req alertmanager.NotifyDriftCheckRequest) []error {
+func (_m *AlertManager) NotifyDriftCheck(ctx context.Context, req alertmanager.NotifyDriftCheckRequest) error {
 	ret := _m.Called(ctx, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for NotifyDriftCheck")
 	}
 
-	var r0 []error
-	if rf, ok := ret.Get(0).(func(context.Context, alertmanager.NotifyDriftCheckRequest) []error); ok {
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, alertmanager.NotifyDriftCheckRequest) error); ok {
 		r0 = rf(ctx, req)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]error)
+			r0 = ret.Get(0).(error)
 		}
 	}
 
@@ -62,7 +62,7 @@ func (_c *AlertManager_NotifyDriftCheck_Call) Run(run func(ctx context.Context, 
 	return _c
 }
 
-func (_c *AlertManager_NotifyDriftCheck_Call) Return(_a0 []error) *AlertManager_NotifyDriftCheck_Call {
+func (_c *AlertManager_NotifyDriftCheck_Call) Return(_a0 error) *AlertManager_NotifyDriftCheck_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
