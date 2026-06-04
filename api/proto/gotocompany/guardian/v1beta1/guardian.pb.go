@@ -4915,8 +4915,8 @@ type ListUserApprovalsRequest struct {
 	// - expired: the latest grant matching the appeal's (account_id, resource_id, role) has expiration_date < now.
 	// - expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted).
 	// - none: no previous grant exists for the triple, or the latest grant is permanent (expiration_date IS NULL).
-	PreviousGrantState string `protobuf:"bytes,66,opt,name=previous_grant_state,json=previousGrantState,proto3" json:"previous_grant_state,omitempty"`
-	// Number of days from now used to define the "expiring" window. Defaults to 7 when previous_grant_state=expiring and this is omitted or 0. Ignored otherwise.
+	PreviousGrantStates []string `protobuf:"bytes,66,rep,name=previous_grant_states,json=previousGrantStates,proto3" json:"previous_grant_states,omitempty"`
+	// Number of days from now used to define the "expiring" window. Defaults to 7 when previous_grant_states contains "expiring" and this is omitted or 0. Ignored otherwise.
 	ExpiringWithinDays uint32 `protobuf:"varint,67,opt,name=expiring_within_days,json=expiringWithinDays,proto3" json:"expiring_within_days,omitempty"`
 }
 
@@ -5400,11 +5400,11 @@ func (x *ListUserApprovalsRequest) GetEndExpirationDate() *timestamppb.Timestamp
 	return nil
 }
 
-func (x *ListUserApprovalsRequest) GetPreviousGrantState() string {
+func (x *ListUserApprovalsRequest) GetPreviousGrantStates() []string {
 	if x != nil {
-		return x.PreviousGrantState
+		return x.PreviousGrantStates
 	}
-	return ""
+	return nil
 }
 
 func (x *ListUserApprovalsRequest) GetExpiringWithinDays() uint32 {
@@ -5555,8 +5555,8 @@ type ListApprovalsRequest struct {
 	// - expired: the latest grant matching the appeal's (account_id, resource_id, role) has expiration_date < now.
 	// - expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted).
 	// - none: no previous grant exists for the triple, or the latest grant is permanent (expiration_date IS NULL).
-	PreviousGrantState string `protobuf:"bytes,66,opt,name=previous_grant_state,json=previousGrantState,proto3" json:"previous_grant_state,omitempty"`
-	// Number of days from now used to define the "expiring" window. Defaults to 7 when previous_grant_state=expiring and this is omitted or 0. Ignored otherwise.
+	PreviousGrantStates []string `protobuf:"bytes,66,rep,name=previous_grant_states,json=previousGrantStates,proto3" json:"previous_grant_states,omitempty"`
+	// Number of days from now used to define the "expiring" window. Defaults to 7 when previous_grant_states contains "expiring" and this is omitted or 0. Ignored otherwise.
 	ExpiringWithinDays uint32 `protobuf:"varint,67,opt,name=expiring_within_days,json=expiringWithinDays,proto3" json:"expiring_within_days,omitempty"`
 }
 
@@ -6047,11 +6047,11 @@ func (x *ListApprovalsRequest) GetEndExpirationDate() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *ListApprovalsRequest) GetPreviousGrantState() string {
+func (x *ListApprovalsRequest) GetPreviousGrantStates() []string {
 	if x != nil {
-		return x.PreviousGrantState
+		return x.PreviousGrantStates
 	}
-	return ""
+	return nil
 }
 
 func (x *ListApprovalsRequest) GetExpiringWithinDays() uint32 {

@@ -147,7 +147,7 @@ type ListApprovalsFilter struct {
 	WithPreviousGrant               bool                `mapstructure:"with_previous_grant" json:"with_previous_grant,omitempty" validate:"omitempty"`
 	StartExpirationDate             time.Time           `mapstructure:"start_expiration_date" json:"start_expiration_date,omitempty"`
 	EndExpirationDate               time.Time           `mapstructure:"end_expiration_date" json:"end_expiration_date,omitempty"`
-	PreviousGrantState              string              `mapstructure:"previous_grant_state" json:"previous_grant_state,omitempty" validate:"omitempty,oneof=expired expiring none"`
+	PreviousGrantStates             []string            `mapstructure:"previous_grant_states" json:"previous_grant_states,omitempty" validate:"omitempty,dive,oneof=expired expiring none"`
 	ExpiringWithinDays              uint32              `mapstructure:"expiring_within_days" json:"expiring_within_days,omitempty" validate:"omitempty"`
 }
 

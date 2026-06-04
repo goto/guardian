@@ -64,6 +64,8 @@ const latestGrantExpirationDateSubquery = `(
 	WHERE "g"."account_id" = "Appeal"."account_id"
 	  AND "g"."resource_id" = "Appeal"."resource_id"
 	  AND "g"."role" = "Appeal"."role"
+	  AND "g"."group_id" = "Appeal"."group_id"
+	  AND "g"."group_type" = "Appeal"."group_type"
 	  AND "g"."deleted_at" IS NULL
 	ORDER BY "g"."created_at" DESC LIMIT 1
 )`
@@ -558,21 +560,32 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		db = db.Where(sub, args...)
 	}
 
-	// Filter by previous-grant state. NULL from the subquery means either no previous grant
+	// Filter by previous-grant states. NULL from the subquery means either no previous grant
 	// exists at all or the latest grant is permanent (expiration_date IS NULL) — both fall
 	// under "none". For "expired" and "expiring", NULL is excluded automatically because any
 	// comparison with NULL is NULL (falsy) in WHERE.
-	switch filter.PreviousGrantState {
-	case domain.PreviousGrantStateExpired:
-		db = db.Where(latestGrantExpirationDateSubquery + ` < NOW()`)
-	case domain.PreviousGrantStateExpiring:
-		days := filter.ExpiringWithinDays
-		if days == 0 {
-			days = domain.DefaultExpiringWithinDays
+	// Multiple states are combined with OR so callers can request e.g. both "expired" and "expiring".
+	if len(filter.PreviousGrantStates) > 0 {
+		var orClauses []string
+		var stateArgs []interface{}
+		for _, state := range filter.PreviousGrantStates {
+			switch state {
+			case domain.PreviousGrantStateExpired:
+				orClauses = append(orClauses, latestGrantExpirationDateSubquery+` < NOW()`)
+			case domain.PreviousGrantStateExpiring:
+				days := filter.ExpiringWithinDays
+				if days == 0 {
+					days = domain.DefaultExpiringWithinDays
+				}
+				orClauses = append(orClauses, latestGrantExpirationDateSubquery+` BETWEEN NOW() AND NOW() + (? * INTERVAL '1 day')`)
+				stateArgs = append(stateArgs, days)
+			case domain.PreviousGrantStateNone:
+				orClauses = append(orClauses, latestGrantExpirationDateSubquery+` IS NULL`)
+			}
 		}
-		db = db.Where(latestGrantExpirationDateSubquery+` BETWEEN NOW() AND NOW() + (? * INTERVAL '1 day')`, days)
-	case domain.PreviousGrantStateNone:
-		db = db.Where(latestGrantExpirationDateSubquery + ` IS NULL`)
+		if len(orClauses) > 0 {
+			db = db.Where("("+strings.Join(orClauses, " OR ")+")", stateArgs...)
+		}
 	}
 
 	// Label filtering

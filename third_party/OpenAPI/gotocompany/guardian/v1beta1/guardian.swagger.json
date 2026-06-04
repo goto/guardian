@@ -1702,14 +1702,14 @@
           },
           {
             "name": "withPreviousGrant",
-            "description": "If true, populates previous_grant_expiration_date on each returned approval by looking up the latest grant matching the appeal's account_id, resource_id, and role.",
+            "description": "If true, populates previous_grant_expiration_date on each returned approval by looking up the latest grant matching the appeal's account_id, resource_id, role, group_id, and group_type.",
             "in": "query",
             "required": false,
             "type": "boolean"
           },
           {
             "name": "startExpirationDate",
-            "description": "When set together with end_expiration_date, only returns approvals whose previous_grant_expiration_date falls within [start_expiration_date, end_expiration_date]. Requires with_previous_grant=true.",
+            "description": "Filters approvals to those whose previous grant expiration date is >= start_expiration_date. Can be used alone or together with end_expiration_date for a range. Requires with_previous_grant=true.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -1717,22 +1717,26 @@
           },
           {
             "name": "endExpirationDate",
-            "description": "When set together with start_expiration_date, only returns approvals whose previous_grant_expiration_date falls within [start_expiration_date, end_expiration_date]. Requires with_previous_grant=true.",
+            "description": "Filters approvals to those whose previous grant expiration date is <= end_expiration_date. Can be used alone or together with start_expiration_date for a range. Requires with_previous_grant=true.",
             "in": "query",
             "required": false,
             "type": "string",
             "format": "date-time"
           },
           {
-            "name": "previousGrantState",
-            "description": "Filter approvals by the state of the previous grant. Valid values: \"expired\", \"expiring\", \"none\".\n- expired: the latest grant matching the appeal's (account_id, resource_id, role) has expiration_date \u003c now.\n- expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted).\n- none: no previous grant exists for the triple, or the latest grant is permanent (expiration_date IS NULL).",
+            "name": "previousGrantStates",
+            "description": "Filter approvals by the state of the previous grant. Multiple values are combined with OR. Valid values: \"expired\", \"expiring\", \"none\".\n- expired: the latest grant matching the appeal's (account_id, resource_id, role, group_id, group_type) has expiration_date \u003c now.\n- expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted).\n- none: no previous grant exists for the combination, or the latest grant is permanent (expiration_date IS NULL).",
             "in": "query",
             "required": false,
-            "type": "string"
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           },
           {
             "name": "expiringWithinDays",
-            "description": "Number of days from now used to define the \"expiring\" window. Defaults to 7 when previous_grant_state=expiring and this is omitted or 0. Ignored otherwise.",
+            "description": "Number of days from now used to define the \"expiring\" window. Defaults to 7 when previous_grant_states contains \"expiring\" and this is omitted or 0. Ignored otherwise.",
             "in": "query",
             "required": false,
             "type": "integer",
@@ -3542,14 +3546,14 @@
           },
           {
             "name": "withPreviousGrant",
-            "description": "If true, populates previous_grant_expiration_date on each returned approval by looking up the latest grant matching the appeal's account_id, resource_id, and role.",
+            "description": "If true, populates previous_grant_expiration_date on each returned approval by looking up the latest grant matching the appeal's account_id, resource_id, role, group_id, and group_type.",
             "in": "query",
             "required": false,
             "type": "boolean"
           },
           {
             "name": "startExpirationDate",
-            "description": "When set together with end_expiration_date, only returns approvals whose previous_grant_expiration_date falls within [start_expiration_date, end_expiration_date]. Requires with_previous_grant=true.",
+            "description": "Filters approvals to those whose previous grant expiration date is >= start_expiration_date. Can be used alone or together with end_expiration_date for a range. Requires with_previous_grant=true.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -3557,22 +3561,26 @@
           },
           {
             "name": "endExpirationDate",
-            "description": "When set together with start_expiration_date, only returns approvals whose previous_grant_expiration_date falls within [start_expiration_date, end_expiration_date]. Requires with_previous_grant=true.",
+            "description": "Filters approvals to those whose previous grant expiration date is <= end_expiration_date. Can be used alone or together with start_expiration_date for a range. Requires with_previous_grant=true.",
             "in": "query",
             "required": false,
             "type": "string",
             "format": "date-time"
           },
           {
-            "name": "previousGrantState",
-            "description": "Filter approvals by the state of the previous grant. Valid values: \"expired\", \"expiring\", \"none\".\n- expired: the latest grant matching the appeal's (account_id, resource_id, role) has expiration_date \u003c now.\n- expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted).\n- none: no previous grant exists for the triple, or the latest grant is permanent (expiration_date IS NULL).",
+            "name": "previousGrantStates",
+            "description": "Filter approvals by the state of the previous grant. Multiple values are combined with OR. Valid values: \"expired\", \"expiring\", \"none\".\n- expired: the latest grant matching the appeal's (account_id, resource_id, role, group_id, group_type) has expiration_date \u003c now.\n- expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted).\n- none: no previous grant exists for the combination, or the latest grant is permanent (expiration_date IS NULL).",
             "in": "query",
             "required": false,
-            "type": "string"
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           },
           {
             "name": "expiringWithinDays",
-            "description": "Number of days from now used to define the \"expiring\" window. Defaults to 7 when previous_grant_state=expiring and this is omitted or 0. Ignored otherwise.",
+            "description": "Number of days from now used to define the \"expiring\" window. Defaults to 7 when previous_grant_states contains \"expiring\" and this is omitted or 0. Ignored otherwise.",
             "in": "query",
             "required": false,
             "type": "integer",
@@ -3583,11 +3591,6 @@
           "GuardianService"
         ]
       }
-    },
-    "/v1beta1/me/approvals/summaries": {
-      "post": {
-        "operationId": "GuardianService_GenerateUserApprovalSummaries",
-        "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
