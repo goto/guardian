@@ -138,9 +138,10 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, req NotifyDriftChec
 		Summary:  summary,
 		DedupKey: dedupKey,
 		Data: map[string]interface{}{
-			"total_drifted":        totalDrifted,
-			"remediation_failures": totalFailures,
-			"accounts":             accounts,
+			"total_drifted":         fmt.Sprintf("%d", totalDrifted),
+			"remediation_successes": fmt.Sprintf("%d", recreated),
+			"remediation_failures":  fmt.Sprintf("%d", totalFailures),
+			"accounts":              accounts,
 		},
 		Team:     req.AdminTeam,
 		Severity: severity,
