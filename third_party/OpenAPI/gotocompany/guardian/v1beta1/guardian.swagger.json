@@ -1709,7 +1709,7 @@
           },
           {
             "name": "startExpirationDate",
-            "description": "Filters approvals to those whose previous grant expiration date is >= start_expiration_date. Can be used alone or together with end_expiration_date for a range. Requires with_previous_grant=true.",
+            "description": "Filters approvals to those whose previous grant expiration date is \u003e= start_expiration_date. Can be used alone or together with end_expiration_date for a range. Requires with_previous_grant=true.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -1717,7 +1717,7 @@
           },
           {
             "name": "endExpirationDate",
-            "description": "Filters approvals to those whose previous grant expiration date is <= end_expiration_date. Can be used alone or together with start_expiration_date for a range. Requires with_previous_grant=true.",
+            "description": "Filters approvals to those whose previous grant expiration date is \u003c= end_expiration_date. Can be used alone or together with start_expiration_date for a range. Requires with_previous_grant=true.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -3553,7 +3553,7 @@
           },
           {
             "name": "startExpirationDate",
-            "description": "Filters approvals to those whose previous grant expiration date is >= start_expiration_date. Can be used alone or together with end_expiration_date for a range. Requires with_previous_grant=true.",
+            "description": "Filters approvals to those whose previous grant expiration date is \u003e= start_expiration_date. Can be used alone or together with end_expiration_date for a range. Requires with_previous_grant=true.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -3561,7 +3561,7 @@
           },
           {
             "name": "endExpirationDate",
-            "description": "Filters approvals to those whose previous grant expiration date is <= end_expiration_date. Can be used alone or together with start_expiration_date for a range. Requires with_previous_grant=true.",
+            "description": "Filters approvals to those whose previous grant expiration date is \u003c= end_expiration_date. Can be used alone or together with start_expiration_date for a range. Requires with_previous_grant=true.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -3591,6 +3591,11 @@
           "GuardianService"
         ]
       }
+    },
+    "/v1beta1/me/approvals/summaries": {
+      "post": {
+        "operationId": "GuardianService_GenerateUserApprovalSummaries",
+        "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
