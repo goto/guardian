@@ -14,6 +14,7 @@ type Client interface {
 	GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*domain.Role, error)
 	GetAccountTypes() []string
 	ListAccess(context.Context, domain.ProviderConfig, []*domain.Resource) (domain.MapResourceAccess, error)
+	ListAccessForUsers(context.Context, domain.ProviderConfig, []*domain.Resource, []string) (domain.MapResourceAccess, error)
 }
 
 type PermissionManager interface {

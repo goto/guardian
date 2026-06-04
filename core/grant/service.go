@@ -62,6 +62,7 @@ type providerService interface {
 	ListAccess(context.Context, domain.Provider, []*domain.Resource) (domain.MapResourceAccess, error)
 	ListActivities(context.Context, domain.Provider, domain.ListActivitiesFilter) ([]*domain.Activity, error)
 	CorrelateGrantActivities(context.Context, domain.Provider, []*domain.Grant, []*domain.Activity) error
+	ListAccessForUsers(context.Context, domain.Provider, []*domain.Resource, []string) (domain.MapResourceAccess, error)
 }
 
 //go:generate mockery --name=resourceService --exported --with-expecter
@@ -1209,11 +1210,13 @@ func buildActiveGrantsMap(grants []domain.Grant) domain.MapGrantByResourceAccoun
 func (s *Service) reconcileProviderAccess(ctx context.Context, provider *domain.Provider, activeGrantsMap domain.MapGrantByResourceAccountPermission) {
 	// directly fetch resource from the grants, deduplicating by URN
 	resourcesByURN := make(map[string]*domain.Resource)
+	uniqueAccountIDMap := make(map[string]struct{})
 	for rURN := range activeGrantsMap {
 		for _, byAccount := range activeGrantsMap[rURN] {
 			for _, g := range byAccount {
 				if g.Resource != nil && g.Resource.ProviderURN == provider.URN {
 					resourcesByURN[rURN] = g.Resource
+					uniqueAccountIDMap[g.AccountID] = struct{}{}
 				}
 			}
 		}
@@ -1222,8 +1225,12 @@ func (s *Service) reconcileProviderAccess(ctx context.Context, provider *domain.
 	for _, r := range resourcesByURN {
 		resources = append(resources, r)
 	}
+	uniqueAccountIDs := make([]string, 0, len(uniqueAccountIDMap))
+	for accountID := range uniqueAccountIDMap {
+		uniqueAccountIDs = append(uniqueAccountIDs, accountID)
+	}
 
-	resourceAccess, err := s.providerService.ListAccess(ctx, *provider, resources)
+	resourceAccess, err := s.providerService.ListAccessForUsers(ctx, *provider, resources, uniqueAccountIDs)
 	if err != nil {
 		s.logger.Error(ctx, "failed to fetch access for provider, skipping", "provider_urn", provider.URN, "error", err)
 		return
@@ -1253,6 +1260,8 @@ func (s *Service) reconcileProviderAccess(ctx context.Context, provider *domain.
 			}
 		}
 	}
+
+	s.logger.Info(ctx, "reconciled provider access", "provider_urn", provider.URN)
 }
 
 // accessEntriesToGrants converts access entries to grants for a given resource.
