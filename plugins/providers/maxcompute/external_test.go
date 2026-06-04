@@ -7,7 +7,9 @@ import (
 	"testing"
 
 	"github.com/aliyun/aliyun-odps-go-sdk/odps"
+	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestODPSShouldRetry(t *testing.T) {
@@ -140,4 +142,29 @@ func tableNamesFromODPSTables(tables []*odps.Table) []string {
 		names = append(names, table.Name())
 	}
 	return names
+}
+
+func TestListAccess_PartialSuccess(t *testing.T) {
+	t.Run("errors per resource are swallowed and partial results are returned", func(t *testing.T) {
+		p := New("maxcompute", nil, &log.Noop{})
+
+		pc := domain.ProviderConfig{
+			Credentials: credentials{
+				AccessKeyID:     "dummy",
+				AccessKeySecret: "dummy",
+				RegionID:        "dummy",
+				ProjectName:     "dummy",
+			},
+		}
+		resources := []*domain.Resource{
+			{URN: "project-a", Type: "unsupported-type-1"},
+			{URN: "project-b", Type: "unsupported-type-2"},
+		}
+
+		result, err := p.ListAccess(context.Background(), pc, resources)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Empty(t, result)
+	})
 }

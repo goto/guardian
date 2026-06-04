@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	maxcompute "github.com/alibabacloud-go/maxcompute-20220104/client"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps"
@@ -23,6 +24,8 @@ import (
 	"github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
+
+const listProjectConcurrency = 10
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Project Metadata
@@ -742,6 +745,8 @@ func odpsShouldRetry(ctx context.Context, err error) bool {
 		return false
 	}
 	switch {
+	case strings.Contains(strings.ToLower(err.Error()), strings.ToLower("Request rejected by catalog server throttling")):
+		fallthrough
 	case strings.Contains(strings.ToLower(err.Error()), strings.ToLower("There is a concurrent statement conflict.")):
 		fallthrough
 	case strings.Contains(strings.ToLower(err.Error()), strings.ToLower("(Client.Timeout exceeded while awaiting headers)")):
@@ -821,7 +826,12 @@ func (p *provider) listProjectAccess(ctx context.Context, overrideRAMRole string
 	var mu sync.Mutex
 	var errW error
 	results := make([]userGrants, 0, len(listUsersResponse))
-	w := pool.NewBWorkerPool(p.concurrency, pool.WithError(&errW))
+	// start the worker with 3 retries and a startup stagger for handling
+	// throttling from ODPS
+	w := pool.NewBWorkerPool(listProjectConcurrency,
+		pool.WithError(&errW),
+		pool.WithRetry(3),
+		pool.WithStartupStagger(5*time.Second))
 	defer w.Shutdown()
 
 	for i := range listUsersResponse {
@@ -853,7 +863,7 @@ func (p *provider) listProjectAccess(ctx context.Context, overrideRAMRole string
 	}
 	w.Wait()
 	if errW != nil {
-		return nil, errW
+		p.logger.Warn(ctx, fmt.Sprintf("partial failure listing grants in project %q: %v", project, errW))
 	}
 
 	var entries []domain.AccessEntry
