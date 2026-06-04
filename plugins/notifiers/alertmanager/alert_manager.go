@@ -134,6 +134,7 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, req NotifyDriftChec
 		totalDrifted, totalAccounts, recreated, totalFailures)
 
 	event := Event{
+		Title:    GrantDriftCheckEvent,
 		Summary:  summary,
 		DedupKey: dedupKey,
 		Data: map[string]interface{}{

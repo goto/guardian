@@ -65,6 +65,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 
 		s.pd.On("Send", ctx, mock.MatchedBy(func(e alertmanager.Event) bool {
 			return e.Team == adminTeam &&
+				e.Title == alertmanager.GrantDriftCheckEvent &&
 				e.Severity == "warning" &&
 				strings.Contains(e.Summary, "2 drifted grant(s)") &&
 				strings.Contains(e.Summary, "2 recreated") &&
@@ -94,7 +95,8 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 
 		s.pd.On("Send", ctx, mock.MatchedBy(func(e alertmanager.Event) bool {
 			return strings.Contains(e.Summary, "1 failed") &&
-				strings.Contains(e.Summary, "2 critical bot(s)")
+				strings.Contains(e.Summary, "2 critical bot(s)") &&
+				e.Title == alertmanager.GrantDriftCheckEvent
 		})).Return(nil).Once()
 
 		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
@@ -123,7 +125,8 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 			grants, ok := accounts[0]["grants"].([]map[string]interface{})
 			return ok && len(grants) == 1 &&
 				grants[0]["remediation_status"] == "failed" &&
-				grants[0]["remediation_error"] == remediationErr
+				grants[0]["remediation_error"] == remediationErr &&
+				e.Title == alertmanager.GrantDriftCheckEvent
 		})).Return(nil).Once()
 
 		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
@@ -152,7 +155,8 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 				return false
 			}
 			resourceStr, ok := grants[0]["resource"].(string)
-			return ok && resourceStr == resource1.URN
+			return ok && resourceStr == resource1.URN &&
+				e.Title == alertmanager.GrantDriftCheckEvent
 		})).Return(nil).Once()
 
 		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
@@ -190,7 +194,8 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 			return strings.Contains(e.Summary, "3 drifted grant(s)") &&
 				strings.Contains(e.Summary, "3 critical bot(s)") &&
 				strings.Contains(e.Summary, "2 recreated") &&
-				strings.Contains(e.Summary, "1 failed")
+				strings.Contains(e.Summary, "1 failed") &&
+				e.Title == alertmanager.GrantDriftCheckEvent
 		})).Return(nil).Once()
 
 		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
