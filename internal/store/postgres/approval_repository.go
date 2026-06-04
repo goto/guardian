@@ -64,8 +64,8 @@ const latestGrantExpirationDateSubquery = `(
 	WHERE "g"."account_id" = "Appeal"."account_id"
 	  AND "g"."resource_id" = "Appeal"."resource_id"
 	  AND "g"."role" = "Appeal"."role"
-	  AND "g"."group_id" = "Appeal"."group_id"
-	  AND "g"."group_type" = "Appeal"."group_type"
+	  AND "g"."group_id" IS NOT DISTINCT FROM "Appeal"."group_id"
+	  AND "g"."group_type" IS NOT DISTINCT FROM "Appeal"."group_type"
 	  AND "g"."deleted_at" IS NULL
 	ORDER BY "g"."created_at" DESC LIMIT 1
 )`
