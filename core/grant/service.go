@@ -1096,6 +1096,7 @@ func (s *Service) remediateDriftedGrant(ctx context.Context, g domain.Grant) dom
 			attribute.String("resource_urn", g.Resource.URN),
 			attribute.String("account_id", g.AccountID),
 			attribute.String("grant_id", g.ID),
+			attribute.String("role", g.Role),
 		),
 	)
 
@@ -1162,6 +1163,18 @@ func (s *Service) detectDriftedGrants(ctx context.Context, botAccountIDs []strin
 
 	// What remains here will be the drifted grants
 	drifted := activeGrantsMap.Flatten()
+	// publish metric for drifted grants count
+	for _, g := range drifted {
+		metricDriftDetected.Get().Add(ctx, 1,
+			metric.WithAttributes(
+				attribute.String("provider_urn", g.Resource.ProviderURN),
+				attribute.String("resource_urn", g.Resource.URN),
+				attribute.String("account_id", g.AccountID),
+				attribute.String("grant_id", g.ID),
+				attribute.String("role", g.Role),
+			),
+		)
+	}
 
 	s.logger.Info(ctx, "drift detection complete",
 		"active_grants_checked", len(activeGrants),
