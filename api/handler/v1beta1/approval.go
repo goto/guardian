@@ -100,6 +100,11 @@ func (s *GRPCServer) ListUserApprovals(ctx context.Context, req *guardianv1beta1
 		LabelKeys:                       req.GetLabelKeys(),
 		SummaryLabels:                   req.GetSummaryLabels(),
 		SummaryLabelsV2:                 req.GetSummaryLabelsV2(),
+		WithPreviousGrant:               req.GetWithPreviousGrant(),
+		StartExpirationDate:             s.adapter.FromTimeProto(req.GetStartExpirationDate()),
+		EndExpirationDate:               s.adapter.FromTimeProto(req.GetEndExpirationDate()),
+		PreviousGrantStates:             req.GetPreviousGrantStates(),
+		ExpiringWithinDays:              req.GetExpiringWithinDays(),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)
@@ -193,6 +198,11 @@ func (s *GRPCServer) ListApprovals(ctx context.Context, req *guardianv1beta1.Lis
 		LabelKeys:                       req.GetLabelKeys(),
 		SummaryLabels:                   req.GetSummaryLabels(),
 		SummaryLabelsV2:                 req.GetSummaryLabelsV2(),
+		WithPreviousGrant:               req.GetWithPreviousGrant(),
+		StartExpirationDate:             s.adapter.FromTimeProto(req.GetStartExpirationDate()),
+		EndExpirationDate:               s.adapter.FromTimeProto(req.GetEndExpirationDate()),
+		PreviousGrantStates:             req.GetPreviousGrantStates(),
+		ExpiringWithinDays:              req.GetExpiringWithinDays(),
 	}
 
 	approvals, total, summary, err := s.listApprovals(ctx, filter)

@@ -15,6 +15,18 @@ const (
 	ApprovalStatusRejected = "rejected"
 )
 
+// PreviousGrantState values accepted by ListApprovalsFilter.PreviousGrantState. See the
+// applyApprovalsFilter implementation for the exact SQL semantics.
+const (
+	PreviousGrantStateExpired  = "expired"
+	PreviousGrantStateExpiring = "expiring"
+	PreviousGrantStateNone     = "none"
+
+	// DefaultExpiringWithinDays is the window used for previous_grant_state=expiring
+	// when expiring_within_days is omitted or zero.
+	DefaultExpiringWithinDays = 7
+)
+
 type Approval struct {
 	ID            string  `json:"id" yaml:"id"`
 	Name          string  `json:"name" yaml:"name"`
@@ -36,6 +48,8 @@ type Approval struct {
 
 	IsStale        bool `json:"is_stale,omitempty" yaml:"is_stale,omitempty"`
 	AppealRevision uint `json:"appeal_revision" yaml:"appeal_revision"`
+
+	PreviousGrantExpirationDate *time.Time `json:"previous_grant_expiration_date,omitempty" yaml:"previous_grant_expiration_date,omitempty"`
 
 	CreatedAt time.Time `json:"created_at,omitempty" yaml:"created_at,omitempty"`
 	UpdatedAt time.Time `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
@@ -130,6 +144,11 @@ type ListApprovalsFilter struct {
 	LabelKeys                       []string            `mapstructure:"label_keys" validate:"omitempty,min=1"`
 	SummaryLabels                   bool                `mapstructure:"summary_labels" json:"summary_labels,omitempty" validate:"omitempty"`
 	SummaryLabelsV2                 bool                `mapstructure:"summary_labels_v2" json:"summary_labels_v2,omitempty" validate:"omitempty"`
+	WithPreviousGrant               bool                `mapstructure:"with_previous_grant" json:"with_previous_grant,omitempty" validate:"omitempty"`
+	StartExpirationDate             time.Time           `mapstructure:"start_expiration_date" json:"start_expiration_date,omitempty"`
+	EndExpirationDate               time.Time           `mapstructure:"end_expiration_date" json:"end_expiration_date,omitempty"`
+	PreviousGrantStates             []string            `mapstructure:"previous_grant_states" json:"previous_grant_states,omitempty" validate:"omitempty,dive,oneof=expired expiring none"`
+	ExpiringWithinDays              uint32              `mapstructure:"expiring_within_days" json:"expiring_within_days,omitempty" validate:"omitempty"`
 }
 
 func (af ListApprovalsFilter) WithSummary() bool {
