@@ -45,26 +45,38 @@ func (r *Resource) Validate() error {
 }
 
 type ListResourcesFilter struct {
-	IDs           []string          `mapstructure:"ids" validate:"omitempty,min=1"`
-	IsDeleted     bool              `mapstructure:"is_deleted" validate:"omitempty"`
-	ProviderType  string            `mapstructure:"provider_type" validate:"omitempty"`
-	ProviderURN   string            `mapstructure:"provider_urn" validate:"omitempty"`
-	ProviderTypes []string          `mapstructure:"provider_types" validate:"omitempty"`
-	ProviderURNs  []string          `mapstructure:"provider_urns" validate:"omitempty"`
-	Name          string            `mapstructure:"name" validate:"omitempty"`
-	ResourceURN   string            `mapstructure:"urn" validate:"omitempty"`
-	ResourceType  string            `mapstructure:"type" validate:"omitempty"`
-	ResourceURNs  []string          `mapstructure:"urns" validate:"omitempty"`
-	ResourceTypes []string          `mapstructure:"types" validate:"omitempty"`
-	Details       map[string]string `mapstructure:"details"`
-	Size          uint32            `mapstructure:"size" validate:"omitempty"`
-	Offset        uint32            `mapstructure:"offset" validate:"omitempty"`
-	OrderBy       []string          `mapstructure:"order_by" validate:"omitempty"`
-	Q             string            `mapstructure:"q" validate:"omitempty"`
-	GroupIDs      []string          `mapstructure:"group_ids" validate:"omitempty"`
-	GroupTypes    []string          `mapstructure:"group_types" validate:"omitempty"`
-	GlobalURNs    []string          `mapstructure:"global_urns" validate:"omitempty"`
-	ParentIDs     []string          `mapstructure:"parent_ids" validate:"omitempty"`
+	IDs                      []string          `mapstructure:"ids" validate:"omitempty,min=1"`
+	IsDeleted                bool              `mapstructure:"is_deleted" validate:"omitempty"`
+	ProviderType             string            `mapstructure:"provider_type" validate:"omitempty"`
+	ProviderURN              string            `mapstructure:"provider_urn" validate:"omitempty"`
+	ProviderTypes            []string          `mapstructure:"provider_types" validate:"omitempty"`
+	ProviderURNs             []string          `mapstructure:"provider_urns" validate:"omitempty"`
+	ProviderUrnStartsWith    string            `mapstructure:"provider_urn_starts_with" json:"provider_urn_starts_with,omitempty" validate:"omitempty"`
+	ProviderUrnEndsWith      string            `mapstructure:"provider_urn_ends_with" json:"provider_urn_ends_with,omitempty" validate:"omitempty"`
+	ProviderUrnContains      string            `mapstructure:"provider_urn_contains" json:"provider_urn_contains,omitempty" validate:"omitempty"`
+	ProviderUrnNotStartsWith string            `mapstructure:"provider_urn_not_starts_with" json:"provider_urn_not_starts_with,omitempty" validate:"omitempty"`
+	ProviderUrnNotEndsWith   string            `mapstructure:"provider_urn_not_ends_with" json:"provider_urn_not_ends_with,omitempty" validate:"omitempty"`
+	ProviderUrnNotContains   string            `mapstructure:"provider_urn_not_contains" json:"provider_urn_not_contains,omitempty" validate:"omitempty"`
+	Name                     string            `mapstructure:"name" validate:"omitempty"`
+	ResourceURN              string            `mapstructure:"urn" validate:"omitempty"`
+	ResourceType             string            `mapstructure:"type" validate:"omitempty"`
+	ResourceURNs             []string          `mapstructure:"urns" validate:"omitempty"`
+	ResourceUrnStartsWith    string            `mapstructure:"urn_starts_with" json:"urn_starts_with,omitempty" validate:"omitempty"`
+	ResourceUrnEndsWith      string            `mapstructure:"urn_ends_with" json:"urn_ends_with,omitempty" validate:"omitempty"`
+	ResourceUrnContains      string            `mapstructure:"urn_contains" json:"urn_contains,omitempty" validate:"omitempty"`
+	ResourceUrnNotStartsWith string            `mapstructure:"urn_not_starts_with" json:"urn_not_starts_with,omitempty" validate:"omitempty"`
+	ResourceUrnNotEndsWith   string            `mapstructure:"urn_not_ends_with" json:"urn_not_ends_with,omitempty" validate:"omitempty"`
+	ResourceUrnNotContains   string            `mapstructure:"urn_not_contains" json:"urn_not_contains,omitempty" validate:"omitempty"`
+	ResourceTypes            []string          `mapstructure:"types" validate:"omitempty"`
+	Details                  map[string]string `mapstructure:"details"`
+	Size                     uint32            `mapstructure:"size" validate:"omitempty"`
+	Offset                   uint32            `mapstructure:"offset" validate:"omitempty"`
+	OrderBy                  []string          `mapstructure:"order_by" validate:"omitempty"`
+	Q                        string            `mapstructure:"q" validate:"omitempty"`
+	GroupIDs                 []string          `mapstructure:"group_ids" validate:"omitempty"`
+	GroupTypes               []string          `mapstructure:"group_types" validate:"omitempty"`
+	GlobalURNs               []string          `mapstructure:"global_urns" validate:"omitempty"`
+	ParentIDs                []string          `mapstructure:"parent_ids" validate:"omitempty"`
 }
 
 type Resources []*Resource

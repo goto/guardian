@@ -71,6 +71,19 @@ func (s *ResourceRepositoryTestSuite) TearDownSuite() {
 
 func (s *ResourceRepositoryTestSuite) TestFind() {
 	s.Run("should pass conditions based on filters", func() {
+		providerRepository := postgres.NewProviderRepository(s.store.DB())
+		for _, urn := range []string{
+			"provider_urn_test_secondary",
+			"provider_urn_alpha",
+			"provider_urn_beta",
+		} {
+			err := providerRepository.Create(context.Background(), &domain.Provider{
+				Type: s.dummyProvider.Type,
+				URN:  urn,
+			})
+			s.Require().NoError(err)
+		}
+
 		dummyResources := []*domain.Resource{
 			{
 				ProviderType: s.dummyProvider.Type,
@@ -86,7 +99,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 			},
 			{
 				ProviderType: s.dummyProvider.Type,
-				ProviderURN:  s.dummyProvider.URN,
+				ProviderURN:  "provider_urn_test_secondary",
 				Type:         "test_type",
 				URN:          "test_urn_2",
 				Name:         "test_name_2",
@@ -95,7 +108,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 			},
 			{
 				ProviderType: s.dummyProvider.Type,
-				ProviderURN:  s.dummyProvider.URN,
+				ProviderURN:  "provider_urn_alpha",
 				Type:         "test_type_2",
 				URN:          "test_exact_urn_match",
 				Name:         "test_exact_name_match",
@@ -104,7 +117,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 			},
 			{
 				ProviderType: s.dummyProvider.Type,
-				ProviderURN:  s.dummyProvider.URN,
+				ProviderURN:  "provider_urn_beta",
 				Type:         "test_type_2",
 				URN:          "test_exact_urn_match_2",
 				Name:         "test_exact_name_match_2",
@@ -170,7 +183,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				filters: domain.ListResourcesFilter{
 					ProviderURN: s.dummyProvider.URN,
 				},
-				expectedResult: dummyResources,
+				expectedResult: []*domain.Resource{dummyResources[0]},
 			},
 			{
 				name: "filter by urn",
@@ -178,6 +191,48 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 					ResourceURN: "test_urn_1",
 				},
 				expectedResult: []*domain.Resource{dummyResources[0]},
+			},
+			{
+				name: "filter by provider urn starts with",
+				filters: domain.ListResourcesFilter{
+					ProviderUrnStartsWith: "provider_urn_test",
+				},
+				expectedResult: []*domain.Resource{dummyResources[0], dummyResources[1]},
+			},
+			{
+				name: "filter by provider urn ends with",
+				filters: domain.ListResourcesFilter{
+					ProviderUrnEndsWith: "beta",
+				},
+				expectedResult: []*domain.Resource{dummyResources[3]},
+			},
+			{
+				name: "filter by provider urn not contains",
+				filters: domain.ListResourcesFilter{
+					ProviderUrnNotContains: "beta",
+				},
+				expectedResult: []*domain.Resource{dummyResources[0], dummyResources[1], dummyResources[2]},
+			},
+			{
+				name: "filter by urn starts with",
+				filters: domain.ListResourcesFilter{
+					ResourceUrnStartsWith: "test_exact_urn",
+				},
+				expectedResult: []*domain.Resource{dummyResources[2], dummyResources[3]},
+			},
+			{
+				name: "filter by urn ends with",
+				filters: domain.ListResourcesFilter{
+					ResourceUrnEndsWith: "match_2",
+				},
+				expectedResult: []*domain.Resource{dummyResources[3]},
+			},
+			{
+				name: "filter by urn not contains",
+				filters: domain.ListResourcesFilter{
+					ResourceUrnNotContains: "exact",
+				},
+				expectedResult: []*domain.Resource{dummyResources[0], dummyResources[1]},
 			},
 			{
 				name: "filter by details",
@@ -275,6 +330,17 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 	s.Run("should return error if filters validation returns an error", func() {
 		invalidFilters := domain.ListResourcesFilter{
 			IDs: []string{},
+		}
+		actualRecords, actualError := s.repository.Find(context.Background(), invalidFilters)
+
+		s.Error(actualError)
+		s.Nil(actualRecords)
+	})
+
+	s.Run("should return error when invalid urn filter combination is passed", func() {
+		invalidFilters := domain.ListResourcesFilter{
+			ResourceUrnStartsWith: "test",
+			ResourceUrnContains:   "urn",
 		}
 		actualRecords, actualError := s.repository.Find(context.Background(), invalidFilters)
 
