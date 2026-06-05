@@ -1089,13 +1089,13 @@ func (s *Service) remediateDriftedGrant(ctx context.Context, g domain.Grant) dom
 		remediationStatus = "recreated"
 	}
 
-	// Emit the metric on the main path so short-lived jobs do not exit before export.
 	metricDriftRemediation.Get().Add(ctx, 1,
 		metric.WithAttributes(
 			attribute.String("status", remediationStatus),
 			attribute.String("provider_urn", g.Resource.ProviderURN),
 			attribute.String("resource_urn", g.Resource.URN),
 			attribute.String("account_id", g.AccountID),
+			attribute.String("grant_id", g.ID),
 		),
 	)
 
