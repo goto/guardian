@@ -35,8 +35,8 @@ type Service struct {
 
 func NewService(deps ServiceDeps) *Service {
 	return &Service{
-		deps.Repository,
-		deps.PolicyService,
+		repo:          deps.Repository,
+		policyService: deps.PolicyService,
 	}
 }
 
