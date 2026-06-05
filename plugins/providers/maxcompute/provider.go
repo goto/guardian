@@ -414,6 +414,34 @@ func (p *provider) ListAccess(ctx context.Context, pc domain.ProviderConfig, res
 	return result, nil
 }
 
+func (p *provider) ListAccessForUsers(ctx context.Context, pc domain.ProviderConfig, resources []*domain.Resource, users []string) (domain.MapResourceAccess, error) {
+	result := make(domain.MapResourceAccess)
+	var mu sync.Mutex
+	w := pool.NewBWorkerPool(p.concurrency)
+	defer w.Shutdown()
+
+	for i := range resources {
+		resource := resources[i]
+		w.Do(func() error {
+			entries, err := p.listResourceAccessForUsers(ctx, "", &pc, resource, users)
+			if err != nil {
+				p.logger.Warn(ctx, fmt.Sprintf("listing access for %q: %v", resource.URN, err))
+				return nil
+			}
+			if len(entries) > 0 {
+				mu.Lock()
+				result[resource.URN] = entries
+				mu.Unlock()
+			}
+
+			return nil
+		})
+	}
+
+	w.Wait()
+	return result, nil
+}
+
 func getParametersFromGrant[T any](g domain.Grant, key string) (T, bool, error) {
 	var value T
 	if g.Appeal == nil {

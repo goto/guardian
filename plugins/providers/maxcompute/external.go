@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	maxcompute "github.com/alibabacloud-go/maxcompute-20220104/client"
 	"github.com/aliyun/aliyun-odps-go-sdk/odps"
@@ -24,8 +23,6 @@ import (
 	"github.com/goto/guardian/pkg/slices"
 	"github.com/goto/guardian/utils"
 )
-
-const listProjectConcurrency = 10
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Project Metadata
@@ -790,6 +787,31 @@ func (p *provider) listResourceAccess(ctx context.Context, overrideRAMRole strin
 	}
 }
 
+func (p *provider) listResourceAccessForUsers(ctx context.Context, overrideRAMRole string, pc *domain.ProviderConfig, resource *domain.Resource, users []string) ([]domain.AccessEntry, error) {
+	switch resource.Type {
+	case resourceTypeProject:
+		parts := strings.SplitN(resource.URN, ".", 1)
+		if len(parts) != 1 {
+			return nil, fmt.Errorf("invalid project URN %q: expected project", resource.URN)
+		}
+		return p.listProjectAccessForUsers(ctx, overrideRAMRole, pc, parts[0], users)
+	case resourceTypeSchema:
+		parts := strings.SplitN(resource.URN, ".", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid schema URN %q: expected project.schema", resource.URN)
+		}
+		return p.listSchemaAccess(ctx, overrideRAMRole, pc, parts[0], parts[1], users...)
+	case resourceTypeTable:
+		parts := strings.SplitN(resource.URN, ".", 3)
+		if len(parts) != 3 {
+			return nil, fmt.Errorf("invalid table URN %q: expected project.schema.table", resource.URN)
+		}
+		return p.listTableAccess(ctx, overrideRAMRole, pc, parts[0], parts[1], parts[2], users...)
+	default:
+		return nil, fmt.Errorf("unsupported resource type: %s", resource.Type)
+	}
+}
+
 func (p *provider) listProjectAccess(ctx context.Context, overrideRAMRole string, pc *domain.ProviderConfig, project string) ([]domain.AccessEntry, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("listing project access for %q: %w", project, err)
@@ -803,7 +825,7 @@ func (p *provider) listProjectAccess(ctx context.Context, overrideRAMRole string
 	invoker := odpsClient.Project(project).SecurityManager()
 
 	// LIST USERS returns the set of RAM users added to the project via ADD USER.
-	// Response format: {"Users": ["RAM$accId:userName", ...]}
+	// Response format: ["RAM$accId:userName", ...]
 	rawUsers, err := odpsExecuteQueryOnSecurityManager(ctx, invoker, "LIST USERS;")
 	if err != nil {
 		var restErr restclient.HttpError
@@ -818,24 +840,41 @@ func (p *provider) listProjectAccess(ctx context.Context, overrideRAMRole string
 		return nil, fmt.Errorf("listing project access for %q: failed to parse users response: %w", project, err)
 	}
 
+	entries, err := p.listProjectAccessForUsers(ctx, overrideRAMRole, pc, project, listUsersResponse)
+	if err != nil {
+		return nil, fmt.Errorf("listing project access for %q: %w", project, err)
+	}
+
+	return entries, nil
+}
+
+func (p *provider) listProjectAccessForUsers(ctx context.Context, overrideRAMRole string, pc *domain.ProviderConfig, project string, users []string) ([]domain.AccessEntry, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("listing project access for users in %q: %w", project, err)
+	}
+
+	odpsClient, err := p.getOdpsClient(pc, overrideRAMRole)
+	if err != nil {
+		return nil, fmt.Errorf("listing project access for users in %q: %w", project, err)
+	}
+
+	invoker := odpsClient.Project(project).SecurityManager()
+
 	type userGrants struct {
 		userID string
 		roles  []string
 	}
-
 	var mu sync.Mutex
-	var errW error
-	results := make([]userGrants, 0, len(listUsersResponse))
-	// start the worker with 3 retries and a startup stagger for handling
-	// throttling from ODPS
-	w := pool.NewBWorkerPool(listProjectConcurrency,
-		pool.WithError(&errW),
-		pool.WithRetry(3),
-		pool.WithStartupStagger(5*time.Second))
+	var errs []error
+	results := make([]userGrants, 0, len(users))
+	// start the worker with 3 retries to handle throttling errors
+	w := pool.NewBWorkerPool(p.concurrency,
+		pool.WithErrors(&errs),
+		pool.WithRetry(3))
 	defer w.Shutdown()
 
-	for i := range listUsersResponse {
-		uid := strings.TrimSpace(listUsersResponse[i])
+	for i := range users {
+		uid := strings.TrimSpace(users[i])
 		if uid == "" {
 			continue
 		}
@@ -862,13 +901,12 @@ func (p *provider) listProjectAccess(ctx context.Context, overrideRAMRole string
 		})
 	}
 	w.Wait()
-	if errW != nil {
-		p.logger.Warn(ctx, fmt.Sprintf("partial failure listing grants in project %q: %v", project, errW))
+	if len(errs) > 0 {
+		p.logger.Warn(ctx, fmt.Sprintf("partial failure listing grants for users in project %q: %v", project, errs))
 	}
 
 	var entries []domain.AccessEntry
 	for _, ug := range results {
-		// Being listed as a project user means the ADD USER grant was applied.
 		entries = append(entries, domain.AccessEntry{
 			AccountID:   ug.userID,
 			AccountType: inferAccountType(ug.userID),
@@ -885,7 +923,7 @@ func (p *provider) listProjectAccess(ctx context.Context, overrideRAMRole string
 	return entries, nil
 }
 
-func (p *provider) listSchemaAccess(ctx context.Context, overrideRAMRole string, pc *domain.ProviderConfig, project, schema string) ([]domain.AccessEntry, error) {
+func (p *provider) listSchemaAccess(ctx context.Context, overrideRAMRole string, pc *domain.ProviderConfig, project, schema string, users ...string) ([]domain.AccessEntry, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("listing schema access for %q.%q: %w", project, schema, err)
 	}
@@ -903,11 +941,17 @@ func (p *provider) listSchemaAccess(ctx context.Context, overrideRAMRole string,
 		return nil, fmt.Errorf("listing schema access for %q.%q: %w", project, schema, err)
 	}
 
+	// add filter by users
+	userMap := make(map[string]bool)
+	for _, user := range users {
+		userMap[user] = true
+	}
+
 	var entries []domain.AccessEntry
 	for _, b := range binding.Policy.Bindings {
 		for _, member := range b.Members {
 			member = strings.TrimSpace(member)
-			if member == "" {
+			if member == "" || (len(users) > 0 && !userMap[member]) {
 				continue
 			}
 			entries = append(entries, domain.AccessEntry{
@@ -920,7 +964,7 @@ func (p *provider) listSchemaAccess(ctx context.Context, overrideRAMRole string,
 	return entries, nil
 }
 
-func (p *provider) listTableAccess(ctx context.Context, overrideRAMRole string, pc *domain.ProviderConfig, project, schema, table string) ([]domain.AccessEntry, error) {
+func (p *provider) listTableAccess(ctx context.Context, overrideRAMRole string, pc *domain.ProviderConfig, project, schema, table string, users ...string) ([]domain.AccessEntry, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("listing table access for %q.%q.%q: %w", project, schema, table, err)
 	}
@@ -954,6 +998,11 @@ func (p *provider) listTableAccess(ctx context.Context, overrideRAMRole string, 
 		return nil, fmt.Errorf("listing table access for %q.%q.%q: failed to parse response: %w", project, schema, table, err)
 	}
 
+	userMap := make(map[string]bool)
+	for _, user := range users {
+		userMap[user] = true
+	}
+
 	var entries []domain.AccessEntry
 	for _, entry := range data.ACL[""] {
 		for _, principal := range entry.Principal {
@@ -967,6 +1016,10 @@ func (p *provider) listTableAccess(ctx context.Context, overrideRAMRole string, 
 				continue
 			}
 			accountID := after[:idx]
+			if len(users) > 0 && !userMap[accountID] {
+				continue
+			}
+
 			accountType := inferAccountType(accountID)
 			for _, action := range entry.Action {
 				entries = append(entries, domain.AccessEntry{

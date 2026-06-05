@@ -263,7 +263,7 @@ func (s *GrantDriftCheckTestSuite) TestGrantDriftCheck() {
 			Return([]*domain.Provider{provider1}, nil).Once()
 
 		s.mockProviderSvc.EXPECT().
-			ListAccess(mock.Anything, *provider1, mock.MatchedBy(func(resources []*domain.Resource) bool {
+			ListAccessForUsers(mock.Anything, *provider1, mock.MatchedBy(func(resources []*domain.Resource) bool {
 				if len(resources) != 2 {
 					return false
 				}
@@ -279,6 +279,22 @@ func (s *GrantDriftCheckTestSuite) TestGrantDriftCheck() {
 					}
 				}
 				return seen[resourceID1] && seen[resourceID2]
+			}), mock.MatchedBy(func(users []string) bool {
+				if len(users) != 2 {
+					return false
+				}
+				seen := map[string]bool{}
+				for _, u := range users {
+					switch u {
+					case botAccountID:
+						seen[botAccountID] = true
+					case groupRole:
+						seen[groupRole] = true
+					default:
+						return false
+					}
+				}
+				return seen[botAccountID] && seen[groupRole]
 			})).
 			Return(domain.MapResourceAccess{
 				resourceURN1: []domain.AccessEntry{{
@@ -341,7 +357,7 @@ func (s *GrantDriftCheckTestSuite) TestGrantDriftCheck() {
 			Return([]*domain.Provider{provider1}, nil).Once()
 
 		s.mockProviderSvc.EXPECT().
-			ListAccess(mock.Anything, *provider1, mock.MatchedBy(func(resources []*domain.Resource) bool {
+			ListAccessForUsers(mock.Anything, *provider1, mock.MatchedBy(func(resources []*domain.Resource) bool {
 				if len(resources) != 2 {
 					return false
 				}
@@ -357,6 +373,22 @@ func (s *GrantDriftCheckTestSuite) TestGrantDriftCheck() {
 					}
 				}
 				return seen[resourceID1] && seen[resourceID2]
+			}), mock.MatchedBy(func(users []string) bool {
+				if len(users) != 2 {
+					return false
+				}
+				seen := map[string]bool{}
+				for _, u := range users {
+					switch u {
+					case botAccountID:
+						seen[botAccountID] = true
+					case groupRole:
+						seen[groupRole] = true
+					default:
+						return false
+					}
+				}
+				return seen[botAccountID] && seen[groupRole]
 			})).
 			Return(domain.MapResourceAccess{}, nil).Once()
 
@@ -435,7 +467,7 @@ func (s *GrantDriftCheckTestSuite) TestGrantDriftCheck() {
 			Return([]*domain.Provider{provider1}, nil).Once()
 
 		s.mockProviderSvc.EXPECT().
-			ListAccess(mock.Anything, *provider1, mock.MatchedBy(func(resources []*domain.Resource) bool {
+			ListAccessForUsers(mock.Anything, *provider1, mock.MatchedBy(func(resources []*domain.Resource) bool {
 				if len(resources) != 2 {
 					return false
 				}
@@ -451,6 +483,22 @@ func (s *GrantDriftCheckTestSuite) TestGrantDriftCheck() {
 					}
 				}
 				return seen[resourceID1] && seen[resourceID2]
+			}), mock.MatchedBy(func(users []string) bool {
+				if len(users) != 2 {
+					return false
+				}
+				seen := map[string]bool{}
+				for _, u := range users {
+					switch u {
+					case botAccountID:
+						seen[botAccountID] = true
+					case groupRole:
+						seen[groupRole] = true
+					default:
+						return false
+					}
+				}
+				return seen[botAccountID] && seen[groupRole]
 			})).
 			Return(domain.MapResourceAccess{}, nil).Once()
 
@@ -541,11 +589,16 @@ func (s *GrantDriftCheckTestSuite) TestGrantDriftCheck() {
 			Return([]*domain.Provider{provider1}, nil).Once()
 
 		s.mockProviderSvc.EXPECT().
-			ListAccess(mock.Anything, *provider1, mock.MatchedBy(func(resources []*domain.Resource) bool {
+			ListAccessForUsers(mock.Anything, *provider1, mock.MatchedBy(func(resources []*domain.Resource) bool {
 				if len(resources) != 1 {
 					return false
 				}
 				return resources[0].ID == resourceID1
+			}), mock.MatchedBy(func(users []string) bool {
+				if len(users) != 1 {
+					return false
+				}
+				return users[0] == botAccountID
 			})).
 			Return(domain.MapResourceAccess{
 				resourceURN1: []domain.AccessEntry{{

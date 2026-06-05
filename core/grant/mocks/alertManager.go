@@ -35,9 +35,7 @@ func (_m *AlertManager) NotifyDriftCheck(ctx context.Context, req alertmanager.N
 	if rf, ok := ret.Get(0).(func(context.Context, alertmanager.NotifyDriftCheckRequest) error); ok {
 		r0 = rf(ctx, req)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(error)
-		}
+		r0 = ret.Error(0)
 	}
 
 	return r0
@@ -67,7 +65,7 @@ func (_c *AlertManager_NotifyDriftCheck_Call) Return(_a0 error) *AlertManager_No
 	return _c
 }
 
-func (_c *AlertManager_NotifyDriftCheck_Call) RunAndReturn(run func(context.Context, alertmanager.NotifyDriftCheckRequest) []error) *AlertManager_NotifyDriftCheck_Call {
+func (_c *AlertManager_NotifyDriftCheck_Call) RunAndReturn(run func(context.Context, alertmanager.NotifyDriftCheckRequest) error) *AlertManager_NotifyDriftCheck_Call {
 	_c.Call.Return(run)
 	return _c
 }

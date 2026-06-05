@@ -168,3 +168,29 @@ func TestListAccess_PartialSuccess(t *testing.T) {
 		assert.Empty(t, result)
 	})
 }
+
+func TestListAccessForUsers_PartialSuccess(t *testing.T) {
+	t.Run("errors per resource are swallowed and partial results are returned", func(t *testing.T) {
+		p := New("maxcompute", nil, &log.Noop{})
+
+		pc := domain.ProviderConfig{
+			Credentials: credentials{
+				AccessKeyID:     "dummy",
+				AccessKeySecret: "dummy",
+				RegionID:        "dummy",
+				ProjectName:     "dummy",
+			},
+		}
+		resources := []*domain.Resource{
+			{URN: "project-a", Type: "unsupported-type-1"},
+			{URN: "project-b", Type: "unsupported-type-2"},
+		}
+		users := []string{"user1"}
+
+		result, err := p.ListAccessForUsers(context.Background(), pc, resources, users)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Empty(t, result)
+	})
+}

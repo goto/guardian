@@ -186,6 +186,10 @@ func (p *Provider) ListAccess(ctx context.Context, pc domain.ProviderConfig, res
 	return client.ListAccess(ctx, resources)
 }
 
+func (p *Provider) ListAccessForUsers(ctx context.Context, pc domain.ProviderConfig, resources []*domain.Resource, users []string) (domain.MapResourceAccess, error) {
+	return domain.MapResourceAccess{}, fmt.Errorf("ListAccessForUsers %w", ErrUnimplementedMethod)
+}
+
 func (p *Provider) getPolicyTagClient(credentials Credentials) (PolicyTagClient, error) {
 	var projectID, taxonomyLocation string
 	parseVariableCounts, err := fmt.Sscanf(strings.ReplaceAll(credentials.ResourceName, "/", " "),

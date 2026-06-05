@@ -25,4 +25,6 @@ var (
 	ErrProviderTypeMismatch     = errors.New("provider type in the config and in the appeal don't match")
 	ErrProviderURNMismatch      = errors.New("provider urn in the config and in the appeal don't match")
 	ErrInvalidDatasetPermission = errors.New("provided permission is not supported for dataset resource")
+
+	ErrUnimplementedMethod = errors.New("unimplemented method")
 )

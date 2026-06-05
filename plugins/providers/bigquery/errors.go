@@ -30,4 +30,5 @@ var (
 
 	ErrInvalidTimeRange                 = errors.New("specified time range exceeds the activity log retention period")
 	ErrPrivateLogViewerAccessNotGranted = errors.New("private log viewer access not granted")
+	ErrUnimplementedMethod              = errors.New("unimplemented method")
 )

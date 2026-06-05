@@ -531,6 +531,10 @@ func (p *Provider) CorrelateGrantActivities(ctx context.Context, pd domain.Provi
 	return nil
 }
 
+func (p *Provider) ListAccessForUsers(ctx context.Context, pc domain.ProviderConfig, resources []*domain.Resource, users []string) (domain.MapResourceAccess, error) {
+	return domain.MapResourceAccess{}, fmt.Errorf("ListAccessForUsers %w", ErrUnimplementedMethod)
+}
+
 func (p *Provider) getBigQueryClient(credentials Credentials) (BigQueryClient, error) {
 	projectID := strings.Replace(credentials.ResourceName, "projects/", "", 1)
 	if p.Clients[projectID] != nil {

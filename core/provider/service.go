@@ -583,6 +583,26 @@ func (s *Service) ListAccess(ctx context.Context, p domain.Provider, resources [
 	return providerAccesses, nil
 }
 
+func (s *Service) ListAccessForUsers(ctx context.Context, p domain.Provider, resources []*domain.Resource, users []string) (domain.MapResourceAccess, error) {
+	c := s.getClient(p.Type)
+	providerAccesses, err := c.ListAccessForUsers(ctx, *p.Config, resources, users)
+	if err != nil {
+		return nil, err
+	}
+
+	for resourceURN, accessEntries := range providerAccesses {
+		var filteredAccessEntries []domain.AccessEntry
+		for _, ae := range accessEntries {
+			if utils.ContainsString(p.Config.AllowedAccountTypes, ae.AccountType) {
+				filteredAccessEntries = append(filteredAccessEntries, ae)
+			}
+		}
+		providerAccesses[resourceURN] = filteredAccessEntries
+	}
+
+	return providerAccesses, nil
+}
+
 func (s *Service) ImportActivities(ctx context.Context, filter domain.ListActivitiesFilter) ([]*domain.Activity, error) {
 	p, err := s.GetByID(ctx, filter.ProviderID)
 	if err != nil {

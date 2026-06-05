@@ -226,6 +226,10 @@ func (p *Provider) ListAccess(ctx context.Context, pc domain.ProviderConfig, res
 	return client.ListAccess(ctx, pc, resources)
 }
 
+func (p *Provider) ListAccessForUsers(ctx context.Context, pc domain.ProviderConfig, resources []*domain.Resource, users []string) (domain.MapResourceAccess, error) {
+	return domain.MapResourceAccess{}, fmt.Errorf("ListAccessForUsers %w", ErrUnimplementedMethod)
+}
+
 func (p *Provider) getClient(pc *domain.ProviderConfig) (AliCloudRAMClient, error) {
 	var credentials Credentials
 	err := mapstructure.Decode(pc.Credentials, &credentials)
