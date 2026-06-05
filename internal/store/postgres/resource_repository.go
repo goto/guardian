@@ -125,6 +125,8 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) (*gorm.
 		db = db.Where(`"is_deleted" = ?`, filter.IsDeleted)
 	}
 
+	var err error
+
 	providerTypes := slicesUtil.GenericsUniqueSliceValues(filter.ProviderTypes)
 	if filter.ProviderType != "" {
 		providerTypes = slicesUtil.GenericsUniqueSliceValues(append(providerTypes, filter.ProviderType))
@@ -145,16 +147,26 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) (*gorm.
 	if filter.ProviderURN != "" {
 		providerURNs = slicesUtil.GenericsUniqueSliceValues(append(providerURNs, filter.ProviderURN))
 	}
-	if len(providerURNs) != 0 {
-		db = db.Where(`"provider_urn" IN ?`, providerURNs)
+	db, err = applyLikeAndInFilter(db, `"provider_urn"`,
+		filter.ProviderUrnStartsWith, filter.ProviderUrnEndsWith, filter.ProviderUrnContains,
+		filter.ProviderUrnNotStartsWith, filter.ProviderUrnNotEndsWith, filter.ProviderUrnNotContains,
+		providerURNs, nil, "provider_urn",
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	resourceURNs := slicesUtil.GenericsUniqueSliceValues(filter.ResourceURNs)
 	if filter.ResourceURN != "" {
 		resourceURNs = slicesUtil.GenericsUniqueSliceValues(append(resourceURNs, filter.ResourceURN))
 	}
-	if len(resourceURNs) != 0 {
-		db = db.Where(`"urn" IN ?`, resourceURNs)
+	db, err = applyLikeAndInFilter(db, `"urn"`,
+		filter.ResourceUrnStartsWith, filter.ResourceUrnEndsWith, filter.ResourceUrnContains,
+		filter.ResourceUrnNotStartsWith, filter.ResourceUrnNotEndsWith, filter.ResourceUrnNotContains,
+		resourceURNs, nil, "urn",
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	if filter.GroupIDs != nil {

@@ -4907,6 +4907,78 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "providerUrnStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "providerUrnEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "providerUrnContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "providerUrnNotStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "providerUrnNotEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "providerUrnNotContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "urnStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "urnEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "urnContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "urnNotStartsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "urnNotEndsWith",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "urnNotContains",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
