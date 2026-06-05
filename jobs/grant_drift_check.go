@@ -46,6 +46,6 @@ func (h *handler) GrantDriftCheck(ctx context.Context, c Config) error {
 
 	start := time.Now()
 	err := h.grantService.GrantDriftCheck(ctx, req)
-	histGrantDriftCheckDuration.Record(ctx, float64(time.Since(start).Milliseconds()))
+	histGrantDriftCheckDuration.Get().Record(ctx, float64(time.Since(start).Milliseconds()))
 	return err
 }

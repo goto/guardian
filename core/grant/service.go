@@ -1089,6 +1089,16 @@ func (s *Service) remediateDriftedGrant(ctx context.Context, g domain.Grant) dom
 		remediationStatus = "recreated"
 	}
 
+	// Emit the metric on the main path so short-lived jobs do not exit before export.
+	metricDriftRemediation.Get().Add(ctx, 1,
+		metric.WithAttributes(
+			attribute.String("status", remediationStatus),
+			attribute.String("provider_urn", g.Resource.ProviderURN),
+			attribute.String("resource_urn", g.Resource.URN),
+			attribute.String("account_id", g.AccountID),
+		),
+	)
+
 	go func() {
 		auditCtx := context.WithoutCancel(ctx)
 		auditData := map[string]interface{}{
@@ -1101,16 +1111,6 @@ func (s *Service) remediateDriftedGrant(ctx context.Context, g domain.Grant) dom
 		if err := s.auditLogger.Log(auditCtx, AuditKeyDriftRemediaton, auditData); err != nil {
 			s.logger.Error(ctx, "failed to record drift remediation audit log", "error", err)
 		}
-
-		// send metrics for monitoring drift remediation outcomes
-		metricDriftRemediation.Add(ctx, 1,
-			metric.WithAttributes(
-				attribute.String("status", remediationStatus),
-				attribute.String("provider_urn", g.Resource.ProviderURN),
-				attribute.String("resource_urn", g.Resource.URN),
-				attribute.String("account_id", g.AccountID),
-			),
-		)
 	}()
 
 	return issue
