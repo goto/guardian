@@ -494,6 +494,57 @@ func TestGrantAccess(t *testing.T) {
 	})
 
 	t.Run("given team resource", func(t *testing.T) {
+		t.Run("should return error if getting self user fails", func(t *testing.T) {
+			providerURN := "test-provider-urn"
+			expectedError := errors.New("client error")
+			client := new(mocks.ShieldClient)
+			logger := log.NewCtxLogger("info", []string{"test"})
+			p := shield.NewProvider("", logger)
+			p.Clients = map[string]shield.ShieldClient{
+				providerURN: client,
+			}
+
+			expectedUserEmail := "test@email.com"
+			client.On("GetSelfUser", mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedUserEmail).Return(nil, expectedError).Once()
+
+			pc := &domain.ProviderConfig{
+				Credentials: shield.Credentials{
+					Host:      "localhost",
+					AuthEmail: "test_email",
+				},
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: shield.ResourceTypeTeam,
+						Roles: []*domain.Role{
+							{
+								ID:          "test-role",
+								Permissions: []interface{}{"test-permission-config"},
+							},
+						},
+					},
+				},
+				URN: providerURN,
+			}
+			a := domain.Grant{
+				Resource: &domain.Resource{
+					Type: shield.ResourceTypeTeam,
+					URN:  "team:team_id",
+					Name: "team_1",
+					Details: map[string]interface{}{
+						"id":    "team_id",
+						"orgId": "456",
+					},
+				},
+				Role:        "test-role",
+				AccountID:   expectedUserEmail,
+				Permissions: []string{"test-permission-config"},
+			}
+
+			actualError := p.GrantAccess(ctx, pc, a)
+
+			assert.EqualError(t, actualError, `getting shield user "test@email.com": client error`)
+		})
+
 		t.Run("should return error if there is an error in granting team access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			expectedError := errors.New("client error")
@@ -1100,6 +1151,57 @@ func TestRevokeAccess(t *testing.T) {
 	})
 
 	t.Run("given team resource", func(t *testing.T) {
+		t.Run("should return error if getting self user fails", func(t *testing.T) {
+			providerURN := "test-provider-urn"
+			expectedError := errors.New("client error")
+			client := new(mocks.ShieldClient)
+			logger := log.NewCtxLogger("info", []string{"test"})
+			p := shield.NewProvider("", logger)
+			p.Clients = map[string]shield.ShieldClient{
+				providerURN: client,
+			}
+
+			expectedUserEmail := "test@email.com"
+			client.On("GetSelfUser", mockCtx, expectedUserEmail).Return(nil, expectedError).Once()
+
+			pc := &domain.ProviderConfig{
+				Credentials: shield.Credentials{
+					Host:      "localhost",
+					AuthEmail: "test_email",
+				},
+				Resources: []*domain.ResourceConfig{
+					{
+						Type: shield.ResourceTypeTeam,
+						Roles: []*domain.Role{
+							{
+								ID:          "test-role",
+								Permissions: []interface{}{"test-permission-config"},
+							},
+						},
+					},
+				},
+				URN: providerURN,
+			}
+			a := domain.Grant{
+				Resource: &domain.Resource{
+					Type: shield.ResourceTypeTeam,
+					URN:  "team:team_id",
+					Name: "team_1",
+					Details: map[string]interface{}{
+						"id":    "team_id",
+						"orgId": "456",
+					},
+				},
+				Role:        "test-role",
+				AccountID:   expectedUserEmail,
+				Permissions: []string{"test-permission-config"},
+			}
+
+			actualError := p.RevokeAccess(ctx, pc, a)
+
+			assert.EqualError(t, actualError, `getting shield user "test@email.com": client error`)
+		})
+
 		t.Run("should return error if there is an error in revoking team access", func(t *testing.T) {
 			providerURN := "test-provider-urn"
 			expectedError := errors.New("client error")

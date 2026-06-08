@@ -236,7 +236,10 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 
 	var user *User
 	if user, err = client.GetSelfUser(ctx, a.AccountID); err != nil {
-		return nil
+		return fmt.Errorf("getting shield user %q: %w", a.AccountID, err)
+	}
+	if user == nil {
+		return fmt.Errorf("getting shield user %q: empty user response", a.AccountID)
 	}
 
 	switch a.Resource.Type {
@@ -330,7 +333,10 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 
 	var user *User
 	if user, err = client.GetSelfUser(ctx, a.AccountID); err != nil {
-		return nil
+		return fmt.Errorf("getting shield user %q: %w", a.AccountID, err)
+	}
+	if user == nil {
+		return fmt.Errorf("getting shield user %q: empty user response", a.AccountID)
 	}
 
 	switch a.Resource.Type {

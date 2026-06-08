@@ -366,6 +366,12 @@ func (c *client) GetSelfUser(ctx context.Context, email string) (*User, error) {
 	if v, ok := response.(map[string]interface{}); ok && v[userConst] != nil {
 		err = mapstructure.Decode(v[userConst], &user)
 	}
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, fmt.Errorf("shield self user response missing user for email %q", email)
+	}
 
 	c.logger.Info(ctx, "Fetch user from request", "Id", user.ID, req.URL)
 
@@ -380,9 +386,9 @@ func (c *client) do(ctx context.Context, req *http.Request, v interface{}) (*htt
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusInternalServerError {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		byteData, _ := io.ReadAll(resp.Body)
-		return nil, errors.New(string(byteData))
+		return nil, fmt.Errorf("request to %s failed with status %d: %s", req.URL, resp.StatusCode, string(byteData))
 	}
 
 	if v != nil {

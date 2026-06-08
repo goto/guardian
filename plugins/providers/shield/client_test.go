@@ -603,6 +603,24 @@ func (s *ClientTestSuite) TestGetSelfUser() {
 		s.EqualValues(expectedUser, user)
 		s.Nil(actualError)
 	})
+	s.Run("Should return error when response misses user payload", func() {
+		s.setup()
+		testUserEmail := "test_user@email.com"
+
+		testGetSelfRequest, err := s.getTestRequest(http.MethodGet, "/admin/v1beta1/users/self", nil, testUserEmail)
+		s.Require().NoError(err)
+
+		responseJson := `{
+			"message": "user not found"
+		}`
+
+		responseUser := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(responseJson)))}
+		s.mockHttpClient.On("Do", testGetSelfRequest).Return(&responseUser, nil).Once()
+
+		user, actualError := s.client.GetSelfUser(context.Background(), testUserEmail)
+		s.Nil(user)
+		s.EqualError(actualError, `shield self user response missing user for email "test_user@email.com"`)
+	})
 }
 func (s *ClientTestSuite) TestRevokeResourceAccess() {
 	s.Run("should return error and log info", func() {
