@@ -1164,8 +1164,9 @@ func (s *Service) detectDriftedGrants(ctx context.Context, botAccountIDs []strin
 	// What remains here will be the drifted grants
 	drifted := activeGrantsMap.Flatten()
 	// publish metric for drifted grants count
+	driftDetectedCounter := metricDriftDetected.Get()
 	for _, g := range drifted {
-		metricDriftDetected.Get().Add(ctx, 1,
+		driftDetectedCounter.Add(ctx, 1,
 			metric.WithAttributes(
 				attribute.String("provider_urn", g.Resource.ProviderURN),
 				attribute.String("resource_urn", g.Resource.URN),
