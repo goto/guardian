@@ -231,6 +231,7 @@ func extractComment(t *odps.Table) map[string]interface{} {
 		return nil
 	}
 	var data map[string]interface{}
+	comment = strings.NewReplacer("\n", `\n`, "\r", `\r`, "\t", `\t`).Replace(comment)
 	if err := json.Unmarshal([]byte(comment), &data); err != nil {
 		return nil
 	}
