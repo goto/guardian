@@ -515,6 +515,12 @@ func (c *shieldNewclient) GetSelfUser(ctx context.Context, email string) (*User,
 	if v, ok := response.(map[string]interface{}); ok && v[userConst] != nil {
 		err = mapstructure.Decode(v[userConst], &user)
 	}
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, fmt.Errorf("shield self user response missing user for email %q", email)
+	}
 
 	c.logger.Info(ctx, "Fetch user from new shield request", "Id", user.ID, req.URL)
 
