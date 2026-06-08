@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/internal/store/postgres"
@@ -20,6 +21,7 @@ type ApprovalRepositoryTestSuite struct {
 	resource         *dockertest.Resource
 	repository       *postgres.ApprovalRepository
 	appealRepository *postgres.AppealRepository
+	grantRepository  *postgres.GrantRepository
 
 	dummyProvider *domain.Provider
 	dummyPolicy   *domain.Policy
@@ -44,6 +46,7 @@ func (s *ApprovalRepositoryTestSuite) SetupSuite() {
 	}
 
 	s.repository = postgres.NewApprovalRepository(s.store.DB())
+	s.grantRepository = postgres.NewGrantRepository(s.store.DB())
 
 	ctx := context.Background()
 
@@ -572,5 +575,151 @@ func (s *ApprovalRepositoryTestSuite) TestDeleteApprover() {
 	s.Run("should return error if db returns an error", func() {
 		err := s.repository.DeleteApprover(context.Background(), "", "")
 		s.Error(err)
+	})
+}
+
+func (s *ApprovalRepositoryTestSuite) TestListApprovals__PreviousGrant() {
+	ctx := context.Background()
+
+	appeal := &domain.Appeal{
+		ResourceID:    s.dummyResource.ID,
+		PolicyID:      s.dummyPolicy.ID,
+		PolicyVersion: s.dummyPolicy.Version,
+		AccountID:     "pg-user@example.com",
+		AccountType:   domain.DefaultAppealAccountType,
+		Role:          "role_pg",
+		Permissions:   []string{"permission_test"},
+		CreatedBy:     "pg-user@example.com",
+		Status:        domain.AppealStatusPending,
+	}
+	err := s.appealRepository.BulkUpsert(ctx, []*domain.Appeal{appeal})
+	s.Require().NoError(err)
+
+	approval := &domain.Approval{
+		Name:          "pg-approval",
+		Index:         0,
+		AppealID:      appeal.ID,
+		Status:        domain.ApprovalStatusPending,
+		PolicyID:      s.dummyPolicy.ID,
+		PolicyVersion: s.dummyPolicy.Version,
+		Appeal:        appeal,
+	}
+	err = s.repository.BulkInsert(ctx, []*domain.Approval{approval})
+	s.Require().NoError(err)
+
+	approver := &domain.Approver{
+		ApprovalID: approval.ID,
+		AppealID:   appeal.ID,
+		Email:      "pg-approver@example.com",
+	}
+	err = s.repository.AddApprover(ctx, approver)
+	s.Require().NoError(err)
+
+	pastExpiry := time.Now().Add(-12 * time.Hour)
+	futureExpiry := time.Now().Add(48 * time.Hour)
+
+	expiredGrant := &domain.Grant{
+		Status:         domain.GrantStatusActive,
+		AppealID:       appeal.ID,
+		AccountID:      appeal.AccountID,
+		AccountType:    appeal.AccountType,
+		ResourceID:     appeal.ResourceID,
+		Role:           appeal.Role,
+		Permissions:    appeal.Permissions,
+		CreatedBy:      appeal.CreatedBy,
+		ExpirationDate: &pastExpiry,
+		Source:         domain.GrantSourceAppeal,
+	}
+	err = s.grantRepository.BulkInsert(ctx, []*domain.Grant{expiredGrant})
+	s.Require().NoError(err)
+
+	s.Run("WithPreviousGrant populates PreviousGrantExpirationDate", func() {
+		results, err := s.repository.ListApprovals(ctx, &domain.ListApprovalsFilter{
+			CreatedBy:         approver.Email,
+			WithPreviousGrant: true,
+		})
+		s.NoError(err)
+		s.Len(results, 1)
+		s.NotNil(results[0].PreviousGrantExpirationDate)
+		s.WithinDuration(pastExpiry, *results[0].PreviousGrantExpirationDate, time.Second)
+	})
+
+	s.Run("PreviousGrantStates=expired returns the approval", func() {
+		results, err := s.repository.ListApprovals(ctx, &domain.ListApprovalsFilter{
+			CreatedBy:           approver.Email,
+			PreviousGrantStates: []string{domain.PreviousGrantStateExpired},
+		})
+		s.NoError(err)
+		s.Len(results, 1)
+		s.Equal(approval.ID, results[0].ID)
+	})
+
+	s.Run("PreviousGrantStates=expiring returns nothing for already-expired grant", func() {
+		results, err := s.repository.ListApprovals(ctx, &domain.ListApprovalsFilter{
+			CreatedBy:           approver.Email,
+			PreviousGrantStates: []string{domain.PreviousGrantStateExpiring},
+		})
+		s.NoError(err)
+		s.Len(results, 0)
+	})
+
+	s.Run("StartExpirationDate+EndExpirationDate range matches expired grant", func() {
+		start := time.Now().Add(-24 * time.Hour)
+		end := time.Now()
+		results, err := s.repository.ListApprovals(ctx, &domain.ListApprovalsFilter{
+			CreatedBy:           approver.Email,
+			StartExpirationDate: start,
+			EndExpirationDate:   end,
+		})
+		s.NoError(err)
+		s.Len(results, 1)
+		s.Equal(approval.ID, results[0].ID)
+	})
+
+	s.Run("StartExpirationDate+EndExpirationDate range excludes when grant is outside window", func() {
+		start := futureExpiry.Add(-time.Hour)
+		end := futureExpiry.Add(time.Hour)
+		results, err := s.repository.ListApprovals(ctx, &domain.ListApprovalsFilter{
+			CreatedBy:           approver.Email,
+			StartExpirationDate: start,
+			EndExpirationDate:   end,
+		})
+		s.NoError(err)
+		s.Len(results, 0)
+	})
+
+	s.Run("PreviousGrantStates=expired combined with date range returns match", func() {
+		start := time.Now().Add(-24 * time.Hour)
+		end := time.Now()
+		results, err := s.repository.ListApprovals(ctx, &domain.ListApprovalsFilter{
+			CreatedBy:           approver.Email,
+			PreviousGrantStates: []string{domain.PreviousGrantStateExpired},
+			StartExpirationDate: start,
+			EndExpirationDate:   end,
+		})
+		s.NoError(err)
+		s.Len(results, 1)
+		s.Equal(approval.ID, results[0].ID)
+	})
+
+	s.Run("GenerateSummary with PreviousGrantStates=expired returns group count", func() {
+		summary, err := s.repository.GenerateSummary(ctx, domain.ListApprovalsFilter{
+			CreatedBy:           approver.Email,
+			PreviousGrantStates: []string{domain.PreviousGrantStateExpired},
+			SummaryGroupBys:     []string{"resource.provider_type"},
+		})
+		s.NoError(err)
+		s.NotNil(summary)
+		s.Len(summary.SummaryGroups, 1)
+		s.Equal(int32(1), summary.SummaryGroups[0].Count)
+	})
+
+	s.Run("PreviousGrantStates=none returns nothing when grant exists", func() {
+		results, err := s.repository.ListApprovals(ctx, &domain.ListApprovalsFilter{
+			CreatedBy:           approver.Email,
+			PreviousGrantStates: []string{domain.PreviousGrantStateNone},
+		})
+		s.NoError(err)
+		s.Len(results, 0)
 	})
 }

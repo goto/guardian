@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS idx_grants_account_resource_role_deleted_created;
