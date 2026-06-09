@@ -57,17 +57,25 @@ var (
 // LEFT JOIN LATERAL. Using a lateral join instead of an inline correlated subquery means
 // the grants lookup executes exactly once per outer row, regardless of how many times
 // "lat_grant"."expiration_date" is referenced in WHERE or SELECT. The index
-// idx_grants_account_resource_role_deleted_created covers the four equality predicates
-// and the ORDER BY, so each lookup is O(log n) and returns the first entry without
-// a sort step.
+// idx_grants_account_resource_role_created covers the equality predicates and the
+// ORDER BY, so each lookup is O(log n) and returns the first entry without a sort step.
+//
+// No status filter is applied: we want the most recently created grant regardless of
+// whether it is still active or has already been revoked/expired. The expiry job sets
+// status = 'inactive' on expired grants, so filtering status = 'active' would hide
+// exactly the grants we need to detect for previousGrantStates=expired.
+//
+// is_permanent grants store expiration_date = 0001-01-01 (Go zero time). The CASE
+// expression converts that to NULL so permanent grants are classified as "none"
+// rather than falsely appearing as expired.
 const lateralGrantJoinSQL = `LEFT JOIN LATERAL (
-	SELECT "g"."expiration_date" FROM "grants" "g"
+	SELECT CASE WHEN "g"."is_permanent" THEN NULL ELSE "g"."expiration_date" END AS "expiration_date"
+	FROM "grants" "g"
 	WHERE "g"."account_id" = "Appeal"."account_id"
 	  AND "g"."resource_id" = "Appeal"."resource_id"
 	  AND "g"."role" = "Appeal"."role"
 	  AND "g"."group_id" IS NOT DISTINCT FROM "Appeal"."group_id"
 	  AND "g"."group_type" IS NOT DISTINCT FROM "Appeal"."group_type"
-	  AND "g"."deleted_at" IS NULL
 	ORDER BY "g"."created_at" DESC LIMIT 1
 ) "lat_grant" ON TRUE`
 
