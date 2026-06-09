@@ -19,7 +19,7 @@ func TestGetType(t *testing.T) {
 	t.Run("should return provider type name", func(t *testing.T) {
 		expectedTypeName := domain.ProviderTypeShield
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider(expectedTypeName, logger)
+		p := shield.NewProvider(expectedTypeName, nil, logger)
 
 		actualTypeName := p.GetType()
 
@@ -32,7 +32,7 @@ func TestCreateConfig(t *testing.T) {
 		providerURN := "test-provider-urn"
 		client := new(mocks.ShieldClient)
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("", logger)
+		p := shield.NewProvider("", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{
 			providerURN: client,
 		}
@@ -84,7 +84,7 @@ func TestCreateConfig(t *testing.T) {
 		providerURN := "test-provider-urn"
 		client := new(mocks.ShieldClient)
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("", logger)
+		p := shield.NewProvider("", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{
 			providerURN: client,
 		}
@@ -191,7 +191,7 @@ func TestGetResources(t *testing.T) {
 	ctx := context.Background()
 	t.Run("should return error if credentials is invalid", func(t *testing.T) {
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("", logger)
+		p := shield.NewProvider("", nil, logger)
 
 		pc := &domain.ProviderConfig{
 			Credentials: "invalid-creds",
@@ -207,7 +207,7 @@ func TestGetResources(t *testing.T) {
 		providerURN := "test-provider-urn"
 		client := new(mocks.ShieldClient)
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("", logger)
+		p := shield.NewProvider("", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{
 			providerURN: client,
 		}
@@ -234,7 +234,7 @@ func TestGetResources(t *testing.T) {
 		providerURN := "test-provider-urn"
 		client := new(mocks.ShieldClient)
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("", logger)
+		p := shield.NewProvider("", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{
 			providerURN: client,
 		}
@@ -261,7 +261,7 @@ func TestGetResources(t *testing.T) {
 		providerURN := "test-provider-urn"
 		client := new(mocks.ShieldClient)
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("", logger)
+		p := shield.NewProvider("", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{
 			providerURN: client,
 		}
@@ -288,7 +288,7 @@ func TestGetResources(t *testing.T) {
 		providerURN := "test-provider-urn"
 		client := new(mocks.ShieldClient)
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("", logger)
+		p := shield.NewProvider("", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{
 			providerURN: client,
 		}
@@ -315,7 +315,7 @@ func TestGetResources(t *testing.T) {
 		providerURN := "test-provider-urn"
 		client := new(mocks.ShieldClient)
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("", logger)
+		p := shield.NewProvider("", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{
 			providerURN: client,
 		}
@@ -466,7 +466,7 @@ func TestGrantAccess(t *testing.T) {
 	mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
 	t.Run("should return error if credentials is invalid", func(t *testing.T) {
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("", logger)
+		p := shield.NewProvider("", nil, logger)
 
 		pc := &domain.ProviderConfig{
 			Credentials: "invalid-credentials",
@@ -499,7 +499,7 @@ func TestGrantAccess(t *testing.T) {
 			expectedError := errors.New("client error")
 			client := new(mocks.ShieldClient)
 			logger := log.NewCtxLogger("info", []string{"test"})
-			p := shield.NewProvider("", logger)
+			p := shield.NewProvider("", nil, logger)
 			p.Clients = map[string]shield.ShieldClient{
 				providerURN: client,
 			}
@@ -550,7 +550,7 @@ func TestGrantAccess(t *testing.T) {
 			expectedError := errors.New("client error")
 			client := new(mocks.ShieldClient)
 			logger := log.NewCtxLogger("info", []string{"test"})
-			p := shield.NewProvider("", logger)
+			p := shield.NewProvider("", nil, logger)
 			p.Clients = map[string]shield.ShieldClient{
 				providerURN: client,
 			}
@@ -626,7 +626,7 @@ func TestGrantAccess(t *testing.T) {
 			}
 
 			expectedRole := "users"
-			p := shield.NewProvider("", logger)
+			p := shield.NewProvider("", nil, logger)
 			p.Clients = map[string]shield.ShieldClient{
 				providerURN: client,
 			}
@@ -685,7 +685,7 @@ func TestGrantAccess(t *testing.T) {
 			expectedError := errors.New("client error")
 			client := new(mocks.ShieldClient)
 			logger := log.NewCtxLogger("info", []string{"test"})
-			p := shield.NewProvider("", logger)
+			p := shield.NewProvider("", nil, logger)
 			p.Clients = map[string]shield.ShieldClient{
 				providerURN: client,
 			}
@@ -755,7 +755,7 @@ func TestGrantAccess(t *testing.T) {
 			}
 
 			expectedRole := "admins"
-			p := shield.NewProvider("", logger)
+			p := shield.NewProvider("", nil, logger)
 			p.Clients = map[string]shield.ShieldClient{
 				providerURN: client,
 			}
@@ -824,7 +824,7 @@ func TestGrantAccess(t *testing.T) {
 		}
 
 		expectedRole := "admins"
-		p := shield.NewProvider("", logger)
+		p := shield.NewProvider("", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{
 			providerURN: client,
 		}
@@ -917,7 +917,7 @@ func TestGrantAccess(t *testing.T) {
 			expectedError := errors.New("client error")
 			client := new(mocks.ShieldClient)
 			logger := log.NewCtxLogger("info", []string{"test"})
-			p := shield.NewProvider("", logger)
+			p := shield.NewProvider("", nil, logger)
 			p.Clients = map[string]shield.ShieldClient{
 				providerURN: client,
 			}
@@ -986,7 +986,7 @@ func TestGrantAccess(t *testing.T) {
 			}
 
 			expectedRole := "admins"
-			p := shield.NewProvider("", logger)
+			p := shield.NewProvider("", nil, logger)
 			p.Clients = map[string]shield.ShieldClient{
 				providerURN: client,
 			}
@@ -1040,7 +1040,7 @@ func TestRevokeAccess(t *testing.T) {
 	mockCtx := mock.MatchedBy(func(ctx context.Context) bool { return true })
 	t.Run("should return error if credentials is invalid", func(t *testing.T) {
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("", logger)
+		p := shield.NewProvider("", nil, logger)
 
 		pc := &domain.ProviderConfig{
 			Credentials: "invalid-credentials",
@@ -1080,7 +1080,7 @@ func TestRevokeAccess(t *testing.T) {
 		client := new(mocks.ShieldClient)
 		logger := log.NewCtxLogger("info", []string{"test"})
 		expectedRole := "admins"
-		p := shield.NewProvider("", logger)
+		p := shield.NewProvider("", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{
 			providerURN: client,
 		}
@@ -1156,7 +1156,7 @@ func TestRevokeAccess(t *testing.T) {
 			expectedError := errors.New("client error")
 			client := new(mocks.ShieldClient)
 			logger := log.NewCtxLogger("info", []string{"test"})
-			p := shield.NewProvider("", logger)
+			p := shield.NewProvider("", nil, logger)
 			p.Clients = map[string]shield.ShieldClient{
 				providerURN: client,
 			}
@@ -1207,7 +1207,7 @@ func TestRevokeAccess(t *testing.T) {
 			expectedError := errors.New("client error")
 			client := new(mocks.ShieldClient)
 			logger := log.NewCtxLogger("info", []string{"test"})
-			p := shield.NewProvider("", logger)
+			p := shield.NewProvider("", nil, logger)
 			p.Clients = map[string]shield.ShieldClient{
 				providerURN: client,
 			}
@@ -1283,7 +1283,7 @@ func TestRevokeAccess(t *testing.T) {
 			}
 
 			expectedRole := "admins"
-			p := shield.NewProvider("", logger)
+			p := shield.NewProvider("", nil, logger)
 			p.Clients = map[string]shield.ShieldClient{
 				providerURN: client,
 			}
@@ -1352,7 +1352,7 @@ func TestRevokeAccess(t *testing.T) {
 			expectedError := errors.New("client error")
 			client := new(mocks.ShieldClient)
 			logger := log.NewCtxLogger("info", []string{"test"})
-			p := shield.NewProvider("", logger)
+			p := shield.NewProvider("", nil, logger)
 			p.Clients = map[string]shield.ShieldClient{
 				providerURN: client,
 			}
@@ -1418,7 +1418,7 @@ func TestRevokeAccess(t *testing.T) {
 			}
 			expectedRole := "admins"
 			logger := log.NewCtxLogger("info", []string{"test"})
-			p := shield.NewProvider("", logger)
+			p := shield.NewProvider("", nil, logger)
 
 			p.Clients = map[string]shield.ShieldClient{
 				providerURN: client,
@@ -1483,7 +1483,7 @@ func TestRevokeAccess(t *testing.T) {
 			expectedError := errors.New("client error")
 			client := new(mocks.ShieldClient)
 			logger := log.NewCtxLogger("info", []string{"test"})
-			p := shield.NewProvider("", logger)
+			p := shield.NewProvider("", nil, logger)
 			p.Clients = map[string]shield.ShieldClient{
 				providerURN: client,
 			}
@@ -1547,7 +1547,7 @@ func TestRevokeAccess(t *testing.T) {
 			}
 			expectedRole := "admins"
 			logger := log.NewCtxLogger("info", []string{"test"})
-			p := shield.NewProvider("", logger)
+			p := shield.NewProvider("", nil, logger)
 
 			p.Clients = map[string]shield.ShieldClient{
 				providerURN: client,
@@ -1608,7 +1608,7 @@ func TestRevokeAccess(t *testing.T) {
 func TestGetAccountTypes(t *testing.T) {
 	expectedAccountType := []string{"user"}
 	logger := log.NewCtxLogger("info", []string{"test"})
-	p := shield.NewProvider("", logger)
+	p := shield.NewProvider("", nil, logger)
 
 	actualAccountType := p.GetAccountTypes()
 
@@ -1618,7 +1618,7 @@ func TestGetAccountTypes(t *testing.T) {
 func TestGetRoles(t *testing.T) {
 	t.Run("should return error if resource type is invalid", func(t *testing.T) {
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		validConfig := &domain.ProviderConfig{
 			Type:                "shield",
 			URN:                 "test-URN",
@@ -1657,7 +1657,7 @@ func TestGetRoles(t *testing.T) {
 
 	t.Run("should return roles specified in the provider config", func(t *testing.T) {
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 
 		expectedRoles := []*domain.Role{
 			{
@@ -1694,7 +1694,7 @@ func TestGetClient(t *testing.T) {
 		providerURN := "test-provider-urn"
 		expectedClient := new(mocks.ShieldClient)
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{
 			providerURN: expectedClient,
 		}
@@ -1714,7 +1714,7 @@ func TestGetClient(t *testing.T) {
 	t.Run("should return new client of old shield if not already present", func(t *testing.T) {
 		providerURN := "test-provider-urn"
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("", logger)
+		p := shield.NewProvider("", nil, logger)
 
 		creds := shield.Credentials{
 			Host:       "http://localhost.com",
@@ -1729,7 +1729,7 @@ func TestGetClient(t *testing.T) {
 	t.Run("should return new client of new shield if not already present", func(t *testing.T) {
 		providerURN := "test-provider-urn"
 		logger := log.NewCtxLogger("info", []string{"test"})
-		p := shield.NewProvider("", logger)
+		p := shield.NewProvider("", nil, logger)
 
 		creds := shield.Credentials{
 			Host:          "http://localhost.com",
@@ -1748,7 +1748,7 @@ func TestValidateResourceIdentifiers(t *testing.T) {
 	logger := log.NewCtxLogger("info", []string{"test"})
 
 	t.Run("should return error for unsupported resource type", func(t *testing.T) {
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		r := &domain.Resource{
 			Type: "unsupported_type",
 			URN:  "some-urn",
@@ -1759,7 +1759,7 @@ func TestValidateResourceIdentifiers(t *testing.T) {
 	})
 
 	t.Run("should return error when URN is empty", func(t *testing.T) {
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		for _, rt := range []string{
 			shield.ResourceTypeTeam,
 			shield.ResourceTypeProject,
@@ -1774,7 +1774,7 @@ func TestValidateResourceIdentifiers(t *testing.T) {
 	})
 
 	t.Run("should return nil for all supported resource types with non-empty URN", func(t *testing.T) {
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		for _, rt := range []string{
 			shield.ResourceTypeTeam,
 			shield.ResourceTypeProject,
@@ -1790,7 +1790,7 @@ func TestValidateResourceIdentifiers(t *testing.T) {
 
 func TestValidateResourceDetails(t *testing.T) {
 	logger := log.NewCtxLogger("info", []string{"test"})
-	p := shield.NewProvider("shield", logger)
+	p := shield.NewProvider("shield", nil, logger)
 
 	t.Run("should always return nil", func(t *testing.T) {
 		err := p.ValidateResourceDetails(context.Background(), &domain.Resource{Type: shield.ResourceTypeTeam})
@@ -1818,7 +1818,7 @@ func TestValidateAppeal(t *testing.T) {
 	pr := newProvider(providerURN)
 
 	t.Run("should return nil for non create_team resource types", func(t *testing.T) {
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		appeal := &domain.Appeal{
 			Resource: &domain.Resource{Type: shield.ResourceTypeTeam, ProviderURN: providerURN},
 			Details:  map[string]interface{}{},
@@ -1827,14 +1827,14 @@ func TestValidateAppeal(t *testing.T) {
 	})
 
 	t.Run("should return nil when resource is nil", func(t *testing.T) {
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		appeal := &domain.Appeal{Resource: nil}
 		assert.NoError(t, p.ValidateAppeal(context.Background(), appeal, pr))
 	})
 
 	t.Run("should return error when team_name is missing", func(t *testing.T) {
 		client := new(mocks.ShieldClient)
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{providerURN: client}
 
 		appeal := &domain.Appeal{
@@ -1847,7 +1847,7 @@ func TestValidateAppeal(t *testing.T) {
 	})
 
 	t.Run("should return error when provider config is nil", func(t *testing.T) {
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 
 		appeal := &domain.Appeal{
 			Resource: &domain.Resource{Type: shield.ResourceTypeCreateTeam, ProviderURN: providerURN},
@@ -1860,7 +1860,7 @@ func TestValidateAppeal(t *testing.T) {
 
 	t.Run("should return error when GetGroups fails", func(t *testing.T) {
 		client := new(mocks.ShieldClient)
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{providerURN: client}
 
 		client.On("GetGroups", mock.Anything).Return(nil, errors.New("shield unavailable")).Once()
@@ -1877,7 +1877,7 @@ func TestValidateAppeal(t *testing.T) {
 
 	t.Run("should return error when a team with the same name already exists", func(t *testing.T) {
 		client := new(mocks.ShieldClient)
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{providerURN: client}
 
 		existingGroups := []*shield.Group{
@@ -1897,7 +1897,7 @@ func TestValidateAppeal(t *testing.T) {
 
 	t.Run("should return error when a team with the same name exists case-insensitively", func(t *testing.T) {
 		client := new(mocks.ShieldClient)
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{providerURN: client}
 
 		existingGroups := []*shield.Group{
@@ -1917,7 +1917,7 @@ func TestValidateAppeal(t *testing.T) {
 
 	t.Run("should return error when a team with the same slug already exists", func(t *testing.T) {
 		client := new(mocks.ShieldClient)
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{providerURN: client}
 
 		existingGroups := []*shield.Group{
@@ -1938,7 +1938,7 @@ func TestValidateAppeal(t *testing.T) {
 
 	t.Run("should return nil when team name and slug are unique", func(t *testing.T) {
 		client := new(mocks.ShieldClient)
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{providerURN: client}
 
 		existingGroups := []*shield.Group{
@@ -1957,7 +1957,7 @@ func TestValidateAppeal(t *testing.T) {
 
 	t.Run("should auto-generate slug from team_name when slug not provided", func(t *testing.T) {
 		client := new(mocks.ShieldClient)
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{providerURN: client}
 
 		existingGroups := []*shield.Group{
@@ -1999,7 +1999,7 @@ func TestGrantAccessCreateTeam(t *testing.T) {
 
 	t.Run("should return error when appeal is nil", func(t *testing.T) {
 		client := new(mocks.ShieldClient)
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{providerURN: client}
 
 		expectedUser := &shield.User{ID: "user_id", Email: "user@test.com"}
@@ -2017,7 +2017,7 @@ func TestGrantAccessCreateTeam(t *testing.T) {
 
 	t.Run("should return error when team_name is missing from appeal details", func(t *testing.T) {
 		client := new(mocks.ShieldClient)
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{providerURN: client}
 
 		expectedUser := &shield.User{ID: "user_id", Email: "user@test.com"}
@@ -2035,7 +2035,7 @@ func TestGrantAccessCreateTeam(t *testing.T) {
 
 	t.Run("should return error when GrantCreateTeamAccess fails", func(t *testing.T) {
 		client := new(mocks.ShieldClient)
-		p := shield.NewProvider("shield", logger)
+		p := shield.NewProvider("shield", nil, logger)
 		p.Clients = map[string]shield.ShieldClient{providerURN: client}
 
 		expectedUser := &shield.User{ID: "user_id", Email: "user@test.com"}
@@ -2059,7 +2059,8 @@ func TestGrantAccessCreateTeam(t *testing.T) {
 
 	t.Run("should return nil when GrantCreateTeamAccess succeeds", func(t *testing.T) {
 		client := new(mocks.ShieldClient)
-		p := shield.NewProvider("shield", logger)
+		resourceSvc := new(mocks.ShieldResourceService)
+		p := shield.NewProvider("shield", resourceSvc, logger)
 		p.Clients = map[string]shield.ShieldClient{providerURN: client}
 
 		expectedUser := &shield.User{ID: "user_id", Email: "user@test.com"}
@@ -2068,6 +2069,7 @@ func TestGrantAccessCreateTeam(t *testing.T) {
 		client.On("GrantCreateTeamAccess", mockCtx, mock.MatchedBy(func(g shield.Group) bool {
 			return g.Name == "My Team" && g.Slug == "my_team" && g.OrgId == "org-123"
 		}), "user_id").Return(createdGroup, nil).Once()
+		resourceSvc.On("BulkUpsert", mockCtx, mock.AnythingOfType("[]*domain.Resource")).Return(nil).Once()
 
 		a := domain.Grant{
 			Resource:  &domain.Resource{Type: shield.ResourceTypeCreateTeam},
@@ -2081,11 +2083,13 @@ func TestGrantAccessCreateTeam(t *testing.T) {
 		err := p.GrantAccess(ctx, basePC, a)
 		assert.NoError(t, err)
 		client.AssertExpectations(t)
+		resourceSvc.AssertExpectations(t)
 	})
 
 	t.Run("should auto-generate slug when not provided in appeal details", func(t *testing.T) {
 		client := new(mocks.ShieldClient)
-		p := shield.NewProvider("shield", logger)
+		resourceSvc := new(mocks.ShieldResourceService)
+		p := shield.NewProvider("shield", resourceSvc, logger)
 		p.Clients = map[string]shield.ShieldClient{providerURN: client}
 
 		expectedUser := &shield.User{ID: "user_id", Email: "user@test.com"}
@@ -2094,6 +2098,7 @@ func TestGrantAccessCreateTeam(t *testing.T) {
 		client.On("GrantCreateTeamAccess", mockCtx, mock.MatchedBy(func(g shield.Group) bool {
 			return g.Name == "My Team" && g.Slug == "my_team"
 		}), "user_id").Return(createdGroup, nil).Once()
+		resourceSvc.On("BulkUpsert", mockCtx, mock.AnythingOfType("[]*domain.Resource")).Return(nil).Once()
 
 		a := domain.Grant{
 			Resource:  &domain.Resource{Type: shield.ResourceTypeCreateTeam},
@@ -2106,5 +2111,6 @@ func TestGrantAccessCreateTeam(t *testing.T) {
 		err := p.GrantAccess(ctx, basePC, a)
 		assert.NoError(t, err)
 		client.AssertExpectations(t)
+		resourceSvc.AssertExpectations(t)
 	})
 }

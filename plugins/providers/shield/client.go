@@ -19,6 +19,11 @@ import (
 
 type successAccess interface{}
 
+const (
+	MemberRole = "team_member"
+	AdminRole  = "team_admin"
+)
+
 type client struct {
 	baseURL *url.URL
 
@@ -457,7 +462,10 @@ func (c *client) GrantCreateTeamAccess(ctx context.Context, team Group, userId s
 		return nil, fmt.Errorf("creating team in shield: %w", err)
 	}
 	c.logger.Info(ctx, "Granting team access to user via team creation in shield", "teamId", createdGroup.ID, "userId", userId)
-	if err := c.CreateRelation(ctx, createdGroup.ID, groupNamespaceConst, userId); err != nil {
+	if err := c.CreateRelation(ctx, createdGroup.ID, groupNamespaceConst, userId, AdminRole, "team"); err != nil {
+		return nil, fmt.Errorf("creating manager relation for team %s: %w", createdGroup.ID, err)
+	}
+	if err := c.CreateRelation(ctx, createdGroup.ID, groupNamespaceConst, userId, MemberRole, "team"); err != nil {
 		return nil, fmt.Errorf("creating manager relation for team %s: %w", createdGroup.ID, err)
 	}
 	c.logger.Info(ctx, "Team access granted via team creation in shield", "id", createdGroup.ID, "name", createdGroup.Name)
@@ -469,13 +477,13 @@ func (c *client) RevokeCreateTeamAccess(ctx context.Context, team Group) error {
 	return errors.New("RevokeCreateTeamAccess not implemented yet")
 }
 
-func (c *client) CreateRelation(ctx context.Context, objectId string, objectNamespace string, subject string) error {
+func (c *client) CreateRelation(ctx context.Context, objectId string, objectNamespace string, subject string, role string, objectType string) error {
 	body := Relation{
 		ObjectId:    objectId,
-		ObjectType:  "team",
+		ObjectType:  objectType,
 		SubjectType: "user",
 		SubjectId:   subject,
-		RoleID:      "team_admin",
+		RoleID:      role,
 	}
 	c.logger.Info(ctx, "Creating relation in shield", "objectId", objectId, "objectNamespace", objectNamespace, "subject", subject)
 

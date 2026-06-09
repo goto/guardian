@@ -13,13 +13,19 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+//go:generate mockery --name=ResourceService --exported --with-expecter
+type ResourceService interface {
+	BulkUpsert(context.Context, []*domain.Resource) error
+}
+
 type provider struct {
 	pv.UnimplementedClient
 	pv.PermissionManager
 
-	typeName string
-	Clients  map[string]ShieldClient
-	logger   log.Logger
+	typeName        string
+	Clients         map[string]ShieldClient
+	resourceService ResourceService
+	logger          log.Logger
 }
 
 func (p *provider) GetAccountTypes() []string {
@@ -28,11 +34,12 @@ func (p *provider) GetAccountTypes() []string {
 	}
 }
 
-func NewProvider(typeName string, logger log.Logger) *provider {
+func NewProvider(typeName string, resourceService ResourceService, logger log.Logger) *provider {
 	return &provider{
-		typeName: typeName,
-		Clients:  map[string]ShieldClient{},
-		logger:   logger,
+		typeName:        typeName,
+		Clients:         map[string]ShieldClient{},
+		resourceService: resourceService,
+		logger:          logger,
 	}
 }
 
@@ -279,8 +286,16 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, a
 				return fmt.Errorf("decoding team metadata: %w", err)
 			}
 		}
-		if _, err := client.GrantCreateTeamAccess(ctx, *t, user.ID); err != nil {
+		createdGroup, err := client.GrantCreateTeamAccess(ctx, *t, user.ID)
+		if err != nil {
 			return err
+		}
+		r := createdGroup.ToDomain()
+		r.ProviderType = pc.Type
+		r.ProviderURN = pc.URN
+		r.GlobalURN = utils.GetGlobalURN("shield", pc.URN, ResourceTypeTeam, createdGroup.ID)
+		if err := p.resourceService.BulkUpsert(ctx, []*domain.Resource{r}); err != nil {
+			return fmt.Errorf("registering new team %q as guardian resource: %w", createdGroup.ID, err)
 		}
 		return nil
 	case ResourceTypeProject:

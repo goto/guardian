@@ -140,7 +140,7 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		optimus.NewProvider(domain.ProviderTypeOptimus, deps.Crypto, deps.Logger),
 		gcs.NewProvider(domain.ProviderTypeGCS, deps.Crypto),
 		dataplex.NewProvider(domain.ProviderTypePolicyTag, deps.Crypto),
-		shield.NewProvider(domain.ProviderTypeShield, deps.Logger),
+		shield.NewProvider(domain.ProviderTypeShield, resourceService, deps.Logger),
 		gitlab.NewProvider(domain.ProviderTypeGitlab, deps.Crypto, deps.Logger),
 		gate.NewProvider(domain.ProviderTypeGate, deps.Crypto),
 		maxcompute.New(domain.ProviderTypeMaxCompute, deps.Crypto, deps.Logger),
