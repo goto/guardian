@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/pkg/log"
@@ -487,26 +488,43 @@ func (c *client) CreateRelation(ctx context.Context, objectId string, objectName
 	}
 	c.logger.Info(ctx, "Creating relation in shield", "objectId", objectId, "objectNamespace", objectNamespace, "subject", subject)
 
-	req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
-	if err != nil {
-		return err
-	}
+	const maxRetries = 3
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * 100 * time.Millisecond)
+		}
 
-	var relation *Relation
-	var response interface{}
-	if _, err := c.do(ctx, req, &response); err != nil {
-		return err
-	}
-
-	if v, ok := response.(map[string]interface{}); ok && v[relationConst] != nil {
-		err = mapstructure.Decode(v[relationConst], &relation)
+		req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
 		if err != nil {
 			return err
 		}
+
+		var relation *Relation
+		var response interface{}
+		if _, err := c.do(ctx, req, &response); err != nil {
+			lastErr = err
+			c.logger.Warn(ctx, "CreateRelation attempt failed", "attempt", attempt+1, "error", err)
+			continue
+		}
+
+		if v, ok := response.(map[string]interface{}); ok && v[relationConst] != nil {
+			if err = mapstructure.Decode(v[relationConst], &relation); err != nil {
+				return err
+			}
+		}
+
+		if relation == nil {
+			lastErr = fmt.Errorf("relation not returned in response for namespace %s", objectNamespace)
+			c.logger.Warn(ctx, "CreateRelation attempt returned no relation in response", "attempt", attempt+1)
+			continue
+		}
+
+		c.logger.Info(ctx, "Relation created for namespace ", objectNamespace, "relation id", relation.Id)
+		return nil
 	}
 
-	c.logger.Info(ctx, "Relation created for namespace ", objectNamespace, "relation id", relation.Id)
-	return nil
+	return fmt.Errorf("failed to create relation after %d attempts: %w", maxRetries, lastErr)
 }
 
 func (c *client) CheckUserPermission(ctx context.Context, permissions []ResourcePermission) error {

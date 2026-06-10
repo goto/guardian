@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/pkg/log"
@@ -138,26 +139,43 @@ func (c *shieldNewclient) CreateRelation(ctx context.Context, objectId string, o
 		RoleName:        role,
 	}
 
-	req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
-	if err != nil {
-		return err
-	}
+	const maxRetries = 3
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * 100 * time.Millisecond)
+		}
 
-	var relation *Relation
-	var response interface{}
-	if _, err := c.do(ctx, req, &response); err != nil {
-		return err
-	}
-
-	if v, ok := response.(map[string]interface{}); ok && v[relationConst] != nil {
-		err = mapstructure.Decode(v[relationConst], &relation)
+		req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
 		if err != nil {
 			return err
 		}
+
+		var relation *Relation
+		var response interface{}
+		if _, err := c.do(ctx, req, &response); err != nil {
+			lastErr = err
+			c.logger.Warn(ctx, "CreateRelation attempt failed", "attempt", attempt+1, "error", err)
+			continue
+		}
+
+		if v, ok := response.(map[string]interface{}); ok && v[relationConst] != nil {
+			if err = mapstructure.Decode(v[relationConst], &relation); err != nil {
+				return err
+			}
+		}
+
+		if relation == nil {
+			lastErr = fmt.Errorf("relation not returned in response for namespace %s", objectNamespace)
+			c.logger.Warn(ctx, "CreateRelation attempt returned no relation in response", "attempt", attempt+1)
+			continue
+		}
+
+		c.logger.Info(ctx, "Relation created for namespace ", objectNamespace, "relation id", relation.Id)
+		return nil
 	}
 
-	c.logger.Info(ctx, "Relation created for namespace ", objectNamespace, "relation id", relation.Id)
-	return nil
+	return fmt.Errorf("failed to create relation after %d attempts: %w", maxRetries, lastErr)
 }
 
 func (c *shieldNewclient) DeleteRelation(ctx context.Context, objectId string, subjectId string, role string) error {
@@ -472,6 +490,39 @@ func (c *shieldNewclient) CheckUserPermission(ctx context.Context, permissions [
 	for _, rp := range response.ResourcePermissions {
 		if !rp.Allowed {
 			return fmt.Errorf("permission denied: guardian service account does not have %q on %s:%s", rp.Permission, rp.ObjectNamespace, rp.ObjectId)
+		}
+	}
+	return nil
+}
+
+func (c *shieldNewclient) checkPermissionForUser(ctx context.Context, userId string, permissions []ResourcePermission) error {
+	endpoint := fmt.Sprintf(userCheckEndpoint, userId)
+	body := map[string]interface{}{
+		"resource_permissions": permissions,
+	}
+	req, err := c.newRequest(http.MethodPost, endpoint, body, "")
+	if err != nil {
+		return err
+	}
+
+	var response struct {
+		ResourcePermissions []struct {
+			ObjectId        string `json:"objectId"`
+			ObjectNamespace string `json:"objectNamespace"`
+			Permission      string `json:"permission"`
+			Allowed         bool   `json:"allowed"`
+		} `json:"resourcePermissions"`
+	}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return fmt.Errorf("permission check failed: %w", err)
+	}
+
+	if len(response.ResourcePermissions) == 0 {
+		return fmt.Errorf("permission check returned no results for user %q", userId)
+	}
+	for _, rp := range response.ResourcePermissions {
+		if !rp.Allowed {
+			return fmt.Errorf("user %q does not have %q on %s:%s", userId, rp.Permission, rp.ObjectNamespace, rp.ObjectId)
 		}
 	}
 	return nil
