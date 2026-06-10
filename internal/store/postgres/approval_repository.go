@@ -69,7 +69,11 @@ var (
 // expression converts that to NULL so permanent grants are classified as "none"
 // rather than falsely appearing as expired.
 const lateralGrantJoinSQL = `LEFT JOIN LATERAL (
-	SELECT CASE WHEN "g"."is_permanent" THEN NULL ELSE "g"."expiration_date" END AS "expiration_date"
+	SELECT CASE
+		WHEN "g"."revoked_at" > '0001-01-01 00:00:00' THEN "g"."revoked_at"
+		WHEN "g"."is_permanent" THEN NULL
+		ELSE "g"."expiration_date"
+		END AS "expiration_date"
 	FROM "grants" "g"
 	WHERE "g"."account_id" = "Appeal"."account_id"
 	  AND "g"."resource_id" = "Appeal"."resource_id"
