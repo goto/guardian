@@ -69,6 +69,10 @@ brews:
     tap:
       owner: goto
       name: homebrew-tap
+    repository:
+      owner: goto
+      name: homebrew-tap
+      token: "{{ .Env.GO_RELEASER_TOKEN }}"
     license: "Apache 2.0"
     folder: Formula
     dependencies:

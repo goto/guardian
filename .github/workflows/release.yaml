@@ -34,3 +34,4 @@ jobs:
           args: --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GO_RELEASER_TOKEN: ${{ secrets.GO_RELEASER_TOKEN }}
