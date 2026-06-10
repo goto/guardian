@@ -73,6 +73,7 @@ brews:
       owner: goto
       name: homebrew-tap
       token: "{{ .Env.GO_RELEASER_TOKEN }}"
+    skip_upload: auto
     license: "Apache 2.0"
     folder: Formula
     dependencies:
