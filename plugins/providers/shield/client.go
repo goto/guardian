@@ -205,84 +205,100 @@ func (c *client) GetOrganizations(ctx context.Context) ([]*Organization, error) 
 func (c *client) GrantGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
 	body := make(map[string][]string)
 	body["userIds"] = append(body["userIds"], userId)
-
 	endPoint := path.Join(groupsEndpoint, "/", resource.ID, "/", role)
-	req, err := c.newRequest(http.MethodPost, endPoint, body, "")
-	if err != nil {
-		return err
-	}
 
-	var users []*User
-	var response interface{}
-	if _, err := c.do(ctx, req, &response); err != nil {
-		return err
-	}
-
-	if v, ok := response.(map[string]interface{}); ok && v[usersConst] != nil {
-		err = mapstructure.Decode(v[usersConst], &users)
+	const maxRetries = 3
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * 100 * time.Millisecond)
+		}
+		req, err := c.newRequest(http.MethodPost, endPoint, body, "")
 		if err != nil {
 			return err
 		}
+		var users []*User
+		var response interface{}
+		if _, err := c.do(ctx, req, &response); err != nil {
+			lastErr = err
+			c.logger.Warn(ctx, "GrantGroupAccess attempt failed", "attempt", attempt+1, "error", err)
+			continue
+		}
+		if v, ok := response.(map[string]interface{}); ok && v[usersConst] != nil {
+			if err = mapstructure.Decode(v[usersConst], &users); err != nil {
+				return err
+			}
+		}
+		c.logger.Info(ctx, "group access to the user,", "total users", len(users), req.URL)
+		return nil
 	}
-
-	c.logger.Info(ctx, "group access to the user,", "total users", len(users), req.URL)
-
-	return nil
+	return fmt.Errorf("failed to grant group access after %d attempts: %w", maxRetries, lastErr)
 }
 
 func (c *client) GrantProjectAccess(ctx context.Context, resource *Project, userId string, role string) error {
 	body := make(map[string][]string)
 	body["userIds"] = append(body["userIds"], userId)
-
 	endPoint := path.Join(projectsEndpoint, "/", resource.ID, "/", role)
-	req, err := c.newRequest(http.MethodPost, endPoint, body, "")
-	if err != nil {
-		return err
-	}
 
-	var users []*User
-	var response interface{}
-	if _, err := c.do(ctx, req, &response); err != nil {
-		return err
-	}
-
-	if v, ok := response.(map[string]interface{}); ok && v[usersConst] != nil {
-		err = mapstructure.Decode(v[usersConst], &users)
+	const maxRetries = 3
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * 100 * time.Millisecond)
+		}
+		req, err := c.newRequest(http.MethodPost, endPoint, body, "")
 		if err != nil {
 			return err
 		}
+		var users []*User
+		var response interface{}
+		if _, err := c.do(ctx, req, &response); err != nil {
+			lastErr = err
+			c.logger.Warn(ctx, "GrantProjectAccess attempt failed", "attempt", attempt+1, "error", err)
+			continue
+		}
+		if v, ok := response.(map[string]interface{}); ok && v[usersConst] != nil {
+			if err = mapstructure.Decode(v[usersConst], &users); err != nil {
+				return err
+			}
+		}
+		c.logger.Info(ctx, "Project access to the user,", "total users", len(users), req.URL)
+		return nil
 	}
-
-	c.logger.Info(ctx, "Project access to the user,", "total users", len(users), req.URL)
-	return nil
+	return fmt.Errorf("failed to grant project access after %d attempts: %w", maxRetries, lastErr)
 }
 
 func (c *client) GrantOrganizationAccess(ctx context.Context, resource *Organization, userId string, role string) error {
 	body := make(map[string][]string)
 	body["userIds"] = append(body["userIds"], userId)
-
 	endPoint := path.Join(organizationEndpoint, "/", resource.ID, "/", role)
-	req, err := c.newRequest(http.MethodPost, endPoint, body, "")
 
-	if err != nil {
-		return err
-	}
-
-	var users []*User
-	var response interface{}
-	if _, err := c.do(ctx, req, &response); err != nil {
-		return err
-	}
-
-	if v, ok := response.(map[string]interface{}); ok && v[usersConst] != nil {
-		err = mapstructure.Decode(v[usersConst], &users)
+	const maxRetries = 3
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * 100 * time.Millisecond)
+		}
+		req, err := c.newRequest(http.MethodPost, endPoint, body, "")
 		if err != nil {
 			return err
 		}
+		var users []*User
+		var response interface{}
+		if _, err := c.do(ctx, req, &response); err != nil {
+			lastErr = err
+			c.logger.Warn(ctx, "GrantOrganizationAccess attempt failed", "attempt", attempt+1, "error", err)
+			continue
+		}
+		if v, ok := response.(map[string]interface{}); ok && v[usersConst] != nil {
+			if err = mapstructure.Decode(v[usersConst], &users); err != nil {
+				return err
+			}
+		}
+		c.logger.Info(ctx, "Organization access to the user,", "total users", len(users), req.URL)
+		return nil
 	}
-
-	c.logger.Info(ctx, "Organization access to the user,", "total users", len(users), req.URL)
-	return nil
+	return fmt.Errorf("failed to grant organization access after %d attempts: %w", maxRetries, lastErr)
 }
 
 func (c *client) RevokeGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {

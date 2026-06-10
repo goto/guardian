@@ -495,39 +495,6 @@ func (c *shieldNewclient) CheckUserPermission(ctx context.Context, permissions [
 	return nil
 }
 
-func (c *shieldNewclient) checkPermissionForUser(ctx context.Context, userId string, permissions []ResourcePermission) error {
-	endpoint := fmt.Sprintf(userCheckEndpoint, userId)
-	body := map[string]interface{}{
-		"resource_permissions": permissions,
-	}
-	req, err := c.newRequest(http.MethodPost, endpoint, body, "")
-	if err != nil {
-		return err
-	}
-
-	var response struct {
-		ResourcePermissions []struct {
-			ObjectId        string `json:"objectId"`
-			ObjectNamespace string `json:"objectNamespace"`
-			Permission      string `json:"permission"`
-			Allowed         bool   `json:"allowed"`
-		} `json:"resourcePermissions"`
-	}
-	if _, err := c.do(ctx, req, &response); err != nil {
-		return fmt.Errorf("permission check failed: %w", err)
-	}
-
-	if len(response.ResourcePermissions) == 0 {
-		return fmt.Errorf("permission check returned no results for user %q", userId)
-	}
-	for _, rp := range response.ResourcePermissions {
-		if !rp.Allowed {
-			return fmt.Errorf("user %q does not have %q on %s:%s", userId, rp.Permission, rp.ObjectNamespace, rp.ObjectId)
-		}
-	}
-	return nil
-}
-
 func (c *shieldNewclient) GrantCreateTeamAccess(ctx context.Context, team Group, userId string) (*Group, error) {
 	if team.OrgId != "" {
 		if err := c.CheckUserPermission(ctx, []ResourcePermission{
