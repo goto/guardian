@@ -60,7 +60,7 @@ func (p *provider) GetType() string {
 }
 
 func (p *provider) GetAccountTypes() []string {
-	return []string{accountTypeRAMUser, accountTypeRAMRole}
+	return []string{accountTypeRAMUser, accountTypeRAMRole, domain.AccountTypePackage}
 }
 
 func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*domain.Role, error) {
@@ -162,6 +162,10 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 }
 
 func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
+	if g.AccountType == domain.AccountTypePackage {
+		return nil
+	}
+
 	var overrideRAMRole string
 	if slices.Contains(pc.GetParameterKeys(), parameterRAMRoleKey) {
 		r, _, err := getParametersFromGrant[string](g, parameterRAMRoleKey)
@@ -251,6 +255,10 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 }
 
 func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
+	if g.AccountType == domain.AccountTypePackage {
+		return nil
+	}
+
 	var overrideRAMRole string
 	if slices.Contains(pc.GetParameterKeys(), parameterRAMRoleKey) {
 		r, _, err := getParametersFromGrant[string](g, parameterRAMRoleKey)
@@ -325,6 +333,10 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 }
 
 func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, g domain.Grant) ([]*domain.Grant, error) {
+	if g.AccountType == domain.AccountTypePackage {
+		return nil, nil
+	}
+
 	if g.Resource.ProviderType != sourceName {
 		return nil, fmt.Errorf("unsupported provider type: %q", g.Resource.ProviderType)
 	}

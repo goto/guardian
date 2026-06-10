@@ -116,6 +116,10 @@ func (p *Provider) GetResources(_ context.Context, pc *domain.ProviderConfig) ([
 }
 
 func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
+	if g.AccountType == domain.AccountTypePackage {
+		return nil
+	}
+
 	client, err := p.getClient(pc)
 	if err != nil {
 		return err
@@ -161,6 +165,10 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 }
 
 func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
+	if g.AccountType == domain.AccountTypePackage {
+		return nil
+	}
+
 	client, err := p.getClient(pc)
 	if err != nil {
 		return err
@@ -292,6 +300,7 @@ func getAccountTypes() []string {
 	return []string{
 		AccountTypeRamUser,
 		AccountTypeRamRole,
+		domain.AccountTypePackage,
 	}
 }
 

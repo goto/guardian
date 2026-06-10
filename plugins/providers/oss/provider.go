@@ -59,7 +59,7 @@ func (p *provider) GetType() string {
 }
 
 func (p *provider) GetAccountTypes() []string {
-	return []string{AccountTypeRAMUser, AccountTypeRAMRole}
+	return []string{AccountTypeRAMUser, AccountTypeRAMRole, domain.AccountTypePackage}
 }
 
 func (p *provider) GetRoles(pc *domain.ProviderConfig, resourceType string) ([]*domain.Role, error) {
@@ -119,6 +119,10 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 }
 
 func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
+	if g.AccountType == domain.AccountTypePackage {
+		return nil
+	}
+
 	if g.Resource.Type != resourceTypeBucket {
 		return fmt.Errorf("unsupported resource type: %s", g.Resource.Type)
 	}
@@ -164,6 +168,10 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 }
 
 func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
+	if g.AccountType == domain.AccountTypePackage {
+		return nil
+	}
+
 	if g.Resource.Type != resourceTypeBucket {
 		return fmt.Errorf("unsupported resource type: %s", g.Resource.Type)
 	}

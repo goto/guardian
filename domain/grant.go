@@ -22,6 +22,8 @@ const (
 	GrantSourceAppeal GrantSource = "appeal"
 	GrantSourceImport GrantSource = "import"
 
+	AccountTypePackage = "package"
+
 	GrantExpirationReasonDormant  = "grant/access hasn't been used for a while"
 	GrantExpirationReasonRestored = "grant restored with new duration"
 )
@@ -130,6 +132,33 @@ func (g *Grant) GetPermissions() []string {
 		permissions = append(permissions, p)
 	}
 	return permissions
+}
+
+func IsLogicalPackageGrant(accountID, accountType, groupID, providerType string) bool {
+	if accountType != AccountTypePackage || accountID == "" || groupID == "" || accountID != groupID {
+		return false
+	}
+
+	switch providerType {
+	case "maxcompute", "oss", "alicloud_ram":
+		return true
+	default:
+		return false
+	}
+}
+
+func (a *Appeal) IsLogicalPackageGrant() bool {
+	if a == nil || a.Resource == nil {
+		return false
+	}
+	return IsLogicalPackageGrant(a.AccountID, a.AccountType, a.GroupID, a.Resource.ProviderType)
+}
+
+func (g *Grant) IsLogicalPackageGrant() bool {
+	if g == nil || g.Resource == nil {
+		return false
+	}
+	return IsLogicalPackageGrant(g.AccountID, g.AccountType, g.GroupID, g.Resource.ProviderType)
 }
 
 func (g *Grant) Compare(old *Grant, actor string) ([]*DiffItem, error) {
