@@ -53,22 +53,43 @@ var (
 	}
 )
 
-// latestGrantExpirationDateSubquery is the canonical SQL for "expiration date of the most
-// recently created grant matching the appeal's (account_id, resource_id, role)". It is the
-// single source of truth used by ListApprovals' SELECT, the start/end_expiration_date WHERE
-// filter, and the order_by=previous_grant_expiration_date sort. Returns NULL when no
-// matching grant exists. Joins on "Appeal" because applyApprovalsJoins aliases the appeals
-// table that way.
-const latestGrantExpirationDateSubquery = `(
-	SELECT "g"."expiration_date" FROM "grants" "g"
+// lateralGrantJoinSQL materialises the latest grant for each approval row via a
+// LEFT JOIN LATERAL. Using a lateral join instead of an inline correlated subquery means
+// the grants lookup executes exactly once per outer row, regardless of how many times
+// "lat_grant"."expiration_date" is referenced in WHERE or SELECT. The index
+// idx_grants_account_resource_role_created covers the equality predicates and the
+// ORDER BY, so each lookup is O(log n) and returns the first entry without a sort step.
+//
+// No status filter is applied: we want the most recently created grant regardless of
+// whether it is still active or has already been revoked/expired. The expiry job sets
+// status = 'inactive' on expired grants, so filtering status = 'active' would hide
+// exactly the grants we need to detect for previousGrantStates=expired.
+//
+// is_permanent grants store expiration_date = 0001-01-01 (Go zero time). The CASE
+// expression converts that to NULL so permanent grants are classified as "none"
+// rather than falsely appearing as expired.
+const lateralGrantJoinSQL = `LEFT JOIN LATERAL (
+	SELECT CASE
+		WHEN "g"."revoked_at" > '0001-01-01 00:00:00' THEN "g"."revoked_at"
+		WHEN "g"."is_permanent" THEN NULL
+		ELSE "g"."expiration_date"
+		END AS "expiration_date"
+	FROM "grants" "g"
 	WHERE "g"."account_id" = "Appeal"."account_id"
 	  AND "g"."resource_id" = "Appeal"."resource_id"
 	  AND "g"."role" = "Appeal"."role"
 	  AND "g"."group_id" IS NOT DISTINCT FROM "Appeal"."group_id"
 	  AND "g"."group_type" IS NOT DISTINCT FROM "Appeal"."group_type"
-	  AND "g"."deleted_at" IS NULL
 	ORDER BY "g"."created_at" DESC LIMIT 1
-)`
+) "lat_grant" ON TRUE`
+
+// needsLateralGrantJoin reports whether the filter requires the lat_grant lateral join.
+func needsLateralGrantJoin(filter *domain.ListApprovalsFilter) bool {
+	return filter.WithPreviousGrant ||
+		!filter.StartExpirationDate.IsZero() ||
+		!filter.EndExpirationDate.IsZero() ||
+		len(filter.PreviousGrantStates) > 0
+}
 
 type ApprovalRepository struct {
 	db *gorm.DB
@@ -102,14 +123,13 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 	var columnSuffixes map[string]string
 	if filter.WithPreviousGrant {
 		// Hydrate the derived previous_grant_expiration_date column on each returned row.
-		// The aliased subquery is scanned into approvalRowWithPreviousGrant.PreviousGrantExpirationDate.
-		db = db.Select(`"approvals".*, ` + latestGrantExpirationDateSubquery + ` AS previous_grant_expiration_date`)
+		// The lateral join was already added by applyApprovalsFilter, so we reference
+		// "lat_grant"."expiration_date" directly instead of repeating the subquery.
+		db = db.Select(`"approvals".*, "lat_grant"."expiration_date" AS previous_grant_expiration_date`)
 
 		orderByList = append(orderByList, "previous_grant_expiration_date")
-		// "previous_grant_expiration_date" isn't a real column; resolve it to the same
-		// subquery used in SELECT/WHERE so all three stay consistent.
 		columnExpressions = map[string]string{
-			"previous_grant_expiration_date": latestGrantExpirationDateSubquery,
+			"previous_grant_expiration_date": `"lat_grant"."expiration_date"`,
 		}
 		// Force NULLS LAST on both :asc and :desc so approvals with no previous grant
 		// always sink to the bottom of the page, regardless of direction. Without this,
@@ -224,7 +244,7 @@ func (r *ApprovalRepository) GenerateApprovalSummary(ctx context.Context, filter
 		f.OrderBy = nil
 
 		db := r.db.WithContext(gCtx)
-		db = applyApprovalsSummaryJoins(db)
+		db = applyApprovalsSummaryJoins(db, filter.CreatedBy)
 		return applyApprovalsFilter(db, &f)
 	}
 
@@ -257,7 +277,7 @@ func (r *ApprovalRepository) GenerateSummary(ctx context.Context, filter domain.
 		f.OrderBy = nil
 
 		db := r.db.WithContext(gCtx)
-		db = applyApprovalsSummaryJoins(db)
+		db = applyApprovalsSummaryJoins(db, filter.CreatedBy)
 		return applyApprovalsFilter(db, &f)
 	}
 
@@ -274,7 +294,7 @@ func (r *ApprovalRepository) GenerateSummary(ctx context.Context, filter domain.
 		f.Labels = labels
 
 		db := r.db.WithContext(gCtx)
-		db = applyApprovalsSummaryJoins(db)
+		db = applyApprovalsSummaryJoins(db, filter.CreatedBy)
 		return applyApprovalsFilter(db, &f)
 	}
 
@@ -396,10 +416,19 @@ func applyApprovalsJoins(db *gorm.DB) *gorm.DB {
 		Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
 }
 
-func applyApprovalsSummaryJoins(db *gorm.DB) *gorm.DB {
-	return db.Joins(`LEFT JOIN "appeals" "Appeal" ON "approvals"."appeal_id" = "Appeal"."id"`).
-		Joins(`LEFT JOIN "resources" "Appeal__Resource" ON "Appeal"."resource_id" = "Appeal__Resource"."id"`).
-		Joins(`LEFT JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
+// applyApprovalsSummaryJoins applies the joins for summary/count queries.
+// When createdBy is set, approvers is INNER JOINed because the WHERE clause on
+// approvers.email already excludes unmatched rows; making it explicit lets the
+// planner choose a more efficient join order.
+func applyApprovalsSummaryJoins(db *gorm.DB, createdBy string) *gorm.DB {
+	db = db.Joins(`LEFT JOIN "appeals" "Appeal" ON "approvals"."appeal_id" = "Appeal"."id"`).
+		Joins(`LEFT JOIN "resources" "Appeal__Resource" ON "Appeal"."resource_id" = "Appeal__Resource"."id"`)
+	if createdBy != "" {
+		db = db.Joins(`JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
+	} else {
+		db = db.Joins(`LEFT JOIN "approvers" ON "approvals"."id" = "approvers"."approval_id"`)
+	}
+	return db
 }
 
 func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gorm.DB, error) {
@@ -540,27 +569,31 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		db = db.Where(`"Appeal"."created_at" <= ?`, filter.EndTime)
 	}
 
-	// Restrict by previous-grant expiration date. The "previous grant" for an appeal is the
-	// grant with the latest created_at that matches the appeal's (account_id, resource_id, role).
-	// Filter against latestGrantExpirationDateSubquery so the WHERE clause is consistent with
-	// the SELECT and the order_by=previous_grant_expiration_date sort.
+	// Add the lateral grant join once when any grant-related filter or SELECT is needed.
+	// This replaces the previous approach of embedding the same correlated subquery in each
+	// WHERE condition, which caused it to be evaluated once per condition per row.
+	if needsLateralGrantJoin(filter) {
+		db = db.Joins(lateralGrantJoinSQL)
+	}
+
+	// Restrict by previous-grant expiration date.
 	if !filter.StartExpirationDate.IsZero() || !filter.EndExpirationDate.IsZero() {
 		var sub string
 		args := []interface{}{}
 		if !filter.StartExpirationDate.IsZero() && !filter.EndExpirationDate.IsZero() {
-			sub = latestGrantExpirationDateSubquery + ` BETWEEN ? AND ?`
+			sub = `"lat_grant"."expiration_date" BETWEEN ? AND ?`
 			args = append(args, filter.StartExpirationDate, filter.EndExpirationDate)
 		} else if !filter.StartExpirationDate.IsZero() {
-			sub = latestGrantExpirationDateSubquery + ` >= ?`
+			sub = `"lat_grant"."expiration_date" >= ?`
 			args = append(args, filter.StartExpirationDate)
 		} else {
-			sub = latestGrantExpirationDateSubquery + ` <= ?`
+			sub = `"lat_grant"."expiration_date" <= ?`
 			args = append(args, filter.EndExpirationDate)
 		}
 		db = db.Where(sub, args...)
 	}
 
-	// Filter by previous-grant states. NULL from the subquery means either no previous grant
+	// Filter by previous-grant states. NULL from the lateral means either no previous grant
 	// exists at all or the latest grant is permanent (expiration_date IS NULL) — both fall
 	// under "none". For "expired" and "expiring", NULL is excluded automatically because any
 	// comparison with NULL is NULL (falsy) in WHERE.
@@ -571,16 +604,16 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 		for _, state := range filter.PreviousGrantStates {
 			switch state {
 			case domain.PreviousGrantStateExpired:
-				orClauses = append(orClauses, latestGrantExpirationDateSubquery+` < NOW()`)
+				orClauses = append(orClauses, `"lat_grant"."expiration_date" < NOW()`)
 			case domain.PreviousGrantStateExpiring:
 				days := filter.ExpiringWithinDays
 				if days == 0 {
 					days = domain.DefaultExpiringWithinDays
 				}
-				orClauses = append(orClauses, latestGrantExpirationDateSubquery+` BETWEEN NOW() AND NOW() + (? * INTERVAL '1 day')`)
+				orClauses = append(orClauses, `"lat_grant"."expiration_date" BETWEEN NOW() AND NOW() + (? * INTERVAL '1 day')`)
 				stateArgs = append(stateArgs, days)
 			case domain.PreviousGrantStateNone:
-				orClauses = append(orClauses, latestGrantExpirationDateSubquery+` IS NULL`)
+				orClauses = append(orClauses, `"lat_grant"."expiration_date" IS NULL`)
 			}
 		}
 		if len(orClauses) > 0 {
