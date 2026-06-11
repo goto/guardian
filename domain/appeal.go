@@ -353,6 +353,37 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 		return fmt.Errorf("appeal has no policy")
 	}
 
+	// Pre-pass: eagerly evaluate 'when' for all blocked steps. Steps whose
+	// condition is false are skipped immediately rather than waiting for all
+	// prior steps to be approved first. An evaluation error fails immediately.
+	{
+		appealMap, err := a.ToMap()
+		if err != nil {
+			return fmt.Errorf("parsing appeal struct to map: %w", err)
+		}
+		for _, approval := range a.Approvals {
+			if approval.IsStale || approval.Status != ApprovalStatusBlocked {
+				continue
+			}
+			stepConfig := policy.GetStepByName(approval.Name)
+			if (stepConfig == nil || approval.Name == "") && !policy.HasStages() && approval.Index < len(policy.Steps) {
+				stepConfig = policy.Steps[approval.Index]
+			}
+			if stepConfig == nil || stepConfig.When == "" {
+				continue
+			}
+			v, err := evaluator.Expression(stepConfig.When).EvaluateWithVars(map[string]interface{}{
+				"appeal": appealMap,
+			})
+			if err != nil {
+				return err
+			}
+			if reflect.ValueOf(v).IsZero() {
+				approval.Status = ApprovalStatusSkipped
+			}
+		}
+	}
+
 	sortedIndices := a.GetSortedStageIndices()
 
 	for idxPos, stageIdx := range sortedIndices {
