@@ -9,6 +9,7 @@ require (
 	cloud.google.com/go/storage v1.30.1
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/MakeNowJust/heredoc v1.0.0
+	github.com/PagerDuty/go-pagerduty v1.8.0
 	github.com/alibabacloud-go/cloudsso-20210515 v1.6.2
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.11
 	github.com/alibabacloud-go/maxcompute-20220104 v1.4.1
@@ -81,7 +82,6 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
-	github.com/PagerDuty/go-pagerduty v1.8.0 // indirect
 	github.com/alecthomas/chroma v0.8.2 // indirect
 	github.com/alibabacloud-go/alibabacloud-gateway-spi v0.0.5 // indirect
 	github.com/alibabacloud-go/debug v1.0.1 // indirect

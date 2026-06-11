@@ -22,6 +22,8 @@ const (
 	GrantSourceAppeal GrantSource = "appeal"
 	GrantSourceImport GrantSource = "import"
 
+	AccountTypePackage = "package"
+
 	GrantExpirationReasonDormant  = "grant/access hasn't been used for a while"
 	GrantExpirationReasonRestored = "grant restored with new duration"
 )

@@ -5,6 +5,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -28,6 +31,7 @@ jobs:
         with:
           distribution: goreleaser
           version: v1.26.2
-          args: --rm-dist
+          args: --clean
         env:
-          GITHUB_TOKEN: ${{ secrets.GO_RELEASER_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GO_RELEASER_TOKEN: ${{ secrets.GO_RELEASER_TOKEN }}
