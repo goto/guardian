@@ -93,8 +93,7 @@ func needsLateralGrantJoin(filter *domain.ListApprovalsFilter) bool {
 	return filter.WithPreviousGrant ||
 		!filter.StartExpirationDate.IsZero() ||
 		!filter.EndExpirationDate.IsZero() ||
-		len(filter.PreviousGrantStates) > 0 ||
-		filter.ExpiringWithinDays > 0
+		len(filter.PreviousGrantStates) > 0
 }
 
 type ApprovalRepository struct {
@@ -131,7 +130,17 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 		// Hydrate the derived previous_grant_expiration_date column on each returned row.
 		// The lateral join was already added by applyApprovalsFilter, so we reference
 		// "lat_grant"."expiration_date" directly instead of repeating the subquery.
-		db = db.Select(`"approvals".*, "lat_grant"."expiration_date" AS previous_grant_expiration_date`)
+		// When ExpiringWithinDays is set (without an explicit previousGrantStates filter),
+		// we NULL out the expiration_date for grants outside the symmetric window instead
+		// of filtering those rows out entirely, so all approvals are still returned.
+		if filter.ExpiringWithinDays > 0 && len(filter.PreviousGrantStates) == 0 {
+			db = db.Select(
+				`"approvals".*, CASE WHEN "lat_grant"."expiration_date" BETWEEN NOW() - (? * INTERVAL '1 day') AND NOW() + (? * INTERVAL '1 day') THEN "lat_grant"."expiration_date" ELSE NULL END AS previous_grant_expiration_date`,
+				filter.ExpiringWithinDays, filter.ExpiringWithinDays,
+			)
+		} else {
+			db = db.Select(`"approvals".*, "lat_grant"."expiration_date" AS previous_grant_expiration_date`)
+		}
 
 		orderByList = append(orderByList, "previous_grant_expiration_date")
 		columnExpressions = map[string]string{
@@ -580,20 +589,6 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	// WHERE condition, which caused it to be evaluated once per condition per row.
 	if needsLateralGrantJoin(filter) {
 		db = db.Joins(lateralGrantJoinSQL)
-	}
-
-	// When WithPreviousGrant=true and ExpiringWithinDays is set, restrict to approvals whose
-	// previous grant effective expiration date falls within a symmetric window of N days
-	// around now: [NOW()-N, NOW()+N]. This captures both already-lapsed grants (past side)
-	// and soon-to-lapse grants (future side) in one filter, suitable for renewal inbox views.
-	// This is independent of previousGrantStates: no state filter is applied here, only the
-	// date proximity window.
-	if filter.WithPreviousGrant && filter.ExpiringWithinDays > 0 && len(filter.PreviousGrantStates) == 0 {
-		db = db.Where(
-			`"lat_grant"."expiration_date" BETWEEN NOW() - (? * INTERVAL '1 day') AND NOW() + (? * INTERVAL '1 day')`,
-			filter.ExpiringWithinDays,
-			filter.ExpiringWithinDays,
-		)
 	}
 
 	// Restrict by previous-grant expiration date.
