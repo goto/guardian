@@ -11,6 +11,7 @@ import (
 	"path"
 	"time"
 
+	retry "github.com/avast/retry-go/v4"
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
@@ -139,43 +140,40 @@ func (c *shieldNewclient) CreateRelation(ctx context.Context, objectId string, o
 		RoleName:        role,
 	}
 
-	const maxRetries = 3
-	var lastErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		if attempt > 0 {
-			time.Sleep(time.Duration(attempt) * 100 * time.Millisecond)
-		}
+	return retry.Do(
+		func() error {
+			req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
+			if err != nil {
+				return retry.Unrecoverable(err)
+			}
 
-		req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
-		if err != nil {
-			return err
-		}
-
-		var relation *Relation
-		var response interface{}
-		if _, err := c.do(ctx, req, &response); err != nil {
-			lastErr = err
-			c.logger.Warn(ctx, "CreateRelation attempt failed", "attempt", attempt+1, "error", err)
-			continue
-		}
-
-		if v, ok := response.(map[string]interface{}); ok && v[relationConst] != nil {
-			if err = mapstructure.Decode(v[relationConst], &relation); err != nil {
+			var relation *Relation
+			var response interface{}
+			if _, err := c.do(ctx, req, &response); err != nil {
 				return err
 			}
-		}
 
-		if relation == nil {
-			lastErr = fmt.Errorf("relation not returned in response for namespace %s", objectNamespace)
-			c.logger.Warn(ctx, "CreateRelation attempt returned no relation in response", "attempt", attempt+1)
-			continue
-		}
+			if v, ok := response.(map[string]interface{}); ok && v[relationConst] != nil {
+				if err = mapstructure.Decode(v[relationConst], &relation); err != nil {
+					return retry.Unrecoverable(err)
+				}
+			}
 
-		c.logger.Info(ctx, "Relation created for namespace ", objectNamespace, "relation id", relation.Id)
-		return nil
-	}
+			if relation == nil {
+				return fmt.Errorf("relation not returned in response for namespace %s", objectNamespace)
+			}
 
-	return fmt.Errorf("failed to create relation after %d attempts: %w", maxRetries, lastErr)
+			c.logger.Info(ctx, "Relation created for namespace ", objectNamespace, "relation id", relation.Id)
+			return nil
+		},
+		retry.Attempts(3),
+		retry.Delay(100*time.Millisecond),
+		retry.DelayType(retry.BackOffDelay),
+		retry.RetryIf(isRetryableStatusError),
+		retry.OnRetry(func(n uint, err error) {
+			c.logger.Warn(ctx, "CreateRelation attempt failed", "attempt", n+1, "error", err)
+		}),
+	)
 }
 
 func (c *shieldNewclient) DeleteRelation(ctx context.Context, objectId string, subjectId string, role string) error {
@@ -555,7 +553,7 @@ func (c *shieldNewclient) do(ctx context.Context, req *http.Request, v interface
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		byteData, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("request to %s failed with status %d: %s", req.URL, resp.StatusCode, string(byteData))
+		return nil, &HTTPStatusError{StatusCode: resp.StatusCode, Body: string(byteData), URL: req.URL.String()}
 	}
 
 	if v != nil {
