@@ -832,7 +832,6 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 	if err != nil {
 		return fmt.Errorf("listing active grants: %w", err)
 	}
-	grants = excludeLogicalPackageGrants(grants)
 	if len(grants) == 0 {
 		s.logger.Info(ctx, "no active grants found", "provider_urn", provider.URN)
 		return nil
@@ -1203,18 +1202,7 @@ func (s *Service) prepareActiveGrants(ctx context.Context, botAccountIDs []strin
 	}
 	activeGrants = append(activeGrants, packageActiveGrants...)
 
-	return excludeLogicalPackageGrants(activeGrants), nil
-}
-
-func excludeLogicalPackageGrants(grants []domain.Grant) []domain.Grant {
-	filtered := make([]domain.Grant, 0, len(grants))
-	for _, grant := range grants {
-		if grant.IsLogicalPackageGrant() {
-			continue
-		}
-		filtered = append(filtered, grant)
-	}
-	return filtered
+	return activeGrants, nil
 }
 
 // buildActiveGrantsMap indexes active grants as [resourceURN][accountSig][permissionsKey] → *Grant.
