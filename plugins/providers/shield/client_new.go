@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"time"
 
+	retry "github.com/avast/retry-go/v4"
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
@@ -138,26 +140,40 @@ func (c *shieldNewclient) CreateRelation(ctx context.Context, objectId string, o
 		RoleName:        role,
 	}
 
-	req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
-	if err != nil {
-		return err
-	}
+	return retry.Do(
+		func() error {
+			req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
+			if err != nil {
+				return retry.Unrecoverable(err)
+			}
 
-	var relation *Relation
-	var response interface{}
-	if _, err := c.do(ctx, req, &response); err != nil {
-		return err
-	}
+			var relation *Relation
+			var response interface{}
+			if _, err := c.do(ctx, req, &response); err != nil {
+				return err
+			}
 
-	if v, ok := response.(map[string]interface{}); ok && v[relationConst] != nil {
-		err = mapstructure.Decode(v[relationConst], &relation)
-		if err != nil {
-			return err
-		}
-	}
+			if v, ok := response.(map[string]interface{}); ok && v[relationConst] != nil {
+				if err = mapstructure.Decode(v[relationConst], &relation); err != nil {
+					return retry.Unrecoverable(err)
+				}
+			}
 
-	c.logger.Info(ctx, "Relation created for namespace ", objectNamespace, "relation id", relation.Id)
-	return nil
+			if relation == nil {
+				return fmt.Errorf("relation not returned in response for namespace %s", objectNamespace)
+			}
+
+			c.logger.Info(ctx, "Relation created for namespace ", objectNamespace, "relation id", relation.Id)
+			return nil
+		},
+		retry.Attempts(3),
+		retry.Delay(100*time.Millisecond),
+		retry.DelayType(retry.BackOffDelay),
+		retry.RetryIf(isRetryableStatusError),
+		retry.OnRetry(func(n uint, err error) {
+			c.logger.Warn(ctx, "CreateRelation attempt failed", "attempt", n+1, "error", err)
+		}),
+	)
 }
 
 func (c *shieldNewclient) DeleteRelation(ctx context.Context, objectId string, subjectId string, role string) error {
@@ -537,7 +553,7 @@ func (c *shieldNewclient) do(ctx context.Context, req *http.Request, v interface
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		byteData, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("request to %s failed with status %d: %s", req.URL, resp.StatusCode, string(byteData))
+		return nil, &HTTPStatusError{StatusCode: resp.StatusCode, Body: string(byteData), URL: req.URL.String()}
 	}
 
 	if v != nil {

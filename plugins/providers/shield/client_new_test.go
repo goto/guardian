@@ -1155,7 +1155,7 @@ func (s *ShieldNewClientTestSuite) TestGrantCreateTeamAccess() {
 		createTeamResp := http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader([]byte(createTeamResponseJson)))}
 		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&checkResp, nil).Once()
 		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&createTeamResp, nil).Once()
-		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(nil, fmt.Errorf("relation creation failed")).Once()
+		s.mockHttpClient.On("Do", mock.AnythingOfType("*http.Request")).Return(nil, fmt.Errorf("relation creation failed")).Times(3)
 
 		result, err := s.client.GrantCreateTeamAccess(context.Background(), team, "user_123")
 		s.Nil(result)

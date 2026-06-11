@@ -43,7 +43,7 @@ require (
 	github.com/sergi/go-diff v1.3.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.2.1
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.11.1
 	github.com/uptrace/opentelemetry-go-extra/otelgorm v0.1.21
 	github.com/wI2L/jsondiff v0.5.2
 	github.com/xanzy/go-gitlab v0.98.0
@@ -91,6 +91,7 @@ require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/apache/arrow/go/v12 v12.0.0 // indirect
 	github.com/apache/thrift v0.16.0 // indirect
+	github.com/avast/retry-go/v4 v4.7.0 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/briandowns/spinner v1.18.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect

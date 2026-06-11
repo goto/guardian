@@ -10,7 +10,9 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"time"
 
+	retry "github.com/avast/retry-go/v4"
 	"github.com/go-playground/validator/v10"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/pkg/opentelemetry/otelhttpclient"
@@ -204,84 +206,103 @@ func (c *client) GetOrganizations(ctx context.Context) ([]*Organization, error) 
 func (c *client) GrantGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
 	body := make(map[string][]string)
 	body["userIds"] = append(body["userIds"], userId)
-
 	endPoint := path.Join(groupsEndpoint, "/", resource.ID, "/", role)
-	req, err := c.newRequest(http.MethodPost, endPoint, body, "")
-	if err != nil {
-		return err
-	}
 
-	var users []*User
-	var response interface{}
-	if _, err := c.do(ctx, req, &response); err != nil {
-		return err
-	}
-
-	if v, ok := response.(map[string]interface{}); ok && v[usersConst] != nil {
-		err = mapstructure.Decode(v[usersConst], &users)
-		if err != nil {
-			return err
-		}
-	}
-
-	c.logger.Info(ctx, "group access to the user,", "total users", len(users), req.URL)
-
-	return nil
+	return retry.Do(
+		func() error {
+			req, err := c.newRequest(http.MethodPost, endPoint, body, "")
+			if err != nil {
+				return retry.Unrecoverable(err)
+			}
+			var users []*User
+			var response interface{}
+			if _, err := c.do(ctx, req, &response); err != nil {
+				return err
+			}
+			if v, ok := response.(map[string]interface{}); ok && v[usersConst] != nil {
+				if err = mapstructure.Decode(v[usersConst], &users); err != nil {
+					return retry.Unrecoverable(err)
+				}
+			}
+			c.logger.Info(ctx, "group access to the user,", "total users", len(users), req.URL)
+			return nil
+		},
+		retry.Attempts(3),
+		retry.Delay(100*time.Millisecond),
+		retry.DelayType(retry.BackOffDelay),
+		retry.RetryIf(isRetryableStatusError),
+		retry.OnRetry(func(n uint, err error) {
+			c.logger.Warn(ctx, "GrantGroupAccess attempt failed", "attempt", n+1, "error", err)
+		}),
+	)
 }
 
 func (c *client) GrantProjectAccess(ctx context.Context, resource *Project, userId string, role string) error {
 	body := make(map[string][]string)
 	body["userIds"] = append(body["userIds"], userId)
-
 	endPoint := path.Join(projectsEndpoint, "/", resource.ID, "/", role)
-	req, err := c.newRequest(http.MethodPost, endPoint, body, "")
-	if err != nil {
-		return err
-	}
 
-	var users []*User
-	var response interface{}
-	if _, err := c.do(ctx, req, &response); err != nil {
-		return err
-	}
-
-	if v, ok := response.(map[string]interface{}); ok && v[usersConst] != nil {
-		err = mapstructure.Decode(v[usersConst], &users)
-		if err != nil {
-			return err
-		}
-	}
-
-	c.logger.Info(ctx, "Project access to the user,", "total users", len(users), req.URL)
-	return nil
+	return retry.Do(
+		func() error {
+			req, err := c.newRequest(http.MethodPost, endPoint, body, "")
+			if err != nil {
+				return retry.Unrecoverable(err)
+			}
+			var users []*User
+			var response interface{}
+			if _, err := c.do(ctx, req, &response); err != nil {
+				return err
+			}
+			if v, ok := response.(map[string]interface{}); ok && v[usersConst] != nil {
+				if err = mapstructure.Decode(v[usersConst], &users); err != nil {
+					return retry.Unrecoverable(err)
+				}
+			}
+			c.logger.Info(ctx, "Project access to the user,", "total users", len(users), req.URL)
+			return nil
+		},
+		retry.Attempts(3),
+		retry.Delay(100*time.Millisecond),
+		retry.DelayType(retry.BackOffDelay),
+		retry.RetryIf(isRetryableStatusError),
+		retry.OnRetry(func(n uint, err error) {
+			c.logger.Warn(ctx, "GrantProjectAccess attempt failed", "attempt", n+1, "error", err)
+		}),
+	)
 }
 
 func (c *client) GrantOrganizationAccess(ctx context.Context, resource *Organization, userId string, role string) error {
 	body := make(map[string][]string)
 	body["userIds"] = append(body["userIds"], userId)
-
 	endPoint := path.Join(organizationEndpoint, "/", resource.ID, "/", role)
-	req, err := c.newRequest(http.MethodPost, endPoint, body, "")
 
-	if err != nil {
-		return err
-	}
-
-	var users []*User
-	var response interface{}
-	if _, err := c.do(ctx, req, &response); err != nil {
-		return err
-	}
-
-	if v, ok := response.(map[string]interface{}); ok && v[usersConst] != nil {
-		err = mapstructure.Decode(v[usersConst], &users)
-		if err != nil {
-			return err
-		}
-	}
-
-	c.logger.Info(ctx, "Organization access to the user,", "total users", len(users), req.URL)
-	return nil
+	return retry.Do(
+		func() error {
+			req, err := c.newRequest(http.MethodPost, endPoint, body, "")
+			if err != nil {
+				return retry.Unrecoverable(err)
+			}
+			var users []*User
+			var response interface{}
+			if _, err := c.do(ctx, req, &response); err != nil {
+				return err
+			}
+			if v, ok := response.(map[string]interface{}); ok && v[usersConst] != nil {
+				if err = mapstructure.Decode(v[usersConst], &users); err != nil {
+					return retry.Unrecoverable(err)
+				}
+			}
+			c.logger.Info(ctx, "Organization access to the user,", "total users", len(users), req.URL)
+			return nil
+		},
+		retry.Attempts(3),
+		retry.Delay(100*time.Millisecond),
+		retry.DelayType(retry.BackOffDelay),
+		retry.RetryIf(isRetryableStatusError),
+		retry.OnRetry(func(n uint, err error) {
+			c.logger.Warn(ctx, "GrantOrganizationAccess attempt failed", "attempt", n+1, "error", err)
+		}),
+	)
 }
 
 func (c *client) RevokeGroupAccess(ctx context.Context, resource *Group, userId string, role string) error {
@@ -393,7 +414,7 @@ func (c *client) do(ctx context.Context, req *http.Request, v interface{}) (*htt
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		byteData, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("request to %s failed with status %d: %s", req.URL, resp.StatusCode, string(byteData))
+		return nil, &HTTPStatusError{StatusCode: resp.StatusCode, Body: string(byteData), URL: req.URL.String()}
 	}
 
 	if v != nil {
@@ -487,26 +508,40 @@ func (c *client) CreateRelation(ctx context.Context, objectId string, objectName
 	}
 	c.logger.Info(ctx, "Creating relation in shield", "objectId", objectId, "objectNamespace", objectNamespace, "subject", subject)
 
-	req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
-	if err != nil {
-		return err
-	}
+	return retry.Do(
+		func() error {
+			req, err := c.newRequest(http.MethodPost, relationsEndpoint, body, "")
+			if err != nil {
+				return retry.Unrecoverable(err)
+			}
 
-	var relation *Relation
-	var response interface{}
-	if _, err := c.do(ctx, req, &response); err != nil {
-		return err
-	}
+			var relation *Relation
+			var response interface{}
+			if _, err := c.do(ctx, req, &response); err != nil {
+				return err
+			}
 
-	if v, ok := response.(map[string]interface{}); ok && v[relationConst] != nil {
-		err = mapstructure.Decode(v[relationConst], &relation)
-		if err != nil {
-			return err
-		}
-	}
+			if v, ok := response.(map[string]interface{}); ok && v[relationConst] != nil {
+				if err = mapstructure.Decode(v[relationConst], &relation); err != nil {
+					return retry.Unrecoverable(err)
+				}
+			}
 
-	c.logger.Info(ctx, "Relation created for namespace ", objectNamespace, "relation id", relation.Id)
-	return nil
+			if relation == nil {
+				return fmt.Errorf("relation not returned in response for namespace %s", objectNamespace)
+			}
+
+			c.logger.Info(ctx, "Relation created for namespace ", objectNamespace, "relation id", relation.Id)
+			return nil
+		},
+		retry.Attempts(3),
+		retry.Delay(100*time.Millisecond),
+		retry.DelayType(retry.BackOffDelay),
+		retry.RetryIf(isRetryableStatusError),
+		retry.OnRetry(func(n uint, err error) {
+			c.logger.Warn(ctx, "CreateRelation attempt failed", "attempt", n+1, "error", err)
+		}),
+	)
 }
 
 func (c *client) CheckUserPermission(ctx context.Context, permissions []ResourcePermission) error {

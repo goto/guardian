@@ -8,6 +8,32 @@ import (
 	"github.com/goto/guardian/domain"
 )
 
+type HTTPStatusError struct {
+	StatusCode int
+	Body       string
+	URL        string
+}
+
+func (e *HTTPStatusError) Error() string {
+	return fmt.Sprintf("request to %s failed with status %d: %s", e.URL, e.StatusCode, e.Body)
+}
+
+func isRetryableStatusError(err error) bool {
+	var httpErr *HTTPStatusError
+	if ok := isHTTPStatusError(err, &httpErr); ok {
+		return httpErr.StatusCode >= 500
+	}
+	return false
+}
+
+func isHTTPStatusError(err error, target **HTTPStatusError) bool {
+	e, ok := err.(*HTTPStatusError)
+	if ok {
+		*target = e
+	}
+	return ok
+}
+
 //go:generate mockery --name=ShieldClient --exported --with-expecter
 type ShieldClient interface {
 	GetGroups(ctx context.Context) ([]*Group, error)
