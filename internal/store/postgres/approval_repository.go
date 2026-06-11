@@ -68,10 +68,15 @@ var (
 // is_permanent grants store expiration_date = 0001-01-01 (Go zero time). The CASE
 // expression converts that to NULL so permanent grants are classified as "none"
 // rather than falsely appearing as expired.
+//
+// The '1000-01-01' sentinel is used (instead of '0001-01-01') because the literal
+// is parsed in the session timezone while stored timestamptz values are in UTC,
+// and historical TZ offsets near year 0001 can cause Go's zero time to compare
+// as greater than the literal. Year 1000 is safely past any TZ-ambiguity range.
 const lateralGrantJoinSQL = `LEFT JOIN LATERAL (
 	SELECT CASE
-		WHEN "g"."revoked_at" > '0001-01-01 00:00:00' THEN "g"."revoked_at"
-		WHEN "g"."is_permanent" THEN NULL
+		WHEN "g"."revoked_at" > TIMESTAMPTZ '1000-01-01 00:00:00+00' THEN "g"."revoked_at"
+		WHEN "g"."is_permanent" OR "g"."expiration_date" <= TIMESTAMPTZ '1000-01-01 00:00:00+00' THEN NULL
 		ELSE "g"."expiration_date"
 		END AS "expiration_date"
 	FROM "grants" "g"
