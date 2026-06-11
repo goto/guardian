@@ -93,7 +93,8 @@ func needsLateralGrantJoin(filter *domain.ListApprovalsFilter) bool {
 	return filter.WithPreviousGrant ||
 		!filter.StartExpirationDate.IsZero() ||
 		!filter.EndExpirationDate.IsZero() ||
-		len(filter.PreviousGrantStates) > 0
+		len(filter.PreviousGrantStates) > 0 ||
+		filter.ExpiringWithinDays > 0
 }
 
 type ApprovalRepository struct {
@@ -579,6 +580,20 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	// WHERE condition, which caused it to be evaluated once per condition per row.
 	if needsLateralGrantJoin(filter) {
 		db = db.Joins(lateralGrantJoinSQL)
+	}
+
+	// When WithPreviousGrant=true and ExpiringWithinDays is set, restrict to approvals whose
+	// previous grant effective expiration date falls within a symmetric window of N days
+	// around now: [NOW()-N, NOW()+N]. This captures both already-lapsed grants (past side)
+	// and soon-to-lapse grants (future side) in one filter, suitable for renewal inbox views.
+	// This is independent of previousGrantStates: no state filter is applied here, only the
+	// date proximity window.
+	if filter.WithPreviousGrant && filter.ExpiringWithinDays > 0 && len(filter.PreviousGrantStates) == 0 {
+		db = db.Where(
+			`"lat_grant"."expiration_date" BETWEEN NOW() - (? * INTERVAL '1 day') AND NOW() + (? * INTERVAL '1 day')`,
+			filter.ExpiringWithinDays,
+			filter.ExpiringWithinDays,
+		)
 	}
 
 	// Restrict by previous-grant expiration date.
