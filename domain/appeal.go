@@ -348,39 +348,47 @@ func (a *Appeal) ApplyPolicy(p *Policy) error {
 	return nil
 }
 
+// getStepConfig resolves the policy Step for a given approval.
+// For stage-based policies it matches by name only. For sequential policies it
+// additionally falls back to the step at the same positional index when the
+// name lookup fails (handles dynamically-built or empty-name steps).
+func getStepConfig(policy *Policy, approval *Approval) *Step {
+	stepConfig := policy.GetStepByName(approval.Name)
+	if (stepConfig == nil || approval.Name == "") && !policy.HasStages() && approval.Index < len(policy.Steps) {
+		stepConfig = policy.Steps[approval.Index]
+	}
+	return stepConfig
+}
+
 func (a *Appeal) AdvanceApproval(policy *Policy) error {
 	if policy == nil {
 		return fmt.Errorf("appeal has no policy")
 	}
 
+	appealMap, err := a.ToMap()
+	if err != nil {
+		return fmt.Errorf("parsing appeal struct to map: %w", err)
+	}
+
 	// Pre-pass: eagerly evaluate 'when' for all blocked steps. Steps whose
 	// condition is false are skipped immediately rather than waiting for all
 	// prior steps to be approved first. An evaluation error fails immediately.
-	{
-		appealMap, err := a.ToMap()
-		if err != nil {
-			return fmt.Errorf("parsing appeal struct to map: %w", err)
+	for _, approval := range a.Approvals {
+		if approval.IsStale || approval.Status != ApprovalStatusBlocked {
+			continue
 		}
-		for _, approval := range a.Approvals {
-			if approval.IsStale || approval.Status != ApprovalStatusBlocked {
-				continue
-			}
-			stepConfig := policy.GetStepByName(approval.Name)
-			if (stepConfig == nil || approval.Name == "") && !policy.HasStages() && approval.Index < len(policy.Steps) {
-				stepConfig = policy.Steps[approval.Index]
-			}
-			if stepConfig == nil || stepConfig.When == "" {
-				continue
-			}
-			v, err := evaluator.Expression(stepConfig.When).EvaluateWithVars(map[string]interface{}{
-				"appeal": appealMap,
-			})
-			if err != nil {
-				return err
-			}
-			if reflect.ValueOf(v).IsZero() {
-				approval.Status = ApprovalStatusSkipped
-			}
+		stepConfig := getStepConfig(policy, approval)
+		if stepConfig == nil || stepConfig.When == "" {
+			continue
+		}
+		v, err := evaluator.Expression(stepConfig.When).EvaluateWithVars(map[string]interface{}{
+			"appeal": appealMap,
+		})
+		if err != nil {
+			return err
+		}
+		if reflect.ValueOf(v).IsZero() {
+			approval.Status = ApprovalStatusSkipped
 		}
 	}
 
@@ -394,22 +402,9 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 				continue
 			}
 
-			stepConfig := policy.GetStepByName(approval.Name)
-			// For sequential (non-stage) policies, fall back to the step at the same
-			// positional index. The empty-name guard re-applies the positional lookup
-			// when multiple steps share an empty name (e.g. dynamically-built policies).
-			// Skip this fallback for stage-based policies: index no longer equals slice
-			// position, so a dynamically-added step without a policy entry stays manual.
-			if (stepConfig == nil || approval.Name == "") && !policy.HasStages() && approval.Index < len(policy.Steps) {
-				stepConfig = policy.Steps[approval.Index]
-			}
+			stepConfig := getStepConfig(policy, approval)
 			if stepConfig == nil {
 				continue
-			}
-
-			appealMap, err := a.ToMap()
-			if err != nil {
-				return fmt.Errorf("parsing appeal struct to map: %w", err)
 			}
 
 			if stepConfig.When != "" {
