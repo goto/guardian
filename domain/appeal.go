@@ -352,6 +352,19 @@ func (a *Appeal) ApplyPolicy(p *Policy) error {
 // For stage-based policies it matches by name only. For sequential policies it
 // additionally falls back to the step at the same positional index when the
 // name lookup fails (handles dynamically-built or empty-name steps).
+func evaluateWhen(stepConfig *Step, appealMap map[string]interface{}) (bool, error) {
+	if stepConfig.When == "" {
+		return false, nil
+	}
+	v, err := evaluator.Expression(stepConfig.When).EvaluateWithVars(map[string]interface{}{
+		"appeal": appealMap,
+	})
+	if err != nil {
+		return false, err
+	}
+	return reflect.ValueOf(v).IsZero(), nil
+}
+
 func getStepConfig(policy *Policy, approval *Approval) *Step {
 	stepConfig := policy.GetStepByName(approval.Name)
 	if (stepConfig == nil || approval.Name == "") && !policy.HasStages() && approval.Index < len(policy.Steps) {
@@ -381,13 +394,11 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 		if stepConfig == nil || stepConfig.When == "" {
 			continue
 		}
-		v, err := evaluator.Expression(stepConfig.When).EvaluateWithVars(map[string]interface{}{
-			"appeal": appealMap,
-		})
+		skip, err := evaluateWhen(stepConfig, appealMap)
 		if err != nil {
 			return err
 		}
-		if reflect.ValueOf(v).IsZero() {
+		if skip {
 			approval.Status = ApprovalStatusSkipped
 		}
 	}
@@ -407,17 +418,13 @@ func (a *Appeal) AdvanceApproval(policy *Policy) error {
 				continue
 			}
 
-			if stepConfig.When != "" {
-				v, err := evaluator.Expression(stepConfig.When).EvaluateWithVars(map[string]interface{}{
-					"appeal": appealMap,
-				})
-				if err != nil {
-					return err
-				}
-				if reflect.ValueOf(v).IsZero() {
-					approval.Status = ApprovalStatusSkipped
-					continue
-				}
+			skip, err := evaluateWhen(stepConfig, appealMap)
+			if err != nil {
+				return err
+			}
+			if skip {
+				approval.Status = ApprovalStatusSkipped
+				continue
 			}
 
 			if stepConfig.Strategy == ApprovalStepStrategyAuto {
