@@ -1222,6 +1222,122 @@ func TestAppeal_AdvanceApproval_UpdateApprovalStatuses(t *testing.T) {
 			expectedErrorStr: "evaluating expression ",
 		},
 		{
+			name: "blocked step with when=false is eagerly skipped",
+			appeal: &domain.Appeal{
+				Resource: &domain.Resource{
+					Details: map[string]interface{}{
+						"labels": "no-kyc",
+					},
+				},
+			},
+			steps: []*domain.Step{
+				{
+					Strategy:  "manual",
+					Approvers: []string{"manager@email.com"},
+				},
+				{
+					Strategy:  "manual",
+					When:      `$appeal.resource.details.labels == "kyc"`,
+					Approvers: []string{"kyc@email.com"},
+				},
+			},
+			existingApprovalStatuses: []string{
+				domain.ApprovalStatusPending,
+				domain.ApprovalStatusBlocked,
+			},
+			expectedApprovalStatuses: []string{
+				domain.ApprovalStatusPending,
+				domain.ApprovalStatusSkipped,
+			},
+		},
+		{
+			name: "blocked step with when=true stays blocked",
+			appeal: &domain.Appeal{
+				Resource: &domain.Resource{
+					Details: map[string]interface{}{
+						"labels": "kyc",
+					},
+				},
+			},
+			steps: []*domain.Step{
+				{
+					Strategy:  "manual",
+					Approvers: []string{"manager@email.com"},
+				},
+				{
+					Strategy:  "manual",
+					When:      `$appeal.resource.details.labels == "kyc"`,
+					Approvers: []string{"kyc@email.com"},
+				},
+			},
+			existingApprovalStatuses: []string{
+				domain.ApprovalStatusPending,
+				domain.ApprovalStatusBlocked,
+			},
+			expectedApprovalStatuses: []string{
+				domain.ApprovalStatusPending,
+				domain.ApprovalStatusBlocked,
+			},
+		},
+		{
+			name: "multiple blocked steps with when=false are all eagerly skipped",
+			appeal: &domain.Appeal{
+				Resource: &domain.Resource{
+					Details: map[string]interface{}{
+						"labels": "",
+					},
+				},
+			},
+			steps: []*domain.Step{
+				{
+					Strategy:  "manual",
+					Approvers: []string{"manager@email.com"},
+				},
+				{
+					Strategy:  "manual",
+					When:      `$appeal.resource.details.labels == "kyc"`,
+					Approvers: []string{"kyc@email.com"},
+				},
+				{
+					Strategy:  "manual",
+					When:      `$appeal.resource.details.labels == "wallet"`,
+					Approvers: []string{"wallet@email.com"},
+				},
+			},
+			existingApprovalStatuses: []string{
+				domain.ApprovalStatusPending,
+				domain.ApprovalStatusBlocked,
+				domain.ApprovalStatusBlocked,
+			},
+			expectedApprovalStatuses: []string{
+				domain.ApprovalStatusPending,
+				domain.ApprovalStatusSkipped,
+				domain.ApprovalStatusSkipped,
+			},
+		},
+		{
+			name: "blocked step with invalid when expression fails immediately",
+			appeal: &domain.Appeal{
+				Resource: &domain.Resource{},
+			},
+			steps: []*domain.Step{
+				{
+					Strategy:  "manual",
+					Approvers: []string{"manager@email.com"},
+				},
+				{
+					Strategy:  "manual",
+					When:      `$appeal.details != nil && $appeal.details.foo != nil && $appeal.details.bar != nil && $appeal.details.foo.foo contains "foo" || $appeal.details.foo.bar contains "bar"`,
+					Approvers: []string{"approver@email.com"},
+				},
+			},
+			existingApprovalStatuses: []string{
+				domain.ApprovalStatusPending,
+				domain.ApprovalStatusBlocked,
+			},
+			expectedErrorStr: "evaluating expression",
+		},
+		{
 			name: "custom steps - advance approval with multiple custom steps",
 			appeal: &domain.Appeal{
 				Status: domain.AppealStatusPending,

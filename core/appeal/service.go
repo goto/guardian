@@ -1632,6 +1632,21 @@ func (s *Service) AddApprovalStep(ctx context.Context, appealID string, steps []
 			}
 		}
 
+		// If the step is blocked, eagerly evaluate its 'when' condition. A falsy
+		// result skips the step immediately rather than waiting for prior steps to resolve.
+		if step.Status == domain.ApprovalStatusBlocked {
+			stepConfig := policy.GetStepByName(step.Name)
+			if stepConfig != nil && stepConfig.When != "" {
+				isFalsy, err := evaluateIsFalsyExpressionWithAppeal(appeal, stepConfig.When)
+				if err != nil {
+					return nil, fmt.Errorf("evaluating 'when' condition for step %q: %w", step.Name, err)
+				}
+				if isFalsy {
+					step.Status = domain.ApprovalStatusSkipped
+				}
+			}
+		}
+
 		step.AppealID = appealID
 		step.AppealRevision = appeal.Revision
 		toInsert = append(toInsert, step)
