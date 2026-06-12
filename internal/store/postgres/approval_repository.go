@@ -143,8 +143,19 @@ func (r *ApprovalRepository) ListApprovals(ctx context.Context, filter *domain.L
 		}
 
 		orderByList = append(orderByList, "previous_grant_expiration_date")
+		var prevGrantExpr string
+		if filter.ExpiringWithinDays > 0 && len(filter.PreviousGrantStates) == 0 {
+			// Mirror the SELECT expression so ORDER BY sorts on the same nulled-out value.
+			// ExpiringWithinDays is an int so direct embedding is safe.
+			prevGrantExpr = fmt.Sprintf(
+				`CASE WHEN "lat_grant"."expiration_date" BETWEEN NOW() - (%d * INTERVAL '1 day') AND NOW() + (%d * INTERVAL '1 day') THEN "lat_grant"."expiration_date" ELSE NULL END`,
+				filter.ExpiringWithinDays, filter.ExpiringWithinDays,
+			)
+		} else {
+			prevGrantExpr = `"lat_grant"."expiration_date"`
+		}
 		columnExpressions = map[string]string{
-			"previous_grant_expiration_date": `"lat_grant"."expiration_date"`,
+			"previous_grant_expiration_date": prevGrantExpr,
 		}
 		// Force NULLS LAST on both :asc and :desc so approvals with no previous grant
 		// always sink to the bottom of the page, regardless of direction. Without this,
