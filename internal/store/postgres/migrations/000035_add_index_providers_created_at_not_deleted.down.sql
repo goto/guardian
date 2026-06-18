@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS idx_providers_created_at_not_deleted;
