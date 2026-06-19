@@ -17,12 +17,17 @@ const (
 	maxFetchItem int32 = 1000
 )
 
+type RoleFilter struct {
+	ExcludePrefixes []string `mapstructure:"exclude_prefixes" json:"exclude_prefixes,omitempty"`
+}
+
 type Credentials struct {
-	MainAccountID   string `mapstructure:"main_account_id" json:"main_account_id" validate:"required"` // example: 5123xxxxxxxxx
-	AccessKeyID     string `mapstructure:"access_key_id" json:"access_key_id" validate:"required"`
-	AccessKeySecret string `mapstructure:"access_key_secret" json:"access_key_secret" validate:"required"`
-	RAMRole         string `mapstructure:"ram_role" json:"ram_role,omitempty"`   // (optional) example: `acs:ram::{MAIN_ACCOUNT_ID}:role/{ROLE_NAME}`
-	RegionID        string `mapstructure:"region_id" json:"region_id,omitempty"` // (optional) can be empty for using default region id. see: https://www.alibabacloud.com/help/en/cloud-migration-guide-for-beginners/latest/regions-and-zones
+	MainAccountID   string      `mapstructure:"main_account_id" json:"main_account_id" validate:"required"` // example: 5123xxxxxxxxx
+	AccessKeyID     string      `mapstructure:"access_key_id" json:"access_key_id" validate:"required"`
+	AccessKeySecret string      `mapstructure:"access_key_secret" json:"access_key_secret" validate:"required"`
+	RAMRole         string      `mapstructure:"ram_role" json:"ram_role,omitempty"`       // (optional) example: `acs:ram::{MAIN_ACCOUNT_ID}:role/{ROLE_NAME}`
+	RegionID        string      `mapstructure:"region_id" json:"region_id,omitempty"`     // (optional) can be empty for using default region id. see: https://www.alibabacloud.com/help/en/cloud-migration-guide-for-beginners/latest/regions-and-zones
+	RoleFilter      *RoleFilter `mapstructure:"role_filter" json:"role_filter,omitempty"` // (optional) filter applied when listing ram_role resources
 }
 
 func (c *Credentials) Encrypt(encryptor domain.Encryptor) error {
@@ -139,8 +144,8 @@ func (c *Config) ParseAndValidate() error {
 			}
 			uniqueRoleId[role.ID] = true
 
-			// Validate empty permission
-			if len(role.Permissions) == 0 {
+			// Validate empty permission — not required for ram_role resources
+			if rc.Type != ResourceTypeRAMRole && len(role.Permissions) == 0 {
 				return fmt.Errorf("role permission at resource '%v' and role id '%v' is empty", rc.Type, role.ID)
 			}
 		}
@@ -169,6 +174,10 @@ func (c *Config) EncryptCredentials() error {
 }
 
 func (c *Config) validatePermissions(ctx context.Context, resource *domain.ResourceConfig, client AliCloudRAMClient) error {
+	if resource.Type == ResourceTypeRAMRole {
+		return nil
+	}
+
 	systemPolicies, err := client.GetAllPoliciesByType(ctx, PolicyTypeSystem, maxFetchItem)
 	if err != nil {
 		return err

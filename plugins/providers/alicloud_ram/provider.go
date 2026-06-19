@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	ram "github.com/alibabacloud-go/ram-20150501/v2/client"
+	"github.com/bearaujus/bptr"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
@@ -23,6 +24,9 @@ type AliCloudRAMClient interface {
 	RevokeAccessFromRole(ctx context.Context, policyName, policyType, roleName string) error
 	ListAccess(ctx context.Context, pc domain.ProviderConfig, resources []*domain.Resource) (domain.MapResourceAccess, error)
 	GetAllPoliciesByType(_ context.Context, policyType string, maxItems int32) ([]*ram.ListPoliciesResponseBodyPoliciesPolicy, error)
+	GetAllRoles(ctx context.Context, maxItems int32) ([]*ram.ListRolesResponseBodyRolesRole, error)
+	GrantRamRoleAccess(ctx context.Context, r domain.Resource, account_id, role string) error
+	RevokeRamRoleAccess(ctx context.Context, r domain.Resource, account_id, role string) error
 }
 
 //go:generate mockery --name=encryptor --exported --with-expecter
@@ -89,24 +93,52 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 	return nil
 }
 
-func (p *Provider) GetResources(_ context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
-	resources := make([]*domain.Resource, len(pc.Resources))
-	for i, rc := range pc.Resources {
-		var creds Credentials
-		if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
-			return nil, err
-		}
+func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) ([]*domain.Resource, error) {
+	var creds Credentials
+	if err := mapstructure.Decode(pc.Credentials, &creds); err != nil {
+		return nil, err
+	}
+
+	var resources []*domain.Resource
+	for _, rc := range pc.Resources {
 		source := fmt.Sprintf("alicloud_%v", rc.Type)
 		switch rc.Type {
 		case ResourceTypeAccount:
-			resources[i] = &domain.Resource{
+			resources = append(resources, &domain.Resource{
 				ProviderType: pc.Type,
 				ProviderURN:  pc.URN,
 				Type:         rc.Type,
 				URN:          creds.MainAccountID,
 				Name:         pc.URN,
 				GlobalURN:    utils.GetGlobalURN(source, creds.MainAccountID, rc.Type, creds.MainAccountID),
+			})
+
+		case ResourceTypeRAMRole:
+			client, err := p.getClient(pc)
+			if err != nil {
+				return nil, err
 			}
+
+			roles, err := client.GetAllRoles(ctx, maxFetchItem)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, role := range roles {
+				roleName := bptr.ToStringSafe(role.RoleName)
+				if hasExcludePrefix(roleName, creds.RoleFilter) {
+					continue
+				}
+				resources = append(resources, &domain.Resource{
+					ProviderType: pc.Type,
+					ProviderURN:  pc.URN,
+					Type:         rc.Type,
+					URN:          bptr.ToStringSafe(role.Arn),
+					Name:         roleName,
+					GlobalURN:    utils.GetGlobalURN(source, creds.MainAccountID, rc.Type, roleName),
+				})
+			}
+
 		default:
 			return nil, ErrInvalidResourceType
 		}
@@ -159,6 +191,11 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 			return ErrInvalidAccountType
 		}
 
+	case ResourceTypeRAMRole:
+		if err := client.GrantRamRoleAccess(ctx, *g.Resource, g.AccountID, g.Role); err != nil {
+			return fmt.Errorf("GrantAccess for resource type '%v': %w", ResourceTypeRAMRole, err)
+		}
+		return nil
 	default:
 		return ErrInvalidResourceType
 	}
@@ -208,6 +245,11 @@ func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 			return ErrInvalidAccountType
 		}
 
+	case ResourceTypeRAMRole:
+		if err := client.RevokeRamRoleAccess(ctx, *g.Resource, g.AccountID, g.Role); err != nil {
+			return fmt.Errorf("RevokeAccess for resource type '%v': %w", ResourceTypeRAMRole, err)
+		}
+		return nil
 	default:
 		return ErrInvalidResourceType
 	}
@@ -307,6 +349,7 @@ func getAccountTypes() []string {
 func getResourceTypes() []string {
 	return []string{
 		ResourceTypeAccount,
+		ResourceTypeRAMRole,
 	}
 }
 
@@ -324,4 +367,16 @@ func splitAliAccountUserId(d string) (string, string, error) {
 	accountId := strings.TrimSuffix(accountUserIDSplit[1], aliAccountUserIdDomainSuffix)
 
 	return username, accountId, nil
+}
+
+func hasExcludePrefix(name string, filter *RoleFilter) bool {
+	if filter == nil {
+		return false
+	}
+	for _, prefix := range filter.ExcludePrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
 }

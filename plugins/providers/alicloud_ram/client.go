@@ -2,12 +2,16 @@ package alicloud_ram
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
+	"sync"
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	ram "github.com/alibabacloud-go/ram-20150501/v2/client"
+	ram20150501 "github.com/alibabacloud-go/ram-20150501/v2/client"
 	utils "github.com/alibabacloud-go/tea-utils/v2/service"
 	"github.com/aliyun/credentials-go/credentials"
 	"github.com/bearaujus/bptr"
@@ -24,13 +28,14 @@ const (
 
 	aliAccountTypeAccessKey  = "access_key"
 	aliAccountTypeRamRoleARN = "ram_role_arn"
+
+	STSTrustPolicyRole = "STSTrustPolicy"
 )
 
-type aliCloudRAMClient struct {
-	accessKeyId     string
-	accessKeySecret string
-	ramRole         string // (optional) example: `acs:ram::{MAIN_ACCOUNT_ID}:role/{ROLE_NAME}`
-	regionId        string // (optional) can be empty for using default region id. see: https://www.alibabacloud.com/help/en/cloud-migration-guide-for-beginners/latest/regions-and-zones
+// getRoleMutex returns (and lazily creates) a mutex for the given role name
+func (c *aliCloudRAMClient) getRoleMutex(roleName string) *sync.Mutex {
+	mu, _ := c.roleMu.LoadOrStore(roleName, &sync.Mutex{})
+	return mu.(*sync.Mutex)
 }
 
 // NewAliCloudRAMClient initializes a new instance of AliCloudRAMClient.
@@ -198,6 +203,163 @@ func (c *aliCloudRAMClient) GetAllPoliciesByType(_ context.Context, policyType s
 	return result, nil
 }
 
+func (c *aliCloudRAMClient) GetRole(name string) (*Role, error) {
+	if name == "" {
+		return nil, fmt.Errorf("role name cannot be empty")
+	}
+
+	reqClient, err := c.newRequestClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request client: %w", err)
+	}
+
+	// lock is held until after UpdateRole
+	getRoleRequest := &ram20150501.GetRoleRequest{
+		RoleName: &name,
+	}
+
+	// Update Role
+	var role *Role
+	response, err := reqClient.GetRole(getRoleRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	if response != nil && response.Body != nil && response.Body.Role != nil {
+		role, err = toRAMRole(response.Body.Role)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if role == nil {
+		return nil, fmt.Errorf("failed to get the role")
+	}
+
+	return role, nil
+}
+
+func (c *aliCloudRAMClient) UpdateRole(name, description, policy string) (*Role, error) {
+	if name == "" {
+		return nil, fmt.Errorf("role name cannot be empty")
+	}
+
+	reqClient, err := c.newRequestClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request client: %w", err)
+	}
+
+	// lock is held until after UpdateRole
+	updateRoleRequest := &ram20150501.UpdateRoleRequest{
+		RoleName:                    &name,
+		NewAssumeRolePolicyDocument: &policy,
+	}
+	if description != "" {
+		updateRoleRequest.NewDescription = &description
+	}
+
+	// Update Role
+	var role *Role
+	response, err := reqClient.UpdateRole(updateRoleRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	if response != nil && response.Body != nil && response.Body.Role != nil {
+		role, err = toRAMRoleUpdate(response.Body.Role)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if role == nil {
+		return nil, fmt.Errorf("failed to update the role")
+	}
+
+	return role, nil
+}
+
+func (c *aliCloudRAMClient) GetAllRoles(_ context.Context, maxItems int32) ([]*ram.ListRolesResponseBodyRolesRole, error) {
+	reqClient, err := c.newRequestClient()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*ram.ListRolesResponseBodyRolesRole, 0)
+	var marker *string
+	for {
+		resp, err := reqClient.ListRolesWithOptions(&ram.ListRolesRequest{
+			Marker:   marker,
+			MaxItems: &maxItems,
+		}, &utils.RuntimeOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, resp.Body.Roles.Role...)
+		if resp.Body.Marker == nil {
+			break
+		}
+		marker = resp.Body.Marker
+	}
+
+	return result, nil
+}
+
+func (c *aliCloudRAMClient) GrantRamRoleAccess(_ context.Context, r domain.Resource, account_id, role string) error {
+	if role != "STSTrustPolicy" {
+		return nil
+	}
+
+	mu := c.getRoleMutex(r.Name)
+	mu.Lock()
+	defer mu.Unlock()
+
+	ramRole, err := c.GetRole(r.Name)
+	if err != nil {
+		return fmt.Errorf("failed to get RAM role: %w", err)
+	}
+
+	updatedRAMPolicy, err := GrantSTSTrustPolicyRole(*ramRole, account_id)
+	if err != nil {
+		return fmt.Errorf("failed to grant STS trust policy role: %w", err)
+	}
+
+	_, err = c.UpdateRole(r.Name, "grant sts access for account "+account_id, updatedRAMPolicy)
+	if err != nil {
+		return fmt.Errorf("failed to update role: %w", err)
+	}
+
+	return nil
+}
+
+func (c *aliCloudRAMClient) RevokeRamRoleAccess(_ context.Context, r domain.Resource, account_id, role string) error {
+	if role != "STSTrustPolicy" {
+		return nil
+	}
+
+	mu := c.getRoleMutex(r.Name)
+	mu.Lock()
+	defer mu.Unlock()
+
+	ramRole, err := c.GetRole(r.Name)
+	if err != nil {
+		return fmt.Errorf("failed to get RAM role: %w", err)
+	}
+
+	updatedRAMPolicy, err := RevokeSTSTrustPolicyRole(*ramRole, account_id)
+	if err != nil {
+		return fmt.Errorf("failed to revoke STS trust policy role: %w", err)
+	}
+
+	_, err = c.UpdateRole(r.Name, "revoke sts access for account "+account_id, updatedRAMPolicy)
+	if err != nil {
+		return fmt.Errorf("failed to update role: %w", err)
+	}
+
+	return nil
+}
+
 // newRequestClient creates a new RAM client instance for each request.
 //
 // AliCloud SDK clients are not concurrency-safe due to their use of a builder pattern
@@ -270,4 +432,94 @@ func parseAliCloudARN(arn string) (*aliCloudARN, error) {
 		ResourceType: resourceParts[0],
 		ResourceName: resourceParts[1],
 	}, nil
+}
+
+func toRAMRole(r *ram20150501.GetRoleResponseBodyRole) (*Role, error) {
+	if r == nil {
+		return nil, fmt.Errorf("nil ram role provided")
+	}
+
+	return &Role{
+		Arn:                      r.Arn,
+		AssumeRolePolicyDocument: r.AssumeRolePolicyDocument,
+		CreateDate:               r.CreateDate,
+		Description:              r.Description,
+		MaxSessionDuration:       r.MaxSessionDuration,
+		RoleID:                   r.RoleId,
+		RoleName:                 r.RoleName,
+	}, nil
+}
+
+func toRAMRoleUpdate(r *ram20150501.UpdateRoleResponseBodyRole) (*Role, error) {
+	if r == nil {
+		return nil, fmt.Errorf("nil ram role provided")
+	}
+
+	return &Role{
+		Arn:                      r.Arn,
+		AssumeRolePolicyDocument: r.AssumeRolePolicyDocument,
+		CreateDate:               r.CreateDate,
+		Description:              r.Description,
+		MaxSessionDuration:       r.MaxSessionDuration,
+		RoleID:                   r.RoleId,
+		RoleName:                 r.RoleName,
+	}, nil
+}
+
+func GrantSTSTrustPolicyRole(role Role, account_id string) (string, error) {
+	// Unmarshal the existing policy
+	if role.AssumeRolePolicyDocument == nil {
+		return "", fmt.Errorf("AssumeRolePolicyDocument is nil")
+	}
+
+	var ramPolicy RAMPolicy
+	if err := json.Unmarshal([]byte(*role.AssumeRolePolicyDocument), &ramPolicy); err != nil {
+		return "", fmt.Errorf("failed to unmarshal existing RAM policy: %w", err)
+	}
+
+	// Find the AssumeRole statement and update RAM principal
+	for i, stmt := range ramPolicy.Statement {
+		if stmt.Action == "sts:AssumeRole" {
+			if !slices.Contains(stmt.Principal.RAM, account_id) {
+				currStatement := &ramPolicy.Statement[i]
+				currStatement.Principal.RAM = append(currStatement.Principal.RAM, account_id)
+			}
+			break
+		}
+	}
+
+	ramPolicyBytes, err := json.Marshal(ramPolicy)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal RAM policy: %w", err)
+	}
+	updatedRAMPolicy := string(ramPolicyBytes)
+	return updatedRAMPolicy, nil
+}
+
+func RevokeSTSTrustPolicyRole(role Role, account_id string) (string, error) {
+	// Unmarshal the existing policy
+	if role.AssumeRolePolicyDocument == nil {
+		return "", fmt.Errorf("AssumeRolePolicyDocument is nil")
+	}
+	var ramPolicy RAMPolicy
+	if err := json.Unmarshal([]byte(*role.AssumeRolePolicyDocument), &ramPolicy); err != nil {
+		return "", fmt.Errorf("failed to unmarshal existing RAM policy: %w", err)
+	}
+
+	// Find the AssumeRole statement and remove the RAM principal
+	for i, stmt := range ramPolicy.Statement {
+		if stmt.Action == "sts:AssumeRole" {
+			currStatement := &ramPolicy.Statement[i]
+			currStatement.Principal.RAM = slices.DeleteFunc(currStatement.Principal.RAM, func(s string) bool {
+				return s == account_id
+			})
+			break
+		}
+	}
+
+	ramPolicyBytes, err := json.Marshal(ramPolicy)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal RAM policy: %w", err)
+	}
+	return string(ramPolicyBytes), nil
 }
