@@ -12,6 +12,7 @@ const (
 	TypeGrantDormancyCheck         Type = "grant_dormancy_check"
 	TypePendingApprovalsReminder   Type = "pending_approvals_reminder"
 	TypeGrantDriftCheck            Type = "grant_drift_check"
+	TypeBotExpirationAlert         Type = "bot_expiration_alert"
 )
 
 type Job struct {

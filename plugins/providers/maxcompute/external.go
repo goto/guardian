@@ -392,7 +392,7 @@ func (p *provider) grantProjectRolesToMember(ctx context.Context, pc *domain.Pro
 					if restErr.StatusCode == http.StatusConflict && restErr.ErrorMessage.ErrorCode == "ObjectAlreadyExists" {
 						return nil
 					}
-					return fmt.Errorf(restErr.ErrorMessage.Message)
+					return errors.New(restErr.ErrorMessage.Message)
 				}
 				return err
 			}

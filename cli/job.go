@@ -7,6 +7,8 @@ import (
 
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/pkg/opentelemetry"
+	"github.com/goto/guardian/pkg/shield"
+	"github.com/goto/guardian/pkg/siren"
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/MakeNowJust/heredoc"
@@ -123,6 +125,12 @@ func runJobCmd() *cobra.Command {
 				return fmt.Errorf("initializing services: %w", err)
 			}
 
+			shieldClient := shield.NewClient(
+				config.Shield.Host,
+				config.Shield.AuthEmail,
+			)
+			sirenClient := siren.NewClient(config.Siren.Host)
+
 			handler := jobs.NewHandler(
 				logger,
 				services.GrantService,
@@ -131,6 +139,8 @@ func runJobCmd() *cobra.Command {
 				notifier,
 				crypto,
 				validator,
+				shieldClient,
+				sirenClient,
 			)
 
 			jobsMap := map[jobs.Type]*struct {
@@ -164,6 +174,10 @@ func runJobCmd() *cobra.Command {
 				jobs.TypeGrantDriftCheck: {
 					handler: handler.GrantDriftCheck,
 					config:  config.Jobs.GrantDriftCheck.Config,
+				},
+				jobs.TypeBotExpirationAlert: {
+					handler: handler.BotExpirationAlert,
+					config:  config.Jobs.BotExpirationAlert.Config,
 				},
 			}
 

@@ -8,6 +8,8 @@ import (
 	"github.com/goto/guardian/core/report"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
+	"github.com/goto/guardian/pkg/shield"
+	"github.com/goto/guardian/pkg/siren"
 	"github.com/goto/guardian/plugins/notifiers"
 )
 
@@ -44,6 +46,8 @@ type handler struct {
 	notifier        notifiers.Client
 	crypto          crypto
 	validator       *validator.Validate
+	shieldClient    shield.Client
+	sirenClient     siren.Client
 }
 
 func NewHandler(
@@ -54,6 +58,8 @@ func NewHandler(
 	notifier notifiers.Client,
 	crypto crypto,
 	validator *validator.Validate,
+	shieldClient shield.Client,
+	sirenClient siren.Client,
 ) *handler {
 	return &handler{
 		logger:          logger,
@@ -63,5 +69,7 @@ func NewHandler(
 		notifier:        notifier,
 		crypto:          crypto,
 		validator:       validator,
+		shieldClient:    shieldClient,
+		sirenClient:     sirenClient,
 	}
 }

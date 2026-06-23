@@ -89,7 +89,6 @@ type config struct {
 }
 
 func (c *config) validate() error {
-
 	if c.Credentials == nil {
 		return ErrMissingCredentials
 	}
