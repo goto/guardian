@@ -127,6 +127,7 @@ func runJobCmd() *cobra.Command {
 
 			shieldClient := shield.NewClient(
 				config.Shield.Host,
+				config.Shield.AuthHeader,
 				config.Shield.AuthEmail,
 			)
 			sirenClient := siren.NewClient(config.Siren.Host)

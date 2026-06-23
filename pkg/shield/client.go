@@ -44,14 +44,16 @@ type Client interface {
 type client struct {
 	httpClient *http.Client
 	baseURL    string
+	authHeader string
 	authEmail  string
 }
 
 // NewClient initializes a new Shield API client
-func NewClient(baseURL, authEmail string) Client {
+func NewClient(baseURL, authHeader, authEmail string) Client {
 	return &client{
 		httpClient: http.DefaultClient,
 		baseURL:    baseURL,
+		authHeader: authHeader,
 		authEmail:  authEmail,
 	}
 }
@@ -66,7 +68,7 @@ func (c *client) GetUser(ctx context.Context, email string) (*User, error) {
 	}
 
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Auth-Email", c.authEmail)
+	req.Header.Set(c.authHeader, c.authEmail)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -96,7 +98,7 @@ func (c *client) GetUserGroups(ctx context.Context, userID string) ([]Group, err
 	}
 
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Auth-Email", c.authEmail)
+	req.Header.Set(c.authHeader, c.authEmail)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

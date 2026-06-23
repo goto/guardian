@@ -9,10 +9,14 @@ import (
 	"github.com/goto/guardian/pkg/siren"
 )
 
+const SIREN_TEMPLATE = "guardian_bot_access_expiry"
+
 type BotExpirationAlertConfig struct {
-	TargetBotEmails []string `mapstructure:"target_bot_emails"`
-	ExpiringInDays  []int    `mapstructure:"expiring_in_days"`
-	Severity        string   `mapstructure:"severity"`
+	// Pre-fetch DB filters (allows passing account_ids, provider_types, etc., from config)
+	GrantFilters   domain.ListGrantsFilter `mapstructure:"filters"`
+	ExpiringInDays []int                   `mapstructure:"expiring_in_days"`
+	Severity       string                  `mapstructure:"severity"`
+	Environment    string                  `mapstructure:"environment"`
 }
 
 func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
@@ -36,13 +40,18 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		}
 	}
 
-	filters := domain.ListGrantsFilter{
-		Statuses:           []string{string(domain.GrantStatusActive)},
-		ExpiringInDays:     maxDays,
-		ProviderTypes:      []string{"guardian"},
-		AccountTypes:       []string{"bot"},
-		WithPendingAppeal:  true,
-		ExcludeEmptyAppeal: true,
+	filters := cfg.GrantFilters
+
+	// Force mandatory fields required for this job to function safely
+	filters.Statuses = []string{string(domain.GrantStatusActive)}
+	filters.ExpiringInDays = maxDays
+	filters.WithPendingAppeal = true
+	filters.ExcludeEmptyAppeal = true
+	filters.AccountTypes = []string{"bot"}
+
+	// Apply defaults only if the user didn't explicitly override them in the config
+	if len(filters.ProviderTypes) == 0 {
+		filters.ProviderTypes = []string{"guardian"}
 	}
 
 	grants, err := h.grantService.List(ctx, filters)
@@ -73,11 +82,6 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		if botEmail == "" {
 			continue
 		}
-
-		if len(cfg.TargetBotEmails) > 0 && !containsStr(cfg.TargetBotEmails, botEmail) {
-			continue
-		}
-
 		// Fetch the Shield User using the extracted email
 		shieldUser, err := h.shieldClient.GetUser(ctx, botEmail)
 		if err != nil {
@@ -91,32 +95,50 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 			continue
 		}
 
-		// Send generic notification to Siren for each group
+		// Send notifications for each group the bot belongs to
 		for _, group := range groups {
+			teamSlug := group.Slug
+
+			// Construct the base data payload (used across all notifications)
+			baseData := map[string]interface{}{
+				"environment":   cfg.Environment,
+				"bot_email":     botEmail,
+				"package_name":  g.Resource.Name,
+				"team_name":     group.Name,
+				"expiring_in":   fmt.Sprintf("%d days", daysRemaining),
+				"expiration_dt": g.ExpirationDate.Format("2006-01-02"),
+				"appeal_id":     g.AppealID,
+			}
+
 			severity := cfg.Severity
-			if daysRemaining <= 1 {
-				severity = "CRITICAL"
+			if severity == "" {
+				severity = "WARNING"
 			}
-
-			req := siren.NotificationRequest{
+			environment := cfg.Environment
+			if environment == "" {
+				environment = "production"
+			}
+			notification := siren.NotificationRequest{
+				Template: SIREN_TEMPLATE,
 				Labels: map[string]string{
-					"team_id":  group.ID,
-					"severity": severity,
+					"environment": environment,
+					"severity":    severity,
+					"team":        teamSlug,
 				},
-				Template: "bot_access_expiry_template",
-				Data: map[string]interface{}{
-					"bot_email":     botEmail,
-					"package_name":  g.Resource.Name,
-					"team_name":     group.Name,
-					"expiring_in":   fmt.Sprintf("%d days", daysRemaining),
-					"expiration_dt": g.ExpirationDate.Format("2006-01-02"),
-				},
+				Data: baseData,
 			}
-
-			if err := h.sirenClient.PostNotification(ctx, req); err != nil {
-				h.logger.Error(ctx, "failed to post siren notification", "group", group.Name, "bot", botEmail, "error", err)
+			if err := h.sirenClient.PostNotification(ctx, notification); err != nil {
+				h.logger.Error(ctx, "failed to post siren notification",
+					"team", teamSlug,
+					"environment", cfg.Environment,
+					"labels", notification.Labels,
+					"error", err,
+				)
 			} else {
-				h.logger.Info(ctx, "Successfully dispatched siren notification", "group", group.Name, "bot", botEmail)
+				h.logger.Info(ctx, "successfully dispatched siren notification",
+					"team", teamSlug,
+					"labels", notification.Labels,
+				)
 			}
 		}
 	}
@@ -136,15 +158,6 @@ func extractBotEmail(g domain.Grant) string {
 		}
 	}
 	return ""
-}
-
-func containsStr(slice []string, val string) bool {
-	for _, item := range slice {
-		if item == val {
-			return true
-		}
-	}
-	return false
 }
 
 func containsInt(slice []int, val int) bool {

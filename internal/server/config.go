@@ -24,13 +24,13 @@ type Auth struct {
 }
 
 type ShieldConfig struct {
-	Host      string `validate:"required,url" mapstructure:"host"`
-	AuthEmail string `validate:"required" mapstructure:"auth_email"`
+	Host       string `validate:"required,url" mapstructure:"host"`
+	AuthHeader string `validate:"required" mapstructure:"auth_header"`
+	AuthEmail  string `validate:"required" mapstructure:"auth_email"`
 }
 
 type SirenConfig struct {
-	Host      string `validate:"required,url" mapstructure:"host"`
-	AuthEmail string `validate:"required" mapstructure:"auth_email"`
+	Host string `validate:"required,url" mapstructure:"host"`
 }
 
 type Jobs struct {

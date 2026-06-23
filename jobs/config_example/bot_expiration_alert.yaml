@@ -1,0 +1,13 @@
+jobs:
+  - type: bot_expiration_alert
+    config:
+      expiring_in_days: [15, 7, 3, 1]
+      severity: "WARNING"
+      filters:
+        account_ids:
+          - "RAM$123456789:987654321"
+          - "RAM$123456789:987654322"
+        provider_types:
+          - "guardian"
+        resource_ids: # filter by specific packages
+          - "58658af9-bf57-48ab-8553-d1b5527e1ff4"
