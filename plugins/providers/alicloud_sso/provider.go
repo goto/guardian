@@ -76,8 +76,8 @@ func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
 }
 
 func (p *provider) ValidateResourceIdentifiers(ctx context.Context, r *domain.Resource) error {
-	if r.Type != resourceTypeGroup && r.Type != resourceTypeRAMRole {
-		return fmt.Errorf("only resource type %q and %q are supported for provider type %q", resourceTypeGroup, resourceTypeRAMRole, sourceName)
+	if r.Type != resourceTypeGroup {
+		return fmt.Errorf("only resource type %q is supported for provider type %q", resourceTypeGroup, sourceName)
 	}
 	if r.URN == "" {
 		return fmt.Errorf("resource urn is required")

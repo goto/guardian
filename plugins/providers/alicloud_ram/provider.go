@@ -380,3 +380,17 @@ func hasExcludePrefix(name string, filter *RoleFilter) bool {
 	}
 	return false
 }
+
+func (p *Provider) ValidateResourceIdentifiers(ctx context.Context, r *domain.Resource) error {
+	if r.Type != ResourceTypeAccount && r.Type != ResourceTypeRAMRole {
+		return fmt.Errorf("only resource type %q and %q are supported for provider type %q", ResourceTypeAccount, ResourceTypeRAMRole, p.typeName)
+	}
+	if r.URN == "" {
+		return fmt.Errorf("resource urn is required")
+	}
+	return nil
+}
+
+func (p *Provider) ValidateResourceDetails(ctx context.Context, r *domain.Resource) error {
+	return nil
+}
