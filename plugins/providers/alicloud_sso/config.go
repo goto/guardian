@@ -16,7 +16,8 @@ const (
 
 	accountTypeSSOUser = "sso_user"
 
-	resourceTypeGroup = "group"
+	resourceTypeGroup   = "group"
+	resourceTypeRAMRole = "ram_role"
 )
 
 var (
