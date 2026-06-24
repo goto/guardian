@@ -40,7 +40,7 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		}
 	}
 
-	// 1. Setup Base Filters from Config
+	// Base Filters from Config
 	baseFilters := cfg.GrantFilters
 	baseFilters.WithPendingAppeal = true
 	baseFilters.ExcludeEmptyAppeal = true
@@ -49,7 +49,7 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		baseFilters.ProviderTypes = []string{"guardian"}
 	}
 
-	// 2. HIT 1: Fetch Upcoming Expirations (Active)
+	// Fetch Upcoming Expirations (Active)
 	activeFilters := baseFilters
 	activeFilters.Statuses = []string{string(domain.GrantStatusActive)}
 	activeFilters.ExpiringInDays = maxDays
@@ -60,9 +60,8 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		return err
 	}
 
-	// 3. HIT 2: Fetch Recently Expired (Inactive)
+	// Fetch Recently Expired (Inactive)
 	inactiveFilters := baseFilters
-	// Note: Use whatever status Guardian sets when a grant expires (usually "inactive")
 	inactiveFilters.Statuses = []string{string(domain.GrantStatusInactive)}
 
 	inactiveGrants, err := h.grantService.List(ctx, inactiveFilters)
@@ -71,7 +70,6 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		return err
 	}
 
-	// 4. Combine Both Lists
 	var allGrants []domain.Grant
 	allGrants = append(allGrants, activeGrants...)
 	allGrants = append(allGrants, inactiveGrants...)
@@ -99,13 +97,11 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		if botEmail == "" {
 			continue
 		}
-		// Fetch the Shield User using the extracted email
 		shieldUser, err := h.shieldClient.GetUser(ctx, botEmail)
 		if err != nil {
 			h.logger.Error(ctx, "failed to get shield user for bot", "bot_email", botEmail, "error", err)
 			continue
 		}
-		// Fetch the groups that the bot belongs to using its Shield UUID
 		groups, err := h.shieldClient.GetUserGroups(ctx, shieldUser.ID)
 		if err != nil {
 			h.logger.Error(ctx, "failed to get shield groups for bot", "bot_uuid", shieldUser.ID, "error", err)
@@ -128,7 +124,6 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		for _, group := range groups {
 			teamSlug := group.Slug
 
-			// Construct the base data payload (used across all notifications)
 			baseData := map[string]interface{}{
 				"environment":   cfg.Environment,
 				"bot_email":     botEmail,
@@ -179,7 +174,6 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 	return nil
 }
 
-// Helper function to extract email from a nested appeal map
 func extractBotEmail(g domain.Grant) string {
 	if g.Appeal != nil && g.Appeal.Details != nil {
 		if policyMeta, ok := g.Appeal.Details["__policy_metadata"].(map[string]interface{}); ok {
