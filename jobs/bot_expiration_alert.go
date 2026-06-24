@@ -60,9 +60,11 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		return err
 	}
 
-	// Fetch Recently Expired (Inactive)
+	// Fetch Recently Expired (Inactive) - within last 1 day
 	inactiveFilters := baseFilters
 	inactiveFilters.Statuses = []string{string(domain.GrantStatusInactive)}
+	inactiveFilters.ExpirationDateGreaterThan = time.Now().AddDate(0, 0, -1) // 1 day ago
+	inactiveFilters.ExpirationDateLessThan = time.Now()
 
 	inactiveGrants, err := h.grantService.List(ctx, inactiveFilters)
 	if err != nil {
