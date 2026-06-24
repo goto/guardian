@@ -203,14 +203,14 @@ func (c *aliCloudRAMClient) GetAllPoliciesByType(_ context.Context, policyType s
 	return result, nil
 }
 
-func (c *aliCloudRAMClient) GetRole(name string) (*Role, error) {
+func (c *aliCloudRAMClient) GetRole(name string) (*Role, string, error) {
 	if name == "" {
-		return nil, fmt.Errorf("role name cannot be empty")
+		return nil, "", fmt.Errorf("role name cannot be empty")
 	}
 
 	reqClient, err := c.newRequestClient()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request client: %w", err)
+		return nil, "", fmt.Errorf("failed to create request client: %w", err)
 	}
 
 	// lock is held until after UpdateRole
@@ -222,24 +222,28 @@ func (c *aliCloudRAMClient) GetRole(name string) (*Role, error) {
 	var role *Role
 	response, err := reqClient.GetRole(getRoleRequest)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-
+	etag := ""
+	if val, ok := response.Headers["etag"]; ok && val != nil {
+		etag = *val
+	}
 	if response != nil && response.Body != nil && response.Body.Role != nil {
+
 		role, err = toRAMRole(response.Body.Role)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 
 	if role == nil {
-		return nil, fmt.Errorf("failed to get the role")
+		return nil, "", fmt.Errorf("failed to get the role")
 	}
 
-	return role, nil
+	return role, etag, nil
 }
 
-func (c *aliCloudRAMClient) UpdateRole(name, description, policy string) (*Role, error) {
+func (c *aliCloudRAMClient) UpdateRole(name, description, policy, etag string) (*Role, error) {
 	if name == "" {
 		return nil, fmt.Errorf("role name cannot be empty")
 	}
@@ -248,6 +252,11 @@ func (c *aliCloudRAMClient) UpdateRole(name, description, policy string) (*Role,
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request client: %w", err)
 	}
+	// initialize the map before writing to it
+	if reqClient.Headers == nil {
+		reqClient.Headers = make(map[string]*string)
+	}
+	reqClient.Headers["etag"] = &etag
 
 	// lock is held until after UpdateRole
 	updateRoleRequest := &ram20150501.UpdateRoleRequest{
@@ -315,7 +324,7 @@ func (c *aliCloudRAMClient) GrantRamRoleAccess(_ context.Context, r domain.Resou
 	mu.Lock()
 	defer mu.Unlock()
 
-	ramRole, err := c.GetRole(r.Name)
+	ramRole, etag, err := c.GetRole(r.Name)
 	if err != nil {
 		return fmt.Errorf("failed to get RAM role: %w", err)
 	}
@@ -325,7 +334,7 @@ func (c *aliCloudRAMClient) GrantRamRoleAccess(_ context.Context, r domain.Resou
 		return fmt.Errorf("failed to grant STS trust policy role: %w", err)
 	}
 
-	_, err = c.UpdateRole(r.Name, "grant sts access for account "+account_id, updatedRAMPolicy)
+	_, err = c.UpdateRole(r.Name, "grant sts access for account "+account_id, updatedRAMPolicy, etag)
 	if err != nil {
 		return fmt.Errorf("failed to update role: %w", err)
 	}
@@ -342,7 +351,7 @@ func (c *aliCloudRAMClient) RevokeRamRoleAccess(_ context.Context, r domain.Reso
 	mu.Lock()
 	defer mu.Unlock()
 
-	ramRole, err := c.GetRole(r.Name)
+	ramRole, etag, err := c.GetRole(r.Name)
 	if err != nil {
 		return fmt.Errorf("failed to get RAM role: %w", err)
 	}
@@ -352,7 +361,7 @@ func (c *aliCloudRAMClient) RevokeRamRoleAccess(_ context.Context, r domain.Reso
 		return fmt.Errorf("failed to revoke STS trust policy role: %w", err)
 	}
 
-	_, err = c.UpdateRole(r.Name, "revoke sts access for account "+account_id, updatedRAMPolicy)
+	_, err = c.UpdateRole(r.Name, "revoke sts access for account "+account_id, updatedRAMPolicy, etag)
 	if err != nil {
 		return fmt.Errorf("failed to update role: %w", err)
 	}
