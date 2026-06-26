@@ -67,7 +67,7 @@ func TestGetResources_RAMRole_Success(t *testing.T) {
 		},
 	}
 
-	mockClient.EXPECT().GetAllRoles(mock.Anything, int32(maxFetchItem)).Return(roles, nil)
+	mockClient.EXPECT().GetAllRoles(mock.Anything, maxFetchItem).Return(roles, nil)
 
 	resources, err := p.GetResources(context.Background(), pc)
 
@@ -88,7 +88,7 @@ func TestGetResources_RAMRole_ClientError(t *testing.T) {
 	pc := testProviderConfig(ResourceTypeRAMRole)
 	p.Clients[pc.URN] = mockClient
 
-	mockClient.EXPECT().GetAllRoles(mock.Anything, int32(maxFetchItem)).Return(nil, errors.New("api error"))
+	mockClient.EXPECT().GetAllRoles(mock.Anything, maxFetchItem).Return(nil, errors.New("api error"))
 
 	resources, err := p.GetResources(context.Background(), pc)
 
@@ -102,7 +102,7 @@ func TestGetResources_RAMRole_Empty(t *testing.T) {
 	pc := testProviderConfig(ResourceTypeRAMRole)
 	p.Clients[pc.URN] = mockClient
 
-	mockClient.EXPECT().GetAllRoles(mock.Anything, int32(maxFetchItem)).Return([]*ram.ListRolesResponseBodyRolesRole{}, nil)
+	mockClient.EXPECT().GetAllRoles(mock.Anything, maxFetchItem).Return([]*ram.ListRolesResponseBodyRolesRole{}, nil)
 
 	resources, err := p.GetResources(context.Background(), pc)
 
