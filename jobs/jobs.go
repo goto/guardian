@@ -1,6 +1,8 @@
 package jobs
 
-import "github.com/mitchellh/mapstructure"
+import (
+	"github.com/mitchellh/mapstructure"
+)
 
 type Type string
 

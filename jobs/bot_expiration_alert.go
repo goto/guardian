@@ -6,10 +6,8 @@ import (
 	"time"
 
 	"github.com/goto/guardian/domain"
-	"github.com/goto/guardian/pkg/siren"
+	"github.com/goto/guardian/plugins/notifiers/alertmanager"
 )
-
-const SIREN_TEMPLATE = "guardian_bot_access_expiry"
 
 type BotExpirationAlertConfig struct {
 	// Pre-fetch DB filters (allows passing account_ids, provider_types, etc., from config)
@@ -40,46 +38,33 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		}
 	}
 
-	// Base Filters from Config
-	baseFilters := cfg.GrantFilters
-	baseFilters.WithPendingAppeal = true
-	baseFilters.ExcludeEmptyAppeal = true
-	baseFilters.AccountTypes = []string{"bot"}
-	if len(baseFilters.ProviderTypes) == 0 {
-		baseFilters.ProviderTypes = []string{"guardian"}
+	filters := cfg.GrantFilters
+
+	// Strictly fetch Active grants for upcoming expirations
+	filters.Statuses = []string{string(domain.GrantStatusActive)}
+	filters.ExpiringInDays = maxDays
+	filters.WithPendingAppeal = true
+	filters.ExcludeEmptyAppeal = true
+	falseBool := false
+	filters.IsPermanent = &falseBool
+
+	if len(filters.AccountTypes) == 0 {
+		filters.AccountTypes = []string{"bot"}
+	}
+	if len(filters.ProviderTypes) == 0 {
+		filters.ProviderTypes = []string{"guardian"}
 	}
 
-	// Fetch Upcoming Expirations (Active)
-	activeFilters := baseFilters
-	activeFilters.Statuses = []string{string(domain.GrantStatusActive)}
-	activeFilters.ExpiringInDays = maxDays
-
-	activeGrants, err := h.grantService.List(ctx, activeFilters)
+	grants, err := h.grantService.List(ctx, filters)
 	if err != nil {
 		h.logger.Error(ctx, "failed to retrieve active expiring bot grants", "error", err)
 		return err
 	}
 
-	// Fetch Recently Expired (Inactive) - within last 1 day
-	inactiveFilters := baseFilters
-	inactiveFilters.Statuses = []string{string(domain.GrantStatusInactive)}
-	inactiveFilters.ExpirationDateGreaterThan = time.Now().AddDate(0, 0, -1) // 1 day ago
-	inactiveFilters.ExpirationDateLessThan = time.Now()
-
-	inactiveGrants, err := h.grantService.List(ctx, inactiveFilters)
-	if err != nil {
-		h.logger.Error(ctx, "failed to retrieve inactive bot grants", "error", err)
-		return err
-	}
-
-	var allGrants []domain.Grant
-	allGrants = append(allGrants, activeGrants...)
-	allGrants = append(allGrants, inactiveGrants...)
-
 	now := time.Now()
 	currentDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
-	for _, g := range allGrants {
+	for _, g := range grants {
 		if g.ExpirationDate == nil {
 			continue
 		}
@@ -89,9 +74,10 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		daysRemaining := int(expDate.Sub(currentDate).Hours() / 24)
 
 		isReminderDay := containsInt(cfg.ReminderInDays, daysRemaining)
-		isExpiredDay := daysRemaining == 0 || daysRemaining == -1
+		isDayZero := daysRemaining == 0
 
-		if !isReminderDay && !isExpiredDay {
+		// Skip if it's not a reminder day AND it's not expiring exactly today
+		if !isReminderDay && !isDayZero {
 			continue
 		}
 
@@ -99,77 +85,53 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		if botEmail == "" {
 			continue
 		}
-		shieldUser, err := h.shieldClient.GetUser(ctx, botEmail)
+
+		teams, err := h.userManagement.GetUserGroups(ctx, botEmail)
 		if err != nil {
-			h.logger.Error(ctx, "failed to get shield user for bot", "bot_email", botEmail, "error", err)
-			continue
-		}
-		groups, err := h.shieldClient.GetUserGroups(ctx, shieldUser.ID)
-		if err != nil {
-			h.logger.Error(ctx, "failed to get shield groups for bot", "bot_uuid", shieldUser.ID, "error", err)
+			h.logger.Error(ctx, "failed to resolve teams for bot", "bot_email", botEmail, "error", err)
 			continue
 		}
 
-		isAlreadyExpired := now.After(*g.ExpirationDate) || string(g.Status) == string(domain.GrantStatusInactive)
 		expiringInStr := fmt.Sprintf("%d days", daysRemaining)
-		if daysRemaining < 0 {
-			expiringInStr = fmt.Sprintf("already expired (%d days ago)", -daysRemaining)
-		} else if daysRemaining == 0 {
-			if isAlreadyExpired {
-				expiringInStr = "already expired (Earlier Today)"
-			} else {
-				expiringInStr = "0 days (Later Today)"
-			}
+		if isDayZero {
+			expiringInStr = "0 days (Today)"
 		}
 
-		// Send notifications for each group the bot belongs to
-		for _, group := range groups {
-			teamSlug := group.Slug
+		severity := "WARNING"
+		// Automatically bump to CRITICAL if it hits the threshold OR if it expires today
+		if daysRemaining <= cfg.CriticalThresholdInDays || isDayZero {
+			severity = "CRITICAL"
+		}
 
-			baseData := map[string]interface{}{
-				"environment":   cfg.Environment,
-				"bot_email":     botEmail,
-				"package_name":  g.Resource.Name,
-				"team_name":     group.Name,
-				"expiring_in":   expiringInStr,
-				"expiration_dt": g.ExpirationDate.Format("2006-01-02"),
-				"appeal_id":     g.AppealID,
-				"is_expired":    isAlreadyExpired,
-			}
+		environment := cfg.Environment
+		if environment == "" {
+			environment = "production"
+		}
 
-			severity := "WARNING"
-			if daysRemaining <= cfg.CriticalThresholdInDays || isExpiredDay {
-				severity = "CRITICAL"
-			}
-
-			environment := cfg.Environment
-			if environment == "" {
-				environment = "production"
-			}
-
-			notification := siren.NotificationRequest{
-				Template: SIREN_TEMPLATE,
-				Labels: map[string]string{
-					"environment": environment,
-					"severity":    severity,
-					"team":        teamSlug,
+		for _, team := range teams {
+			event := alertmanager.Event{
+				Title:    alertmanager.BotExpirationAlertEvent,
+				Severity: severity,
+				Team:     team.Slug,
+				Data: map[string]interface{}{
+					"environment":   environment,
+					"bot_email":     botEmail,
+					"package_name":  g.Resource.Name,
+					"team_name":     team.Slug,
+					"expiring_in":   expiringInStr,
+					"expiration_dt": g.ExpirationDate.Format("2006-01-02"),
+					"appeal_id":     g.AppealID,
 				},
-				Data: baseData,
 			}
 
-			if err := h.sirenClient.PostNotification(ctx, notification); err != nil {
-				h.logger.Error(ctx, "failed to post siren notification",
-					"team", teamSlug,
-					"environment", environment,
-					"labels", notification.Labels,
-					"error", err,
-				)
-			} else {
-				h.logger.Info(ctx, "successfully dispatched siren notification",
-					"team", teamSlug,
-					"labels", notification.Labels,
-				)
+			err := h.alertManager.Send(ctx, event)
+			if err != nil {
+				h.logger.Error(ctx, "failed to dispatch bot expiration notifications",
+					"bot_email", botEmail,
+					"error", err)
+				return err
 			}
+			h.logger.Info(ctx, "successfully dispatched bot expiration notifications")
 		}
 	}
 

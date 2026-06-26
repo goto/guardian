@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	GrantDriftCheckEvent = "grant_drift_check"
+	GrantDriftCheckEvent    = "grant_drift_check"
+	BotExpirationAlertEvent = "bot_expiration_alert"
 )
 
 // NotificationSender is the interface for delivering events to a notifier.
@@ -51,7 +52,6 @@ type Event struct {
 	DedupKey string
 	Team     string
 	Severity string
-	Labels   map[string]string
 }
 
 type accountGroup struct {

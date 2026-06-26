@@ -13,14 +13,16 @@ import (
 const (
 	sirenHTTPTimeout = 30 * time.Second
 
-	guardianSirenDriftCheckTemplate = "guardian-grant-drift-check"
+	guardianSirenDriftCheckTemplate         = "guardian-grant-drift-check"
+	guardianSirenBotExpirationAlertTemplate = "guardian_bot_access_expiry"
 
 	notificationsEndpoint = "/v1beta1/notifications"
 )
 
 var (
 	alertToTemplateMap = map[string]string{
-		GrantDriftCheckEvent: guardianSirenDriftCheckTemplate,
+		GrantDriftCheckEvent:    guardianSirenDriftCheckTemplate,
+		BotExpirationAlertEvent: guardianSirenBotExpirationAlertTemplate,
 	}
 )
 
