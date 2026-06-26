@@ -397,6 +397,44 @@ func (s *GRPCServer) CancelAppeal(ctx context.Context, req *guardianv1beta1.Canc
 	}, nil
 }
 
+func (s *GRPCServer) RevokeAppeal(ctx context.Context, req *guardianv1beta1.RevokeAppealRequest) (*guardianv1beta1.RevokeAppealResponse, error) {
+	actor, err := s.getUser(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, "failed to get metadata: actor")
+	}
+
+	id := req.GetId()
+	var reason string
+	if r := req.GetReason(); r != nil {
+		reason = r.GetReason()
+	}
+
+	a, err := s.appealService.RevokeAppeal(ctx, id, actor, reason)
+	if err != nil {
+		if errors.As(err, new(appeal.InvalidError)) || errors.Is(err, appeal.ErrAppealIDEmptyParam) {
+			return nil, s.invalidArgument(ctx, "%s", err.Error())
+		}
+
+		switch {
+		case errors.Is(err, appeal.ErrAppealNotFound):
+			return nil, status.Errorf(codes.NotFound, "appeal not found: %v", id)
+		case errors.Is(err, appeal.ErrAppealHasNoGrant):
+			return nil, s.failedPrecondition(ctx, "unable to process the request: %v", err)
+		default:
+			return nil, s.internalError(ctx, "failed to revoke appeal: %v", err)
+		}
+	}
+
+	appealProto, err := s.adapter.ToAppealProto(a)
+	if err != nil {
+		return nil, s.internalError(ctx, "failed to parse appeal: %v", err)
+	}
+
+	return &guardianv1beta1.RevokeAppealResponse{
+		Appeal: appealProto,
+	}, nil
+}
+
 func (s *GRPCServer) ListAppealActivities(ctx context.Context, req *guardianv1beta1.ListAppealActivitiesRequest) (*guardianv1beta1.ListAppealActivitiesResponse, error) {
 	activities, err := s.appealService.ListActivities(ctx, req.GetAppealId())
 	if err != nil {

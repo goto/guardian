@@ -46,6 +46,7 @@ type GuardianServiceClient interface {
 	ListAppeals(ctx context.Context, in *ListAppealsRequest, opts ...grpc.CallOption) (*ListAppealsResponse, error)
 	GetAppeal(ctx context.Context, in *GetAppealRequest, opts ...grpc.CallOption) (*GetAppealResponse, error)
 	CancelAppeal(ctx context.Context, in *CancelAppealRequest, opts ...grpc.CallOption) (*CancelAppealResponse, error)
+	RevokeAppeal(ctx context.Context, in *RevokeAppealRequest, opts ...grpc.CallOption) (*RevokeAppealResponse, error)
 	CreateAppeal(ctx context.Context, in *CreateAppealRequest, opts ...grpc.CallOption) (*CreateAppealResponse, error)
 	PatchAppeal(ctx context.Context, in *PatchAppealRequest, opts ...grpc.CallOption) (*PatchAppealResponse, error)
 	RelabelAppeal(ctx context.Context, in *RelabelAppealRequest, opts ...grpc.CallOption) (*RelabelAppealResponse, error)
@@ -296,6 +297,15 @@ func (c *guardianServiceClient) CancelAppeal(ctx context.Context, in *CancelAppe
 	return out, nil
 }
 
+func (c *guardianServiceClient) RevokeAppeal(ctx context.Context, in *RevokeAppealRequest, opts ...grpc.CallOption) (*RevokeAppealResponse, error) {
+	out := new(RevokeAppealResponse)
+	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/RevokeAppeal", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *guardianServiceClient) CreateAppeal(ctx context.Context, in *CreateAppealRequest, opts ...grpc.CallOption) (*CreateAppealResponse, error) {
 	out := new(CreateAppealResponse)
 	err := c.cc.Invoke(ctx, "/gotocompany.guardian.v1beta1.GuardianService/CreateAppeal", in, out, opts...)
@@ -540,6 +550,7 @@ type GuardianServiceServer interface {
 	ListAppeals(context.Context, *ListAppealsRequest) (*ListAppealsResponse, error)
 	GetAppeal(context.Context, *GetAppealRequest) (*GetAppealResponse, error)
 	CancelAppeal(context.Context, *CancelAppealRequest) (*CancelAppealResponse, error)
+	RevokeAppeal(context.Context, *RevokeAppealRequest) (*RevokeAppealResponse, error)
 	CreateAppeal(context.Context, *CreateAppealRequest) (*CreateAppealResponse, error)
 	PatchAppeal(context.Context, *PatchAppealRequest) (*PatchAppealResponse, error)
 	RelabelAppeal(context.Context, *RelabelAppealRequest) (*RelabelAppealResponse, error)
@@ -642,6 +653,9 @@ func (UnimplementedGuardianServiceServer) GetAppeal(context.Context, *GetAppealR
 }
 func (UnimplementedGuardianServiceServer) CancelAppeal(context.Context, *CancelAppealRequest) (*CancelAppealResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CancelAppeal not implemented")
+}
+func (UnimplementedGuardianServiceServer) RevokeAppeal(context.Context, *RevokeAppealRequest) (*RevokeAppealResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RevokeAppeal not implemented")
 }
 func (UnimplementedGuardianServiceServer) CreateAppeal(context.Context, *CreateAppealRequest) (*CreateAppealResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateAppeal not implemented")
@@ -1156,6 +1170,24 @@ func _GuardianService_CancelAppeal_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GuardianServiceServer).CancelAppeal(ctx, req.(*CancelAppealRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GuardianService_RevokeAppeal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeAppealRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuardianServiceServer).RevokeAppeal(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gotocompany.guardian.v1beta1.GuardianService/RevokeAppeal",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuardianServiceServer).RevokeAppeal(ctx, req.(*RevokeAppealRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1694,6 +1726,10 @@ var GuardianService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CancelAppeal",
 			Handler:    _GuardianService_CancelAppeal_Handler,
+		},
+		{
+			MethodName: "RevokeAppeal",
+			Handler:    _GuardianService_RevokeAppeal_Handler,
 		},
 		{
 			MethodName: "CreateAppeal",
