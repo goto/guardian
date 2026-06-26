@@ -56,6 +56,7 @@ var (
 	ErrNoChanges              = errors.New("no changes found")
 	ErrNoPolicyStepFound      = errors.New("no policy step found")
 	ErrSelfApprovalNotAllowed = errors.New("requestor is not allowed to approve their own request")
+	ErrAppealHasNoGrant       = errors.New("appeal has no active grant to revoke")
 )
 
 type InvalidError struct {
