@@ -145,6 +145,67 @@ func (_c *AppealService_Cancel_Call) RunAndReturn(run func(context.Context, stri
 	return _c
 }
 
+// RevokeAppeal provides a mock function with given fields: ctx, id, actor, reason
+func (_m *AppealService) RevokeAppeal(ctx context.Context, id string, actor string, reason string) (*domain.Appeal, error) {
+	ret := _m.Called(ctx, id, actor, reason)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RevokeAppeal")
+	}
+
+	var r0 *domain.Appeal
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (*domain.Appeal, error)); ok {
+		return rf(ctx, id, actor, reason)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *domain.Appeal); ok {
+		r0 = rf(ctx, id, actor, reason)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Appeal)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, id, actor, reason)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AppealService_RevokeAppeal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RevokeAppeal'
+type AppealService_RevokeAppeal_Call struct {
+	*mock.Call
+}
+
+// RevokeAppeal is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id string
+//   - actor string
+//   - reason string
+func (_e *AppealService_Expecter) RevokeAppeal(ctx interface{}, id interface{}, actor interface{}, reason interface{}) *AppealService_RevokeAppeal_Call {
+	return &AppealService_RevokeAppeal_Call{Call: _e.mock.On("RevokeAppeal", ctx, id, actor, reason)}
+}
+
+func (_c *AppealService_RevokeAppeal_Call) Run(run func(ctx context.Context, id string, actor string, reason string)) *AppealService_RevokeAppeal_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *AppealService_RevokeAppeal_Call) Return(_a0 *domain.Appeal, _a1 error) *AppealService_RevokeAppeal_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *AppealService_RevokeAppeal_Call) RunAndReturn(run func(context.Context, string, string, string) (*domain.Appeal, error)) *AppealService_RevokeAppeal_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Create provides a mock function with given fields: _a0, _a1, _a2
 func (_m *AppealService) Create(_a0 context.Context, _a1 []*domain.Appeal, _a2 ...appeal.CreateAppealOption) error {
 	_va := make([]interface{}, len(_a2))
