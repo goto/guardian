@@ -126,9 +126,6 @@ func (p *Provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 
 			for _, role := range roles {
 				roleName := bptr.ToStringSafe(role.RoleName)
-				if hasExcludePrefix(roleName, creds.RoleFilter) {
-					continue
-				}
 				resources = append(resources, &domain.Resource{
 					ProviderType: pc.Type,
 					ProviderURN:  pc.URN,
@@ -367,18 +364,6 @@ func splitAliAccountUserId(d string) (string, string, error) {
 	accountId := strings.TrimSuffix(accountUserIDSplit[1], aliAccountUserIdDomainSuffix)
 
 	return username, accountId, nil
-}
-
-func hasExcludePrefix(name string, filter *RoleFilter) bool {
-	if filter == nil {
-		return false
-	}
-	for _, prefix := range filter.ExcludePrefixes {
-		if strings.HasPrefix(name, prefix) {
-			return true
-		}
-	}
-	return false
 }
 
 func (p *Provider) ValidateResourceIdentifiers(ctx context.Context, r *domain.Resource) error {
