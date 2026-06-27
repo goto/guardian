@@ -23,16 +23,6 @@ type Auth struct {
 	OIDC     auth.OIDCAuth `mapstructure:"oidc"`
 }
 
-type ShieldConfig struct {
-	Host       string `validate:"required,url" mapstructure:"host"`
-	AuthHeader string `validate:"required" mapstructure:"auth_header"`
-	AuthEmail  string `validate:"required" mapstructure:"auth_email"`
-}
-
-type SirenConfig struct {
-	Host string `validate:"required,url" mapstructure:"host"`
-}
-
 type Jobs struct {
 	FetchResources             jobs.Job `mapstructure:"fetch_resources"`
 	RevokeExpiredGrants        jobs.Job `mapstructure:"revoke_expired_grants"`
@@ -59,8 +49,6 @@ type Config struct {
 	Jobs                       Jobs                 `mapstructure:"jobs"`
 	Telemetry                  opentelemetry.Config `mapstructure:"telemetry"`
 
-	Shield       ShieldConfig                    `mapstructure:"shield"`
-	Siren        SirenConfig                     `mapstructure:"siren"`
 	Auth         Auth                            `mapstructure:"auth"`
 	AlertManager alertmanager.AlertManagerConfig `mapstructure:"alert_manager"`
 }

@@ -236,10 +236,27 @@ func (c *HTTPClient) GetUser(userID string) (interface{}, error) {
 	return res, nil
 }
 
-func (c *HTTPClient) createRequest(userID string) (*http.Request, error) {
-	url := strings.Replace(c.config.URL, UserIDWildcard, userID, -1)
+// GetUserGroups fetches user groups by appending "/groups" to user endpoint.
+func (c *HTTPClient) GetUserGroups(userID string) (interface{}, error) {
+	req, err := c.createRequestWithURL(c.userGroupsURL(userID), userID)
+	if err != nil {
+		return nil, err
+	}
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	var res interface{}
+	if err := c.sendRequest(req, &res); err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (c *HTTPClient) createRequest(userID string) (*http.Request, error) {
+	return c.createRequestWithURL(strings.Replace(c.config.URL, UserIDWildcard, userID, -1), userID)
+}
+
+func (c *HTTPClient) createRequestWithURL(requestURL, userID string) (*http.Request, error) {
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -257,11 +274,20 @@ func (c *HTTPClient) createRequest(userID string) (*http.Request, error) {
 	return req, nil
 }
 
+func (c *HTTPClient) userGroupsURL(userID string) string {
+	userURL := strings.Replace(c.config.URL, UserIDWildcard, userID, -1)
+	if strings.HasSuffix(userURL, "/groups") {
+		return userURL
+	}
+	return strings.TrimRight(userURL, "/") + "/groups"
+}
+
 func (c *HTTPClient) sendRequest(req *http.Request, v interface{}) error {
 	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode >= 200 && res.StatusCode < 300 {
 		return json.NewDecoder(res.Body).Decode(v)

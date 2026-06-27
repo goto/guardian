@@ -7,7 +7,6 @@ import (
 
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/pkg/opentelemetry"
-	"github.com/goto/guardian/pkg/shield"
 	"github.com/goto/guardian/plugins/notifiers/alertmanager"
 	"github.com/mitchellh/mapstructure"
 
@@ -52,6 +51,7 @@ func runJobCmd() *cobra.Command {
 			$ guardian job run grant_dormancy_check
 			$ guardian job run pending_approvals_reminder
 			$ guardian job run grant_drift_check
+			$ guardian job run bot_expiration_alert
 		`),
 		Args: cobra.ExactValidArgs(1),
 		ValidArgs: []string{
@@ -126,12 +126,6 @@ func runJobCmd() *cobra.Command {
 				return fmt.Errorf("initializing services: %w", err)
 			}
 
-			shieldClient := shield.NewClient(
-				config.Shield.Host,
-				config.Shield.AuthHeader,
-				config.Shield.AuthEmail,
-			)
-
 			alertManagerClient := alertmanager.GetAlertManagerSender(config.AlertManager)
 
 			handler := jobs.NewHandler(
@@ -142,7 +136,6 @@ func runJobCmd() *cobra.Command {
 				notifier,
 				crypto,
 				validator,
-				shieldClient,
 				alertManagerClient,
 			)
 

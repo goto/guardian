@@ -45,7 +45,6 @@ type handler struct {
 	notifier        notifiers.Client
 	crypto          crypto
 	validator       *validator.Validate
-	userManagement  domain.UserManagement
 	alertManager    alertmanager.NotificationSender
 }
 
@@ -57,7 +56,6 @@ func NewHandler(
 	notifier notifiers.Client,
 	crypto crypto,
 	validator *validator.Validate,
-	userManagement domain.UserManagement,
 	alertManager alertmanager.NotificationSender,
 ) *handler {
 	return &handler{
@@ -68,7 +66,6 @@ func NewHandler(
 		notifier:        notifier,
 		crypto:          crypto,
 		validator:       validator,
-		userManagement:  userManagement,
 		alertManager:    alertManager,
 	}
 }
