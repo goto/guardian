@@ -16,6 +16,7 @@ const defaultExtractBotEmailExpr evaluator.Expression = "$grant?.appeal?.details
 
 type BotExpirationAlertConfig struct {
 	// Pre-fetch DB filters (allows passing account_ids, provider_types, etc., from config)
+	Enabled                 bool                    `mapstructure:"enabled"`
 	GrantFilters            domain.ListGrantsFilter `mapstructure:"filters"`
 	IAM                     domain.IAMConfig        `mapstructure:"iam"`
 	ExtractBotEmail         evaluator.Expression    `mapstructure:"extract_bot_email"`
@@ -30,6 +31,10 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 	var cfg BotExpirationAlertConfig
 	if err := rawCfg.Decode(&cfg); err != nil {
 		return fmt.Errorf("invalid job config: %w", err)
+	}
+	if !cfg.Enabled {
+		h.logger.Info(ctx, "alert job is disabled on config, skipping job")
+		return nil
 	}
 
 	if len(cfg.ReminderInDays) == 0 {
