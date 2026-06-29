@@ -187,7 +187,7 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 				},
 			}
 
-			err := h.alertManager.Send(ctx, event)
+			err := h.alertManager.Send(ctx, event, h.logger)
 
 			if err != nil {
 				h.logger.Error(ctx, "failed to dispatch bot expiration notifications",

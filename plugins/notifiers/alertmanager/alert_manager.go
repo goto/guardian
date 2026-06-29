@@ -19,7 +19,7 @@ const (
 
 // NotificationSender is the interface for delivering events to a notifier.
 type NotificationSender interface {
-	Send(ctx context.Context, event Event) error
+	Send(ctx context.Context, event Event, logger log.Logger) error
 }
 type AlertManagerConfig struct {
 	Provider    string `mapstructure:"provider" default:"siren"`
@@ -41,7 +41,7 @@ func GetAlertManagerSender(cfg AlertManagerConfig) NotificationSender {
 
 type NoOpSender struct{}
 
-func (s *NoOpSender) Send(_ context.Context, _ Event) error {
+func (s *NoOpSender) Send(_ context.Context, _ Event, _ log.Logger) error {
 	return nil
 }
 
@@ -153,7 +153,7 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, req NotifyDriftChec
 		return nil
 	}
 
-	if err := m.notificationSender.Send(ctx, event); err != nil {
+	if err := m.notificationSender.Send(ctx, event, m.logger); err != nil {
 		m.logger.Error(ctx, "failed to trigger drift check alert", "error", err)
 		return err
 	}

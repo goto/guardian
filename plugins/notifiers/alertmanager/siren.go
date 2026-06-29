@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/goto/guardian/pkg/log"
 )
 
 const (
@@ -32,6 +34,10 @@ type sirenPayload struct {
 	Labels   map[string]string      `json:"labels"`
 }
 
+type sirenResponse struct {
+	NotificationID string `json:"notification_id"`
+}
+
 type SirenClient struct {
 	host        string
 	environment string
@@ -48,7 +54,7 @@ func NewSirenClient(host string, environment string) *SirenClient {
 	}
 }
 
-func (c *SirenClient) Send(ctx context.Context, event Event) error {
+func (c *SirenClient) Send(ctx context.Context, event Event, logger log.Logger) error {
 	sirenTmpl := alertToTemplateMap[event.Title]
 	if sirenTmpl == "" {
 		return fmt.Errorf("no siren template mapped for event title: %s", event.Title)
@@ -82,9 +88,25 @@ func (c *SirenClient) Send(ctx context.Context, event Event) error {
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("siren returned non-200 status: %s, body: %s", res.Status, string(body))
+	responseBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("reading siren response body: %w", err)
 	}
+
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("siren returned non-200 status: %s, body: %s", res.Status, string(responseBody))
+	}
+
+	var sirenResp sirenResponse
+	if err := json.Unmarshal(responseBody, &sirenResp); err != nil {
+		return fmt.Errorf("unmarshaling siren response: %w", err)
+	}
+
+	logger.Info(ctx, "successfully sent event to siren",
+		"notification_id", sirenResp.NotificationID,
+		"template", sirenTmpl,
+		"team", event.Team,
+		"severity", event.Severity,
+	)
 	return nil
 }

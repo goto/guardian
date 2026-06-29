@@ -18,8 +18,8 @@ type mockSender struct {
 	mock.Mock
 }
 
-func (m *mockSender) Send(ctx context.Context, event alertmanager.Event) error {
-	args := m.Called(ctx, event)
+func (m *mockSender) Send(ctx context.Context, event alertmanager.Event, logger log.Logger) error {
+	args := m.Called(ctx, event, logger)
 	return args.Error(0)
 }
 
@@ -70,7 +70,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 				strings.Contains(e.Summary, "2 drifted grant(s)") &&
 				strings.Contains(e.Summary, "2 recreated") &&
 				strings.Contains(e.Summary, "0 failed")
-		})).Return(nil).Once()
+		}), mock.Anything).Return(nil).Once()
 
 		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues, OnSuccessSeverity: "warning"})
 
@@ -97,7 +97,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 			return strings.Contains(e.Summary, "1 failed") &&
 				strings.Contains(e.Summary, "2 critical bot(s)") &&
 				e.Title == alertmanager.GrantDriftCheckEvent
-		})).Return(nil).Once()
+		}), mock.Anything).Return(nil).Once()
 
 		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
@@ -127,7 +127,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 				grants[0]["remediation_status"] == "failed" &&
 				grants[0]["remediation_error"] == remediationErr &&
 				e.Title == alertmanager.GrantDriftCheckEvent
-		})).Return(nil).Once()
+		}), mock.Anything).Return(nil).Once()
 
 		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
@@ -157,7 +157,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 			resourceStr, ok := grants[0]["resource"].(string)
 			return ok && resourceStr == resource1.URN &&
 				e.Title == alertmanager.GrantDriftCheckEvent
-		})).Return(nil).Once()
+		}), mock.Anything).Return(nil).Once()
 
 		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
@@ -173,7 +173,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 			{AccountID: "user-1", Grant: &domain.Grant{ID: "g-1"}},
 		}
 
-		s.pd.On("Send", ctx, mock.Anything).Return(pdErr).Once()
+		s.pd.On("Send", ctx, mock.Anything, mock.Anything).Return(pdErr).Once()
 
 		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
@@ -196,7 +196,7 @@ func (s *AlertManagerTestSuite) TestNotifyDriftCheck() {
 				strings.Contains(e.Summary, "2 recreated") &&
 				strings.Contains(e.Summary, "1 failed") &&
 				e.Title == alertmanager.GrantDriftCheckEvent
-		})).Return(nil).Once()
+		}), mock.Anything).Return(nil).Once()
 
 		err := s.svc.NotifyDriftCheck(ctx, alertmanager.NotifyDriftCheckRequest{AdminTeam: adminTeam, Issues: issues})
 
