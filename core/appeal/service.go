@@ -1368,6 +1368,8 @@ func (s *Service) RevokeAppeal(ctx context.Context, id, actor, reason string) (*
 		if err := s.auditLogger.Log(ctx, AuditKeyRevoke, map[string]interface{}{
 			"appeal_id": id,
 			"grant_id":  a.Grant.ID,
+			"actor":     actor,
+			"reason":    reason,
 		}); err != nil {
 			s.logger.Error(ctx, "failed to record audit log", "error", err)
 		}
