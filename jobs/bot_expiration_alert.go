@@ -187,13 +187,20 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 			if err != nil {
 				h.logger.Error(ctx, "failed to dispatch bot expiration notifications",
 					"bot_email", botEmail,
+					"team_name", teamName,
 					"error", err)
 				return err
 			}
-			h.logger.Info(ctx, "successfully dispatched bot expiration notifications")
+			h.logger.Info(ctx, "successfully dispatched bot expiration notifications",
+				"severity", severity,
+				"bot_email", botEmail,
+				"team_name", teamName,
+				"day_remaining", daysRemaining,
+			)
 		}
 	}
 
+	h.logger.Info(ctx, "bot expiration alert job completed successfully")
 	return nil
 }
 
