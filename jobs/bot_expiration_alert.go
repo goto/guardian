@@ -80,6 +80,10 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		h.logger.Error(ctx, "failed to retrieve active expiring bot grants", "error", err)
 		return err
 	}
+	if len(grants) == 0 {
+		h.logger.Info(ctx, "no expiring bot grants found")
+		return nil
+	}
 
 	now := time.Now()
 	currentDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
@@ -88,6 +92,7 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		if g.ExpirationDate == nil {
 			continue
 		}
+
 		// Strictly calculate the exact days remaining
 		expDate := time.Date(g.ExpirationDate.Year(), g.ExpirationDate.Month(), g.ExpirationDate.Day(), 0, 0, 0, 0, time.UTC)
 		daysRemaining := int(expDate.Sub(currentDate).Hours() / 24)
@@ -99,6 +104,7 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 		if !isReminderDay && !isDayZero {
 			continue
 		}
+		h.logger.Info(ctx, "process alert", "account_id", g.AccountID, "expiration_date", g.ExpirationDate)
 
 		botEmail, err := h.evaluateBotEmail(cfg.ExtractBotEmail, g)
 		if err != nil {
