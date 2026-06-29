@@ -12,6 +12,7 @@ func (s *Service) ListActivities(ctx context.Context, appealID string) ([]*domai
 			AuditKeyCancel,
 			AuditKeyApprove,
 			AuditKeyReject,
+			AuditKeyRevoke,
 			AuditKeyAddApprover,
 			AuditKeyDeleteApprover,
 			AuditKeyUpdate,
