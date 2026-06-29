@@ -139,8 +139,8 @@ func (c *Config) ParseAndValidate() error {
 			}
 			uniqueRoleId[role.ID] = true
 
-			// Validate empty permission
-			if len(role.Permissions) == 0 {
+			// Validate empty permission — not required for ram_role resources
+			if rc.Type != ResourceTypeRAMRole && len(role.Permissions) == 0 {
 				return fmt.Errorf("role permission at resource '%v' and role id '%v' is empty", rc.Type, role.ID)
 			}
 		}
@@ -169,6 +169,10 @@ func (c *Config) EncryptCredentials() error {
 }
 
 func (c *Config) validatePermissions(ctx context.Context, resource *domain.ResourceConfig, client AliCloudRAMClient) error {
+	if resource.Type == ResourceTypeRAMRole {
+		return nil
+	}
+
 	systemPolicies, err := client.GetAllPoliciesByType(ctx, PolicyTypeSystem, maxFetchItem)
 	if err != nil {
 		return err

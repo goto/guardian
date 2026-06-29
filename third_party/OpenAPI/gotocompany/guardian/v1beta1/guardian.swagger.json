@@ -1206,6 +1206,44 @@
         ]
       }
     },
+    "/v1beta1/appeals/{id}/revoke": {
+      "put": {
+        "operationId": "GuardianService_RevokeAppeal",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1beta1RevokeAppealResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "reason",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/RevokeAppealRequestReason"
+            }
+          }
+        ],
+        "tags": [
+          "GuardianService"
+        ]
+      }
+    },
     "/v1beta1/approvals": {
       "get": {
         "operationId": "GuardianService_ListApprovals",
@@ -5391,6 +5429,14 @@
         }
       }
     },
+    "RevokeAppealRequestReason": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
     "SummaryResultGroup": {
       "type": "object",
       "properties": {
@@ -6854,6 +6900,14 @@
       "properties": {
         "grant": {
           "$ref": "#/definitions/v1beta1Grant"
+        }
+      }
+    },
+    "v1beta1RevokeAppealResponse": {
+      "type": "object",
+      "properties": {
+        "appeal": {
+          "$ref": "#/definitions/v1beta1Appeal"
         }
       }
     },
