@@ -20,6 +20,7 @@ func NewPDClient() *PDClient {
 
 // Send delivers a trigger event to PagerDuty via Events API v2.
 func (c *PDClient) Send(ctx context.Context, event Event, logger log.Logger) error {
+	logger.Info(ctx, "Sending Pagerduty event", event.Title)
 	v2event := pagerduty.V2Event{
 		RoutingKey: event.Team,
 		Action:     eventActionTrigger,

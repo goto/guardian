@@ -55,6 +55,7 @@ func NewSirenClient(host string, environment string) *SirenClient {
 }
 
 func (c *SirenClient) Send(ctx context.Context, event Event, logger log.Logger) error {
+	logger.Info(ctx, "Sending Siren event", event.Title)
 	sirenTmpl := alertToTemplateMap[event.Title]
 	if sirenTmpl == "" {
 		return fmt.Errorf("no siren template mapped for event title: %s", event.Title)

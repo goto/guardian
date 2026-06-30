@@ -41,7 +41,8 @@ func GetAlertManagerSender(cfg AlertManagerConfig) NotificationSender {
 
 type NoOpSender struct{}
 
-func (s *NoOpSender) Send(_ context.Context, _ Event, _ log.Logger) error {
+func (s *NoOpSender) Send(ctx context.Context, event Event, logger log.Logger) error {
+	logger.Info(ctx, "No operation sender for event", event.Title)
 	return nil
 }
 
