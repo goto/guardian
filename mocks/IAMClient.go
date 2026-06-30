@@ -43,6 +43,32 @@ func (_m *IAMClient) GetUser(id string) (interface{}, error) {
 	return r0, r1
 }
 
+// GetUserGroups provides a mock function with given fields: id
+func (_m *IAMClient) GetUserGroups(id string) (interface{}, error) {
+	ret := _m.Called(id)
+
+	var r0 interface{}
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (interface{}, error)); ok {
+		return rf(id)
+	}
+	if rf, ok := ret.Get(0).(func(string) interface{}); ok {
+		r0 = rf(id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(interface{})
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // IAMClient_GetUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetUser'
 type IAMClient_GetUser_Call struct {
 	*mock.Call
@@ -67,6 +93,34 @@ func (_c *IAMClient_GetUser_Call) Return(_a0 interface{}, _a1 error) *IAMClient_
 }
 
 func (_c *IAMClient_GetUser_Call) RunAndReturn(run func(string) (interface{}, error)) *IAMClient_GetUser_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IAMClient_GetUserGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetUserGroups'
+type IAMClient_GetUserGroups_Call struct {
+	*mock.Call
+}
+
+// GetUserGroups is a helper method to define mock.On call
+//   - id string
+func (_e *IAMClient_Expecter) GetUserGroups(id interface{}) *IAMClient_GetUserGroups_Call {
+	return &IAMClient_GetUserGroups_Call{Call: _e.mock.On("GetUserGroups", id)}
+}
+
+func (_c *IAMClient_GetUserGroups_Call) Run(run func(id string)) *IAMClient_GetUserGroups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *IAMClient_GetUserGroups_Call) Return(_a0 interface{}, _a1 error) *IAMClient_GetUserGroups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *IAMClient_GetUserGroups_Call) RunAndReturn(run func(string) (interface{}, error)) *IAMClient_GetUserGroups_Call {
 	_c.Call.Return(run)
 	return _c
 }

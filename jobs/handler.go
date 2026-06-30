@@ -9,6 +9,7 @@ import (
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/notifiers"
+	"github.com/goto/guardian/plugins/notifiers/alertmanager"
 )
 
 //go:generate mockery --name=grantService --exported --with-expecter
@@ -44,6 +45,7 @@ type handler struct {
 	notifier        notifiers.Client
 	crypto          crypto
 	validator       *validator.Validate
+	alertManager    alertmanager.NotificationSender
 }
 
 func NewHandler(
@@ -54,6 +56,7 @@ func NewHandler(
 	notifier notifiers.Client,
 	crypto crypto,
 	validator *validator.Validate,
+	alertManager alertmanager.NotificationSender,
 ) *handler {
 	return &handler{
 		logger:          logger,
@@ -63,5 +66,6 @@ func NewHandler(
 		notifier:        notifier,
 		crypto:          crypto,
 		validator:       validator,
+		alertManager:    alertManager,
 	}
 }

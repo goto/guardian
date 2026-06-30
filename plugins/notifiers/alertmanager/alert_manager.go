@@ -13,12 +13,13 @@ import (
 )
 
 const (
-	GrantDriftCheckEvent = "grant_drift_check"
+	GrantDriftCheckEvent    = "grant_drift_check"
+	BotExpirationAlertEvent = "bot_expiration_alert"
 )
 
 // NotificationSender is the interface for delivering events to a notifier.
 type NotificationSender interface {
-	Send(ctx context.Context, event Event) error
+	Send(ctx context.Context, event Event, logger log.Logger) error
 }
 type AlertManagerConfig struct {
 	Provider    string `mapstructure:"provider" default:"siren"`
@@ -40,7 +41,8 @@ func GetAlertManagerSender(cfg AlertManagerConfig) NotificationSender {
 
 type NoOpSender struct{}
 
-func (s *NoOpSender) Send(_ context.Context, _ Event) error {
+func (s *NoOpSender) Send(ctx context.Context, event Event, logger log.Logger) error {
+	logger.Info(ctx, "No operation sender for event", event.Title)
 	return nil
 }
 
@@ -51,7 +53,6 @@ type Event struct {
 	DedupKey string
 	Team     string
 	Severity string
-	Labels   map[string]string
 }
 
 type accountGroup struct {
@@ -153,7 +154,7 @@ func (m *AlertManager) NotifyDriftCheck(ctx context.Context, req NotifyDriftChec
 		return nil
 	}
 
-	if err := m.notificationSender.Send(ctx, event); err != nil {
+	if err := m.notificationSender.Send(ctx, event, m.logger); err != nil {
 		m.logger.Error(ctx, "failed to trigger drift check alert", "error", err)
 		return err
 	}

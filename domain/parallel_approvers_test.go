@@ -169,9 +169,9 @@ func TestPolicy_ValidateStages(t *testing.T) {
 
 func TestAppeal_GetSortedStageIndices(t *testing.T) {
 	tests := []struct {
-		name    string
-		appeal  domain.Appeal
-		want    []int
+		name   string
+		appeal domain.Appeal
+		want   []int
 	}{
 		{
 			name:   "no approvals returns empty slice",

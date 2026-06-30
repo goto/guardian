@@ -1,6 +1,8 @@
 package jobs
 
-import "github.com/mitchellh/mapstructure"
+import (
+	"github.com/mitchellh/mapstructure"
+)
 
 type Type string
 
@@ -12,6 +14,7 @@ const (
 	TypeGrantDormancyCheck         Type = "grant_dormancy_check"
 	TypePendingApprovalsReminder   Type = "pending_approvals_reminder"
 	TypeGrantDriftCheck            Type = "grant_drift_check"
+	TypeBotExpirationAlert         Type = "bot_expiration_alert"
 )
 
 type Job struct {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/pkg/opentelemetry"
+	"github.com/goto/guardian/plugins/notifiers/alertmanager"
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/MakeNowJust/heredoc"
@@ -50,6 +51,7 @@ func runJobCmd() *cobra.Command {
 			$ guardian job run grant_dormancy_check
 			$ guardian job run pending_approvals_reminder
 			$ guardian job run grant_drift_check
+			$ guardian job run bot_expiration_alert
 		`),
 		Args: cobra.ExactValidArgs(1),
 		ValidArgs: []string{
@@ -60,6 +62,7 @@ func runJobCmd() *cobra.Command {
 			string(jobs.TypeGrantDormancyCheck),
 			string(jobs.TypePendingApprovalsReminder),
 			string(jobs.TypeGrantDriftCheck),
+			string(jobs.TypeBotExpirationAlert),
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configFile, err := cmd.Flags().GetString("config")
@@ -123,6 +126,8 @@ func runJobCmd() *cobra.Command {
 				return fmt.Errorf("initializing services: %w", err)
 			}
 
+			alertManagerClient := alertmanager.GetAlertManagerSender(config.AlertManager)
+
 			handler := jobs.NewHandler(
 				logger,
 				services.GrantService,
@@ -131,6 +136,7 @@ func runJobCmd() *cobra.Command {
 				notifier,
 				crypto,
 				validator,
+				alertManagerClient,
 			)
 
 			jobsMap := map[jobs.Type]*struct {
@@ -164,6 +170,10 @@ func runJobCmd() *cobra.Command {
 				jobs.TypeGrantDriftCheck: {
 					handler: handler.GrantDriftCheck,
 					config:  config.Jobs.GrantDriftCheck.Config,
+				},
+				jobs.TypeBotExpirationAlert: {
+					handler: handler.BotExpirationAlert,
+					config:  config.Jobs.BotExpirationAlert.Config,
 				},
 			}
 

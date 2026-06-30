@@ -1232,7 +1232,7 @@ func TestAdapter_ToSummaryProto(t *testing.T) {
 
 	t.Run("should convert summary with V2 labels (faceted search)", func(t *testing.T) {
 		s := &domain.SummaryResult{
-			Count:        3,
+			Count:         3,
 			LabelsV2Count: 2,
 			SummaryLabelsV2: []*domain.SummaryLabelV2{
 				{Key: "env", Values: []string{"prod", "staging"}, Count: 2},
@@ -1256,8 +1256,8 @@ func TestAdapter_ToSummaryProto(t *testing.T) {
 
 	t.Run("should prefer V2 labels over V1 labels when both are set", func(t *testing.T) {
 		s := &domain.SummaryResult{
-			Count:        4,
-			LabelsCount:  1,
+			Count:         4,
+			LabelsCount:   1,
 			LabelsV2Count: 2,
 			SummaryLabels: []*domain.SummaryLabel{
 				{Key: "env", Values: []string{"prod"}, Count: 1},

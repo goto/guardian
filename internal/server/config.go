@@ -31,6 +31,7 @@ type Jobs struct {
 	GrantDormancyCheck         jobs.Job `mapstructure:"grant_dormancy_check"`
 	PendingApprovalsReminder   jobs.Job `mapstructure:"pending_approvals_reminder"`
 	GrantDriftCheck            jobs.Job `mapstructure:"grant_drift_check"`
+	BotExpirationAlert         jobs.Job `mapstructure:"bot_expiration_alert"`
 }
 
 type Config struct {

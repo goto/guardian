@@ -643,7 +643,6 @@ func (s *Service) Relabel(ctx context.Context, appealID string, policyVersion *u
 				s.logger.Error(ctx, "failed to record audit log", "error", err)
 			}
 		}()
-
 	}
 	return existingAppeal, nil
 }
