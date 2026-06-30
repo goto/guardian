@@ -262,6 +262,24 @@ func (r *ResourceRepository) BulkUpsert(ctx context.Context, resources []*domain
 	}
 
 	if len(models) > 0 {
+		// Deduplicate by the ON CONFLICT key (provider_type, provider_urn, type, urn).
+		// PostgreSQL rejects an INSERT ... ON CONFLICT DO UPDATE that affects the same
+		// row twice in one statement (SQLSTATE 21000). Keep the last occurrence so that
+		// later entries override earlier ones, matching upsert semantics.
+		type conflictKey struct{ providerType, providerURN, resType, urn string }
+		seen := make(map[conflictKey]int, len(models))
+		deduped := make([]*model.Resource, 0, len(models))
+		for _, m := range models {
+			key := conflictKey{m.ProviderType, m.ProviderURN, m.Type, m.URN}
+			if idx, ok := seen[key]; ok {
+				deduped[idx] = m
+			} else {
+				seen[key] = len(deduped)
+				deduped = append(deduped, m)
+			}
+		}
+		models = deduped
+
 		return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			// upsert clause is moved to model.Resource.BeforeCreate() (gorm's hook) to apply the same for associations (model.Resource.Children)
 			if err := r.db.
