@@ -31,6 +31,7 @@ func TestListActivities(t *testing.T) {
 			appeal.AuditKeyCancel,
 			appeal.AuditKeyApprove,
 			appeal.AuditKeyReject,
+			appeal.AuditKeyRevoke,
 			appeal.AuditKeyAddApprover,
 			appeal.AuditKeyDeleteApprover,
 			appeal.AuditKeyUpdate,

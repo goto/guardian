@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"runtime/debug"
@@ -11,8 +12,6 @@ import (
 	"github.com/goto/guardian/domain"
 	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 	"go.nhat.io/otelsql"
-
-	"encoding/json"
 
 	"github.com/go-playground/validator/v10"
 	handlerv1beta1 "github.com/goto/guardian/api/handler/v1beta1"

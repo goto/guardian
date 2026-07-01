@@ -1335,6 +1335,48 @@ func (s *Service) Update(ctx context.Context, appeal *domain.Appeal) error {
 	return s.repo.Update(ctx, appeal)
 }
 
+func (s *Service) RevokeAppeal(ctx context.Context, id, actor, reason string) (*domain.Appeal, error) {
+	if id == "" {
+		return nil, ErrAppealIDEmptyParam
+	}
+
+	if !utils.IsValidUUID(id) {
+		return nil, InvalidError{AppealID: id}
+	}
+
+	a, err := s.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if a.Grant == nil || a.Grant.ID == "" {
+		return nil, ErrAppealHasNoGrant
+	}
+
+	if _, err := s.grantService.Revoke(ctx, a.Grant.ID, actor, reason); err != nil {
+		return nil, fmt.Errorf("revoking grant: %w", err)
+	}
+
+	updated, err := s.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		ctx := context.WithoutCancel(ctx)
+		if err := s.auditLogger.Log(ctx, AuditKeyRevoke, map[string]interface{}{
+			"appeal_id": id,
+			"grant_id":  a.Grant.ID,
+			"actor":     actor,
+			"reason":    reason,
+		}); err != nil {
+			s.logger.Error(ctx, "failed to record audit log", "error", err)
+		}
+	}()
+
+	return updated, nil
+}
+
 func (s *Service) Cancel(ctx context.Context, id string) (*domain.Appeal, error) {
 	if id == "" {
 		return nil, ErrAppealIDEmptyParam
