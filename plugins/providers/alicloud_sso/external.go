@@ -174,7 +174,11 @@ func (p *provider) getClientCredentials(pc *domain.ProviderConfig) (string, alic
 	return cacheKeyFrags, manCreds, nil
 }
 
-func (p *provider) getSSOClient(pc *domain.ProviderConfig) (*sso.Client, error) {
+func (p *provider) getSSOClient(pc *domain.ProviderConfig) (ssoClient, error) {
+	if p.testSSOClient != nil {
+		return p.testSSOClient, nil
+	}
+
 	cacheKeyFrags, manCreds, err := p.getClientCredentials(pc)
 	if err != nil {
 		return nil, err

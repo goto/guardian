@@ -16,12 +16,17 @@ const (
 
 	accountTypeSSOUser = "sso_user"
 
-	resourceTypeGroup   = "group"
-	resourceTypeRAMRole = "ram_role"
+	resourceTypeGroup               = "group"
+	resourceTypeRAMRole             = "ram_role"
+	resourceTypeAccessConfiguration = "access_configuration"
+
+	// permissionPolicyTypeSystem is the CloudSSO permission policy type for
+	// reusing RAM system policies on an access configuration.
+	permissionPolicyTypeSystem = "System"
 )
 
 var (
-	validResourceTypes    = []string{resourceTypeGroup}
+	validResourceTypes    = []string{resourceTypeGroup, resourceTypeAccessConfiguration}
 	validGroupPermissions = []string{"member"}
 )
 
@@ -77,6 +82,12 @@ func (c *config) validate() error {
 				case resourceTypeGroup:
 					if !utils.ContainsString(validGroupPermissions, strings.ToLower(permissionStr)) {
 						return fmt.Errorf("invalid permission %q for group resource", permissionStr)
+					}
+				case resourceTypeAccessConfiguration:
+					// permission is the name of a RAM system policy to attach to
+					// the access configuration (e.g. "AliyunECSFullAccess").
+					if strings.TrimSpace(permissionStr) == "" {
+						return fmt.Errorf("system policy name must not be empty for %q resource", resourceTypeAccessConfiguration)
 					}
 				}
 			}
