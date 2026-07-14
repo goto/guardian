@@ -571,6 +571,13 @@ func (p *provider) revokeTableRolesFromMember(ctx context.Context, pc *domain.Pr
 	roleQuery := strings.Join(slices.GenericsStandardizeSlice(roles), ", ")
 	var query = fmt.Sprintf("REVOKE %s ON TABLE `%s`.`%s`.`%s` FROM USER `%s`", roleQuery, project, schema, table, ramAccountId)
 	if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
+		// If the table no longer exists in MaxCompute there is nothing left to revoke,
+		// so treat it as a successful no-op. Otherwise a dropped table would permanently
+		// block stale-grant cleanup (e.g. auto-access-restoration). This mirrors the
+		// NoSuchObject handling in revokeProjectRolesFromMember.
+		if isTableNotFoundErr(err) {
+			return nil
+		}
 		var restErr restclient.HttpError
 		if errors.As(err, &restErr) && restErr.ErrorMessage != nil {
 			return fmt.Errorf("fail to revoke table role from '%s.%s.%s': %s", project, schema, table, restErr.ErrorMessage.Message)
@@ -578,6 +585,16 @@ func (p *provider) revokeTableRolesFromMember(ctx context.Context, pc *domain.Pr
 		return fmt.Errorf("fail to revoke table role from '%s.%s.%s': %w", project, schema, table, err)
 	}
 	return nil
+}
+
+// isTableNotFoundErr reports whether err is a MaxCompute "table not found" error
+// (ODPS-0130131). When revoking a role on a table that has already been dropped,
+// the grant is effectively gone, so callers can treat this as a no-op.
+func isTableNotFoundErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "ODPS-0130131")
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
