@@ -13,6 +13,9 @@ import (
 const (
 	AccountTypeRamUser = "ram_user"
 	AccountTypeRamRole = "ram_role"
+	// AccountTypeAccessConfig grants a RAM system policy to a CloudSSO access
+	// configuration and re-provisions it to the child accounts it is linked to.
+	AccountTypeAccessConfig = "access_config"
 
 	maxFetchItem int32 = 1000
 )
@@ -23,6 +26,9 @@ type Credentials struct {
 	AccessKeySecret string `mapstructure:"access_key_secret" json:"access_key_secret" validate:"required"`
 	RAMRole         string `mapstructure:"ram_role" json:"ram_role,omitempty"`   // (optional) example: `acs:ram::{MAIN_ACCOUNT_ID}:role/{ROLE_NAME}`
 	RegionID        string `mapstructure:"region_id" json:"region_id,omitempty"` // (optional) can be empty for using default region id. see: https://www.alibabacloud.com/help/en/cloud-migration-guide-for-beginners/latest/regions-and-zones
+	// DirectoryID is the CloudSSO directory ID. Required only when the
+	// access_config account type is used. example: d-00fc2p61xxxx
+	DirectoryID string `mapstructure:"directory_id" json:"directory_id,omitempty"`
 }
 
 func (c *Credentials) Encrypt(encryptor domain.Encryptor) error {
