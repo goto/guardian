@@ -44,13 +44,15 @@ func (c *aliCloudRAMClient) getRoleMutex(roleName string) *sync.Mutex {
 // and resource information. If a role ARN (`ramRole`) is specified, it will
 // be included in the configuration for assuming a RAM role. The function also
 // validates the configuration by attempting to create a new RAM client instance.
-func NewAliCloudRAMClient(accessKeyID, accessKeySecret, ramRole, regionId string) (AliCloudRAMClient, error) {
+func NewAliCloudRAMClient(accessKeyID, accessKeySecret, ramRole, regionId, directoryID string) (AliCloudRAMClient, error) {
 	c := &aliCloudRAMClient{
 		accessKeyId:     accessKeyID,
 		accessKeySecret: accessKeySecret,
 		ramRole:         ramRole,
 		regionId:        regionId,
+		directoryID:     directoryID,
 	}
+	c.newSSOClient = c.defaultSSOClient
 
 	// Validate the ram role ARN if present
 	if c.ramRole != "" {
@@ -378,7 +380,10 @@ func (c *aliCloudRAMClient) RevokeRamRoleAccess(_ context.Context, r domain.Reso
 // The client uses RAM (Resource Access Management) credentials to authenticate with AliCloud.
 // By default, it uses access key credentials. If a role ARN (`ramRole`) is specified,
 // it assumes that role to generate temporary session credentials.
-func (c *aliCloudRAMClient) newRequestClient() (*ram.Client, error) {
+// buildCredential creates AliCloud credentials shared by the RAM and CloudSSO
+// clients. It defaults to access key credentials and assumes a RAM role when
+// ramRole is set.
+func (c *aliCloudRAMClient) buildCredential() (credentials.Credential, error) {
 	// Default to access key credentials (RAM User)
 	credentialConfig := &credentials.Config{
 		Type:            bptr.FromStringNilAble(aliAccountTypeAccessKey),
@@ -396,6 +401,15 @@ func (c *aliCloudRAMClient) newRequestClient() (*ram.Client, error) {
 	credential, err := credentials.NewCredential(credentialConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a new credentials: %w", err)
+	}
+
+	return credential, nil
+}
+
+func (c *aliCloudRAMClient) newRequestClient() (*ram.Client, error) {
+	credential, err := c.buildCredential()
+	if err != nil {
+		return nil, err
 	}
 
 	reqClient, err := ram.NewClient(&openapi.Config{

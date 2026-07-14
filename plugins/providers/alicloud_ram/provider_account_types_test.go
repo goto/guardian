@@ -11,7 +11,7 @@ import (
 func TestProviderGetAccountTypes(t *testing.T) {
 	p := &Provider{}
 
-	assert.Equal(t, []string{AccountTypeRamUser, AccountTypeRamRole, domain.AccountTypePackage}, p.GetAccountTypes())
+	assert.Equal(t, []string{AccountTypeRamUser, AccountTypeRamRole, AccountTypeAccessConfig, domain.AccountTypePackage}, p.GetAccountTypes())
 }
 
 func TestProviderGrantAccessNoOpForPackageAccount(t *testing.T) {
