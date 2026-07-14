@@ -3,6 +3,7 @@ package maxcompute
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -59,6 +60,42 @@ func TestODPSShouldRetry(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := odpsShouldRetry(tt.args.ctx, tt.args.err); got != tt.want {
 				t.Errorf("odpsShouldRetry() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsTableNotFoundErr(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "nil error",
+			err:  nil,
+			want: false,
+		},
+		{
+			name: "odps table not found error",
+			err:  errors.New("ODPS-0130131:Table not found - 'haryo_poc_playground.a_table' table not found"),
+			want: true,
+		},
+		{
+			name: "wrapped odps table not found error",
+			err:  fmt.Errorf("fail to revoke: %w", errors.New("ODPS-0130131:Table not found")),
+			want: true,
+		},
+		{
+			name: "unrelated error",
+			err:  errors.New("read: connection reset by peer"),
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isTableNotFoundErr(tt.err); got != tt.want {
+				t.Errorf("isTableNotFoundErr() = %v, want %v", got, tt.want)
 			}
 		})
 	}
