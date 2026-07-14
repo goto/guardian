@@ -19,20 +19,6 @@ type encryptor interface {
 	domain.Crypto
 }
 
-//go:generate mockery --name=ssoClient --exported --with-expecter
-type ssoClient interface {
-	ListGroups(request *sso.ListGroupsRequest) (*sso.ListGroupsResponse, error)
-	AddUserToGroup(request *sso.AddUserToGroupRequest) (*sso.AddUserToGroupResponse, error)
-	RemoveUserFromGroup(request *sso.RemoveUserFromGroupRequest) (*sso.RemoveUserFromGroupResponse, error)
-
-	ListAccessConfigurations(request *sso.ListAccessConfigurationsRequest) (*sso.ListAccessConfigurationsResponse, error)
-	AddPermissionPolicyToAccessConfiguration(request *sso.AddPermissionPolicyToAccessConfigurationRequest) (*sso.AddPermissionPolicyToAccessConfigurationResponse, error)
-	RemovePermissionPolicyFromAccessConfiguration(request *sso.RemovePermissionPolicyFromAccessConfigurationRequest) (*sso.RemovePermissionPolicyFromAccessConfigurationResponse, error)
-	ProvisionAccessConfiguration(request *sso.ProvisionAccessConfigurationRequest) (*sso.ProvisionAccessConfigurationResponse, error)
-	GetTaskStatus(request *sso.GetTaskStatusRequest) (*sso.GetTaskStatusResponse, error)
-	ListAccessConfigurationProvisionings(request *sso.ListAccessConfigurationProvisioningsRequest) (*sso.ListAccessConfigurationProvisioningsResponse, error)
-}
-
 type provider struct {
 	pv.UnimplementedClient
 	pv.PermissionManager
@@ -42,10 +28,6 @@ type provider struct {
 	mu        *sync.Mutex
 
 	ssoClientsCache map[string]*aliclientmanager.Manager[*sso.Client]
-
-	// testSSOClient, when set, overrides the CloudSSO client returned by
-	// getSSOClient. It is only used to inject a mock in tests.
-	testSSOClient ssoClient
 }
 
 func NewProvider(
@@ -94,8 +76,8 @@ func (p *provider) CreateConfig(pc *domain.ProviderConfig) error {
 }
 
 func (p *provider) ValidateResourceIdentifiers(ctx context.Context, r *domain.Resource) error {
-	if r.Type != resourceTypeGroup && r.Type != resourceTypeAccessConfiguration {
-		return fmt.Errorf("only resource types %q and %q are supported for provider type %q", resourceTypeGroup, resourceTypeAccessConfiguration, sourceName)
+	if r.Type != resourceTypeGroup {
+		return fmt.Errorf("only resource type %q is supported for provider type %q", resourceTypeGroup, sourceName)
 	}
 	if r.URN == "" {
 		return fmt.Errorf("resource urn is required")
@@ -120,12 +102,6 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 				return nil, err
 			}
 			resources = append(resources, groups...)
-		case resourceTypeAccessConfiguration:
-			accessConfigs, err := p.getAccessConfigurations(ctx, pc)
-			if err != nil {
-				return nil, err
-			}
-			resources = append(resources, accessConfigs...)
 		}
 	}
 
@@ -136,11 +112,6 @@ func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 	switch g.Resource.Type {
 	case resourceTypeGroup:
 		if err := p.addMemberToGroup(ctx, pc, g); err != nil {
-			return err
-		}
-
-	case resourceTypeAccessConfiguration:
-		if err := p.addSystemPoliciesToAccessConfig(ctx, pc, g); err != nil {
 			return err
 		}
 
@@ -156,11 +127,6 @@ func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 	case resourceTypeGroup:
 		if err := p.removeMemberFromGroup(ctx, pc, g); err != nil &&
 			!strings.Contains(strings.ToLower(err.Error()), strings.ToLower("EntityNotExists.GroupMember")) {
-			return err
-		}
-
-	case resourceTypeAccessConfiguration:
-		if err := p.removeSystemPoliciesFromAccessConfig(ctx, pc, g); err != nil {
 			return err
 		}
 
