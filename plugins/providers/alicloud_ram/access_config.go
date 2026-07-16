@@ -162,8 +162,9 @@ func (c *aliCloudRAMClient) listProvisionedTargetIDs(ssoClient cloudSSOClient, a
 			DirectoryId:           bptr.FromStringNilAble(c.directoryID),
 			AccessConfigurationId: bptr.FromStringNilAble(accessConfigID),
 			TargetType:            bptr.FromStringNilAble(targetTypeRDAccount),
-			MaxResults:            bptr.FromInt32(100),
-			NextToken:             nextToken,
+			// CloudSSO caps MaxResults for this API at 20 (default 10).
+			MaxResults: bptr.FromInt32(20),
+			NextToken:  nextToken,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to list provisionings for access configuration %q: %w", accessConfigID, err)
