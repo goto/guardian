@@ -195,6 +195,13 @@ func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, 
 			}
 
 			for _, resource := range resources {
+				// alicloud_ram resources are the bot's child RAM role (a principal onboarded
+				// by dex), not a human-grantable data resource. The package has no account
+				// config for it, so skip it rather than failing dependency resolution.
+				if resource.ProviderType == providerTypeAlicloudRAM {
+					continue
+				}
+
 				var pkgAccountConfig *PackageAccountConfig
 				for _, a := range pkgInfo.Accounts {
 					if a.ProviderType == resource.ProviderType {

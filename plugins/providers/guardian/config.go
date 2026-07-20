@@ -13,6 +13,11 @@ const (
 
 	resourceTypePackage = "package"
 
+	// providerTypeAlicloudRAM identifies the bot's child RAM role resources that dex
+	// onboards into a package. These are bot principals, not human-grantable data
+	// resources, so they are excluded from member dependency-grant resolution.
+	providerTypeAlicloudRAM = "alicloud_ram"
+
 	packagePermissionMember = "member"
 	packagePermissionAdmin  = "admin"
 
