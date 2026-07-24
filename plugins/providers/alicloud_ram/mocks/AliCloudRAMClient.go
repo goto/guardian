@@ -242,6 +242,102 @@ func (_c *AliCloudRAMClient_GrantAccessToRole_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// GrantAccessToAccessConfig provides a mock function with given fields: ctx, policyNames, accessConfigID
+func (_m *AliCloudRAMClient) GrantAccessToAccessConfig(ctx context.Context, policyNames []string, accessConfigID string) error {
+	ret := _m.Called(ctx, policyNames, accessConfigID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GrantAccessToAccessConfig")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string, string) error); ok {
+		r0 = rf(ctx, policyNames, accessConfigID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// AliCloudRAMClient_GrantAccessToAccessConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GrantAccessToAccessConfig'
+type AliCloudRAMClient_GrantAccessToAccessConfig_Call struct {
+	*mock.Call
+}
+
+// GrantAccessToAccessConfig is a helper method to define mock.On call
+//   - ctx context.Context
+//   - policyNames []string
+//   - accessConfigID string
+func (_e *AliCloudRAMClient_Expecter) GrantAccessToAccessConfig(ctx interface{}, policyNames interface{}, accessConfigID interface{}) *AliCloudRAMClient_GrantAccessToAccessConfig_Call {
+	return &AliCloudRAMClient_GrantAccessToAccessConfig_Call{Call: _e.mock.On("GrantAccessToAccessConfig", ctx, policyNames, accessConfigID)}
+}
+
+func (_c *AliCloudRAMClient_GrantAccessToAccessConfig_Call) Run(run func(ctx context.Context, policyNames []string, accessConfigID string)) *AliCloudRAMClient_GrantAccessToAccessConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *AliCloudRAMClient_GrantAccessToAccessConfig_Call) Return(_a0 error) *AliCloudRAMClient_GrantAccessToAccessConfig_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *AliCloudRAMClient_GrantAccessToAccessConfig_Call) RunAndReturn(run func(context.Context, []string, string) error) *AliCloudRAMClient_GrantAccessToAccessConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RevokeAccessFromAccessConfig provides a mock function with given fields: ctx, policyNames, accessConfigID
+func (_m *AliCloudRAMClient) RevokeAccessFromAccessConfig(ctx context.Context, policyNames []string, accessConfigID string) error {
+	ret := _m.Called(ctx, policyNames, accessConfigID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RevokeAccessFromAccessConfig")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string, string) error); ok {
+		r0 = rf(ctx, policyNames, accessConfigID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// AliCloudRAMClient_RevokeAccessFromAccessConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RevokeAccessFromAccessConfig'
+type AliCloudRAMClient_RevokeAccessFromAccessConfig_Call struct {
+	*mock.Call
+}
+
+// RevokeAccessFromAccessConfig is a helper method to define mock.On call
+//   - ctx context.Context
+//   - policyNames []string
+//   - accessConfigID string
+func (_e *AliCloudRAMClient_Expecter) RevokeAccessFromAccessConfig(ctx interface{}, policyNames interface{}, accessConfigID interface{}) *AliCloudRAMClient_RevokeAccessFromAccessConfig_Call {
+	return &AliCloudRAMClient_RevokeAccessFromAccessConfig_Call{Call: _e.mock.On("RevokeAccessFromAccessConfig", ctx, policyNames, accessConfigID)}
+}
+
+func (_c *AliCloudRAMClient_RevokeAccessFromAccessConfig_Call) Run(run func(ctx context.Context, policyNames []string, accessConfigID string)) *AliCloudRAMClient_RevokeAccessFromAccessConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *AliCloudRAMClient_RevokeAccessFromAccessConfig_Call) Return(_a0 error) *AliCloudRAMClient_RevokeAccessFromAccessConfig_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *AliCloudRAMClient_RevokeAccessFromAccessConfig_Call) RunAndReturn(run func(context.Context, []string, string) error) *AliCloudRAMClient_RevokeAccessFromAccessConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GrantRamRoleAccess provides a mock function with given fields: ctx, r, account_id, role
 func (_m *AliCloudRAMClient) GrantRamRoleAccess(ctx context.Context, r domain.Resource, account_id string, role string) error {
 	ret := _m.Called(ctx, r, account_id, role)

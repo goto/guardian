@@ -22,6 +22,8 @@ type AliCloudRAMClient interface {
 	RevokeAccess(ctx context.Context, policyName, policyType, username string) error
 	GrantAccessToRole(ctx context.Context, policyName, policyType, roleName string) error
 	RevokeAccessFromRole(ctx context.Context, policyName, policyType, roleName string) error
+	GrantAccessToAccessConfig(ctx context.Context, policyNames []string, accessConfigID string) error
+	RevokeAccessFromAccessConfig(ctx context.Context, policyNames []string, accessConfigID string) error
 	ListAccess(ctx context.Context, pc domain.ProviderConfig, resources []*domain.Resource) (domain.MapResourceAccess, error)
 	GetAllPoliciesByType(_ context.Context, policyType string, maxItems int32) ([]*ram.ListPoliciesResponseBodyPoliciesPolicy, error)
 	GetAllRoles(ctx context.Context, maxItems int32) ([]*ram.ListRolesResponseBodyRolesRole, error)
@@ -71,7 +73,7 @@ func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 	}
 
 	_ = credentials.Decrypt(p.crypto)
-	client, err := NewAliCloudRAMClient(credentials.AccessKeyID, credentials.AccessKeySecret, credentials.RAMRole, credentials.RegionID)
+	client, err := NewAliCloudRAMClient(credentials.AccessKeyID, credentials.AccessKeySecret, credentials.RAMRole, credentials.RegionID, credentials.DirectoryID)
 	if err != nil {
 		return err
 	}
@@ -184,6 +186,13 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 			}
 			return nil
 
+		case AccountTypeAccessConfig:
+			policyNames, err := getSystemPolicyNames(permissions)
+			if err != nil {
+				return err
+			}
+			return client.GrantAccessToAccessConfig(ctx, policyNames, g.AccountID)
+
 		default:
 			return ErrInvalidAccountType
 		}
@@ -238,6 +247,13 @@ func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 			}
 			return nil
 
+		case AccountTypeAccessConfig:
+			policyNames, err := getSystemPolicyNames(permissions)
+			if err != nil {
+				return err
+			}
+			return client.RevokeAccessFromAccessConfig(ctx, policyNames, g.AccountID)
+
 		default:
 			return ErrInvalidAccountType
 		}
@@ -289,7 +305,7 @@ func (p *Provider) getClient(pc *domain.ProviderConfig) (AliCloudRAMClient, erro
 	}
 
 	_ = credentials.Decrypt(p.crypto)
-	client, err := NewAliCloudRAMClient(credentials.AccessKeyID, credentials.AccessKeySecret, credentials.RAMRole, credentials.RegionID)
+	client, err := NewAliCloudRAMClient(credentials.AccessKeyID, credentials.AccessKeySecret, credentials.RAMRole, credentials.RegionID, credentials.DirectoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -335,10 +351,27 @@ func getListPermissionsFromGrant(pc *domain.ProviderConfig, g domain.Grant) ([]*
 	return permissions, nil
 }
 
+// getSystemPolicyNames returns the names of the System-type policies among the
+// given permissions. CloudSSO access configurations can only reuse RAM system
+// policies, so any non-System permission is ignored.
+func getSystemPolicyNames(permissions []*Permission) ([]string, error) {
+	names := make([]string, 0, len(permissions))
+	for _, p := range permissions {
+		if p.Type == PolicyTypeSystem {
+			names = append(names, p.Name)
+		}
+	}
+	if len(names) == 0 {
+		return nil, ErrNoSystemPolicyForAccessConfig
+	}
+	return names, nil
+}
+
 func getAccountTypes() []string {
 	return []string{
 		AccountTypeRamUser,
 		AccountTypeRamRole,
+		AccountTypeAccessConfig,
 		domain.AccountTypePackage,
 	}
 }

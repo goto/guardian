@@ -20,4 +20,6 @@ var (
 	ErrRoleResourceTypeIsNotSupported = errors.New("ram_role arn only supporting resource type 'role'. see: https://github.com/goto/guardian/tree/main/plugins/providers/alicloud_ram/docs/ali-role-arn-structure.png")
 	ErrRoleResourceNameIsEmpty        = errors.New("empty resource name / role name on the ram_role arn. see: https://github.com/goto/guardian/tree/main/plugins/providers/alicloud_ram/docs/ali-role-arn-structure.png")
 	ErrEmptyResourceConfig            = errors.New("empty resource config")
+	ErrMissingDirectoryID             = errors.New("directory_id credential is required for access_config account type")
+	ErrNoSystemPolicyForAccessConfig  = errors.New("access_config account type requires at least one permission of type 'System'")
 )

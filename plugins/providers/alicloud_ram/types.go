@@ -20,6 +20,11 @@ type aliCloudRAMClient struct {
 	accessKeySecret string
 	ramRole         string
 	regionId        string
+	directoryID     string
+
+	// newSSOClient builds a CloudSSO client for access_config grants. It is a
+	// field so tests can inject a fake; production uses defaultSSOClient.
+	newSSOClient func() (cloudSSOClient, error)
 
 	// per-role mutex to prevent race conditions on GetRole + UpdateRole
 	roleMu sync.Map // map[string]*sync.Mutex
