@@ -37,6 +37,15 @@ func (p *Provider) GetAccountTypes() []string {
 	}
 }
 
+// AllowsAnyAccountType reports that this provider does not interpret the account. GrantAccess and
+// RevokeAccess only template the account id into the outgoing request, so which account types are
+// meaningful is decided by the target API, not by this plugin. A provider config is therefore free
+// to declare any allowed_account_types; GetAccountTypes only supplies the default when the config
+// declares none.
+func (*Provider) AllowsAnyAccountType() bool {
+	return true
+}
+
 func (p *Provider) CreateConfig(pc *domain.ProviderConfig) error {
 	// Validate provider type
 	if pc.Type != "custom_http" {

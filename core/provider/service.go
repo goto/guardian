@@ -41,6 +41,13 @@ type Client interface {
 	providers.Client
 }
 
+// anyAccountTypeProvider is implemented by providers that pass the account through to the target
+// system without interpreting it, and therefore accept whichever account types their config
+// declares instead of a fixed list.
+type anyAccountTypeProvider interface {
+	AllowsAnyAccountType() bool
+}
+
 //go:generate mockery --name=CompleteClient --exported --with-expecter
 type CompleteClient interface {
 	Client
@@ -146,7 +153,7 @@ func (s *Service) Create(ctx context.Context, p *domain.Provider) error {
 	}
 
 	accountTypes := c.GetAccountTypes()
-	if err := s.validateAccountTypes(p.Config, accountTypes); err != nil {
+	if err := s.validateAccountTypes(p.Config, c, accountTypes); err != nil {
 		s.logger.Error(ctx, "failed to validate account types", "type", p.Type, "provider_urn", p.URN, "error", err)
 		return err
 	}
@@ -227,7 +234,7 @@ func (s *Service) Update(ctx context.Context, p *domain.Provider) error {
 	}
 
 	accountTypes := c.GetAccountTypes()
-	if err := s.validateAccountTypes(p.Config, accountTypes); err != nil {
+	if err := s.validateAccountTypes(p.Config, c, accountTypes); err != nil {
 		s.logger.Error(ctx, "failed to validate account types", "type", p.Type, "provider_urn", p.URN, "error", err)
 		return err
 	}
@@ -849,19 +856,27 @@ func (s *Service) getProviderConfig(ctx context.Context, pType, urn string) (*do
 	return p, nil
 }
 
-func (s *Service) validateAccountTypes(pc *domain.ProviderConfig, accountTypes []string) error {
+func (s *Service) validateAccountTypes(pc *domain.ProviderConfig, c Client, accountTypes []string) error {
 	if pc.AllowedAccountTypes == nil {
 		pc.AllowedAccountTypes = accountTypes
-	} else {
-		if err := s.validator.Var(pc.AllowedAccountTypes, "min=1,unique"); err != nil {
-			return err
-		}
+		return nil
+	}
 
-		for _, at := range pc.AllowedAccountTypes {
-			accountTypesStr := strings.Join(accountTypes, " ")
-			if err := s.validator.Var(at, fmt.Sprintf("oneof=%v", accountTypesStr)); err != nil {
-				return err
-			}
+	if err := s.validator.Var(pc.AllowedAccountTypes, "min=1,unique"); err != nil {
+		return err
+	}
+
+	// Providers that do not interpret the account leave the choice to their config: the account is
+	// passed through to the target system as-is, so the plugin has no list to check against. What an
+	// appeal may use is still limited to this config's allowed_account_types.
+	if anyAccountType, ok := c.(anyAccountTypeProvider); ok && anyAccountType.AllowsAnyAccountType() {
+		return nil
+	}
+
+	for _, at := range pc.AllowedAccountTypes {
+		accountTypesStr := strings.Join(accountTypes, " ")
+		if err := s.validator.Var(at, fmt.Sprintf("oneof=%v", accountTypesStr)); err != nil {
+			return fmt.Errorf("invalid account type %q, allowed types are: %v", at, accountTypesStr)
 		}
 	}
 
