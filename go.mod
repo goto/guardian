@@ -21,6 +21,7 @@ require (
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
 	github.com/aliyun/credentials-go v1.4.6
 	github.com/antonmedv/expr v1.15.3
+	github.com/avast/retry-go/v4 v4.7.0
 	github.com/bearaujus/berror v0.0.1
 	github.com/bearaujus/bjson v1.0.2
 	github.com/bearaujus/bptr v0.1.0
@@ -91,7 +92,6 @@ require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/apache/arrow/go/v12 v12.0.0 // indirect
 	github.com/apache/thrift v0.16.0 // indirect
-	github.com/avast/retry-go/v4 v4.7.0 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/briandowns/spinner v1.18.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
