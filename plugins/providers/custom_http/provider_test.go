@@ -873,3 +873,9 @@ func TestProvider_GetClient(t *testing.T) {
 		})
 	}
 }
+
+func TestProvider_AllowsAnyAccountType(t *testing.T) {
+	// the plugin templates the account id into the outgoing request without interpreting it, so a
+	// provider config decides which account types are meaningful for its target API
+	assert.True(t, NewProvider("custom_http", nil).AllowsAnyAccountType())
+}
