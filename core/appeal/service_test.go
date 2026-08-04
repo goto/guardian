@@ -27,6 +27,7 @@ import (
 	"github.com/goto/guardian/core/event"
 	eventmocks "github.com/goto/guardian/core/event/mocks"
 	labelingmocks "github.com/goto/guardian/core/labeling/mocks"
+	"github.com/goto/guardian/core/policy"
 	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/mocks"
@@ -762,6 +763,12 @@ func (s *ServiceTestSuite) TestCreate() {
 				h.mockPolicyService.EXPECT().
 					Find(mock.Anything, mock.Anything).
 					Return(tc.policies, nil).Once()
+				// getPoliciesMap now loads only the latest version per policy id, so a
+				// pinned non-latest version (or a missing id) falls back to GetOne. The
+				// negative "policy (id|version) not found" cases exercise that fallback.
+				h.mockPolicyService.EXPECT().
+					GetOne(mock.Anything, mock.Anything, mock.Anything).
+					Return(nil, policy.ErrPolicyNotFound).Maybe()
 				h.mockRepository.EXPECT().
 					Find(h.ctxMatcher, mock.Anything).
 					Return(tc.existingAppeals, nil).Once()
@@ -4400,6 +4407,12 @@ func (s *ServiceTestSuite) TestPatch() {
 				h.mockPolicyService.EXPECT().
 					Find(mock.Anything, mock.Anything).
 					Return(tc.policies, nil).Once()
+				// getPoliciesMap now loads only the latest version per policy id, so a
+				// pinned non-latest version (or a missing id) falls back to GetOne. The
+				// negative "policy (id|version) not found" cases exercise that fallback.
+				h.mockPolicyService.EXPECT().
+					GetOne(mock.Anything, mock.Anything, mock.Anything).
+					Return(nil, policy.ErrPolicyNotFound).Maybe()
 				h.mockRepository.EXPECT().
 					Find(h.ctxMatcher, mock.Anything).
 					Return(tc.pendingAppeals, nil).Once()

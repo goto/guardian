@@ -574,6 +574,10 @@ type ListPoliciesFilter struct {
 	Offset     int      `mapstructure:"offset" json:"offset,omitempty" validate:"omitempty"`
 	IDs        []string `mapstructure:"ids" json:"ids,omitempty" validate:"omitempty"`
 	FieldMasks []string `mapstructure:"field_masks" json:"field_masks,omitempty" validate:"omitempty"`
+	// LatestOnly restricts the result to the latest version of each policy id.
+	// Used by the appeal hot path, which only ever reads the latest version of a
+	// policy; loading every historical version is what blew up the heap.
+	LatestOnly bool `mapstructure:"latest_only" json:"latest_only,omitempty"`
 }
 
 func (pf ListPoliciesFilter) WithPolicies() bool {

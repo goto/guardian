@@ -163,6 +163,17 @@ func applyPoliciesFilter(db *gorm.DB, filter domain.ListPoliciesFilter) (*gorm.D
 		db = applyPolicyIDsFilter(db, `"policies"`, filter.IDs)
 	}
 
+	// LatestOnly keeps only the latest version row of each policy id. The correlated
+	// subquery repeats the soft-delete predicate because it bypasses GORM's default
+	// scope on the outer query.
+	if filter.LatestOnly {
+		db = db.Where(`"policies"."version" = (
+			SELECT MAX(p2."version")
+			FROM "policies" p2
+			WHERE p2."id" = "policies"."id" AND p2."deleted_at" IS NULL
+		)`)
+	}
+
 	// TODO expose it at proton
 	// default order
 	db = db.Order(`"policies"."created_at" ASC`)
