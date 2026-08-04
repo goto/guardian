@@ -2988,7 +2988,9 @@ func (s *ServiceTestSuite) TestCreate() {
 
 			h.mockResourceService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Resource{dummyResource}, nil).Once()
 			h.mockProviderService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Provider{dummyProvider}, nil).Once()
-			h.mockPolicyService.EXPECT().Find(mock.Anything, mock.Anything).Return([]*domain.Policy{dummyPolicy, overriddingPolicy}, nil).Once()
+			// Fully-explicit additional-appeal batches resolve the policy via GetOne and
+			// no longer load the entire policies table, so policyService.Find is not called.
+			_ = dummyPolicy
 			h.mockRepository.EXPECT().
 				Find(h.ctxMatcher, mock.Anything).
 				Return([]*domain.Appeal{}, nil).Once()
@@ -3008,7 +3010,9 @@ func (s *ServiceTestSuite) TestCreate() {
 				Return(false).Once()
 			h.mockGrantService.EXPECT().List(mock.Anything, mock.Anything).Return([]domain.Grant{}, nil).Once()
 			h.mockGrantService.EXPECT().Prepare(mock.Anything, mock.Anything).Return(&domain.Grant{}, nil).Once()
-			h.mockPolicyService.EXPECT().GetOne(mock.Anything, mock.Anything, mock.Anything).Return(overriddingPolicy, nil).Once()
+			// GetOne is now called both to resolve the explicit fan-out policy and again
+			// in the grant path (the second call is served from the immutable cache).
+			h.mockPolicyService.EXPECT().GetOne(mock.Anything, input.PolicyID, input.PolicyVersion).Return(overriddingPolicy, nil).Times(2)
 			h.mockProviderService.EXPECT().GetDependencyGrants(mock.Anything, mock.AnythingOfType("domain.Grant")).Return(nil, nil).Once()
 			h.mockProviderService.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(nil).Once()
 			h.mockRepository.EXPECT().

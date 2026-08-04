@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	gocache "github.com/patrickmn/go-cache"
 	"gorm.io/gorm"
 
 	"github.com/goto/guardian/core/policy"
@@ -17,11 +18,22 @@ import (
 // PolicyRepository talks to the store to read or insert data
 type PolicyRepository struct {
 	db *gorm.DB
+	// versionCache caches immutable policy versions keyed by "<id>@<version>".
+	// A specific (id, version) row is insert-only: Update always writes a new
+	// version and there is no delete path, so a cached entry can never go stale.
+	// We cache the raw *model.Policy and re-run ToDomain() on every hit so each
+	// caller gets a fresh domain object (the service decrypts in place).
+	// NOTE: if a policy update/delete-in-place path is ever added, this cache
+	// must be invalidated on that path.
+	versionCache *gocache.Cache
 }
 
 // NewPolicyRepository returns repository struct
 func NewPolicyRepository(db *gorm.DB) *PolicyRepository {
-	return &PolicyRepository{db}
+	return &PolicyRepository{
+		db:           db,
+		versionCache: gocache.New(gocache.NoExpiration, 0),
+	}
 }
 
 // Create new record to database
@@ -88,6 +100,15 @@ func (r *PolicyRepository) Find(ctx context.Context, filter domain.ListPoliciesF
 // GetOne returns a policy record based on the id and version params.
 // If version is 0, the latest version will be returned
 func (r *PolicyRepository) GetOne(ctx context.Context, id string, version uint) (*domain.Policy, error) {
+	// Only a pinned (id, version) is immutable and safe to cache. version == 0
+	// means "latest", which moves as new versions are created, so it is never cached.
+	if version != 0 {
+		cacheKey := id + "@" + strconv.FormatUint(uint64(version), 10)
+		if cached, ok := r.versionCache.Get(cacheKey); ok {
+			return cached.(*model.Policy).ToDomain()
+		}
+	}
+
 	m := &model.Policy{}
 	condition := "id = ?"
 	args := []interface{}{id}
@@ -107,6 +128,10 @@ func (r *PolicyRepository) GetOne(ctx context.Context, id string, version uint) 
 	p, err := m.ToDomain()
 	if err != nil {
 		return nil, err
+	}
+
+	if version != 0 {
+		r.versionCache.SetDefault(id+"@"+strconv.FormatUint(uint64(version), 10), m)
 	}
 
 	return p, nil

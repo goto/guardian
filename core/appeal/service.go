@@ -227,9 +227,21 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 
 	resourceIDs := []string{}
 	accountIDs := []string{}
+	// Load the full policies table only when at least one appeal cannot resolve its
+	// policy directly. Appeals that already carry an explicit (PolicyID, PolicyVersion)
+	// -- e.g. dex package-approval fan-out -- resolve via policyService.GetOne (cached),
+	// so a fully-explicit additional-appeal batch skips the expensive full-table load.
+	// Normal creation and empty batches keep the existing behavior (load the map).
+	needPoliciesMap := true
+	if isAdditionalAppealCreation && len(appeals) > 0 {
+		needPoliciesMap = false
+	}
 	for _, a := range appeals {
 		resourceIDs = append(resourceIDs, a.ResourceID)
 		accountIDs = append(accountIDs, a.AccountID)
+		if a.PolicyID == "" || a.PolicyVersion == 0 {
+			needPoliciesMap = true
+		}
 	}
 
 	eg, egctx := errgroup.WithContext(ctx)
@@ -258,14 +270,16 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		return nil
 	})
 
-	eg.Go(func() error {
-		policiesData, err := s.getPoliciesMap(egctx)
-		if err != nil {
-			return fmt.Errorf("error getting policies map: %w", err)
-		}
-		policies = policiesData
-		return nil
-	})
+	if needPoliciesMap {
+		eg.Go(func() error {
+			policiesData, err := s.getPoliciesMap(egctx)
+			if err != nil {
+				return fmt.Errorf("error getting policies map: %w", err)
+			}
+			policies = policiesData
+			return nil
+		})
+	}
 
 	eg.Go(func() error {
 		pendingAppealsData, err := s.getAppealsMap(egctx, &domain.ListAppealsFilter{
@@ -305,7 +319,12 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 
 		var policy *domain.Policy
 		if isAdditionalAppealCreation && appeal.PolicyID != "" && appeal.PolicyVersion != 0 {
-			policy = policies[appeal.PolicyID][appeal.PolicyVersion]
+			// Explicit (id, version) resolves directly via GetOne (cached, immutable),
+			// so we avoid loading the entire policies table for fan-out batches.
+			policy, err = s.policyService.GetOne(ctx, appeal.PolicyID, appeal.PolicyVersion)
+			if err != nil {
+				return fmt.Errorf("getting policy %q version %d: %w", appeal.PolicyID, appeal.PolicyVersion, err)
+			}
 		} else {
 			policy, err = getPolicy(appeal, provider, policies)
 			if err != nil {
