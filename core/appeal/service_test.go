@@ -2122,6 +2122,142 @@ func (s *ServiceTestSuite) TestCreate() {
 		h.assertExpectations(s.T())
 	})
 
+	s.Run("should resolve pinned non-latest policy from provider When override via GetOne fallback", func() {
+		// The provider overrides the resource policy through a `When` condition that
+		// points at a pinned, non-latest version (policy_dataset@2). getPoliciesMap now
+		// loads only the latest version per id, so @2 is NOT in the map and getPolicy
+		// must resolve it on demand via policyService.GetOne. This exercises the fallback
+		// path introduced together with the latest-only policy cache.
+		h := newServiceTestHelper()
+
+		resource := &domain.Resource{
+			ID:           "c3f4d1aa-a33b-11ef-b864-0242ac120002",
+			Type:         "dataset2",
+			ProviderType: "bigquery",
+			ProviderURN:  "provider-bigquery",
+			URN:          "resource-urn-dataset2",
+			Details: map[string]interface{}{
+				"owner": []string{"resource.owner@email.com"},
+			},
+		}
+		providers := []*domain.Provider{
+			{
+				ID:   "f51f319c-a33d-11ef-b864-0242ac120002",
+				Type: "bigquery",
+				URN:  "provider-bigquery",
+				Config: &domain.ProviderConfig{
+					Appeal: &domain.AppealConfig{
+						AllowPermanentAccess:         true,
+						AllowActiveAccessExtensionIn: "24h",
+					},
+					Resources: []*domain.ResourceConfig{
+						{
+							Type: "dataset2",
+							Policy: &domain.PolicyConfig{ // base resource policy points at latest
+								ID: "policy_dataset",
+							},
+							Roles: []*domain.Role{
+								{
+									ID:          "role_id",
+									Permissions: []interface{}{"test-permission-1"},
+								},
+							},
+						},
+					},
+					Policies: []*domain.ProviderPolicy{
+						{
+							When:   "$appeal.resource.type == 'dataset2'",
+							Policy: "policy_dataset@2", // override to a pinned, non-latest version
+						},
+					},
+				},
+			},
+		}
+
+		// getPoliciesMap loads latest-only, so the map holds policy_dataset@1 (latest)
+		// but NOT the pinned @2 selected by the When override.
+		latestPolicies := []*domain.Policy{
+			{
+				ID:      "policy_dataset",
+				Version: 1,
+				Steps: []*domain.Step{
+					{
+						Name:      "latest_step",
+						Strategy:  "manual",
+						Approvers: []string{"$appeal.resource.details.owner"},
+					},
+				},
+			},
+		}
+		// The pinned override version, resolved on demand through the GetOne fallback.
+		overridePolicy := &domain.Policy{
+			ID:      "policy_dataset",
+			Version: 2,
+			Steps: []*domain.Step{
+				{
+					Name:      "override_step",
+					Strategy:  "manual",
+					Approvers: []string{"$appeal.resource.details.owner"},
+				},
+			},
+		}
+
+		appeals := []*domain.Appeal{
+			{
+				CreatedBy:  accountID,
+				AccountID:  accountID,
+				ResourceID: resource.ID,
+				Resource: &domain.Resource{
+					ID:  resource.ID,
+					URN: resource.URN,
+				},
+				Role:        "role_id",
+				Description: "pinned override via When",
+			},
+		}
+
+		h.mockResourceService.EXPECT().
+			Find(mock.Anything, mock.Anything).Return([]*domain.Resource{resource}, nil).Once()
+		h.mockProviderService.EXPECT().
+			Find(mock.Anything, mock.Anything).Return(providers, nil).Once()
+		h.mockPolicyService.EXPECT().
+			Find(mock.Anything, mock.Anything).Return(latestPolicies, nil).Once()
+		// The pinned (id, version) override is absent from the latest-only map, so
+		// getPolicy resolves it directly. This is the path the PR introduces.
+		h.mockPolicyService.EXPECT().
+			GetOne(mock.Anything, "policy_dataset", uint(2)).Return(overridePolicy, nil).Once()
+		h.mockRepository.EXPECT().
+			Find(h.ctxMatcher, mock.Anything).Return([]*domain.Appeal{}, nil).Once()
+		h.mockGrantService.EXPECT().
+			List(h.ctxMatcher, mock.AnythingOfType("domain.ListGrantsFilter")).
+			Return([]domain.Grant{}, nil).Once()
+		h.mockProviderService.EXPECT().
+			ValidateAppeal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		h.mockProviderService.EXPECT().
+			GetPermissions(mock.Anything, mock.Anything, mock.AnythingOfType("string"), "role_id").
+			Return([]interface{}{"test-permission-1"}, nil)
+		h.mockRepository.EXPECT().
+			BulkUpsert(h.ctxMatcher, mock.Anything).Return(nil).Once()
+		h.mockNotifier.EXPECT().
+			Notify(h.ctxMatcher, mock.Anything).Return(nil).Once()
+		h.mockAuditLogger.EXPECT().
+			Log(h.ctxMatcher, appeal.AuditKeyBulkInsert, mock.Anything).Return(nil).Once()
+
+		actualError := h.service.Create(context.Background(), appeals)
+
+		s.Nil(actualError)
+		s.Require().Len(appeals, 1)
+		// The appeal is built from the pinned override policy, not the latest map entry.
+		s.Equal("policy_dataset", appeals[0].PolicyID)
+		s.Equal(uint(2), appeals[0].PolicyVersion)
+		s.Require().Len(appeals[0].Approvals, 1)
+		s.Equal("override_step", appeals[0].Approvals[0].Name)
+		s.Equal(uint(2), appeals[0].Approvals[0].PolicyVersion)
+
+		time.Sleep(time.Millisecond)
+		h.assertExpectations(s.T())
+	})
+
 	s.Run("should return appeals on success with metadata sources", func() {
 		h := newServiceTestHelper()
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
