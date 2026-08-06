@@ -227,9 +227,21 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 
 	resourceIDs := []string{}
 	accountIDs := []string{}
+	// Load the full policies table only when at least one appeal cannot resolve its
+	// policy directly. Appeals that already carry an explicit (PolicyID, PolicyVersion)
+	// -- e.g. dex package-approval fan-out -- resolve via policyService.GetOne (cached),
+	// so a fully-explicit additional-appeal batch skips the expensive full-table load.
+	// Normal creation and empty batches keep the existing behavior (load the map).
+	needPoliciesMap := true
+	if isAdditionalAppealCreation && len(appeals) > 0 {
+		needPoliciesMap = false
+	}
 	for _, a := range appeals {
 		resourceIDs = append(resourceIDs, a.ResourceID)
 		accountIDs = append(accountIDs, a.AccountID)
+		if a.PolicyID == "" || a.PolicyVersion == 0 {
+			needPoliciesMap = true
+		}
 	}
 
 	eg, egctx := errgroup.WithContext(ctx)
@@ -258,14 +270,16 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		return nil
 	})
 
-	eg.Go(func() error {
-		policiesData, err := s.getPoliciesMap(egctx)
-		if err != nil {
-			return fmt.Errorf("error getting policies map: %w", err)
-		}
-		policies = policiesData
-		return nil
-	})
+	if needPoliciesMap {
+		eg.Go(func() error {
+			policiesData, err := s.getPoliciesMap(egctx)
+			if err != nil {
+				return fmt.Errorf("error getting policies map: %w", err)
+			}
+			policies = policiesData
+			return nil
+		})
+	}
 
 	eg.Go(func() error {
 		pendingAppealsData, err := s.getAppealsMap(egctx, &domain.ListAppealsFilter{
@@ -305,9 +319,14 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 
 		var policy *domain.Policy
 		if isAdditionalAppealCreation && appeal.PolicyID != "" && appeal.PolicyVersion != 0 {
-			policy = policies[appeal.PolicyID][appeal.PolicyVersion]
+			// Explicit (id, version) resolves directly via GetOne (cached, immutable),
+			// so we avoid loading the entire policies table for fan-out batches.
+			policy, err = s.policyService.GetOne(ctx, appeal.PolicyID, appeal.PolicyVersion)
+			if err != nil {
+				return fmt.Errorf("getting policy %q version %d: %w", appeal.PolicyID, appeal.PolicyVersion, err)
+			}
 		} else {
-			policy, err = getPolicy(appeal, provider, policies)
+			policy, err = s.getPolicy(ctx, appeal, provider, policies)
 			if err != nil {
 				return err
 			}
@@ -732,7 +751,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		return err
 	}
 
-	policy, err := getPolicy(appeal, provider, policies)
+	policy, err := s.getPolicy(ctx, appeal, provider, policies)
 	if err != nil {
 		return err
 	}
@@ -1820,7 +1839,12 @@ func (s *Service) getProvidersMap(ctx context.Context) (map[string]map[string]*d
 }
 
 func (s *Service) getPoliciesMap(ctx context.Context) (map[string]map[uint]*domain.Policy, error) {
-	policies, err := s.policyService.Find(ctx, domain.ListPoliciesFilter{})
+	// The appeal path only ever reads the latest version of a policy (provider
+	// configs reference policies as "<id>" or "<id>@latest", i.e. version 0), so we
+	// load only the latest version per id instead of the entire policies table.
+	// An appeal that pins a specific non-latest version is resolved on demand via
+	// getPolicy's GetOne fallback.
+	policies, err := s.policyService.Find(ctx, domain.ListPoliciesFilter{LatestOnly: true})
 	if err != nil {
 		return nil, err
 	}
@@ -2152,7 +2176,7 @@ func (s *Service) checkExtensionEligibility(a *domain.Appeal, p *domain.Provider
 	return nil
 }
 
-func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[uint]*domain.Policy) (*domain.Policy, error) {
+func (s *Service) getPolicy(ctx context.Context, a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[uint]*domain.Policy) (*domain.Policy, error) {
 	var policyConfig domain.PolicyConfig
 	var resourceConfig *domain.ResourceConfig
 	for _, rc := range p.Config.Resources {
@@ -2210,11 +2234,24 @@ func getPolicy(a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[
 		policyConfig = dynamicPolicyConfig
 	}
 
-	policy, ok := policiesMap[policyConfig.ID][uint(policyConfig.Version)]
-	if !ok {
-		return nil, fmt.Errorf("couldn't find details for policy %q: %w", fmt.Sprintf("%s@%v", policyConfig.ID, policyConfig.Version), ErrPolicyNotFound)
+	if pol, ok := policiesMap[policyConfig.ID][uint(policyConfig.Version)]; ok {
+		return pol, nil
 	}
-	return policy, nil
+
+	// The map only holds the latest version of each policy. A pinned, non-latest
+	// version (e.g. a dynamic "<id>@<n>" policy config) is not in the map, so resolve
+	// it directly. GetOne runs the same decrypt/enrich steps as Find, so the resolved
+	// policy is equivalent to a map hit.
+	pol, err := s.policyService.GetOne(ctx, policyConfig.ID, uint(policyConfig.Version))
+	if err != nil {
+		// Preserve the appeal-layer sentinel on a genuine miss so callers/handlers
+		// map the status identically to the previous map-miss path.
+		if errors.Is(err, policy.ErrPolicyNotFound) {
+			return nil, fmt.Errorf("couldn't find details for policy %q: %w", fmt.Sprintf("%s@%v", policyConfig.ID, policyConfig.Version), ErrPolicyNotFound)
+		}
+		return nil, fmt.Errorf("resolving policy %q: %w", fmt.Sprintf("%s@%v", policyConfig.ID, policyConfig.Version), err)
+	}
+	return pol, nil
 }
 
 func (s *Service) GetCustomSteps(ctx context.Context, a *domain.Appeal, p *domain.Policy) ([]*domain.Step, error) {
