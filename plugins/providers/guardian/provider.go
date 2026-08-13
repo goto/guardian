@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -85,7 +86,11 @@ func (p *provider) ValidateAppeal(ctx context.Context, a *domain.Appeal) error {
 				return fmt.Errorf("unable to get package info: %w", err)
 			}
 
-			if pkgInfo.DataAccess == "bot-only" && a.Role == packagePermissionAdmin {
+			// Human managers of a bot-only package administer it without consuming its resources,
+			// so they skip the grantable-resource and account checks below. Owner is included
+			// because it is a superset of admin, and on a bot-only package the creator holds owner
+			// rather than admin.
+			if pkgInfo.DataAccess == "bot-only" && slices.Contains(packageManagerRoles, a.Role) {
 				return nil
 			}
 
