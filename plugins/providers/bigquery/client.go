@@ -133,7 +133,7 @@ func (c *bigQueryClient) GetTables(ctx context.Context, datasetID string) ([]*Ta
 	return results, nil
 }
 
-func (c *bigQueryClient) GrantDatasetAccess(ctx context.Context, d *Dataset, user, role string) error {
+func (c *bigQueryClient) GrantDatasetAccess(ctx context.Context, d *Dataset, accountType, accountID, role string) error {
 	dataset := c.client.Dataset(d.DatasetID)
 	metadata, err := dataset.Metadata(ctx)
 	if err != nil {
@@ -141,15 +141,19 @@ func (c *bigQueryClient) GrantDatasetAccess(ctx context.Context, d *Dataset, use
 	}
 
 	for _, a := range metadata.Access {
-		if a.Entity == user && string(a.Role) == role {
+		if a.Entity == accountID && string(a.Role) == role {
 			return ErrPermissionAlreadyExists
 		}
+	}
+	entityType := bq.UserEmailEntity
+	if accountType == AccountTypeGroup {
+		entityType = bq.GroupEmailEntity
 	}
 	update := bq.DatasetMetadataToUpdate{
 		Access: append(metadata.Access, &bq.AccessEntry{
 			Role:       bq.AccessRole(role),
-			EntityType: bq.UserEmailEntity,
-			Entity:     user,
+			EntityType: entityType,
+			Entity:     accountID,
 		}),
 	}
 
@@ -157,16 +161,20 @@ func (c *bigQueryClient) GrantDatasetAccess(ctx context.Context, d *Dataset, use
 	return err
 }
 
-func (c *bigQueryClient) RevokeDatasetAccess(ctx context.Context, d *Dataset, user, role string) error {
+func (c *bigQueryClient) RevokeDatasetAccess(ctx context.Context, d *Dataset, accountType, accountID, role string) error {
 	dataset := c.client.Dataset(d.DatasetID)
 	metadata, err := dataset.Metadata(ctx)
 	if err != nil {
 		return err
 	}
 
+	entityType := bq.UserEmailEntity
+	if accountType == AccountTypeGroup {
+		entityType = bq.GroupEmailEntity
+	}
 	remainingAccessEntries := []*bq.AccessEntry{}
 	for _, a := range metadata.Access {
-		if a.Entity == user && string(a.Role) == role {
+		if a.EntityType == entityType && a.Entity == accountID && string(a.Role) == role {
 			continue
 		}
 		remainingAccessEntries = append(remainingAccessEntries, a)

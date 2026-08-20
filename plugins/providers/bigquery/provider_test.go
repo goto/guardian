@@ -547,7 +547,9 @@ func TestGrantAccess(t *testing.T) {
 			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
 			ResourceName:      "projects/resource-name",
 		}
-		client.On("GrantDatasetAccess", mock.Anything, mock.Anything, expectedAccountID, mock.Anything).Return(expectedError).Once()
+		client.EXPECT().
+			GrantDatasetAccess(mock.Anything, mock.Anything, expectedAccountType, expectedAccountID, mock.Anything).
+			Return(expectedError).Once()
 
 		pc := &domain.ProviderConfig{
 			Type:        "bigquery",
@@ -599,7 +601,9 @@ func TestGrantAccess(t *testing.T) {
 			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
 			ResourceName:      "projects/resource-name",
 		}
-		client.On("GrantDatasetAccess", mock.Anything, mock.Anything, expectedAccountID, mock.Anything).Return(bigquery.ErrPermissionAlreadyExists).Once()
+		client.EXPECT().
+			GrantDatasetAccess(mock.Anything, mock.Anything, expectedAccountType, expectedAccountID, mock.Anything).
+			Return(bigquery.ErrPermissionAlreadyExists).Once()
 
 		pc := &domain.ProviderConfig{
 			Type:        "bigquery",
@@ -807,7 +811,9 @@ func TestRevokeAccess(t *testing.T) {
 			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
 			ResourceName:      "projects/resource-name",
 		}
-		client.On("RevokeDatasetAccess", mock.Anything, mock.Anything, expectedAccountID, mock.Anything).Return(expectedError).Once()
+		client.EXPECT().
+			RevokeDatasetAccess(mock.Anything, mock.Anything, expectedAccountType, expectedAccountID, mock.Anything).
+			Return(expectedError).Once()
 
 		pc := &domain.ProviderConfig{
 			Type:        "bigquery",
@@ -859,7 +865,9 @@ func TestRevokeAccess(t *testing.T) {
 			ServiceAccountKey: base64.StdEncoding.EncodeToString([]byte("service-account-key-json")),
 			ResourceName:      "projects/resource-name",
 		}
-		client.On("RevokeDatasetAccess", mock.Anything, mock.Anything, expectedAccountID, mock.Anything).Return(bigquery.ErrPermissionNotFound).Once()
+		client.EXPECT().
+			RevokeDatasetAccess(mock.Anything, mock.Anything, expectedAccountType, expectedAccountID, mock.Anything).
+			Return(bigquery.ErrPermissionNotFound).Once()
 
 		pc := &domain.ProviderConfig{
 			Type:        "bigquery",
@@ -957,7 +965,7 @@ func TestRevokeAccess(t *testing.T) {
 func TestGetAccountTypes(t *testing.T) {
 	t.Run("should return the supported account types \"user\" and \"serviceAccount\"", func(t *testing.T) {
 		p := initProvider()
-		expectedAccountTypes := []string{"user", "serviceAccount"}
+		expectedAccountTypes := []string{"user", "serviceAccount", "group"}
 
 		actualAccountTypes := p.GetAccountTypes()
 
