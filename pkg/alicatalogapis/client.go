@@ -106,21 +106,6 @@ func (c *client) sendRequestAndUnmarshal(ctx context.Context, method, path strin
 	return nil
 }
 
-func (c *client) sendRequest(ctx context.Context, method, path string, queryParams url.Values, header map[string]string, rawBody []byte, expectedStatusCode int) error {
-	resp, err := c.sendRawRequest(ctx, method, path, queryParams, header, rawBody)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	respErr := newRespErr(resp)
-	if resp.StatusCode != expectedStatusCode {
-		reason := fmt.Sprintf("unexpected response status code: %v (%v). expected: %v (%v)", resp.StatusCode, http.StatusText(resp.StatusCode), expectedStatusCode, http.StatusText(expectedStatusCode))
-		respBody, _ := io.ReadAll(resp.Body)
-		return respErr.FromResponseBody(reason, respBody)
-	}
-	return nil
-}
-
 func (c *client) sendRawRequest(ctx context.Context, method, path string, queryParams url.Values, header map[string]string, rawBody []byte) (*http.Response, error) {
 	reqURL := fmt.Sprintf("%s/%s", c.host, path)
 	if len(queryParams) > 0 {
