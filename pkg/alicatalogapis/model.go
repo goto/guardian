@@ -2,6 +2,7 @@ package alicatalogapis
 
 import (
 	"path"
+	"strings"
 
 	"github.com/goto/guardian/pkg/slices"
 )
@@ -28,18 +29,40 @@ type RoleBindingRaw map[string][]string
 
 func (rb *RoleBindingPolicy) toUserFormat() {
 	for _, binding := range rb.Bindings {
+		if strings.HasPrefix(binding.Role, "roles/") {
+			continue
+		}
 		binding.Role = path.Base(binding.Role)
 	}
 }
 
 func (rb *RoleBindingPolicy) toAliFormat(accountID string) {
+	kept := make([]*RoleBindingPolicyBindings, 0, len(rb.Bindings))
 	for _, binding := range rb.Bindings {
-		aliBindingRoleFormat := path.Join("namespaces", accountID, "roles", path.Base(binding.Role))
-		if binding.Role == aliBindingRoleFormat {
+		binding.Members = removeInvalidMembers(binding.Members)
+		if len(binding.Members) == 0 {
 			continue
 		}
-		binding.Role = path.Join("namespaces", accountID, "roles", binding.Role)
+		if !strings.HasPrefix(binding.Role, "roles/") {
+			aliBindingRoleFormat := path.Join("namespaces", accountID, "roles", path.Base(binding.Role))
+			if binding.Role != aliBindingRoleFormat {
+				binding.Role = path.Join("namespaces", accountID, "roles", binding.Role)
+			}
+		}
+		kept = append(kept, binding)
 	}
+	rb.Bindings = kept
+}
+
+func removeInvalidMembers(members []string) []string {
+	out := make([]string, 0, len(members))
+	for _, member := range members {
+		if strings.HasPrefix(member, "INVALID$") {
+			continue
+		}
+		out = append(out, member)
+	}
+	return out
 }
 
 func (rb *RoleBinding) toRaw() RoleBindingRaw {
