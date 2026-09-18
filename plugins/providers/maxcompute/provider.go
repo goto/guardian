@@ -161,6 +161,40 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 	return resources, nil
 }
 
+// RecoverAccess heals MaxCompute prerequisites after GrantAccess failed with a
+// missing-principal error: remove a stale AliCloud v4_* user when reported, then
+// ADD USER for the grant's real account_id on the target project.
+func (p *provider) RecoverAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant, cause error) error {
+	info, ok := MatchMissingPrincipalError(cause)
+	if !ok {
+		return pv.ErrRecoverNotApplicable
+	}
+	project, ok := ProjectNameFromResource(g.Resource)
+	if !ok {
+		return pv.ErrRecoverNotApplicable
+	}
+
+	var overrideRAMRole string
+	if slices.Contains(pc.GetParameterKeys(), parameterRAMRoleKey) {
+		r, _, err := getParametersFromGrant[string](g, parameterRAMRoleKey)
+		if err != nil {
+			return fmt.Errorf("failed to get %q parameter value from grant: %w", parameterRAMRoleKey, err)
+		}
+		overrideRAMRole = r
+	}
+
+	if info.StaleUser != "" {
+		if err := p.removeMemberFromProject(ctx, pc, overrideRAMRole, project, info.StaleUser); err != nil {
+			return fmt.Errorf("fail to remove stale principal %q from project %q: %w", info.StaleUser, project, err)
+		}
+	}
+
+	if err := p.addMemberToProject(ctx, pc, overrideRAMRole, project, g.AccountID); err != nil {
+		return fmt.Errorf("fail to add member %q to project %q during recover: %w", g.AccountID, project, err)
+	}
+	return nil
+}
+
 func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
 	if g.AccountType == domain.AccountTypePackage {
 		return nil

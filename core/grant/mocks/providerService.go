@@ -237,6 +237,104 @@ func (_c *ProviderService_GrantAccess_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
+// RecoverAccess provides a mock function with given fields: ctx, g, cause
+func (_m *ProviderService) RecoverAccess(ctx context.Context, g domain.Grant, cause error) error {
+	ret := _m.Called(ctx, g, cause)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RecoverAccess")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, domain.Grant, error) error); ok {
+		r0 = rf(ctx, g, cause)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// ProviderService_RecoverAccess_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RecoverAccess'
+type ProviderService_RecoverAccess_Call struct {
+	*mock.Call
+}
+
+// RecoverAccess is a helper method to define mock.On call
+func (_e *ProviderService_Expecter) RecoverAccess(ctx interface{}, g interface{}, cause interface{}) *ProviderService_RecoverAccess_Call {
+	return &ProviderService_RecoverAccess_Call{Call: _e.mock.On("RecoverAccess", ctx, g, cause)}
+}
+
+func (_c *ProviderService_RecoverAccess_Call) Run(run func(ctx context.Context, g domain.Grant, cause error)) *ProviderService_RecoverAccess_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(domain.Grant), args[2].(error))
+	})
+	return _c
+}
+
+func (_c *ProviderService_RecoverAccess_Call) Return(_a0 error) *ProviderService_RecoverAccess_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *ProviderService_RecoverAccess_Call) RunAndReturn(run func(context.Context, domain.Grant, error) error) *ProviderService_RecoverAccess_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetDependencyGrants provides a mock function with given fields: ctx, g
+func (_m *ProviderService) GetDependencyGrants(ctx context.Context, g domain.Grant) ([]*domain.Grant, error) {
+	ret := _m.Called(ctx, g)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDependencyGrants")
+	}
+
+	var r0 []*domain.Grant
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, domain.Grant) ([]*domain.Grant, error)); ok {
+		return rf(ctx, g)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, domain.Grant) []*domain.Grant); ok {
+		r0 = rf(ctx, g)
+	} else if ret.Get(0) != nil {
+		r0 = ret.Get(0).([]*domain.Grant)
+	}
+	if rf, ok := ret.Get(1).(func(context.Context, domain.Grant) error); ok {
+		r1 = rf(ctx, g)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ProviderService_GetDependencyGrants_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDependencyGrants'
+type ProviderService_GetDependencyGrants_Call struct {
+	*mock.Call
+}
+
+// GetDependencyGrants is a helper method to define mock.On call
+func (_e *ProviderService_Expecter) GetDependencyGrants(ctx interface{}, g interface{}) *ProviderService_GetDependencyGrants_Call {
+	return &ProviderService_GetDependencyGrants_Call{Call: _e.mock.On("GetDependencyGrants", ctx, g)}
+}
+
+func (_c *ProviderService_GetDependencyGrants_Call) Run(run func(ctx context.Context, g domain.Grant)) *ProviderService_GetDependencyGrants_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(domain.Grant))
+	})
+	return _c
+}
+
+func (_c *ProviderService_GetDependencyGrants_Call) Return(grants []*domain.Grant, err error) *ProviderService_GetDependencyGrants_Call {
+	_c.Call.Return(grants, err)
+	return _c
+}
+
+func (_c *ProviderService_GetDependencyGrants_Call) RunAndReturn(run func(context.Context, domain.Grant) ([]*domain.Grant, error)) *ProviderService_GetDependencyGrants_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListAccess provides a mock function with given fields: _a0, _a1, _a2
 func (_m *ProviderService) ListAccess(_a0 context.Context, _a1 domain.Provider, _a2 []*domain.Resource) (domain.MapResourceAccess, error) {
 	ret := _m.Called(_a0, _a1, _a2)

@@ -17,6 +17,13 @@ type Client interface {
 	ListAccessForUsers(context.Context, domain.ProviderConfig, []*domain.Resource, []string) (domain.MapResourceAccess, error)
 }
 
+// AccessRecoverer is an optional provider capability used when GrantAccess fails
+// and the provider can heal prerequisites (e.g. missing project membership) from
+// the failing grant and the provider error alone.
+type AccessRecoverer interface {
+	RecoverAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant, cause error) error
+}
+
 type PermissionManager interface {
 	GetPermissions(p *domain.ProviderConfig, resourceType, role string) ([]interface{}, error)
 }

@@ -14,6 +14,7 @@ import (
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/grant"
 	"github.com/goto/guardian/core/grant/mocks"
+	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/stretchr/testify/assert"
@@ -725,6 +726,12 @@ func (s *ServiceTestSuite) TestRestore() {
 				return g.ID == id
 			})).
 			Return(assert.AnError)
+		s.mockProviderService.EXPECT().
+			GetDependencyGrants(mock.Anything, mock.MatchedBy(func(g domain.Grant) bool { return g.ID == id })).
+			Return(nil, nil)
+		s.mockProviderService.EXPECT().
+			RecoverAccess(mock.Anything, mock.MatchedBy(func(g domain.Grant) bool { return g.ID == id }), assert.AnError).
+			Return(provider.ErrRecoverNotApplicable)
 
 		// rollback
 		s.mockRepository.EXPECT().
@@ -740,6 +747,154 @@ func (s *ServiceTestSuite) TestRestore() {
 		s.mockRepository.AssertExpectations(s.T())
 		s.mockProviderService.AssertExpectations(s.T())
 		s.mockAuditLogger.AssertExpectations(s.T()) // assert no calls
+	})
+
+	s.Run("should recover access via provider RecoverAccess and dependency grants", func() {
+		s.setup()
+
+		id := "grant-id"
+		accountID := "RAM$5866780647397444:role/aliyunreservedsso-datawarehousefullaccess"
+		project := "p_mgmc_id_data_access"
+		grantDetails := &domain.Grant{
+			ID:          id,
+			Status:      domain.GrantStatusInactive,
+			IsPermanent: true,
+			AccountID:   accountID,
+			AccountType: "ram_role",
+			Resource: &domain.Resource{
+				ID:           "res-exec",
+				ProviderType: domain.ProviderTypeMaxCompute,
+				ProviderURN:  project + "-maxcompute",
+				Type:         "project",
+				URN:          project,
+			},
+		}
+		depStub := &domain.Grant{
+			AccountID:   accountID,
+			AccountType: "ram_role",
+			Role:        "member",
+			Permissions: []string{"member"},
+			Resource: &domain.Resource{
+				ID:           "res-exec",
+				ProviderType: domain.ProviderTypeMaxCompute,
+				ProviderURN:  project + "-maxcompute",
+				Type:         "project",
+				URN:          project,
+			},
+		}
+		memberGrant := domain.Grant{
+			ID:          "member-grant-id",
+			Status:      domain.GrantStatusActive,
+			AccountID:   accountID,
+			AccountType: "ram_role",
+			Role:        "member",
+			Permissions: []string{"member"},
+			Resource:    depStub.Resource,
+		}
+		actor := "user@example.com"
+		reason := "test reason"
+		providerErr := fmt.Errorf("fail to grant project role to '%s': the user v4_301063152281913113 does not exist", project)
+
+		s.mockRepository.EXPECT().
+			GetByID(mock.Anything, id).
+			Return(grantDetails, nil)
+		s.mockRepository.EXPECT().
+			Update(mock.Anything, mock.MatchedBy(func(g *domain.Grant) bool {
+				return g.ID == id && g.Status == domain.GrantStatusActive
+			})).
+			Return(nil).Once()
+		s.mockProviderService.EXPECT().
+			GrantAccess(mock.Anything, mock.MatchedBy(func(g domain.Grant) bool { return g.ID == id })).
+			Return(providerErr).Once()
+		s.mockProviderService.EXPECT().
+			GetDependencyGrants(mock.Anything, mock.MatchedBy(func(g domain.Grant) bool { return g.ID == id })).
+			Return([]*domain.Grant{depStub}, nil)
+		s.mockRepository.EXPECT().
+			List(mock.Anything, mock.MatchedBy(func(f domain.ListGrantsFilter) bool {
+				return len(f.ResourceIDs) == 1 && f.ResourceIDs[0] == "res-exec"
+			})).
+			Return([]domain.Grant{memberGrant}, nil)
+		s.mockProviderService.EXPECT().
+			RecoverAccess(mock.Anything, mock.MatchedBy(func(g domain.Grant) bool { return g.ID == id }), providerErr).
+			Return(nil)
+		s.mockProviderService.EXPECT().
+			GrantAccess(mock.Anything, mock.MatchedBy(func(g domain.Grant) bool { return g.ID == memberGrant.ID })).
+			Return(nil).Once()
+		s.mockProviderService.EXPECT().
+			GrantAccess(mock.Anything, mock.MatchedBy(func(g domain.Grant) bool { return g.ID == id })).
+			Return(nil).Once()
+		s.mockAuditLogger.EXPECT().
+			Log(mock.Anything, grant.AuditKeyRestore, mock.Anything).
+			Return(nil)
+
+		actualGrant, actualError := s.service.Restore(context.Background(), id, actor, reason)
+		s.NoError(actualError)
+		s.Equal(id, actualGrant.ID)
+
+		s.mockRepository.AssertExpectations(s.T())
+		s.mockProviderService.AssertExpectations(s.T())
+		time.Sleep(time.Millisecond)
+		s.mockAuditLogger.AssertExpectations(s.T())
+	})
+
+	s.Run("should not recover when declared dependency has no active grant", func() {
+		s.setup()
+
+		id := "grant-id"
+		project := "p_mgmc_id_mart"
+		accountID := "RAM$1:role/x"
+		grantDetails := &domain.Grant{
+			ID:          id,
+			Status:      domain.GrantStatusInactive,
+			IsPermanent: true,
+			AccountID:   accountID,
+			AccountType: "ram_role",
+			Resource: &domain.Resource{
+				ProviderType: domain.ProviderTypeMaxCompute,
+				ProviderURN:  project + "-maxcompute",
+				Type:         "table",
+				URN:          project + ".library.books",
+				Name:         "books",
+			},
+		}
+		depStub := &domain.Grant{
+			AccountID:   accountID,
+			AccountType: "ram_role",
+			Role:        "member",
+			Permissions: []string{"member"},
+			Resource: &domain.Resource{
+				ProviderType: domain.ProviderTypeMaxCompute,
+				ProviderURN:  project + "-maxcompute",
+				Type:         "project",
+				URN:          project,
+			},
+		}
+		providerErr := fmt.Errorf("Principal '%s' does not exist in the project", accountID)
+
+		s.mockRepository.EXPECT().GetByID(mock.Anything, id).Return(grantDetails, nil)
+		s.mockRepository.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.Grant")).Return(nil).Once()
+		s.mockProviderService.EXPECT().
+			GrantAccess(mock.Anything, mock.MatchedBy(func(g domain.Grant) bool { return g.ID == id })).
+			Return(providerErr).Once()
+		s.mockProviderService.EXPECT().
+			GetDependencyGrants(mock.Anything, mock.Anything).
+			Return([]*domain.Grant{depStub}, nil)
+		s.mockRepository.EXPECT().
+			List(mock.Anything, mock.AnythingOfType("domain.ListGrantsFilter")).
+			Return([]domain.Grant{}, nil)
+		s.mockRepository.EXPECT().
+			Update(mock.Anything, mock.MatchedBy(func(g *domain.Grant) bool {
+				return g.ID == id && g.Status == domain.GrantStatusInactive
+			})).
+			Return(nil).Once()
+
+		actualGrant, actualError := s.service.Restore(context.Background(), id, "user@example.com", "test reason")
+		s.Error(actualError)
+		s.ErrorContains(actualError, "does not exist in the project")
+		s.Nil(actualGrant)
+		s.mockProviderService.AssertNotCalled(s.T(), "RecoverAccess", mock.Anything, mock.Anything, mock.Anything)
+		s.mockRepository.AssertExpectations(s.T())
+		s.mockProviderService.AssertExpectations(s.T())
 	})
 
 	s.Run("should return error if grant restore request is invalid", func() {

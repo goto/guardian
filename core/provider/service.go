@@ -530,6 +530,32 @@ func (s *Service) RevokeAccess(ctx context.Context, a domain.Grant) error {
 	return c.RevokeAccess(ctx, p.Config, a)
 }
 
+// RecoverAccess asks the provider to heal prerequisites for grant g after
+// GrantAccess failed with cause. Providers that do not implement AccessRecoverer
+// return ErrRecoverNotSupported. When the cause is not recoverable for that
+// provider, ErrRecoverNotApplicable is returned.
+func (s *Service) RecoverAccess(ctx context.Context, g domain.Grant, cause error) error {
+	if err := s.validateAccessParam(g); err != nil {
+		return err
+	}
+
+	c := s.getClient(g.Resource.ProviderType)
+	if c == nil {
+		return ErrInvalidProviderType
+	}
+	recoverer, ok := c.(providers.AccessRecoverer)
+	if !ok {
+		return ErrRecoverNotSupported
+	}
+
+	p, err := s.getProviderConfig(ctx, g.Resource.ProviderType, g.Resource.ProviderURN)
+	if err != nil {
+		return err
+	}
+
+	return recoverer.RecoverAccess(ctx, p.Config, g, cause)
+}
+
 func (s *Service) Delete(ctx context.Context, id string) error {
 	p, err := s.repository.GetByID(ctx, id)
 	if err != nil {

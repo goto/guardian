@@ -33,4 +33,9 @@ var (
 
 	ErrInvalidResource            = errors.New("invalid resource")
 	ErrCreateResourceNotSupported = errors.New("create resource is not supported for this provider type")
+
+	// ErrRecoverNotSupported is returned when the provider client does not implement AccessRecoverer.
+	ErrRecoverNotSupported = errors.New("access recovery is not supported for this provider type")
+	// ErrRecoverNotApplicable is returned when AccessRecoverer cannot heal the given cause.
+	ErrRecoverNotApplicable = errors.New("access recovery is not applicable for this error")
 )

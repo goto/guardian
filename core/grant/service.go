@@ -2,6 +2,7 @@ package grant
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -14,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
+	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
 	slicesUtil "github.com/goto/guardian/pkg/slices"
@@ -58,6 +60,8 @@ type providerService interface {
 	GetByID(context.Context, string) (*domain.Provider, error)
 	GrantAccess(context.Context, domain.Grant) error
 	RevokeAccess(context.Context, domain.Grant) error
+	RecoverAccess(ctx context.Context, g domain.Grant, cause error) error
+	GetDependencyGrants(ctx context.Context, g domain.Grant) ([]*domain.Grant, error)
 	Find(context.Context, domain.ListProvidersFilter) ([]*domain.Provider, error)
 	ListAccess(context.Context, domain.Provider, []*domain.Resource) (domain.MapResourceAccess, error)
 	ListActivities(context.Context, domain.Provider, domain.ListActivitiesFilter) ([]*domain.Activity, error)
@@ -556,10 +560,17 @@ func (s *Service) Restore(ctx context.Context, id, actor, reason string) (*domai
 	}
 
 	if err := s.providerService.GrantAccess(ctx, *grant); err != nil {
-		if err := s.repo.Update(ctx, originalGrant); err != nil {
-			return nil, fmt.Errorf("failed to rollback grant record after restore failed: %w", err)
+		if healErr := s.recoverAndRetryGrantAccess(ctx, grant, err); healErr == nil {
+			// provider access restored after RecoverAccess
+		} else {
+			if rbErr := s.repo.Update(ctx, originalGrant); rbErr != nil {
+				return nil, fmt.Errorf("failed to rollback grant record after restore failed: %w", rbErr)
+			}
+			if healErr != err {
+				return nil, fmt.Errorf("granting access in provider: %w", healErr)
+			}
+			return nil, fmt.Errorf("granting access in provider: %w", err)
 		}
-		return nil, fmt.Errorf("granting access in provider: %w", err)
 	}
 
 	go func() {
@@ -573,6 +584,87 @@ func (s *Service) Restore(ctx context.Context, id, actor, reason string) (*domai
 	}()
 
 	return grant, nil
+}
+
+// recoverAndRetryGrantAccess asks the provider to heal prerequisites for the
+// failing grant, re-grants any active dependency grants, then retries the
+// original GrantAccess. Returns providerErr unchanged when recovery does not
+// apply. Only grant/appeal-shaped inputs are used here; provider-specific
+// details stay inside RecoverAccess.
+func (s *Service) recoverAndRetryGrantAccess(ctx context.Context, grant *domain.Grant, providerErr error) error {
+	dependencyGrants, err := s.providerService.GetDependencyGrants(ctx, *grant)
+	if err != nil {
+		// Provider has no dependency resolver; still attempt RecoverAccess.
+		dependencyGrants = nil
+	}
+
+	activeDeps, err := s.listActiveDependencyGrants(ctx, dependencyGrants)
+	if err != nil {
+		return fmt.Errorf("looking up active dependency grants: %w (original: %v)", err, providerErr)
+	}
+	// When the provider declares dependencies, require at least one active dep
+	// before attempting recover (avoids silent ADD USER without known membership grant).
+	if len(dependencyGrants) > 0 && len(activeDeps) == 0 {
+		return providerErr
+	}
+
+	if err := s.providerService.RecoverAccess(ctx, *grant, providerErr); err != nil {
+		if errors.Is(err, provider.ErrRecoverNotApplicable) || errors.Is(err, provider.ErrRecoverNotSupported) {
+			return providerErr
+		}
+		return fmt.Errorf("recovering access in provider: %w (original: %v)", err, providerErr)
+	}
+
+	for i := range activeDeps {
+		if err := s.providerService.GrantAccess(ctx, activeDeps[i]); err != nil {
+			return fmt.Errorf("re-granting dependency access: %w (original: %v)", err, providerErr)
+		}
+	}
+	if err := s.providerService.GrantAccess(ctx, *grant); err != nil {
+		return fmt.Errorf("retrying grant after recover: %w (original: %v)", err, providerErr)
+	}
+
+	s.logger.Info(ctx, "recovered provider access during restore",
+		"grant_id", grant.ID,
+		"account_id", grant.AccountID,
+		"dependency_count", len(activeDeps),
+	)
+	return nil
+}
+
+func (s *Service) listActiveDependencyGrants(ctx context.Context, deps []*domain.Grant) ([]domain.Grant, error) {
+	var active []domain.Grant
+	for _, dg := range deps {
+		if dg == nil || dg.Resource == nil {
+			continue
+		}
+		filter := domain.ListGrantsFilter{
+			Statuses:     []string{string(domain.GrantStatusActive)},
+			AccountIDs:   []string{dg.AccountID},
+			AccountTypes: []string{dg.AccountType},
+			Permissions:  dg.Permissions,
+			Size:         1,
+		}
+		if dg.Resource.ID != "" {
+			filter.ResourceIDs = []string{dg.Resource.ID}
+		} else {
+			filter.ProviderTypes = []string{dg.Resource.ProviderType}
+			filter.ProviderURNs = []string{dg.Resource.ProviderURN}
+			filter.ResourceTypes = []string{dg.Resource.Type}
+			filter.ResourceURNs = []string{dg.Resource.URN}
+			if dg.Role != "" {
+				filter.Roles = []string{dg.Role}
+			}
+		}
+		found, err := s.List(ctx, filter)
+		if err != nil {
+			return nil, err
+		}
+		if len(found) > 0 {
+			active = append(active, found[0])
+		}
+	}
+	return active, nil
 }
 
 func (s *Service) BulkRevoke(ctx context.Context, filter domain.RevokeGrantsFilter, actor, reason string) ([]*domain.Grant, error) {
