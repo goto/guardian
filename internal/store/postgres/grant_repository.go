@@ -472,9 +472,6 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	if filter.ResourceTypes != nil {
 		db = db.Where(`"Resource"."type" IN ?`, filter.ResourceTypes)
 	}
-	if filter.ResourceURNs != nil {
-		db = db.Where(`"Resource"."urn" IN ?`, filter.ResourceURNs)
-	}
 	if filter.ExpiringInDays != 0 && slices.Contains(filter.Statuses, "active") {
 		db = db.Where(`"grants"."expiration_date" IS NOT NULL`)
 		db = db.Where(fmt.Sprintf(`"grants"."expiration_date" BETWEEN NOW() AND NOW() + INTERVAL '%d day'`, filter.ExpiringInDays))
@@ -498,6 +495,14 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 		filter.ProviderUrnStartsWith, filter.ProviderUrnEndsWith, filter.ProviderUrnContains,
 		filter.ProviderUrnNotStartsWith, filter.ProviderUrnNotEndsWith, filter.ProviderUrnNotContains,
 		filter.ProviderURNs, nil, "provider_urn",
+	)
+	if err != nil {
+		return nil, err
+	}
+	db, err = applyLikeAndInFilter(db, `"Resource"."urn"`,
+		filter.ResourceUrnStartsWith, filter.ResourceUrnEndsWith, filter.ResourceUrnContains,
+		filter.ResourceUrnNotStartsWith, filter.ResourceUrnNotEndsWith, filter.ResourceUrnNotContains,
+		filter.ResourceURNs, nil, "resource_urn",
 	)
 	if err != nil {
 		return nil, err
