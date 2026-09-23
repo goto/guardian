@@ -464,9 +464,6 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 	if filters.ProviderTypes != nil {
 		db = db.Where(`"Resource"."provider_type" IN ?`, filters.ProviderTypes)
 	}
-	if filters.ResourceURNs != nil {
-		db = db.Where(`"Resource"."urn" IN ?`, filters.ResourceURNs)
-	}
 	if len(filters.Durations) > 0 {
 		db = db.Where(`COALESCE(NULLIF("appeals"."options" #>> '{duration}', ''), 'null') IN ?`, filters.Durations)
 	}
@@ -486,6 +483,14 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 		filters.ProviderUrnStartsWith, filters.ProviderUrnEndsWith, filters.ProviderUrnContains,
 		filters.ProviderUrnNotStartsWith, filters.ProviderUrnNotEndsWith, filters.ProviderUrnNotContains,
 		filters.ProviderURNs, nil, "provider_urn",
+	)
+	if err != nil {
+		return nil, err
+	}
+	db, err = applyLikeAndInFilter(db, `"Resource"."urn"`,
+		filters.ResourceUrnStartsWith, filters.ResourceUrnEndsWith, filters.ResourceUrnContains,
+		filters.ResourceUrnNotStartsWith, filters.ResourceUrnNotEndsWith, filters.ResourceUrnNotContains,
+		filters.ResourceURNs, nil, "resource_urn",
 	)
 	if err != nil {
 		return nil, err

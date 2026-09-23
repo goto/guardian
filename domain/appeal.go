@@ -652,6 +652,12 @@ type ListAppealsFilter struct {
 	ProviderUrnNotStartsWith  string    `mapstructure:"provider_urn_not_starts_with" json:"provider_urn_not_starts_with,omitempty" validate:"omitempty"`
 	ProviderUrnNotEndsWith    string    `mapstructure:"provider_urn_not_ends_with" json:"provider_urn_not_ends_with,omitempty" validate:"omitempty"`
 	ProviderUrnNotContains    string    `mapstructure:"provider_urn_not_contains" json:"provider_urn_not_contains,omitempty" validate:"omitempty"`
+	ResourceUrnStartsWith     string    `mapstructure:"resource_urn_starts_with" json:"resource_urn_starts_with,omitempty" validate:"omitempty"`
+	ResourceUrnEndsWith       string    `mapstructure:"resource_urn_ends_with" json:"resource_urn_ends_with,omitempty" validate:"omitempty"`
+	ResourceUrnContains       string    `mapstructure:"resource_urn_contains" json:"resource_urn_contains,omitempty" validate:"omitempty"`
+	ResourceUrnNotStartsWith  string    `mapstructure:"resource_urn_not_starts_with" json:"resource_urn_not_starts_with,omitempty" validate:"omitempty"`
+	ResourceUrnNotEndsWith    string    `mapstructure:"resource_urn_not_ends_with" json:"resource_urn_not_ends_with,omitempty" validate:"omitempty"`
+	ResourceUrnNotContains    string    `mapstructure:"resource_urn_not_contains" json:"resource_urn_not_contains,omitempty" validate:"omitempty"`
 	Durations                 []string  `mapstructure:"durations" json:"durations,omitempty" validate:"omitempty"`
 	NotDurations              []string  `mapstructure:"not_durations" json:"not_durations,omitempty" validate:"omitempty"`
 	DetailsPaths              []string  `mapstructure:"details_paths" json:"details_paths,omitempty" validate:"omitempty"`
