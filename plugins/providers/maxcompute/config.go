@@ -24,13 +24,20 @@ const (
 	parameterRAMRoleKey = "ram_role"
 
 	projectPermissionMember = "member"
+
+	tableActionReadLowFrequencyStorage = "ReadLowFrequencyStorage"
+	tableActionReadLongTermStorage     = "ReadLongTermStorage"
 )
 
 var (
 	validResourceTypes = []string{resourceTypeProject, resourceTypeSchema, resourceTypeTable}
 
 	// https://www.alibabacloud.com/help/en/maxcompute/user-guide/maxcompute-permissions
-	validTableActions = []string{"describe", "select", "alter", "update", "drop", "showhistory", "all"}
+	validTableActions = []string{
+		"describe", "select", "alter", "update", "drop", "showhistory", "all",
+		strings.ToLower(tableActionReadLowFrequencyStorage),
+		strings.ToLower(tableActionReadLongTermStorage),
+	}
 )
 
 type config struct {

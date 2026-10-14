@@ -538,7 +538,7 @@ func (p *provider) grantTableRolesToMember(ctx context.Context, pc *domain.Provi
 	}
 
 	var invoker = odpsClient.Project(project).SecurityManager()
-	roleQuery := strings.Join(slices.GenericsStandardizeSlice(roles), ", ")
+	roleQuery := formatTableActions(roles)
 	var query = fmt.Sprintf("GRANT %s ON TABLE `%s`.`%s`.`%s` TO USER `%s`;", roleQuery, project, schema, table, ramAccountId)
 	if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
 		var restErr restclient.HttpError
@@ -568,7 +568,7 @@ func (p *provider) revokeTableRolesFromMember(ctx context.Context, pc *domain.Pr
 	}
 
 	var invoker = odpsClient.Project(project).SecurityManager()
-	roleQuery := strings.Join(slices.GenericsStandardizeSlice(roles), ", ")
+	roleQuery := formatTableActions(roles)
 	var query = fmt.Sprintf("REVOKE %s ON TABLE `%s`.`%s`.`%s` FROM USER `%s`", roleQuery, project, schema, table, ramAccountId)
 	if _, err = odpsExecuteQueryOnSecurityManager(ctx, invoker, query); err != nil {
 		// If the table no longer exists in MaxCompute there is nothing left to revoke,
@@ -585,6 +585,24 @@ func (p *provider) revokeTableRolesFromMember(ctx context.Context, pc *domain.Pr
 		return fmt.Errorf("fail to revoke table role from '%s.%s.%s': %w", project, schema, table, err)
 	}
 	return nil
+}
+
+// formatTableActions canonicalizes the new cold-read actions for the backend while
+// preserving existing actions. Normalize before deduplication so case variants
+// accepted by config validation generate only one GRANT/REVOKE action.
+func formatTableActions(actions []string) string {
+	canonical := make([]string, len(actions))
+	for i, action := range actions {
+		switch strings.ToLower(action) {
+		case strings.ToLower(tableActionReadLowFrequencyStorage):
+			canonical[i] = tableActionReadLowFrequencyStorage
+		case strings.ToLower(tableActionReadLongTermStorage):
+			canonical[i] = tableActionReadLongTermStorage
+		default:
+			canonical[i] = action
+		}
+	}
+	return strings.Join(slices.GenericsStandardizeSlice(canonical), ", ")
 }
 
 // isTableNotFoundErr reports whether err is a MaxCompute "table not found" error
