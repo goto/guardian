@@ -65,6 +65,32 @@ func TestODPSShouldRetry(t *testing.T) {
 	}
 }
 
+func TestFormatTableActions(t *testing.T) {
+	tests := []struct {
+		name    string
+		actions []string
+		want    string
+	}{
+		{"low only", []string{"ReadLowfrequencyStorage"}, "ReadLowFrequencyStorage"},
+		{"long only", []string{"readlongtermstorage"}, "ReadLongTermStorage"},
+		{"normal and both cold", []string{"Select", "readlowfrequencystorage", "READLONGTERMSTORAGE"}, "ReadLongTermStorage, ReadLowFrequencyStorage, Select"},
+		{"case variants deduplicated", []string{"ReadLowFrequencyStorage", "ReadLowfrequencyStorage", "READLOWFREQUENCYSTORAGE"}, "ReadLowFrequencyStorage"},
+		{"existing actions unchanged", []string{"select", "Describe", "select"}, "Describe, select"},
+		{"empty", nil, ""},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			original := append([]string(nil), test.actions...)
+			if got := formatTableActions(test.actions); got != test.want {
+				t.Errorf("formatTableActions() = %q, want %q", got, test.want)
+			}
+			if !reflect.DeepEqual(test.actions, original) {
+				t.Fatal("caller permissions were mutated")
+			}
+		})
+	}
+}
+
 func TestIsTableNotFoundErr(t *testing.T) {
 	tests := []struct {
 		name string
