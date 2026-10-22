@@ -284,6 +284,20 @@ func (s *GrantRepositoryTestSuite) TestList() {
 		s.NoError(err)
 		s.Len(grants, 0)
 	})
+	s.Run("should filter grants by resource urn ends with", func() {
+		grants, err := s.repository.List(context.Background(), domain.ListGrantsFilter{
+			ResourceUrnEndsWith: "urn_test",
+		})
+		s.NoError(err)
+		s.Len(grants, 1)
+		s.Equal(s.dummyResource.URN, grants[0].Resource.URN)
+
+		grants, err = s.repository.List(context.Background(), domain.ListGrantsFilter{
+			ResourceUrnEndsWith: "_access",
+		})
+		s.NoError(err)
+		s.Len(grants, 0)
+	})
 	s.Run("Should return an array of grants that matches account type", func() {
 		grants, err := s.repository.List(context.Background(), domain.ListGrantsFilter{
 			AccountTypes: []string{"x-account-type"},
