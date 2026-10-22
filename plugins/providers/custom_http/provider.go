@@ -168,6 +168,24 @@ func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 	return nil
 }
 
+// ValidateResourceIdentifiers checks that the resource has the minimum required fields
+// (URN and a recognized type) so Guardian can store and reference it correctly.
+func (p *Provider) ValidateResourceIdentifiers(_ context.Context, r *domain.Resource) error {
+	if r.URN == "" {
+		return fmt.Errorf("resource urn is required")
+	}
+	if r.Name == "" {
+		return fmt.Errorf("resource name is required")
+	}
+	return nil
+}
+
+// ValidateResourceDetails is a no-op for custom_http because the provider does not
+// enforce any schema on the Details map — the target API owns that structure.
+func (p *Provider) ValidateResourceDetails(_ context.Context, _ *domain.Resource) error {
+	return nil
+}
+
 func (p *Provider) getClient(pc *domain.ProviderConfig) (HTTPClient, error) {
 	if client, exists := p.Clients[pc.URN]; exists {
 		return client, nil
