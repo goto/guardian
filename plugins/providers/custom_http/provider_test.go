@@ -26,12 +26,12 @@ func (m *MockHTTPClient) GetResources(ctx context.Context, resourceType string) 
 	return args.Get(0).([]*Resource), args.Error(1)
 }
 
-func (m *MockHTTPClient) GrantAccess(ctx context.Context, resource *Resource, accountID, role string) error {
+func (m *MockHTTPClient) GrantAccess(ctx context.Context, resource *Resource, appealID, accountID, role string) error {
 	args := m.Called(ctx, resource, accountID, role)
 	return args.Error(0)
 }
 
-func (m *MockHTTPClient) RevokeAccess(ctx context.Context, resource *Resource, accountID, role string) error {
+func (m *MockHTTPClient) RevokeAccess(ctx context.Context, resource *Resource, appealID, accountID, role string) error {
 	args := m.Called(ctx, resource, accountID, role)
 	return args.Error(0)
 }

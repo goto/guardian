@@ -16,8 +16,8 @@ import (
 
 type HTTPClient interface {
 	GetResources(ctx context.Context, resourceType string) ([]*Resource, error)
-	GrantAccess(ctx context.Context, resource *Resource, accountID, role string) error
-	RevokeAccess(ctx context.Context, resource *Resource, accountID, role string) error
+	GrantAccess(ctx context.Context, resource *Resource, appealID, accountID, role string) error
+	RevokeAccess(ctx context.Context, resource *Resource, appealID, accountID, role string) error
 }
 
 type Client struct {
@@ -115,29 +115,30 @@ func (c *Client) processResourceList(ctx context.Context, rawResources []map[str
 	return resources, nil
 }
 
-func (c *Client) GrantAccess(ctx context.Context, resource *Resource, accountID, role string) error {
+func (c *Client) GrantAccess(ctx context.Context, resource *Resource, appealID, accountID, role string) error {
 	// Get configuration for this resource type
 	resourceConfig, exists := c.config.ResourceTypes[resource.Type]
 	if !exists {
 		return fmt.Errorf("no configuration found for resource type: %s", resource.Type)
 	}
 
-	return c.makeAccessRequest(ctx, resourceConfig.API.Grant, resource, accountID, role, "grant")
+	return c.makeAccessRequest(ctx, resourceConfig.API.Grant, resource, appealID, accountID, role, "grant")
 }
 
-func (c *Client) RevokeAccess(ctx context.Context, resource *Resource, accountID, role string) error {
+func (c *Client) RevokeAccess(ctx context.Context, resource *Resource, appealID, accountID, role string) error {
 	// Get configuration for this resource type
 	resourceConfig, exists := c.config.ResourceTypes[resource.Type]
 	if !exists {
 		return fmt.Errorf("no configuration found for resource type: %s", resource.Type)
 	}
 
-	return c.makeAccessRequest(ctx, resourceConfig.API.Revoke, resource, accountID, role, "revoke")
+	return c.makeAccessRequest(ctx, resourceConfig.API.Revoke, resource, appealID, accountID, role, "revoke")
 }
 
-func (c *Client) makeAccessRequest(ctx context.Context, endpoint APIEndpoint, resource *Resource, accountID, role, action string) error {
+func (c *Client) makeAccessRequest(ctx context.Context, endpoint APIEndpoint, resource *Resource, appealID, accountID, role, action string) error {
 	// Build template data with base context for processing custom variables
 	templateData := map[string]interface{}{
+		"appeal_id":  appealID,
 		"resource":   resource,
 		"account_id": accountID,
 		"role":       role,

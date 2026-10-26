@@ -377,6 +377,7 @@ func TestClient_GrantAccess(t *testing.T) {
 	tests := []struct {
 		name        string
 		resource    *Resource
+		appealID    string
 		accountID   string
 		role        string
 		statusCode  int
@@ -386,7 +387,8 @@ func TestClient_GrantAccess(t *testing.T) {
 		validateReq func(t *testing.T, r *http.Request)
 	}{
 		{
-			name: "successful grant access",
+			name:     "successful grant access",
+			appealID: "test-1",
 			resource: &Resource{
 				ID:   "proj-1",
 				Name: "Project 1",
@@ -430,7 +432,8 @@ func TestClient_GrantAccess(t *testing.T) {
 			},
 		},
 		{
-			name: "error - API returns error status",
+			name:     "error - API returns error status",
+			appealID: "test-1",
 			resource: &Resource{
 				ID:   "proj-1",
 				Name: "Project 1",
@@ -464,7 +467,8 @@ func TestClient_GrantAccess(t *testing.T) {
 			errContains: "403",
 		},
 		{
-			name: "error - resource type not configured",
+			name:     "error - resource type not configured",
+			appealID: "test-1",
 			resource: &Resource{
 				ID:   "proj-1",
 				Type: "unknown",
@@ -495,7 +499,7 @@ func TestClient_GrantAccess(t *testing.T) {
 			}
 			client := NewClient(creds, tt.config, log.NewNoop())
 
-			err := client.GrantAccess(context.Background(), tt.resource, tt.accountID, tt.role)
+			err := client.GrantAccess(context.Background(), tt.resource, tt.appealID, tt.accountID, tt.role)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -513,6 +517,7 @@ func TestClient_RevokeAccess(t *testing.T) {
 	tests := []struct {
 		name        string
 		resource    *Resource
+		appealID    string
 		accountID   string
 		role        string
 		statusCode  int
@@ -532,6 +537,7 @@ func TestClient_RevokeAccess(t *testing.T) {
 				},
 			},
 			accountID:  "user@example.com",
+			appealID:   "test-1",
 			role:       "viewer",
 			statusCode: http.StatusOK,
 			config: ProviderConfiguration{
@@ -561,7 +567,8 @@ func TestClient_RevokeAccess(t *testing.T) {
 			},
 		},
 		{
-			name: "error - API returns error status",
+			name:     "error - API returns error status",
+			appealID: "test-1",
 			resource: &Resource{
 				ID:   "proj-1",
 				Type: "project",
@@ -604,7 +611,7 @@ func TestClient_RevokeAccess(t *testing.T) {
 			}
 			client := NewClient(creds, tt.config, log.NewNoop())
 
-			err := client.RevokeAccess(context.Background(), tt.resource, tt.accountID, tt.role)
+			err := client.RevokeAccess(context.Background(), tt.resource, tt.appealID, tt.accountID, tt.role)
 
 			if tt.wantErr {
 				require.Error(t, err)

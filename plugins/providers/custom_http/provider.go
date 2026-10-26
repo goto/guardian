@@ -133,7 +133,7 @@ func (p *Provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g
 		return fmt.Errorf("converting resource: %w", err)
 	}
 
-	if err := client.GrantAccess(ctx, resource, g.AccountID, g.Role); err != nil {
+	if err := client.GrantAccess(ctx, resource, g.AppealID, g.AccountID, g.Role); err != nil {
 		return fmt.Errorf("granting access via HTTP API: %w", err)
 	}
 
@@ -156,7 +156,7 @@ func (p *Provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, 
 		return fmt.Errorf("converting resource: %w", err)
 	}
 
-	if err := client.RevokeAccess(ctx, resource, g.AccountID, g.Role); err != nil {
+	if err := client.RevokeAccess(ctx, resource, g.AppealID, g.AccountID, g.Role); err != nil {
 		return fmt.Errorf("revoking access via HTTP API: %w", err)
 	}
 
