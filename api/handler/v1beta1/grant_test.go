@@ -97,6 +97,42 @@ func (s *GrpcHandlersSuite) TestListGrants() {
 		s.grantService.AssertExpectations(s.T())
 	})
 
+	s.Run("should map resource urn pattern filters", func() {
+		s.setup()
+
+		expectedFilter := domain.ListGrantsFilter{
+			ResourceUrnStartsWith:    "prefix",
+			ResourceUrnEndsWith:      "_access",
+			ResourceUrnContains:      "exec",
+			ResourceUrnNotStartsWith: "skip",
+			ResourceUrnNotEndsWith:   "_tmp",
+			ResourceUrnNotContains:   "deprecated",
+		}
+		s.grantService.EXPECT().
+			GenerateExcludedGrantIDsForSmartInactiveGrants(mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedFilter).
+			Return(nil, nil).Once()
+		s.grantService.EXPECT().
+			List(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
+			Return([]domain.Grant{}, nil).Once()
+		s.grantService.EXPECT().
+			GetGrantsTotalCount(mock.AnythingOfType("*context.cancelCtx"), expectedFilter).
+			Return(int64(0), nil).Once()
+
+		req := &guardianv1beta1.ListGrantsRequest{
+			ResourceUrnStartsWith:    "prefix",
+			ResourceUrnEndsWith:      "_access",
+			ResourceUrnContains:      "exec",
+			ResourceUrnNotStartsWith: "skip",
+			ResourceUrnNotEndsWith:   "_tmp",
+			ResourceUrnNotContains:   "deprecated",
+		}
+		res, err := s.grpcServer.ListGrants(context.Background(), req)
+
+		s.NoError(err)
+		s.Equal(int32(0), res.GetTotal())
+		s.grantService.AssertExpectations(s.T())
+	})
+
 	s.Run("should return list of grants filtered by group_id and group_type on success", func() {
 		s.setup()
 		timeNow := time.Now()
