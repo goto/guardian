@@ -1,8 +1,9 @@
 package maxcompute
 
 import (
-	"github.com/goto/guardian/pkg/aliclientmanager"
 	"sync"
+
+	"github.com/goto/guardian/pkg/aliclientmanager"
 )
 
 // Credential initialization may use the network, so it runs outside the lock.

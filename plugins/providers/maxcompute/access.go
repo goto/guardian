@@ -43,7 +43,7 @@ func accessTargetFromGrant(pc *domain.ProviderConfig, g domain.Grant) (accessTar
 		return t, err
 	}
 	t.resourceType, t.urn, t.principal = g.Resource.Type, g.Resource.URN, g.AccountID
-	count := 0
+	var count int
 	switch t.resourceType {
 	case resourceTypeProject:
 		count = 1
