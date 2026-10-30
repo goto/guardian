@@ -209,7 +209,7 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 			{
 				name: "filter by provider urn not contains",
 				filters: domain.ListResourcesFilter{
-					ProviderUrnNotContains: "beta",
+					ProviderUrnNotContains: []string{"beta"},
 				},
 				expectedResult: []*domain.Resource{dummyResources[0], dummyResources[1], dummyResources[2]},
 			},

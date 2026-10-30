@@ -580,6 +580,13 @@ func buildJSONTextExpr(table, column string, path []string) string {
 	return fmt.Sprintf("COALESCE(NULLIF(%q.%q #>> '{%s}', ''), 'null')", table, column, strings.Join(path, ","))
 }
 
+func notContainsFromString(value string) []string {
+	if value == "" {
+		return nil
+	}
+	return []string{value}
+}
+
 func applyLikeAndInFilter(
 	db *gorm.DB,
 	column string,
@@ -590,7 +597,7 @@ func applyLikeAndInFilter(
 
 	notStartsWith string,
 	notEndsWith string,
-	notContains string,
+	notContains []string,
 
 	in []string,
 	notIn []string,
@@ -600,7 +607,7 @@ func applyLikeAndInFilter(
 	if (startsWith != "" || endsWith != "") && contains != "" {
 		return nil, fmt.Errorf("invalid filter: %s_contains cannot be used together with %s_starts_with or %s_ends_with", filterName, filterName, filterName)
 	}
-	if (notStartsWith != "" || notEndsWith != "") && notContains != "" {
+	if (notStartsWith != "" || notEndsWith != "") && len(notContains) > 0 {
 		return nil, fmt.Errorf("invalid filter: %s_not_contains cannot be used together with %s_not_starts_with or %s_not_ends_with", filterName, filterName, filterName)
 	}
 
@@ -641,12 +648,15 @@ func applyLikeAndInFilter(
 		negClauses = append(negClauses, fmt.Sprintf(`(%s IS NULL OR %s NOT LIKE ?)`, column, column))
 		negArgs = append(negArgs, "%"+notEndsWith)
 	}
-	if notContains != "" {
+	for _, nc := range notContains {
+		if nc == "" {
+			continue
+		}
 		negClauses = append(
 			negClauses,
 			fmt.Sprintf(`(%s IS NULL OR %s NOT LIKE ?)`, column, column),
 		)
-		negArgs = append(negArgs, "%"+notContains+"%")
+		negArgs = append(negArgs, "%"+nc+"%")
 	}
 	if len(notIn) > 0 {
 		negClauses = append(negClauses, fmt.Sprintf(`(%s IS NULL OR %s NOT IN ?)`, column, column))

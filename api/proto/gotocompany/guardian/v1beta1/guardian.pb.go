@@ -2011,7 +2011,7 @@ type ListResourcesRequest struct {
 	ProviderUrnContains      string   `protobuf:"bytes,23,opt,name=provider_urn_contains,json=providerUrnContains,proto3" json:"provider_urn_contains,omitempty"`
 	ProviderUrnNotStartsWith string   `protobuf:"bytes,24,opt,name=provider_urn_not_starts_with,json=providerUrnNotStartsWith,proto3" json:"provider_urn_not_starts_with,omitempty"`
 	ProviderUrnNotEndsWith   string   `protobuf:"bytes,25,opt,name=provider_urn_not_ends_with,json=providerUrnNotEndsWith,proto3" json:"provider_urn_not_ends_with,omitempty"`
-	ProviderUrnNotContains   string   `protobuf:"bytes,26,opt,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
+	ProviderUrnNotContains   []string   `protobuf:"bytes,26,rep,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
 	UrnStartsWith            string   `protobuf:"bytes,27,opt,name=urn_starts_with,json=urnStartsWith,proto3" json:"urn_starts_with,omitempty"`
 	UrnEndsWith              string   `protobuf:"bytes,28,opt,name=urn_ends_with,json=urnEndsWith,proto3" json:"urn_ends_with,omitempty"`
 	UrnContains              string   `protobuf:"bytes,29,opt,name=urn_contains,json=urnContains,proto3" json:"urn_contains,omitempty"`
@@ -2227,11 +2227,11 @@ func (x *ListResourcesRequest) GetProviderUrnNotEndsWith() string {
 	return ""
 }
 
-func (x *ListResourcesRequest) GetProviderUrnNotContains() string {
+func (x *ListResourcesRequest) GetProviderUrnNotContains() []string {
 	if x != nil {
 		return x.ProviderUrnNotContains
 	}
-	return ""
+	return nil
 }
 
 func (x *ListResourcesRequest) GetUrnStartsWith() string {
@@ -2647,7 +2647,7 @@ type ListUserAppealsRequest struct {
 	ProviderUrnContains       string                  `protobuf:"bytes,28,opt,name=provider_urn_contains,json=providerUrnContains,proto3" json:"provider_urn_contains,omitempty"`
 	ProviderUrnNotStartsWith  string                  `protobuf:"bytes,29,opt,name=provider_urn_not_starts_with,json=providerUrnNotStartsWith,proto3" json:"provider_urn_not_starts_with,omitempty"`
 	ProviderUrnNotEndsWith    string                  `protobuf:"bytes,30,opt,name=provider_urn_not_ends_with,json=providerUrnNotEndsWith,proto3" json:"provider_urn_not_ends_with,omitempty"`
-	ProviderUrnNotContains    string                  `protobuf:"bytes,31,opt,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
+	ProviderUrnNotContains    []string                  `protobuf:"bytes,31,rep,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
 	Durations                 []string                `protobuf:"bytes,32,rep,name=durations,proto3" json:"durations,omitempty"`
 	NotDurations              []string                `protobuf:"bytes,33,rep,name=not_durations,json=notDurations,proto3" json:"not_durations,omitempty"`
 	DetailsPaths              []string                `protobuf:"bytes,34,rep,name=details_paths,json=detailsPaths,proto3" json:"details_paths,omitempty"`
@@ -2923,11 +2923,11 @@ func (x *ListUserAppealsRequest) GetProviderUrnNotEndsWith() string {
 	return ""
 }
 
-func (x *ListUserAppealsRequest) GetProviderUrnNotContains() string {
+func (x *ListUserAppealsRequest) GetProviderUrnNotContains() []string {
 	if x != nil {
 		return x.ProviderUrnNotContains
 	}
-	return ""
+	return nil
 }
 
 func (x *ListUserAppealsRequest) GetDurations() []string {
@@ -3240,7 +3240,7 @@ type ListAppealsRequest struct {
 	ProviderUrnContains       string                  `protobuf:"bytes,30,opt,name=provider_urn_contains,json=providerUrnContains,proto3" json:"provider_urn_contains,omitempty"`
 	ProviderUrnNotStartsWith  string                  `protobuf:"bytes,31,opt,name=provider_urn_not_starts_with,json=providerUrnNotStartsWith,proto3" json:"provider_urn_not_starts_with,omitempty"`
 	ProviderUrnNotEndsWith    string                  `protobuf:"bytes,32,opt,name=provider_urn_not_ends_with,json=providerUrnNotEndsWith,proto3" json:"provider_urn_not_ends_with,omitempty"`
-	ProviderUrnNotContains    string                  `protobuf:"bytes,33,opt,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
+	ProviderUrnNotContains    []string                  `protobuf:"bytes,33,rep,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
 	Durations                 []string                `protobuf:"bytes,34,rep,name=durations,proto3" json:"durations,omitempty"`
 	NotDurations              []string                `protobuf:"bytes,35,rep,name=not_durations,json=notDurations,proto3" json:"not_durations,omitempty"`
 	DetailsPaths              []string                `protobuf:"bytes,36,rep,name=details_paths,json=detailsPaths,proto3" json:"details_paths,omitempty"`
@@ -3530,11 +3530,11 @@ func (x *ListAppealsRequest) GetProviderUrnNotEndsWith() string {
 	return ""
 }
 
-func (x *ListAppealsRequest) GetProviderUrnNotContains() string {
+func (x *ListAppealsRequest) GetProviderUrnNotContains() []string {
 	if x != nil {
 		return x.ProviderUrnNotContains
 	}
-	return ""
+	return nil
 }
 
 func (x *ListAppealsRequest) GetDurations() []string {
@@ -4970,7 +4970,7 @@ type ListUserApprovalsRequest struct {
 	ProviderUrnContains             string                  `protobuf:"bytes,30,opt,name=provider_urn_contains,json=providerUrnContains,proto3" json:"provider_urn_contains,omitempty"`
 	ProviderUrnNotStartsWith        string                  `protobuf:"bytes,31,opt,name=provider_urn_not_starts_with,json=providerUrnNotStartsWith,proto3" json:"provider_urn_not_starts_with,omitempty"`
 	ProviderUrnNotEndsWith          string                  `protobuf:"bytes,32,opt,name=provider_urn_not_ends_with,json=providerUrnNotEndsWith,proto3" json:"provider_urn_not_ends_with,omitempty"`
-	ProviderUrnNotContains          string                  `protobuf:"bytes,33,opt,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
+	ProviderUrnNotContains          []string                  `protobuf:"bytes,33,rep,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
 	AppealDurations                 []string                `protobuf:"bytes,34,rep,name=appeal_durations,json=appealDurations,proto3" json:"appeal_durations,omitempty"`
 	NotAppealDurations              []string                `protobuf:"bytes,35,rep,name=not_appeal_durations,json=notAppealDurations,proto3" json:"not_appeal_durations,omitempty"`
 	AppealDetailsPaths              []string                `protobuf:"bytes,36,rep,name=appeal_details_paths,json=appealDetailsPaths,proto3" json:"appeal_details_paths,omitempty"`
@@ -5265,11 +5265,11 @@ func (x *ListUserApprovalsRequest) GetProviderUrnNotEndsWith() string {
 	return ""
 }
 
-func (x *ListUserApprovalsRequest) GetProviderUrnNotContains() string {
+func (x *ListUserApprovalsRequest) GetProviderUrnNotContains() []string {
 	if x != nil {
 		return x.ProviderUrnNotContains
 	}
-	return ""
+	return nil
 }
 
 func (x *ListUserApprovalsRequest) GetAppealDurations() []string {
@@ -5610,7 +5610,7 @@ type ListApprovalsRequest struct {
 	ProviderUrnContains             string                  `protobuf:"bytes,30,opt,name=provider_urn_contains,json=providerUrnContains,proto3" json:"provider_urn_contains,omitempty"`
 	ProviderUrnNotStartsWith        string                  `protobuf:"bytes,31,opt,name=provider_urn_not_starts_with,json=providerUrnNotStartsWith,proto3" json:"provider_urn_not_starts_with,omitempty"`
 	ProviderUrnNotEndsWith          string                  `protobuf:"bytes,32,opt,name=provider_urn_not_ends_with,json=providerUrnNotEndsWith,proto3" json:"provider_urn_not_ends_with,omitempty"`
-	ProviderUrnNotContains          string                  `protobuf:"bytes,33,opt,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
+	ProviderUrnNotContains          []string                  `protobuf:"bytes,33,rep,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
 	AppealDurations                 []string                `protobuf:"bytes,34,rep,name=appeal_durations,json=appealDurations,proto3" json:"appeal_durations,omitempty"`
 	NotAppealDurations              []string                `protobuf:"bytes,35,rep,name=not_appeal_durations,json=notAppealDurations,proto3" json:"not_appeal_durations,omitempty"`
 	AppealDetailsPaths              []string                `protobuf:"bytes,36,rep,name=appeal_details_paths,json=appealDetailsPaths,proto3" json:"appeal_details_paths,omitempty"`
@@ -5912,11 +5912,11 @@ func (x *ListApprovalsRequest) GetProviderUrnNotEndsWith() string {
 	return ""
 }
 
-func (x *ListApprovalsRequest) GetProviderUrnNotContains() string {
+func (x *ListApprovalsRequest) GetProviderUrnNotContains() []string {
 	if x != nil {
 		return x.ProviderUrnNotContains
 	}
-	return ""
+	return nil
 }
 
 func (x *ListApprovalsRequest) GetAppealDurations() []string {
@@ -7069,7 +7069,7 @@ type ListGrantsRequest struct {
 	ProviderUrnContains             string                  `protobuf:"bytes,34,opt,name=provider_urn_contains,json=providerUrnContains,proto3" json:"provider_urn_contains,omitempty"`
 	ProviderUrnNotStartsWith        string                  `protobuf:"bytes,35,opt,name=provider_urn_not_starts_with,json=providerUrnNotStartsWith,proto3" json:"provider_urn_not_starts_with,omitempty"`
 	ProviderUrnNotEndsWith          string                  `protobuf:"bytes,36,opt,name=provider_urn_not_ends_with,json=providerUrnNotEndsWith,proto3" json:"provider_urn_not_ends_with,omitempty"`
-	ProviderUrnNotContains          string                  `protobuf:"bytes,37,opt,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
+	ProviderUrnNotContains          []string                  `protobuf:"bytes,37,rep,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
 	AppealDurations                 []string                `protobuf:"bytes,38,rep,name=appeal_durations,json=appealDurations,proto3" json:"appeal_durations,omitempty"`
 	NotAppealDurations              []string                `protobuf:"bytes,39,rep,name=not_appeal_durations,json=notAppealDurations,proto3" json:"not_appeal_durations,omitempty"`
 	AppealDetailsPaths              []string                `protobuf:"bytes,40,rep,name=appeal_details_paths,json=appealDetailsPaths,proto3" json:"appeal_details_paths,omitempty"`
@@ -7381,11 +7381,11 @@ func (x *ListGrantsRequest) GetProviderUrnNotEndsWith() string {
 	return ""
 }
 
-func (x *ListGrantsRequest) GetProviderUrnNotContains() string {
+func (x *ListGrantsRequest) GetProviderUrnNotContains() []string {
 	if x != nil {
 		return x.ProviderUrnNotContains
 	}
-	return ""
+	return nil
 }
 
 func (x *ListGrantsRequest) GetAppealDurations() []string {
@@ -7704,7 +7704,7 @@ type ListUserGrantsRequest struct {
 	ProviderUrnContains             string                                    `protobuf:"bytes,29,opt,name=provider_urn_contains,json=providerUrnContains,proto3" json:"provider_urn_contains,omitempty"`
 	ProviderUrnNotStartsWith        string                                    `protobuf:"bytes,30,opt,name=provider_urn_not_starts_with,json=providerUrnNotStartsWith,proto3" json:"provider_urn_not_starts_with,omitempty"`
 	ProviderUrnNotEndsWith          string                                    `protobuf:"bytes,31,opt,name=provider_urn_not_ends_with,json=providerUrnNotEndsWith,proto3" json:"provider_urn_not_ends_with,omitempty"`
-	ProviderUrnNotContains          string                                    `protobuf:"bytes,32,opt,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
+	ProviderUrnNotContains          []string                                    `protobuf:"bytes,32,rep,name=provider_urn_not_contains,json=providerUrnNotContains,proto3" json:"provider_urn_not_contains,omitempty"`
 	AppealDurations                 []string                                  `protobuf:"bytes,33,rep,name=appeal_durations,json=appealDurations,proto3" json:"appeal_durations,omitempty"`
 	NotAppealDurations              []string                                  `protobuf:"bytes,34,rep,name=not_appeal_durations,json=notAppealDurations,proto3" json:"not_appeal_durations,omitempty"`
 	AppealDetailsPaths              []string                                  `protobuf:"bytes,35,rep,name=appeal_details_paths,json=appealDetailsPaths,proto3" json:"appeal_details_paths,omitempty"`
@@ -7986,11 +7986,11 @@ func (x *ListUserGrantsRequest) GetProviderUrnNotEndsWith() string {
 	return ""
 }
 
-func (x *ListUserGrantsRequest) GetProviderUrnNotContains() string {
+func (x *ListUserGrantsRequest) GetProviderUrnNotContains() []string {
 	if x != nil {
 		return x.ProviderUrnNotContains
 	}
-	return ""
+	return nil
 }
 
 func (x *ListUserGrantsRequest) GetAppealDurations() []string {

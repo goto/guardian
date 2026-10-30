@@ -524,7 +524,7 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 
 	db, err = applyLikeAndInFilter(db, `"Appeal"."role"`,
 		filter.RoleStartsWith, filter.RoleEndsWith, filter.RoleContains,
-		filter.RoleNotStartsWith, filter.RoleNotEndsWith, filter.RoleNotContains,
+		filter.RoleNotStartsWith, filter.RoleNotEndsWith, notContainsFromString(filter.RoleNotContains),
 		filter.Roles, nil, "role",
 	)
 	if err != nil {
@@ -532,7 +532,8 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	}
 	db, err = applyLikeAndInFilter(db, `"Appeal__Resource"."provider_urn"`,
 		filter.ProviderUrnStartsWith, filter.ProviderUrnEndsWith, filter.ProviderUrnContains,
-		filter.ProviderUrnNotStartsWith, filter.ProviderUrnNotEndsWith, filter.ProviderUrnNotContains,
+		filter.ProviderUrnNotStartsWith, filter.ProviderUrnNotEndsWith,
+		slicesUtil.GenericsUniqueSliceValues(filter.ProviderUrnNotContains),
 		filter.ProviderURNs, nil, "provider_urn",
 	)
 	if err != nil {
@@ -540,7 +541,7 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	}
 	db, err = applyLikeAndInFilter(db, `"Appeal"."group_type"`,
 		filter.GroupTypeStartsWith, filter.GroupTypeEndsWith, filter.GroupTypeContains,
-		filter.GroupTypeNotStartsWith, filter.GroupTypeNotEndsWith, filter.GroupTypeNotContains,
+		filter.GroupTypeNotStartsWith, filter.GroupTypeNotEndsWith, notContainsFromString(filter.GroupTypeNotContains),
 		filter.GroupTypes, nil, "group_type",
 	)
 	if err != nil {

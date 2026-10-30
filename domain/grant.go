@@ -247,7 +247,7 @@ type ListGrantsFilter struct {
 	ProviderUrnContains             string              `json:"provider_urn_contains,omitempty"`
 	ProviderUrnNotStartsWith        string              `json:"provider_urn_not_starts_with,omitempty"`
 	ProviderUrnNotEndsWith          string              `json:"provider_urn_not_ends_with,omitempty"`
-	ProviderUrnNotContains          string              `json:"provider_urn_not_contains,omitempty"`
+	ProviderUrnNotContains          []string            `json:"provider_urn_not_contains,omitempty"`
 	AppealDurations                 []string            `json:"appeal_durations,omitempty"`
 	NotAppealDurations              []string            `json:"not_appeal_durations,omitempty"`
 	AppealDetailsPaths              []string            `json:"appeal_details_paths,omitempty"`

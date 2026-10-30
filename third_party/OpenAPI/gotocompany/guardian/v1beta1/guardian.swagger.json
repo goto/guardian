@@ -437,7 +437,11 @@
             "name": "providerUrnNotContains",
             "in": "query",
             "required": false,
-            "type": "string"
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           },
           {
             "name": "durations",
@@ -1526,7 +1530,11 @@
             "name": "providerUrnNotContains",
             "in": "query",
             "required": false,
-            "type": "string"
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           },
           {
             "name": "appealDurations",
@@ -1747,7 +1755,7 @@
           },
           {
             "name": "startExpirationDate",
-            "description": "Filters approvals to those whose previous grant expiration date is \u003e= start_expiration_date. Can be used alone or together with end_expiration_date for a range. Requires with_previous_grant=true.",
+            "description": "Filters approvals to those whose previous grant expiration date is >= start_expiration_date. Can be used alone or together with end_expiration_date for a range. Requires with_previous_grant=true.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -1755,7 +1763,7 @@
           },
           {
             "name": "endExpirationDate",
-            "description": "Filters approvals to those whose previous grant expiration date is \u003c= end_expiration_date. Can be used alone or together with start_expiration_date for a range. Requires with_previous_grant=true.",
+            "description": "Filters approvals to those whose previous grant expiration date is <= end_expiration_date. Can be used alone or together with start_expiration_date for a range. Requires with_previous_grant=true.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -1763,7 +1771,7 @@
           },
           {
             "name": "previousGrantStates",
-            "description": "Filter approvals by the state of the previous grant. Multiple values are combined with OR. Valid values: \"expired\", \"expiring\", \"none\".\n- expired: the latest grant matching the appeal's (account_id, resource_id, role, group_id, group_type) has expiration_date \u003c now.\n- expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted).\n- none: no previous grant exists for the combination, or the latest grant is permanent (expiration_date IS NULL).",
+            "description": "Filter approvals by the state of the previous grant. Multiple values are combined with OR. Valid values: \"expired\", \"expiring\", \"none\".\n- expired: the latest grant matching the appeal's (account_id, resource_id, role, group_id, group_type) has expiration_date < now.\n- expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted).\n- none: no previous grant exists for the combination, or the latest grant is permanent (expiration_date IS NULL).",
             "in": "query",
             "required": false,
             "type": "array",
@@ -2123,7 +2131,11 @@
             "name": "providerUrnNotContains",
             "in": "query",
             "required": false,
-            "type": "string"
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           },
           {
             "name": "appealDurations",
@@ -2863,7 +2875,11 @@
             "name": "providerUrnNotContains",
             "in": "query",
             "required": false,
-            "type": "string"
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           },
           {
             "name": "durations",
@@ -3370,7 +3386,11 @@
             "name": "providerUrnNotContains",
             "in": "query",
             "required": false,
-            "type": "string"
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           },
           {
             "name": "appealDurations",
@@ -3591,7 +3611,7 @@
           },
           {
             "name": "startExpirationDate",
-            "description": "Filters approvals to those whose previous grant expiration date is \u003e= start_expiration_date. Can be used alone or together with end_expiration_date for a range. Requires with_previous_grant=true.",
+            "description": "Filters approvals to those whose previous grant expiration date is >= start_expiration_date. Can be used alone or together with end_expiration_date for a range. Requires with_previous_grant=true.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -3599,7 +3619,7 @@
           },
           {
             "name": "endExpirationDate",
-            "description": "Filters approvals to those whose previous grant expiration date is \u003c= end_expiration_date. Can be used alone or together with start_expiration_date for a range. Requires with_previous_grant=true.",
+            "description": "Filters approvals to those whose previous grant expiration date is <= end_expiration_date. Can be used alone or together with start_expiration_date for a range. Requires with_previous_grant=true.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -3607,7 +3627,7 @@
           },
           {
             "name": "previousGrantStates",
-            "description": "Filter approvals by the state of the previous grant. Multiple values are combined with OR. Valid values: \"expired\", \"expiring\", \"none\".\n- expired: the latest grant matching the appeal's (account_id, resource_id, role, group_id, group_type) has expiration_date \u003c now.\n- expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted).\n- none: no previous grant exists for the combination, or the latest grant is permanent (expiration_date IS NULL).",
+            "description": "Filter approvals by the state of the previous grant. Multiple values are combined with OR. Valid values: \"expired\", \"expiring\", \"none\".\n- expired: the latest grant matching the appeal's (account_id, resource_id, role, group_id, group_type) has expiration_date < now.\n- expiring: the latest matching grant expires within expiring_within_days days from now (defaults to 7 when omitted).\n- none: no previous grant exists for the combination, or the latest grant is permanent (expiration_date IS NULL).",
             "in": "query",
             "required": false,
             "type": "array",
@@ -3942,7 +3962,11 @@
             "name": "providerUrnNotContains",
             "in": "query",
             "required": false,
-            "type": "string"
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           },
           {
             "name": "appealDurations",
@@ -4225,7 +4249,7 @@
           },
           {
             "name": "ids",
-            "description": "Supported formats:\n- \"\u003cid\u003e\"        → returns all versions of the policy\n- \"\u003cid\u003e:0\"      → returns the latest version of the policy\n- \"\u003cid\u003e:\u003cn\u003e\"    → returns version \u003cn\u003e of the policy (n \u003e 0)\nInvalid or malformed entries are ignored.",
+            "description": "Supported formats:\n- \"<id>\"        \u2192 returns all versions of the policy\n- \"<id>:0\"      \u2192 returns the latest version of the policy\n- \"<id>:<n>\"    \u2192 returns version <n> of the policy (n > 0)\nInvalid or malformed entries are ignored.",
             "in": "query",
             "required": false,
             "type": "array",
@@ -4448,7 +4472,7 @@
           },
           {
             "name": "urns",
-            "description": "Supported formats:\n- \"\u003curn\u003e\" -\u003e returns providers that match with the urn\n- \"\u003curn\u003e:\u003ctype\u003e\" -\u003e returns providers that match with the urn and type\nInvalid or malformed entries are ignored.",
+            "description": "Supported formats:\n- \"<urn>\" -> returns providers that match with the urn\n- \"<urn>:<type>\" -> returns providers that match with the urn and type\nInvalid or malformed entries are ignored.",
             "in": "query",
             "required": false,
             "type": "array",
@@ -4980,7 +5004,11 @@
             "name": "providerUrnNotContains",
             "in": "query",
             "required": false,
-            "type": "string"
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           },
           {
             "name": "urnStartsWith",

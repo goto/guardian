@@ -56,7 +56,7 @@ type ListResourcesFilter struct {
 	ProviderUrnContains      string            `mapstructure:"provider_urn_contains" json:"provider_urn_contains,omitempty" validate:"omitempty"`
 	ProviderUrnNotStartsWith string            `mapstructure:"provider_urn_not_starts_with" json:"provider_urn_not_starts_with,omitempty" validate:"omitempty"`
 	ProviderUrnNotEndsWith   string            `mapstructure:"provider_urn_not_ends_with" json:"provider_urn_not_ends_with,omitempty" validate:"omitempty"`
-	ProviderUrnNotContains   string            `mapstructure:"provider_urn_not_contains" json:"provider_urn_not_contains,omitempty" validate:"omitempty"`
+	ProviderUrnNotContains   []string          `mapstructure:"provider_urn_not_contains" json:"provider_urn_not_contains,omitempty" validate:"omitempty,dive,omitempty"`
 	Name                     string            `mapstructure:"name" validate:"omitempty"`
 	ResourceURN              string            `mapstructure:"urn" validate:"omitempty"`
 	ResourceType             string            `mapstructure:"type" validate:"omitempty"`
