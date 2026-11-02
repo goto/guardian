@@ -530,11 +530,12 @@ func applyApprovalsFilter(db *gorm.DB, filter *domain.ListApprovalsFilter) (*gor
 	if err != nil {
 		return nil, err
 	}
+	notProviderURNs := slicesUtil.GenericsUniqueSliceValues(filter.NotProviderURNs)
 	db, err = applyLikeAndInFilter(db, `"Appeal__Resource"."provider_urn"`,
 		filter.ProviderUrnStartsWith, filter.ProviderUrnEndsWith, filter.ProviderUrnContains,
 		filter.ProviderUrnNotStartsWith, filter.ProviderUrnNotEndsWith,
-		slicesUtil.GenericsUniqueSliceValues(filter.ProviderUrnNotContains),
-		filter.ProviderURNs, nil, "provider_urn",
+		notContainsFromString(filter.ProviderUrnNotContains),
+		filter.ProviderURNs, notProviderURNs, "provider_urn",
 	)
 	if err != nil {
 		return nil, err

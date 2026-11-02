@@ -494,11 +494,12 @@ func applyGrantsFilter(db *gorm.DB, filter domain.ListGrantsFilter) (*gorm.DB, e
 	if err != nil {
 		return nil, err
 	}
+	notProviderURNs := slicesUtil.GenericsUniqueSliceValues(filter.NotProviderURNs)
 	db, err = applyLikeAndInFilter(db, `"Resource"."provider_urn"`,
 		filter.ProviderUrnStartsWith, filter.ProviderUrnEndsWith, filter.ProviderUrnContains,
 		filter.ProviderUrnNotStartsWith, filter.ProviderUrnNotEndsWith,
-		slicesUtil.GenericsUniqueSliceValues(filter.ProviderUrnNotContains),
-		filter.ProviderURNs, nil, "provider_urn",
+		notContainsFromString(filter.ProviderUrnNotContains),
+		filter.ProviderURNs, notProviderURNs, "provider_urn",
 	)
 	if err != nil {
 		return nil, err

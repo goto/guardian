@@ -651,7 +651,8 @@ type ListAppealsFilter struct {
 	ProviderUrnContains       string    `mapstructure:"provider_urn_contains" json:"provider_urn_contains,omitempty" validate:"omitempty"`
 	ProviderUrnNotStartsWith  string    `mapstructure:"provider_urn_not_starts_with" json:"provider_urn_not_starts_with,omitempty" validate:"omitempty"`
 	ProviderUrnNotEndsWith    string    `mapstructure:"provider_urn_not_ends_with" json:"provider_urn_not_ends_with,omitempty" validate:"omitempty"`
-	ProviderUrnNotContains    []string  `mapstructure:"provider_urn_not_contains" json:"provider_urn_not_contains,omitempty" validate:"omitempty,dive,omitempty"`
+	ProviderUrnNotContains    string    `mapstructure:"provider_urn_not_contains" json:"provider_urn_not_contains,omitempty" validate:"omitempty"`
+	NotProviderURNs             []string  `mapstructure:"not_provider_urns" json:"not_provider_urns,omitempty" validate:"omitempty,dive,omitempty"`
 	Durations                 []string  `mapstructure:"durations" json:"durations,omitempty" validate:"omitempty"`
 	NotDurations              []string  `mapstructure:"not_durations" json:"not_durations,omitempty" validate:"omitempty"`
 	DetailsPaths              []string  `mapstructure:"details_paths" json:"details_paths,omitempty" validate:"omitempty"`
