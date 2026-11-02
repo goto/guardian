@@ -663,7 +663,7 @@
             "collectionFormat": "multi"
           },
           {
-            "name": "providerUrnNotContainsValues",
+            "name": "notProviderUrns",
             "in": "query",
             "required": false,
             "type": "array",
@@ -1791,7 +1791,7 @@
             "format": "int64"
           },
           {
-            "name": "providerUrnNotContainsValues",
+            "name": "notProviderUrns",
             "in": "query",
             "required": false,
             "type": "array",
@@ -2378,7 +2378,7 @@
             "collectionFormat": "multi"
           },
           {
-            "name": "providerUrnNotContainsValues",
+            "name": "notProviderUrns",
             "in": "query",
             "required": false,
             "type": "array",
@@ -3119,7 +3119,7 @@
             "collectionFormat": "multi"
           },
           {
-            "name": "providerUrnNotContainsValues",
+            "name": "notProviderUrns",
             "in": "query",
             "required": false,
             "type": "array",
@@ -3665,7 +3665,7 @@
             "format": "int64"
           },
           {
-            "name": "providerUrnNotContainsValues",
+            "name": "notProviderUrns",
             "in": "query",
             "required": false,
             "type": "array",
@@ -4204,7 +4204,7 @@
             "collectionFormat": "multi"
           },
           {
-            "name": "providerUrnNotContainsValues",
+            "name": "notProviderUrns",
             "in": "query",
             "required": false,
             "type": "array",
@@ -5079,7 +5079,7 @@
             "type": "string"
           },
           {
-            "name": "providerUrnNotContainsValues",
+            "name": "notProviderUrns",
             "in": "query",
             "required": false,
             "type": "array",
