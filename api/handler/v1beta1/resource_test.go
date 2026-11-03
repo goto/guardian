@@ -32,7 +32,7 @@ func (s *GrpcHandlersSuite) TestListResources() {
 			ProviderUrnContains:      "provider-middle",
 			ProviderUrnNotStartsWith: "provider-not-prefix",
 			ProviderUrnNotEndsWith:   "provider-not-suffix",
-			ProviderUrnNotContains:   "provider-not-middle",
+			ProviderUrnNotContains: "provider-not-middle",
 			UrnStartsWith:            "urn-prefix",
 			UrnEndsWith:              "urn-suffix",
 			UrnContains:              "urn-middle",

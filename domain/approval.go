@@ -115,6 +115,7 @@ type ListApprovalsFilter struct {
 	ProviderUrnNotStartsWith        string              `mapstructure:"provider_urn_not_starts_with" json:"provider_urn_not_starts_with,omitempty" validate:"omitempty"`
 	ProviderUrnNotEndsWith          string              `mapstructure:"provider_urn_not_ends_with" json:"provider_urn_not_ends_with,omitempty" validate:"omitempty"`
 	ProviderUrnNotContains          string              `mapstructure:"provider_urn_not_contains" json:"provider_urn_not_contains,omitempty" validate:"omitempty"`
+	NotProviderURNs                 []string            `mapstructure:"not_provider_urns" json:"not_provider_urns,omitempty" validate:"omitempty,dive,omitempty"`
 	AppealDurations                 []string            `mapstructure:"appeal_durations" json:"appeal_durations,omitempty" validate:"omitempty"`
 	NotAppealDurations              []string            `mapstructure:"not_appeal_durations" json:"not_appeal_durations,omitempty" validate:"omitempty"`
 	AppealDetailsPaths              []string            `mapstructure:"appeal_details_paths" json:"appeal_details_paths,omitempty" validate:"omitempty"`

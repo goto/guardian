@@ -73,6 +73,7 @@ func (s *GRPCServer) ListResources(ctx context.Context, req *guardianv1beta1.Lis
 		ProviderUrnNotStartsWith: req.GetProviderUrnNotStartsWith(),
 		ProviderUrnNotEndsWith:   req.GetProviderUrnNotEndsWith(),
 		ProviderUrnNotContains:   req.GetProviderUrnNotContains(),
+		NotProviderURNs:          req.GetNotProviderUrns(),
 		Name:                     req.GetName(),
 		ResourceURN:              req.GetUrn(),
 		ResourceType:             req.GetType(),

@@ -476,23 +476,25 @@ func applyAppealsFilter(db *gorm.DB, filters *domain.ListAppealsFilter) (*gorm.D
 
 	db, err = applyLikeAndInFilter(db, `LOWER("appeals"."role")`,
 		filters.RoleStartsWith, filters.RoleEndsWith, filters.RoleContains,
-		filters.RoleNotStartsWith, filters.RoleNotEndsWith, filters.RoleNotContains,
+		filters.RoleNotStartsWith, filters.RoleNotEndsWith, notContainsFromString(filters.RoleNotContains),
 		filters.Roles, nil, "role",
 	)
 	if err != nil {
 		return nil, err
 	}
+	notProviderURNs := slicesUtil.GenericsUniqueSliceValues(filters.NotProviderURNs)
 	db, err = applyLikeAndInFilter(db, `"Resource"."provider_urn"`,
 		filters.ProviderUrnStartsWith, filters.ProviderUrnEndsWith, filters.ProviderUrnContains,
-		filters.ProviderUrnNotStartsWith, filters.ProviderUrnNotEndsWith, filters.ProviderUrnNotContains,
-		filters.ProviderURNs, nil, "provider_urn",
+		filters.ProviderUrnNotStartsWith, filters.ProviderUrnNotEndsWith,
+		notContainsFromString(filters.ProviderUrnNotContains),
+		filters.ProviderURNs, notProviderURNs, "provider_urn",
 	)
 	if err != nil {
 		return nil, err
 	}
 	db, err = applyLikeAndInFilter(db, `"appeals"."group_type"`,
 		filters.GroupTypeStartsWith, filters.GroupTypeEndsWith, filters.GroupTypeContains,
-		filters.GroupTypeNotStartsWith, filters.GroupTypeNotEndsWith, filters.GroupTypeNotContains,
+		filters.GroupTypeNotStartsWith, filters.GroupTypeNotEndsWith, notContainsFromString(filters.GroupTypeNotContains),
 		filters.GroupTypes, nil, "group_type",
 	)
 	if err != nil {

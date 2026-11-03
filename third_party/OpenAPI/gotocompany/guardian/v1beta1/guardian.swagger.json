@@ -661,6 +661,16 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "notProviderUrns",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -1779,6 +1789,16 @@
             "required": false,
             "type": "integer",
             "format": "int64"
+          },
+          {
+            "name": "notProviderUrns",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -2349,6 +2369,16 @@
           },
           {
             "name": "resourceDetails",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "notProviderUrns",
             "in": "query",
             "required": false,
             "type": "array",
@@ -3087,6 +3117,16 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "notProviderUrns",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -3623,6 +3663,16 @@
             "required": false,
             "type": "integer",
             "format": "int64"
+          },
+          {
+            "name": "notProviderUrns",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -4145,6 +4195,16 @@
           },
           {
             "name": "resourceDetails",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "notProviderUrns",
             "in": "query",
             "required": false,
             "type": "array",
@@ -5017,6 +5077,16 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "notProviderUrns",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           }
         ],
         "tags": [
@@ -5562,7 +5632,7 @@
         "NULL_VALUE"
       ],
       "default": "NULL_VALUE",
-      "description": "`NullValue` is a singleton enumeration to represent the null value for the\n`Value` type union.\n\nThe JSON representation for `NullValue` is JSON `null`.\n\n - NULL_VALUE: Null value."
+      "description": "`NullValue` is a singleton enumeration to represent the null value for the\n`Value` type union.\n\n The JSON representation for `NullValue` is JSON `null`.\n\n - NULL_VALUE: Null value."
     },
     "rpcStatus": {
       "type": "object",

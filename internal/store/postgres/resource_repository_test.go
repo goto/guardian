@@ -214,6 +214,13 @@ func (s *ResourceRepositoryTestSuite) TestFind() {
 				expectedResult: []*domain.Resource{dummyResources[0], dummyResources[1], dummyResources[2]},
 			},
 			{
+				name: "filter by not provider urns exact match",
+				filters: domain.ListResourcesFilter{
+					NotProviderURNs: []string{"provider_urn_beta"},
+				},
+				expectedResult: []*domain.Resource{dummyResources[0], dummyResources[1], dummyResources[2]},
+			},
+			{
 				name: "filter by urn starts with",
 				filters: domain.ListResourcesFilter{
 					ResourceUrnStartsWith: "test_exact_urn",

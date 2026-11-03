@@ -147,10 +147,12 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) (*gorm.
 	if filter.ProviderURN != "" {
 		providerURNs = slicesUtil.GenericsUniqueSliceValues(append(providerURNs, filter.ProviderURN))
 	}
+	notProviderURNs := slicesUtil.GenericsUniqueSliceValues(filter.NotProviderURNs)
 	db, err = applyLikeAndInFilter(db, `"provider_urn"`,
 		filter.ProviderUrnStartsWith, filter.ProviderUrnEndsWith, filter.ProviderUrnContains,
-		filter.ProviderUrnNotStartsWith, filter.ProviderUrnNotEndsWith, filter.ProviderUrnNotContains,
-		providerURNs, nil, "provider_urn",
+		filter.ProviderUrnNotStartsWith, filter.ProviderUrnNotEndsWith,
+		notContainsFromString(filter.ProviderUrnNotContains),
+		providerURNs, notProviderURNs, "provider_urn",
 	)
 	if err != nil {
 		return nil, err
@@ -162,7 +164,7 @@ func applyResourceFilter(db *gorm.DB, filter domain.ListResourcesFilter) (*gorm.
 	}
 	db, err = applyLikeAndInFilter(db, `"urn"`,
 		filter.ResourceUrnStartsWith, filter.ResourceUrnEndsWith, filter.ResourceUrnContains,
-		filter.ResourceUrnNotStartsWith, filter.ResourceUrnNotEndsWith, filter.ResourceUrnNotContains,
+		filter.ResourceUrnNotStartsWith, filter.ResourceUrnNotEndsWith, notContainsFromString(filter.ResourceUrnNotContains),
 		resourceURNs, nil, "urn",
 	)
 	if err != nil {
