@@ -2,6 +2,7 @@ package grant
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -476,8 +477,7 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 		return grant, nil
 	}
 
-	revokedGrant := &domain.Grant{}
-	*revokedGrant = *grant
+	originalGrant := *grant
 	if err := grant.Revoke(actor, reason); err != nil {
 		return nil, err
 	}
@@ -487,8 +487,10 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 
 	if !options.skipRevokeInProvider {
 		if err := s.providerService.RevokeAccess(ctx, *grant); err != nil {
-			if err := s.repo.Update(ctx, grant); err != nil {
-				return nil, fmt.Errorf("failed to rollback grant status: %w", err)
+			rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			defer cancel()
+			if rollbackErr := s.repo.Update(rollbackCtx, &originalGrant); rollbackErr != nil {
+				return nil, errors.Join(fmt.Errorf("removing grant in provider: %w", err), fmt.Errorf("failed to rollback grant status: %w", rollbackErr))
 			}
 			return nil, fmt.Errorf("removing grant in provider: %w", err)
 		}

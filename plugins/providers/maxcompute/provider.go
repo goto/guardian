@@ -27,11 +27,12 @@ type encryptor interface {
 type provider struct {
 	pv.UnimplementedClient
 	pv.PermissionManager
-	typeName    string
-	encryptor   encryptor
-	logger      log.Logger
-	mu          *sync.Mutex
-	concurrency int
+	typeName             string
+	encryptor            encryptor
+	logger               log.Logger
+	mu                   *sync.Mutex
+	concurrency          int
+	accessSessionFactory func(*domain.ProviderConfig, accessTarget) (*accessSession, error)
 
 	restClientsCache        map[string]*aliclientmanager.Manager[*maxcompute.Client]
 	odpsClientsCache        map[string]*aliclientmanager.Manager[*odps.Odps]
@@ -162,174 +163,11 @@ func (p *provider) GetResources(ctx context.Context, pc *domain.ProviderConfig) 
 }
 
 func (p *provider) GrantAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
-	if g.AccountType == domain.AccountTypePackage {
-		return nil
-	}
-
-	var overrideRAMRole string
-	if slices.Contains(pc.GetParameterKeys(), parameterRAMRoleKey) {
-		r, _, err := getParametersFromGrant[string](g, parameterRAMRoleKey)
-		if err != nil {
-			return fmt.Errorf("failed to get %q parameter value from grant: %w", parameterRAMRoleKey, err)
-		}
-		overrideRAMRole = r
-	}
-
-	switch g.Resource.Type {
-	case resourceTypeProject:
-		project := g.Resource.URN
-
-		var addAsProjectMember bool
-		var permissions []string
-		for _, permission := range g.Permissions {
-			if permission == projectPermissionMember {
-				addAsProjectMember = true
-				continue
-			}
-			permissions = append(permissions, permission)
-		}
-
-		if addAsProjectMember {
-			if err := p.addMemberToProject(ctx, pc, overrideRAMRole, project, g.AccountID); err != nil {
-				return err
-			}
-		}
-
-		if err := p.validateProjectRole(ctx, pc, overrideRAMRole, project, permissions...); err != nil {
-			return err
-		}
-
-		if err := p.grantProjectRolesToMember(ctx, pc, overrideRAMRole, project, g.AccountID, permissions...); err != nil {
-			return err
-		}
-
-	case resourceTypeSchema:
-		client, err := p.getCatalogAPIsClient(pc, overrideRAMRole)
-		if err != nil {
-			return err
-		}
-
-		project := strings.Split(g.Resource.URN, ".")[0]
-		schema := g.Resource.Name
-
-		for _, permission := range g.Permissions {
-			if _, err = client.RoleBindingSchemaCreate(ctx, &alicatalogapis.RoleBindingSchemaCreateRequest{
-				Project:  project,
-				Schema:   schema,
-				RoleName: permission,
-				Members:  []string{g.AccountID},
-			}); err != nil {
-				return fmt.Errorf("fail to grant schema roles at '%s.%s': %w", project, schema, err)
-			}
-		}
-
-		schemaDefaultRoleName, err := p.getSchemaDefaultRoleName(pc)
-		if err != nil {
-			return err
-		}
-
-		if schemaDefaultRoleName != "" {
-			if _, err = client.RoleBindingProjectCreate(ctx, &alicatalogapis.RoleBindingProjectCreateRequest{
-				Project:  project,
-				RoleName: schemaDefaultRoleName,
-				Members:  []string{g.AccountID},
-			}); err != nil {
-				return fmt.Errorf("fail to grant schema default roles at '%s.%s': %w", project, schema, err)
-			}
-		}
-
-	case resourceTypeTable:
-		resourceURNSplit := strings.Split(g.Resource.URN, ".")
-		project := resourceURNSplit[0]
-		schema := resourceURNSplit[1]
-		table := g.Resource.Name
-		if err := p.grantTableRolesToMember(ctx, pc, overrideRAMRole, project, schema, table, g.AccountID, g.Permissions...); err != nil {
-			return err
-		}
-
-	default:
-		return fmt.Errorf("unsupported resource type: %s", g.Resource.Type)
-	}
-
-	return nil
+	return p.changeAccess(ctx, pc, g, true)
 }
 
 func (p *provider) RevokeAccess(ctx context.Context, pc *domain.ProviderConfig, g domain.Grant) error {
-	if g.AccountType == domain.AccountTypePackage {
-		return nil
-	}
-
-	var overrideRAMRole string
-	if slices.Contains(pc.GetParameterKeys(), parameterRAMRoleKey) {
-		r, _, err := getParametersFromGrant[string](g, parameterRAMRoleKey)
-		if err != nil {
-			return fmt.Errorf("failed to get %q parameter value from grant: %w", parameterRAMRoleKey, err)
-		}
-		overrideRAMRole = r
-	}
-
-	switch g.Resource.Type {
-	case resourceTypeProject:
-		project := g.Resource.URN
-
-		revokeFromProjectMember := false
-		var permissions []string
-		for _, permission := range g.Permissions {
-			if permission == projectPermissionMember {
-				revokeFromProjectMember = true
-				continue
-			}
-			permissions = append(permissions, permission)
-		}
-
-		if revokeFromProjectMember {
-			if err := p.removeMemberFromProject(ctx, pc, overrideRAMRole, project, g.AccountID); err != nil {
-				return err
-			}
-		}
-
-		if err := p.validateProjectRole(ctx, pc, overrideRAMRole, project, permissions...); err != nil {
-			return err
-		}
-
-		if err := p.revokeProjectRolesFromMember(ctx, pc, overrideRAMRole, project, g.AccountID, permissions...); err != nil {
-			return err
-		}
-
-	case resourceTypeSchema:
-		client, err := p.getCatalogAPIsClient(pc, overrideRAMRole)
-		if err != nil {
-			return err
-		}
-
-		project := strings.Split(g.Resource.URN, ".")[0]
-		schema := g.Resource.Name
-
-		for _, permission := range g.Permissions {
-			if err = client.RoleBindingSchemaDelete(ctx, &alicatalogapis.RoleBindingSchemaDeleteRequest{
-				Project:  project,
-				Schema:   schema,
-				RoleName: permission,
-				Members:  []string{g.AccountID},
-			}); err != nil {
-				return fmt.Errorf("fail to revoke schema roles from '%s.%s': %w", project, schema, err)
-			}
-		}
-
-	case resourceTypeTable:
-		resourceURNSplit := strings.Split(g.Resource.URN, ".")
-		project := resourceURNSplit[0]
-		schema := resourceURNSplit[1]
-		table := g.Resource.Name
-		if err := p.revokeTableRolesFromMember(ctx, pc, overrideRAMRole, project, schema, table, g.AccountID, g.Permissions...); err != nil {
-			return err
-		}
-
-	default:
-		return fmt.Errorf("unsupported resource type: %s", g.Resource.Type)
-	}
-
-	return nil
+	return p.changeAccess(ctx, pc, g, false)
 }
 
 func (p *provider) GetDependencyGrants(ctx context.Context, pd domain.Provider, g domain.Grant) ([]*domain.Grant, error) {
@@ -388,14 +226,6 @@ func (p *provider) getCreds(pc *domain.ProviderConfig) (*credentials, error) {
 		return nil, fmt.Errorf("failed to decrypt credentials: %w", err)
 	}
 	return creds, nil
-}
-
-func (p *provider) getSchemaDefaultRoleName(pc *domain.ProviderConfig) (string, error) {
-	creds, err := p.getCreds(pc)
-	if err != nil {
-		return "", err
-	}
-	return creds.SchemaDefaultPolicy, nil
 }
 
 func (p *provider) ListAccess(ctx context.Context, pc domain.ProviderConfig, resources []*domain.Resource) (domain.MapResourceAccess, error) {
