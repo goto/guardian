@@ -36,3 +36,41 @@ func TestOwnerChangeUsesOnlyPublicGrantContext(t *testing.T) {
 		t.Fatal("raw grant object was forwarded")
 	}
 }
+
+func TestV2DurationUsesRawValueWithoutInferringPermanent(t *testing.T) {
+	for _, duration := range []string{"", "0h", "90d"} {
+		input := map[string]interface{}{"duration": "Permanent", "requested_duration": duration}
+		if got := presentationVariables(input)["duration"]; got != duration {
+			t.Fatalf("duration = %v, want %q", got, duration)
+		}
+		if input["duration"] != "Permanent" {
+			t.Fatal("legacy value mutated")
+		}
+	}
+}
+
+func TestUnusedGrantBatchRetainsBoundedPublicContext(t *testing.T) {
+	var grants []map[string]interface{}
+	for i := 0; i < 100; i++ {
+		grants = append(grants, map[string]interface{}{"resource": map[string]interface{}{"name": "Reporting", "urn": "reporting", "details": "PRIVATE_CANARY"}, "role": "reader", "account_id": "bot@example.com", "details": "PRIVATE_CANARY"})
+	}
+	result := presentationVariables(map[string]interface{}{"dormant_grants": grants, "period": "720h", "retain_duration": "168h"})
+	data, _ := json.Marshal(result)
+	if result["unused_grants_count"] != 100 || len(result["unused_grants"].([]map[string]interface{})) != 5 || !strings.Contains(string(data), "Reporting") || strings.Contains(string(data), "PRIVATE") {
+		t.Fatal("unused grants lost context or exposed private data")
+	}
+	if len(data) > 10000 {
+		t.Fatal("unbounded batch payload")
+	}
+}
+
+func TestLongPublicTextCannotPreventNotificationDelivery(t *testing.T) {
+	input := map[string]interface{}{"body": strings.Repeat("界", 30000)}
+	data, err := json.Marshal(presentationVariables(input))
+	if err != nil || len(data) > 4000 {
+		t.Fatal("long comment exceeds delivery budget")
+	}
+	if len([]rune(input["body"].(string))) != 30000 {
+		t.Fatal("original comment was truncated")
+	}
+}

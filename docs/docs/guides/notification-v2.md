@@ -93,7 +93,19 @@ environment's CONSOLE_BASE_URL for request and package routes. The v2 adapter fi
 private policy/HR fields before delivery, including recovery; only the user-facing access reason
 is extracted from policy questions. Notification criteria still run before presentation filtering.
 
-The shared v2 card fingerprint triggers a one-time repaint of active tracked cards on this UI
+The shared v3 card fingerprint triggers a one-time repaint of active tracked cards on this UI
 upgrade. Later unchanged checks preserve forms as before; the upgrade itself can reset an open
 rejection form. Closed historical receipts are not reopened. Rebuild/deploy compatible Guardian
 and worker images together; no additional database migration is needed.
+
+Notification changes are compared against the appeal snapshot under the approval commit lock,
+so an approver added by a concurrent operation is not notified again from an older snapshot.
+Cancellation also revalidates status and revision under this lock. It cannot overwrite a final
+approval already committed or cancel a replacement revision based on an old read.
+
+These guards do not make external provider operations atomic with the database. GrantAccess still
+runs before the locked approval commit. If a cancellation/rejection/edit wins while provider work
+is in flight, access may already have changed upstream even though the approval commit is refused.
+Resolving that existing race requires durable coordination of provider work and request transitions;
+blind compensation can revoke access granted by another winning operation. This limitation is
+separate from card receipts and must not be represented as exactly-once provisioning.

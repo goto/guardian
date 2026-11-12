@@ -105,3 +105,15 @@ func TestSequentialStageNotifiesOnlyAfterParallelStageCompletes(t *testing.T) {
 		t.Fatalf("wrong next stage: %+v", got)
 	}
 }
+
+func TestApprovalNotificationRetainsExplicitDurationPresence(t *testing.T) {
+	s := &Service{logger: log.NewNoop()}
+	for _, duration := range []string{"", "0h", "90d"} {
+		a := parallelNotificationAppeal()
+		a.Options.Duration = duration
+		n := s.getApprovalNotifications(context.Background(), a)[0]
+		if value, ok := n.Message.Variables["requested_duration"]; !ok || value != duration {
+			t.Fatalf("raw duration missing: %v", value)
+		}
+	}
+}

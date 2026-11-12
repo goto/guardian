@@ -30,7 +30,7 @@ func NotificationCardStateHash(a *Appeal, ids []string, recipient string) string
 	ordered := append([]string(nil), ids...)
 	sort.Strings(ordered)
 	h := sha256.New()
-	fmt.Fprintf(h, "v2\n%d\n%s\n", a.Revision, a.Status)
+	fmt.Fprintf(h, "v3\n%d\n%s\n", a.Revision, a.Status)
 	for _, id := range ordered {
 		var step *Approval
 		for _, candidate := range a.Approvals {

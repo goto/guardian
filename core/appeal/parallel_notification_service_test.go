@@ -69,3 +69,43 @@ func TestAddingApproverToBlockedStepDoesNotSendNotification(t *testing.T) {
 	}
 	h.mockNotifier.AssertNotCalled(t, "Notify", mock.Anything, mock.Anything)
 }
+
+// Another request added B's new approver (and notified them) after this action's pre-check.
+// Approving A must not send B's notification again from that stale pre-check snapshot.
+func TestApprovalDoesNotRenotifyConcurrentlyAddedApprover(t *testing.T) {
+	h := newServiceTestHelper()
+	defer h.assertExpectations(t)
+	id := uuid.NewString()
+	initial := serviceParallelAppeal(id)
+	fresh := serviceParallelAppeal(id)
+	for _, a := range []*domain.Appeal{initial, fresh} {
+		a.Approvals[1].Index = 0
+		a.Approvals[1].Status = domain.ApprovalStatusPending
+	}
+	fresh.Approvals[1].Approvers = append(fresh.Approvals[1].Approvers, "new@example.com")
+	h.mockRepository.EXPECT().GetByID(mock.Anything, id).Return(initial, nil).Once()
+	h.mockRepository.EXPECT().UpdateWithLock(mock.Anything, id, (*domain.Grant)(nil), mock.Anything).RunAndReturn(func(ctx context.Context, id string, previous *domain.Grant, mutate func(*domain.Appeal) error) (*domain.Appeal, error) {
+		if err := mutate(fresh); err != nil {
+			return nil, err
+		}
+		return fresh, nil
+	}).Once()
+	captured := make(chan []domain.Notification, 1)
+	h.mockNotifier.EXPECT().Notify(mock.Anything, mock.Anything).Run(func(ctx context.Context, items []domain.Notification) { captured <- items }).Return(nil).Maybe()
+	audited := make(chan struct{}, 1)
+	h.mockAuditLogger.EXPECT().Log(mock.Anything, appeal.AuditKeyApprove, mock.Anything).Run(func(context.Context, string, interface{}) { audited <- struct{}{} }).Return(nil).Once()
+	_, err := h.service.UpdateApproval(context.Background(), domain.ApprovalAction{AppealID: id, ApprovalName: "a", Actor: "a@example.com", Action: "approve"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-audited:
+	case <-time.After(time.Second):
+		t.Fatal("audit did not complete")
+	}
+	select {
+	case items := <-captured:
+		t.Fatalf("concurrent approver was re-notified: %d items", len(items))
+	case <-time.After(100 * time.Millisecond):
+	}
+}

@@ -176,6 +176,9 @@ func (s *ServiceTestSuite) TestUpdate() {
 				"grant_id":       id,
 				"previous_owner": existingGrant.Owner,
 				"new_owner":      expectedUpdatedGrant.Owner,
+				"account_id":     expectedUpdatedGrant.AccountID,
+				"account_type":   expectedUpdatedGrant.AccountType,
+				"role":           expectedUpdatedGrant.Role,
 			},
 		}
 		expectedNotifications := []domain.Notification{{

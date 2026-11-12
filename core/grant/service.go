@@ -420,6 +420,16 @@ func (s *Service) Update(ctx context.Context, payload *domain.GrantUpdate) (*dom
 					"new_owner":      latestGrant.Owner,
 				},
 			}
+			message.Variables["account_id"] = latestGrant.AccountID
+			message.Variables["account_type"] = latestGrant.AccountType
+			message.Variables["role"] = latestGrant.Role
+			if latestGrant.Resource != nil {
+				message.Variables["resource_id"] = latestGrant.Resource.ID
+				message.Variables["resource_display_name"] = latestGrant.Resource.Name
+				message.Variables["resource_urn"] = latestGrant.Resource.URN
+				message.Variables["provider_type"] = latestGrant.Resource.ProviderType
+				message.Variables["resource_type"] = latestGrant.Resource.Type
+			}
 			notifications := []domain.Notification{{
 				User: latestGrant.Owner,
 				Labels: map[string]string{

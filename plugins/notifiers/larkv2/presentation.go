@@ -10,11 +10,14 @@ func presentationVariables(input map[string]interface{}) map[string]interface{} 
 		"resource_id", "resource_display_name", "resource_name", "resource_urn", "resource_type", "provider_type",
 		"requestor", "appeal_created_by", "account_id", "account_type", "role", "duration", "appeal_id", "approval_step", "created_at",
 		"reason", "revoke_reason", "reason_to_access", "comment", "body", "comment_created_by", "comment_id",
-		"pending_approvals_count", "expiration_date", "expiration_date_formatted", "previous_owner", "old_owner", "new_owner",
+		"period", "retain_duration", "start_date_formatted", "pending_approvals_count", "expiration_date", "expiration_date_formatted", "previous_owner", "old_owner", "new_owner",
 	} {
 		if value, ok := input[key]; ok {
 			output[key] = value
 		}
+	}
+	if duration, ok := input["requested_duration"].(string); ok {
+		output["duration"] = duration
 	}
 	if details, ok := input["details"].(map[string]interface{}); ok {
 		questions, _ := details["__policy_questions"].(map[string]interface{})
@@ -32,7 +35,31 @@ func presentationVariables(input map[string]interface{}) map[string]interface{} 
 			}
 		}
 	}
-	// Owner-change notifications use the grant object rather than flat resource fields.
+	// The unused-access producer sends a batch, not one grant. Keep only bounded public summaries.
+	if grants, ok := input["dormant_grants"].([]map[string]interface{}); ok {
+		output["unused_grants_count"] = len(grants)
+		var summaries []map[string]interface{}
+		for i, grant := range grants {
+			if i == 5 {
+				break
+			}
+			summary := map[string]interface{}{}
+			resource, _ := grant["resource"].(map[string]interface{})
+			for dst, src := range map[string]string{"resource_display_name": "name", "resource_urn": "urn"} {
+				if value, ok := resource[src].(string); ok {
+					summary[dst] = presentationPreview(value)
+				}
+			}
+			for _, key := range []string{"account_id", "role"} {
+				if value, ok := grant[key].(string); ok {
+					summary[key] = presentationPreview(value)
+				}
+			}
+			summaries = append(summaries, summary)
+		}
+		output["unused_grants"] = summaries
+	}
+	// Compatibility for integrations that supply a typed grant rather than flat resource fields.
 	var grant *domain.Grant
 	switch value := input["grant"].(type) {
 	case *domain.Grant:
@@ -52,5 +79,22 @@ func presentationVariables(input map[string]interface{}) map[string]interface{} 
 		output["account_type"] = grant.AccountType
 		output["role"] = grant.Role
 	}
+	// Leave one extra rune so the worker marks these as shortened previews. Full text stays in Guardian.
+	for _, key := range []string{"reason", "revoke_reason", "reason_to_access", "comment", "body"} {
+		if value, ok := output[key].(string); ok {
+			runes := []rune(value)
+			if len(runes) > 1001 {
+				output[key] = string(runes[:1001])
+			}
+		}
+	}
 	return output
+}
+
+func presentationPreview(value string) string {
+	runes := []rune(value)
+	if len(runes) > 400 {
+		return string(runes[:400]) + "…"
+	}
+	return value
 }

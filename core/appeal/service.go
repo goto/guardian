@@ -464,6 +464,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 					"provider_type":         appeal.Resource.ProviderType,
 					"role":                  appeal.Role,
 					"account_id":            appeal.AccountID,
+					"requested_duration":    notificationDuration(appeal),
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
 				},
@@ -570,6 +571,7 @@ func addOnBehalfApprovedNotification(appeal *domain.Appeal, notifications []doma
 					"provider_type":         appeal.Resource.ProviderType,
 					"role":                  appeal.Role,
 					"account_id":            appeal.AccountID,
+					"requested_duration":    notificationDuration(appeal),
 					"requestor":             appeal.CreatedBy,
 				},
 			},
@@ -851,30 +853,6 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 				return fmt.Errorf("granting access: %w", err)
 			}
 		}
-
-		notifications = append(notifications, domain.Notification{
-			User: appeal.CreatedBy,
-			Labels: map[string]string{
-				"appeal_id": appeal.ID,
-			},
-			Message: domain.NotificationMessage{
-				Type: domain.NotificationTypeAppealApproved,
-				Variables: map[string]interface{}{
-					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-					"resource_id":           appeal.Resource.ID,
-					"resource_display_name": appeal.Resource.Name,
-					"resource_urn":          appeal.Resource.URN,
-					"resource_type":         appeal.Resource.Type,
-					"provider_type":         appeal.Resource.ProviderType,
-					"role":                  appeal.Role,
-					"account_id":            appeal.AccountID,
-					"appeal_id":             appeal.ID,
-					"requestor":             appeal.CreatedBy,
-				},
-			},
-		})
-
-		notifications = addOnBehalfApprovedNotification(appeal, notifications)
 	}
 
 	newApprovals := appeal.Approvals
@@ -929,6 +907,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 					"provider_type":         appeal.Resource.ProviderType,
 					"role":                  appeal.Role,
 					"account_id":            appeal.AccountID,
+					"requested_duration":    notificationDuration(appeal),
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
 				},
@@ -959,6 +938,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 					"provider_type":         appeal.Resource.ProviderType,
 					"role":                  appeal.Role,
 					"account_id":            appeal.AccountID,
+					"requested_duration":    notificationDuration(appeal),
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
 					"reason":                reason,
@@ -1153,6 +1133,7 @@ func (s *Service) updateApprovalAttempt(ctx context.Context, approvalAction doma
 	// then save the appeal (with new grant attached) and revoke the previous grant — all in
 	// one transaction. If the re-validation fails (e.g., another approver acted concurrently),
 	// the side effects from phase 2 are wasted but the DB stays coherent.
+	var notificationBefore *domain.Appeal
 	appeal, err := s.repo.UpdateWithLock(ctx, approvalAction.AppealID, prevGrant, func(freshAppeal *domain.Appeal) error {
 		if err := checkIfAppealStatusStillPending(freshAppeal.Status); err != nil {
 			return err
@@ -1167,6 +1148,8 @@ func (s *Service) updateApprovalAttempt(ctx context.Context, approvalAction doma
 		if approvalAction.Action == domain.AppealActionNameApprove {
 			freshAppeal.Policy = policyObj
 		}
+		// Compare notifications against the state protected by this commit, not a stale pre-check.
+		notificationBefore = cloneAppealForMutation(freshAppeal)
 		if err := applyApprovalMutation(freshAppeal, approvalAction, policyObj); err != nil {
 			return err
 		}
@@ -1224,6 +1207,7 @@ func (s *Service) updateApprovalAttempt(ctx context.Context, approvalAction doma
 					"provider_type":         appeal.Resource.ProviderType,
 					"role":                  appeal.Role,
 					"account_id":            appeal.AccountID,
+					"requested_duration":    notificationDuration(appeal),
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
 				},
@@ -1247,6 +1231,7 @@ func (s *Service) updateApprovalAttempt(ctx context.Context, approvalAction doma
 					"provider_type":         appeal.Resource.ProviderType,
 					"role":                  appeal.Role,
 					"account_id":            appeal.AccountID,
+					"requested_duration":    notificationDuration(appeal),
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
 					"reason":                approvalAction.Reason,
@@ -1254,7 +1239,7 @@ func (s *Service) updateApprovalAttempt(ctx context.Context, approvalAction doma
 			},
 		})
 	} else {
-		notifications = append(notifications, s.getNewApprovalNotifications(ctx, initialAppeal, appeal)...)
+		notifications = append(notifications, s.getNewApprovalNotifications(ctx, notificationBefore, appeal)...)
 	}
 	if len(notifications) > 0 {
 		go func() {
@@ -1511,8 +1496,20 @@ func (s *Service) Cancel(ctx context.Context, id string) (*domain.Appeal, error)
 		return nil, err
 	}
 
-	appeal.Cancel()
-	if err := s.repo.Update(ctx, appeal); err != nil {
+	// A console/job cancellation may race a final approval or an appeal edit.
+	// Revalidate under the same row lock as approvals instead of saving the stale snapshot.
+	revision := appeal.Revision
+	appeal, err = s.repo.UpdateWithLock(ctx, id, nil, func(fresh *domain.Appeal) error {
+		if fresh.Revision != revision {
+			return fmt.Errorf("%w: request changed before cancellation", ErrApprovalNotEligibleForAction)
+		}
+		if err := checkIfAppealStatusStillPending(fresh.Status); err != nil {
+			return err
+		}
+		fresh.Cancel()
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -1976,6 +1973,7 @@ func (s *Service) getApprovalNotifications(ctx context.Context, appeal *domain.A
 						"requestor":             appeal.CreatedBy,
 						"appeal_id":             appeal.ID,
 						"account_id":            appeal.AccountID,
+						"requested_duration":    notificationDuration(appeal),
 						"account_type":          appeal.AccountType,
 						"provider_type":         appeal.Resource.ProviderType,
 						"resource_type":         appeal.Resource.Type,
@@ -3039,4 +3037,12 @@ func evaluateExpressionWithParams(params map[string]interface{}, expr string) (s
 		}
 		return string(jsonBytes), nil
 	}
+}
+
+// Keep missing distinct from explicit permanent access in v2. Legacy duration labels remain unchanged.
+func notificationDuration(a *domain.Appeal) string {
+	if a.Options == nil {
+		return ""
+	}
+	return a.Options.Duration
 }
