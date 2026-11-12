@@ -89,6 +89,14 @@ func (n *Notifier) reconcileCard(parent context.Context, card domain.Notificatio
 		}
 		return
 	}
+	// If the entire final-edit window was unavailable, stop retrying after the
+	// platform's maximum update age. Never send a replacement notification here.
+	if card.MessageID != "" && !card.DeliveryDeadline.IsZero() && time.Now().After(card.DeliveryDeadline.Add(14*24*time.Hour+time.Minute)) {
+		if err := n.store.Complete(ctx, card, card.LastStateHash, true, 0); err != nil {
+			failed = true
+		}
+		return
+	}
 	appeal, err := n.reader.GetByID(ctx, card.AppealID)
 	if err != nil || appeal == nil {
 		retry(15 * time.Second)
@@ -96,7 +104,7 @@ func (n *Notifier) reconcileCard(parent context.Context, card domain.Notificatio
 	}
 	if card.MessageID == "" {
 		item := recoveryNotification(card, appeal)
-		data, err := json.Marshal(envelope{EventID: card.EventID, Recipient: card.Recipient, Type: item.Message.Type, Variables: item.Message.Variables, Approval: item.Approval})
+		data, err := json.Marshal(envelope{EventID: card.EventID, Recipient: card.Recipient, Type: item.Message.Type, Variables: presentationVariables(item.Message.Variables), Approval: item.Approval})
 		if err != nil || len(data) > 64*1024 {
 			retry(15 * time.Second)
 			return
@@ -108,7 +116,7 @@ func (n *Notifier) reconcileCard(parent context.Context, card domain.Notificatio
 	}
 	hash := domain.NotificationCardStateHash(appeal, card.ApprovalIDs, card.Recipient)
 	terminal := uint32(appeal.Revision) != card.Revision || appeal.Status != domain.AppealStatusPending
-	if hash == card.LastStateHash {
+	if hash == card.LastStateHash && !card.Expired(time.Now()) {
 		if err := n.store.Complete(ctx, card, hash, terminal, 5*time.Second); err != nil {
 			failed = true
 		}
@@ -176,6 +184,9 @@ func recoveryNotification(card domain.NotificationCard, a *domain.Appeal) domain
 		vars["duration"] = a.Options.Duration
 	}
 	if a.Resource != nil {
+		vars["resource_id"] = a.Resource.ID
+		vars["resource_display_name"] = a.Resource.Name
+		vars["resource_urn"] = a.Resource.URN
 		vars["resource_name"] = a.Resource.Name
 		vars["provider_type"] = a.Resource.ProviderType
 		vars["resource_type"] = a.Resource.Type

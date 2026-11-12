@@ -50,7 +50,7 @@ func TestNotificationCardRepositoryPersistenceLeasesAndMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	saved, err := repo.GetByMessageID(ctx, "om_b")
-	if err != nil || saved == nil || saved.AppealID != appealID || saved.Revision != 2 || saved.Recipient != "b@example.com" || len(saved.ApprovalIDs) != 1 || saved.ApprovalIDs[0] != "approval-1" || saved.Closed {
+	if err != nil || saved == nil || saved.CreatedAt.IsZero() || saved.AppealID != appealID || saved.Revision != 2 || saved.Recipient != "b@example.com" || len(saved.ApprovalIDs) != 1 || saved.ApprovalIDs[0] != "approval-1" || saved.Closed {
 		t.Fatalf("receipt lookup lost immutable scope: %+v %v", saved, err)
 	}
 	if _, err := repo.GetByMessageID(ctx, "om_unknown"); !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -61,7 +61,7 @@ func TestNotificationCardRepositoryPersistenceLeasesAndMigration(t *testing.T) {
 	if err != nil || len(claimed) != 1 {
 		t.Fatalf("claim: %+v %v", claimed, err)
 	}
-	if claimed[0].MessageID != "om_b" || claimed[0].Recipient != "b@example.com" || len(claimed[0].ApprovalIDs) != 1 || claimed[0].Revision != 2 {
+	if claimed[0].CreatedAt.IsZero() || claimed[0].MessageID != "om_b" || claimed[0].Recipient != "b@example.com" || len(claimed[0].ApprovalIDs) != 1 || claimed[0].Revision != 2 {
 		t.Fatal("receipt did not survive round trip")
 	}
 	other, err := repo.Claim(ctx, card.WorkerURL, uuid.NewString(), 10)

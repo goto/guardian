@@ -504,12 +504,17 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeAccessRevoked,
 				Variables: map[string]interface{}{
-					"resource_name": fmt.Sprintf("%s (%s: %s)", grant.Resource.Name, grant.Resource.ProviderType, grant.Resource.URN),
-					"role":          grant.Role,
-					"account_type":  grant.AccountType,
-					"account_id":    grant.AccountID,
-					"requestor":     grant.Owner,
-					"revoke_reason": grant.RevokeReason,
+					"resource_name":         fmt.Sprintf("%s (%s: %s)", grant.Resource.Name, grant.Resource.ProviderType, grant.Resource.URN),
+					"resource_id":           grant.Resource.ID,
+					"resource_display_name": grant.Resource.Name,
+					"resource_urn":          grant.Resource.URN,
+					"resource_type":         grant.Resource.Type,
+					"provider_type":         grant.Resource.ProviderType,
+					"role":                  grant.Role,
+					"account_type":          grant.AccountType,
+					"account_id":            grant.AccountID,
+					"requestor":             grant.Owner,
+					"revoke_reason":         grant.RevokeReason,
 				},
 			},
 		}}

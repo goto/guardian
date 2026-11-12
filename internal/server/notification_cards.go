@@ -46,7 +46,7 @@ func registerNotificationCardLookup(mux *runtime.ServeMux, authenticate grpc.Una
 				}
 				return map[string]interface{}{"card": map[string]interface{}{
 					"message_id": card.MessageID, "appeal_id": card.AppealID, "revision": card.Revision,
-					"recipient": card.Recipient, "approval_ids": card.ApprovalIDs, "closed": card.Closed,
+					"recipient": card.Recipient, "approval_ids": card.ApprovalIDs, "closed": card.Closed, "created_at": card.CreatedAt,
 				}}, nil
 			})
 		}

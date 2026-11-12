@@ -42,6 +42,11 @@ func (h *handler) GrantExpirationReminder(ctx context.Context, cfg Config) error
 		for _, g := range grants {
 			msgVars := map[string]interface{}{
 				"resource_name":             fmt.Sprintf("%s (%s: %s)", g.Resource.Name, g.Resource.ProviderType, g.Resource.URN),
+				"resource_id":               g.Resource.ID,
+				"resource_display_name":     g.Resource.Name,
+				"resource_urn":              g.Resource.URN,
+				"resource_type":             g.Resource.Type,
+				"provider_type":             g.Resource.ProviderType,
 				"role":                      g.Role,
 				"expiration_date":           g.ExpirationDate,
 				"expiration_date_formatted": g.ExpirationDate.Format("Jan 02, 2006 15:04:05 UTC"),

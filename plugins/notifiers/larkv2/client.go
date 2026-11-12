@@ -70,7 +70,7 @@ func (n *Notifier) send(parent context.Context, item domain.Notification) error 
 	if item.Message.Type == domain.NotificationTypeApproverNotification && (item.Approval == nil || item.Approval.AppealID == "" || (item.Approval.ApprovalID == "" && len(item.Approval.Steps) == 0)) {
 		return errors.New("lark_v2 approval notification is missing exact approval context")
 	}
-	payload := envelope{EventID: uuid.NewString(), Recipient: item.User, Type: item.Message.Type, Variables: item.Message.Variables, Labels: item.Labels, Approval: item.Approval}
+	payload := envelope{EventID: uuid.NewString(), Recipient: item.User, Type: item.Message.Type, Variables: presentationVariables(item.Message.Variables), Labels: item.Labels, Approval: item.Approval}
 	data, err := json.Marshal(payload)
 	if err != nil || len(data) > 64*1024 {
 		return errors.New("lark_v2 notification cannot be encoded within the size limit")

@@ -268,3 +268,60 @@ func TestExpiredUnconfirmedDeliveryDoesNotSendOutsideDeduplicationWindow(t *test
 		t.Fatal("expired unknown delivery was replayed as a new message")
 	}
 }
+
+func TestLayoutUpgradeRefreshesActiveCardOnce(t *testing.T) {
+	store := newMemoryCardStore()
+	a := trackedAppeal("pending")
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"message_id": "om_existing", "state_hash": domain.NotificationCardStateHash(a, []string{"approval-1"}, "b@example.com"), "terminal": false})
+	}))
+	defer server.Close()
+	id := uuid.NewString()
+	store.cards[id] = domain.NotificationCard{EventID: id, WorkerURL: server.URL, MessageID: "om_existing", AppealID: a.ID, Revision: 2, Recipient: "b@example.com", ApprovalIDs: []string{"approval-1"}, LastStateHash: "c1f754b1662d398cb805cf821be1359fe358dccf1b3fa0de288c8257da6981b1"}
+	n, _ := New(Config{URL: server.URL})
+	n.ConfigureCards(store, cardReader{a})
+	if err := n.ReconcileCards(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := n.ReconcileCards(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("layout upgrade patched %d times, expected once", calls)
+	}
+}
+
+func TestDay13CardReceivesFinalExpiryUpdateWithoutReplacement(t *testing.T) {
+	store := newMemoryCardStore()
+	a := trackedAppeal("pending")
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/cards/refresh" {
+			t.Error("expiry sent a replacement notification")
+		}
+		calls++
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"message_id": "om_expiring", "state_hash": domain.NotificationCardStateHash(a, []string{"approval-1"}, "b@example.com"), "terminal": true})
+	}))
+	defer server.Close()
+	id := uuid.NewString()
+	store.cards[id] = domain.NotificationCard{EventID: id, WorkerURL: server.URL, MessageID: "om_expiring", AppealID: a.ID, Revision: 2, Recipient: "b@example.com", ApprovalIDs: []string{"approval-1"}, LastStateHash: domain.PendingNotificationCardHash(2, []string{"approval-1"}, "b@example.com"), CreatedAt: time.Now().Add(-13*24*time.Hour - time.Minute)}
+	n, _ := New(Config{URL: server.URL})
+	n.ConfigureCards(store, cardReader{a})
+	if err := n.ReconcileCards(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := n.ReconcileCards(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	store.mu.Lock()
+	closed := store.closed[id]
+	store.mu.Unlock()
+	if !closed || calls != 1 {
+		t.Fatal("day13 card did not receive exactly one final edit")
+	}
+	if len(store.cards) != 1 {
+		t.Fatal("expiry created a replacement receipt")
+	}
+}

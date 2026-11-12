@@ -85,3 +85,15 @@ covered step IDs and closed status. The worker refuses unknown/mismatched/closed
 never expands the original covered steps. Callback app/operator and live email checks remain.
 The existing notification_card_receipts table is reused without another migration. Rebuild both
 images and update their deployment pins; previously supplied images still require the retired keys.
+
+
+V2 card presentation now uses explicit resource_id/resource_display_name/resource_urn and
+resource/provider types, keeping the legacy resource_name field compatible. The worker uses the
+environment's CONSOLE_BASE_URL for request and package routes. The v2 adapter filters arbitrary
+private policy/HR fields before delivery, including recovery; only the user-facing access reason
+is extracted from policy questions. Notification criteria still run before presentation filtering.
+
+The shared v2 card fingerprint triggers a one-time repaint of active tracked cards on this UI
+upgrade. Later unchanged checks preserve forms as before; the upgrade itself can reset an open
+rejection form. Closed historical receipts are not reopened. Rebuild/deploy compatible Guardian
+and worker images together; no additional database migration is needed.

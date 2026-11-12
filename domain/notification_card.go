@@ -11,6 +11,7 @@ import (
 
 // NotificationCard contains delivery/reconciliation metadata only, never bot/API credentials.
 type NotificationCard struct {
+	CreatedAt        time.Time
 	EventID          string
 	WorkerURL        string
 	MessageID        string
@@ -29,7 +30,7 @@ func NotificationCardStateHash(a *Appeal, ids []string, recipient string) string
 	ordered := append([]string(nil), ids...)
 	sort.Strings(ordered)
 	h := sha256.New()
-	fmt.Fprintf(h, "v1\n%d\n%s\n", a.Revision, a.Status)
+	fmt.Fprintf(h, "v2\n%d\n%s\n", a.Revision, a.Status)
 	for _, id := range ordered {
 		var step *Approval
 		for _, candidate := range a.Approvals {
@@ -60,4 +61,9 @@ func PendingNotificationCardHash(revision uint32, ids []string, recipient string
 		a.Approvals = append(a.Approvals, &Approval{ID: id, Status: ApprovalStatusPending, AppealRevision: uint(revision), Approvers: []string{recipient}})
 	}
 	return NotificationCardStateHash(a, ids, recipient)
+}
+
+// Expired cards are retired at13 days so the final edit precedes Lark's14-day limit.
+func (c NotificationCard) Expired(now time.Time) bool {
+	return !c.CreatedAt.IsZero() && !now.Before(c.CreatedAt.Add(13*24*time.Hour))
 }

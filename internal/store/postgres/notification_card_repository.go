@@ -42,6 +42,7 @@ func (r *NotificationCardRepository) Claim(ctx context.Context, workerURL, owner
 		AppealRevision                                                    uint32
 		ApprovalIDs                                                       json.RawMessage
 		DeliveryDeadline                                                  time.Time
+		CreatedAt                                                         time.Time
 	}
 	var rows []row
 	err := r.db.WithContext(ctx).Raw(`WITH due AS (
@@ -50,7 +51,7 @@ func (r *NotificationCardRepository) Claim(ctx context.Context, workerURL, owner
             ORDER BY next_check_at,event_id FOR UPDATE SKIP LOCKED LIMIT ?
         ) UPDATE notification_card_receipts c SET lease_owner=?::uuid,lease_until=NOW()+interval '2 minutes'
         FROM due WHERE c.event_id=due.event_id
-        RETURNING c.event_id,c.worker_url,COALESCE(c.message_id,'') AS message_id,c.appeal_id,c.appeal_revision,c.recipient,c.approval_ids,c.last_state_hash,c.delivery_deadline`, workerURL, limit, owner).Scan(&rows).Error
+        RETURNING c.event_id,c.worker_url,COALESCE(c.message_id,'') AS message_id,c.appeal_id,c.appeal_revision,c.recipient,c.approval_ids,c.last_state_hash,c.delivery_deadline,c.created_at`, workerURL, limit, owner).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +61,7 @@ func (r *NotificationCardRepository) Claim(ctx context.Context, workerURL, owner
 		if json.Unmarshal(v.ApprovalIDs, &ids) != nil {
 			return nil, errors.New("invalid persisted card context")
 		}
-		result = append(result, domain.NotificationCard{EventID: v.EventID, WorkerURL: v.WorkerURL, MessageID: v.MessageID, AppealID: v.AppealID, Revision: v.AppealRevision, Recipient: v.Recipient, ApprovalIDs: ids, LastStateHash: v.LastStateHash, DeliveryDeadline: v.DeliveryDeadline, LeaseOwner: owner})
+		result = append(result, domain.NotificationCard{CreatedAt: v.CreatedAt, EventID: v.EventID, WorkerURL: v.WorkerURL, MessageID: v.MessageID, AppealID: v.AppealID, Revision: v.AppealRevision, Recipient: v.Recipient, ApprovalIDs: ids, LastStateHash: v.LastStateHash, DeliveryDeadline: v.DeliveryDeadline, LeaseOwner: owner})
 	}
 	return result, nil
 }
@@ -82,8 +83,9 @@ func (r *NotificationCardRepository) GetByMessageID(ctx context.Context, message
 		AppealRevision                                     uint32
 		ApprovalIDs                                        json.RawMessage
 		Closed                                             bool
+		CreatedAt                                          time.Time
 	}
-	query := r.db.WithContext(ctx).Raw(`SELECT event_id,worker_url,message_id,appeal_id,appeal_revision,recipient,approval_ids,closed
+	query := r.db.WithContext(ctx).Raw(`SELECT event_id,worker_url,message_id,appeal_id,appeal_revision,recipient,approval_ids,closed,created_at
  FROM notification_card_receipts WHERE message_id=?`, messageID).Scan(&row)
 	if query.Error != nil {
 		return nil, query.Error
@@ -95,5 +97,5 @@ func (r *NotificationCardRepository) GetByMessageID(ctx context.Context, message
 	if json.Unmarshal(row.ApprovalIDs, &ids) != nil || len(ids) == 0 {
 		return nil, errors.New("invalid persisted card context")
 	}
-	return &domain.NotificationCard{EventID: row.EventID, WorkerURL: row.WorkerURL, MessageID: row.MessageID, AppealID: row.AppealID, Revision: row.AppealRevision, Recipient: row.Recipient, ApprovalIDs: ids, Closed: row.Closed}, nil
+	return &domain.NotificationCard{CreatedAt: row.CreatedAt, EventID: row.EventID, WorkerURL: row.WorkerURL, MessageID: row.MessageID, AppealID: row.AppealID, Revision: row.AppealRevision, Recipient: row.Recipient, ApprovalIDs: ids, Closed: row.Closed}, nil
 }

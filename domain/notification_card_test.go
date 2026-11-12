@@ -8,11 +8,11 @@ import (
 
 func TestNotificationCardFingerprintContract(t *testing.T) {
 	ids := []string{"approval-1"}
-	if got := domain.PendingNotificationCardHash(2, ids, "approver@example.com"); got != "c1f754b1662d398cb805cf821be1359fe358dccf1b3fa0de288c8257da6981b1" {
+	if got := domain.PendingNotificationCardHash(2, ids, "approver@example.com"); got != "9e101eb7fcfc004328b47d6e4151b1505d4b534bdb95d2489565841c8f20451e" {
 		t.Fatalf("worker fingerprint contract differs: %s", got)
 	}
 	a := &domain.Appeal{Revision: 2, Status: domain.AppealStatusApproved, Approvals: []*domain.Approval{{ID: "approval-1", Status: domain.ApprovalStatusApproved, AppealRevision: 2, Approvers: []string{"approver@example.com"}}}}
-	if got := domain.NotificationCardStateHash(a, ids, "APPROVER@example.com"); got != "a991d18dcf40e2a1e36294288a961889f3c66e963c1db170697a41dd0230a284" {
+	if got := domain.NotificationCardStateHash(a, ids, "APPROVER@example.com"); got != "4025bc9b51ead98bd98c183651621f6b6256f7f7c631258bc94650c7aa7d9ee4" {
 		t.Fatalf("approved fingerprint differs: %s", got)
 	}
 }
