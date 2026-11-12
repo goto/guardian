@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/goto/guardian/domain"
@@ -76,7 +78,7 @@ func (r *NotificationCardRepository) Retry(ctx context.Context, card domain.Noti
         WHERE event_id=? AND lease_owner=?::uuid`, delay.Seconds(), card.EventID, card.LeaseOwner).Error
 }
 
-// GetByMessageID reads immutable delivered scope without claiming a reconciliation lease.
+// GetByMessageID reads current saved scope without claiming a reconciliation lease.
 func (r *NotificationCardRepository) GetByMessageID(ctx context.Context, messageID string) (*domain.NotificationCard, error) {
 	var row struct {
 		EventID, WorkerURL, MessageID, AppealID, Recipient string
@@ -98,4 +100,65 @@ func (r *NotificationCardRepository) GetByMessageID(ctx context.Context, message
 		return nil, errors.New("invalid persisted card context")
 	}
 	return &domain.NotificationCard{CreatedAt: row.CreatedAt, EventID: row.EventID, WorkerURL: row.WorkerURL, MessageID: row.MessageID, AppealID: row.AppealID, Revision: row.AppealRevision, Recipient: row.Recipient, ApprovalIDs: ids, Closed: row.Closed}, nil
+}
+
+// Ensure serializes initial sends and stage transitions for one recipient/appeal revision.
+// Later steps extend stored scope but never reset created_at, delivery_deadline or event_id.
+// Callbacks still act only on the IDs encoded in the actual button that was clicked.
+func (r *NotificationCardRepository) Ensure(ctx context.Context, card domain.NotificationCard, lease time.Duration) (created bool, err error) {
+	card.Recipient = strings.ToLower(strings.TrimSpace(card.Recipient))
+	key, _ := json.Marshal([]interface{}{card.WorkerURL, card.AppealID, card.Revision, card.Recipient})
+	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Also serialize the no-row-yet case across Guardian processes without changing schema.
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?,0))", string(key)).Error; err != nil {
+			return err
+		}
+		var existing struct {
+			EventID     string
+			ApprovalIDs json.RawMessage
+			Closed      bool
+			CreatedAt   time.Time
+		}
+		query := tx.Raw(`SELECT event_id,approval_ids,closed,created_at FROM notification_card_receipts
+ WHERE worker_url=? AND appeal_id=? AND appeal_revision=? AND lower(trim(recipient))=?
+ ORDER BY created_at,event_id LIMIT 1 FOR UPDATE`, card.WorkerURL, card.AppealID, card.Revision, card.Recipient).Scan(&existing)
+		if query.Error != nil {
+			return query.Error
+		}
+		if query.RowsAffected == 0 {
+			if err := NewNotificationCardRepository(tx).Prepare(ctx, card, lease); err != nil {
+				return err
+			}
+			created = true
+			return nil
+		}
+		if existing.Closed || (domain.NotificationCard{CreatedAt: existing.CreatedAt}).Expired(time.Now()) {
+			return nil
+		}
+		var ids []string
+		if err := json.Unmarshal(existing.ApprovalIDs, &ids); err != nil {
+			return errors.New("invalid persisted card context")
+		}
+		seen := map[string]bool{}
+		for _, id := range ids {
+			seen[id] = true
+		}
+		changed := false
+		for _, id := range card.ApprovalIDs {
+			if !seen[id] {
+				ids = append(ids, id)
+				seen[id] = true
+				changed = true
+			}
+		}
+		if !changed {
+			return nil
+		}
+		sort.Strings(ids)
+		encoded, _ := json.Marshal(ids)
+		// Invalidate older reconciliation leases, so their completion cannot erase this refresh.
+		return tx.Exec(`UPDATE notification_card_receipts SET approval_ids=?::jsonb,last_state_hash='',
+ next_check_at=NOW(),lease_owner=NULL,lease_until=NULL,updated_at=NOW() WHERE event_id=?`, string(encoded), existing.EventID).Error
+	})
+	return created, err
 }

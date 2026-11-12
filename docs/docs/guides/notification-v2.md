@@ -93,7 +93,7 @@ environment's CONSOLE_BASE_URL for request and package routes. The v2 adapter fi
 private policy/HR fields before delivery, including recovery; only the user-facing access reason
 is extracted from policy questions. Notification criteria still run before presentation filtering.
 
-The shared v3 card fingerprint triggers a one-time repaint of active tracked cards on this UI
+The shared v4 card fingerprint triggers a one-time repaint of active tracked cards on this UI
 upgrade. Later unchanged checks preserve forms as before; the upgrade itself can reset an open
 rejection form. Closed historical receipts are not reopened. Rebuild/deploy compatible Guardian
 and worker images together; no additional database migration is needed.
@@ -109,3 +109,16 @@ is in flight, access may already have changed upstream even though the approval 
 Resolving that existing race requires durable coordination of provider work and request transitions;
 blind compensation can revoke access granted by another winning operation. This limitation is
 separate from card receipts and must not be represented as exactly-once provisioning.
+
+Stage continuity: lark_v2 Ensure serializes per worker origin/appeal/revision/normalized recipient
+using a transaction-scoped PostgreSQL advisory lock, including the no-existing-row case. The first
+notification prepares/sends a message; later eligible IDs extend the earliest saved receipt and
+schedule reconciliation. Changed scope clears the state hash and fences older reconciliation
+leases. Repeated identical notifications preserve forms. Existing created_at, event ID and delivery
+deadline are retained; closed or13-day-old receipts never create replacement messages. New
+recipients/revisions remain distinct. Legacy duplicate receipts are not deleted. No new migration.
+
+The worker renders the current saved scope even for a delayed old callback/refresh, but only acts
+on IDs from the actual clicked button. Deploy the matching worker first, then Guardian. Older
+Guardian processes can still send per-stage cards during rollout overlap; only the new Ensure
+path coordinates producers. Callback/operator/receipt validation and policy checks still apply.

@@ -79,8 +79,14 @@ func (n *Notifier) send(parent context.Context, item domain.Notification) error 
 	defer cancel()
 	tracked := n.store != nil && item.Message.Type == domain.NotificationTypeApproverNotification
 	if tracked {
-		if err := n.store.Prepare(ctx, cardForDelivery(payload.EventID, item, n.workerURL()), n.timeout+10*time.Second); err != nil {
+		created, err := n.store.Ensure(ctx, cardForDelivery(payload.EventID, item, n.workerURL()), n.timeout+10*time.Second)
+		if err != nil {
 			return errors.New("lark_v2 card receipt preparation failed")
+		}
+		if !created {
+			// The existing message will be reconciled with its expanded eligible scope.
+			// Reuse survives restarts and retains the original card's age and send UUID.
+			return nil
 		}
 	}
 	for attempt := 0; attempt <= len(n.delays); attempt++ {

@@ -325,3 +325,107 @@ func TestDay13CardReceivesFinalExpiryUpdateWithoutReplacement(t *testing.T) {
 		t.Fatal("expiry created a replacement receipt")
 	}
 }
+
+func (s *memoryCardStore) Ensure(ctx context.Context, c domain.NotificationCard, lease time.Duration) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, v := range s.cards {
+		if v.WorkerURL != c.WorkerURL || v.AppealID != c.AppealID || v.Revision != c.Revision || v.Recipient != c.Recipient {
+			continue
+		}
+		if s.closed[id] || v.Expired(time.Now()) {
+			return false, nil
+		}
+		seen := map[string]bool{}
+		for _, id := range v.ApprovalIDs {
+			seen[id] = true
+		}
+		changed := false
+		for _, id := range c.ApprovalIDs {
+			if !seen[id] {
+				v.ApprovalIDs = append(v.ApprovalIDs, id)
+				seen[id] = true
+				changed = true
+			}
+		}
+		if changed {
+			v.LastStateHash = ""
+			v.LeaseOwner = ""
+			s.cards[id] = v
+		}
+		return false, nil
+	}
+	c.CreatedAt = time.Now()
+	c.DeliveryDeadline = c.CreatedAt.Add(55 * time.Minute)
+	s.cards[c.EventID] = c
+	return true, nil
+}
+
+func TestSequentialStagesReuseMessageAfterNotifierRestart(t *testing.T) {
+	store := newMemoryCardStore()
+	a := trackedAppeal("pending")
+	a.Revision = 1
+	a.Approvals[0].AppealRevision = 1
+	sends, updates := 0, 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/notifications" {
+			sends++
+			var e envelope
+			_ = json.NewDecoder(r.Body).Decode(&e)
+			_ = json.NewEncoder(w).Encode(map[string]string{"event_id": e.EventID, "message_id": "om_original", "bot": "pending"})
+			return
+		}
+		updates++
+		var q struct {
+			MessageID   string   `json:"message_id"`
+			ApprovalIDs []string `json:"approval_ids"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&q)
+		if q.MessageID != "om_original" || len(q.ApprovalIDs) != 2 {
+			t.Error("stage transition did not reuse original message/scope")
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"message_id": q.MessageID, "state_hash": domain.NotificationCardStateHash(a, q.ApprovalIDs, "b@example.com"), "terminal": false})
+	}))
+	defer server.Close()
+	n, _ := New(Config{URL: server.URL})
+	n.ConfigureCards(store, cardReader{a})
+	if e := n.Notify(context.Background(), []domain.Notification{approvalItem("appeal", "approval-1", "Package admin", "b@example.com")}); len(e) > 0 {
+		t.Fatal(e)
+	}
+	var original domain.NotificationCard
+	for _, c := range store.cards {
+		original = c
+	}
+	a.Approvals[0].Status = "approved"
+	a.Approvals = append(a.Approvals, &domain.Approval{ID: "approval-2", Name: "Manager", Status: "pending", AppealRevision: 1, Approvers: []string{"b@example.com"}})
+	n, _ = New(Config{URL: server.URL})
+	n.ConfigureCards(store, cardReader{a})
+	if e := n.Notify(context.Background(), []domain.Notification{approvalItem("appeal", "approval-2", "Manager", "b@example.com")}); len(e) > 0 {
+		t.Fatal(e)
+	}
+	if err := n.ReconcileCards(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if sends != 1 || updates != 1 || len(store.cards) != 1 || !store.cards[original.EventID].CreatedAt.Equal(original.CreatedAt) {
+		t.Fatal("new stage created another message or reset age")
+	}
+	// A repeated notification does not repaint a user's form or send a duplicate.
+	if e := n.Notify(context.Background(), []domain.Notification{approvalItem("appeal", "approval-2", "Manager", "b@example.com")}); len(e) > 0 {
+		t.Fatal(e)
+	}
+	if err := n.ReconcileCards(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if sends != 1 || updates != 1 {
+		t.Fatal("unchanged notification repainted/resend")
+	}
+	c := store.cards[original.EventID]
+	c.CreatedAt = time.Now().Add(-13 * 24 * time.Hour)
+	store.cards[original.EventID] = c
+	if e := n.Notify(context.Background(), []domain.Notification{approvalItem("appeal", "approval-3", "Later", "b@example.com")}); len(e) > 0 {
+		t.Fatal(e)
+	}
+	if sends != 1 || len(store.cards[c.EventID].ApprovalIDs) != 2 {
+		t.Fatal("expired card was replaced or expanded")
+	}
+}

@@ -18,6 +18,7 @@ import (
 type CardStore interface {
 	Ready(context.Context) error
 	Prepare(context.Context, domain.NotificationCard, time.Duration) error
+	Ensure(context.Context, domain.NotificationCard, time.Duration) (bool, error)
 	Confirm(context.Context, string, string) error
 	Claim(context.Context, string, string, int) ([]domain.NotificationCard, error)
 	Complete(context.Context, domain.NotificationCard, string, bool, time.Duration) error
