@@ -1008,6 +1008,16 @@ func validatePatchReq(appeal, existingAppeal *domain.Appeal) (bool, error) {
 	return isAppealUpdated, nil
 }
 
+// errApprovalNeedsGrantPreparation is returned only by an aborted locked mutation when
+// the fresh parallel-step state becomes terminal but the snapshot ran no grant side effects.
+var errApprovalNeedsGrantPreparation = errors.New("approval state advanced; grant preparation retry required")
+
+type approvalRetryGuard struct {
+	set        bool
+	revision   uint
+	approvalID string
+}
+
 // UpdateApproval Approve an approval step
 //
 // Flow:
@@ -1019,6 +1029,20 @@ func validatePatchReq(appeal, existingAppeal *domain.Appeal) (bool, error) {
 //     new grant, and revoke the previous grant in a single transaction.
 //  4. Notifications + audit (async, unchanged).
 func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.ApprovalAction) (*domain.Appeal, error) {
+	guard := &approvalRetryGuard{}
+	for attempt := 0; attempt < 3; attempt++ {
+		result, err := s.updateApprovalAttempt(ctx, approvalAction, guard)
+		if !errors.Is(err, errApprovalNeedsGrantPreparation) {
+			return result, err
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("%w: approval state kept changing; review the current request", ErrApprovalNotEligibleForAction)
+}
+
+func (s *Service) updateApprovalAttempt(ctx context.Context, approvalAction domain.ApprovalAction, guard *approvalRetryGuard) (*domain.Appeal, error) {
 	if err := approvalAction.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidUpdateApprovalParameter, err)
 	}
@@ -1034,8 +1058,20 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 	if err := checkIfAppealStatusStillPending(initialAppeal.Status); err != nil {
 		return nil, err
 	}
-	if initialAppeal.GetApproval(approvalAction.ApprovalName) == nil {
+	initialApproval := initialAppeal.GetApproval(approvalAction.ApprovalName)
+	if initialApproval == nil {
 		return nil, fmt.Errorf("%w: %q", ErrApprovalNotFound, approvalAction.ApprovalName)
+	}
+	if err := checkApprovalRevision(initialAppeal, initialApproval); err != nil {
+		return nil, err
+	}
+	if !guard.set {
+		guard.set = true
+		guard.revision = initialAppeal.Revision
+		guard.approvalID = initialApproval.ID
+	}
+	if initialAppeal.Revision != guard.revision || initialApproval.ID != guard.approvalID {
+		return nil, fmt.Errorf("%w: request changed; review the current appeal", ErrApprovalNotEligibleForAction)
 	}
 
 	// Load the policy for approve actions — it is immutable (versioned) so reading outside the lock is safe.
@@ -1088,11 +1124,26 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 	// one transaction. If the re-validation fails (e.g., another approver acted concurrently),
 	// the side effects from phase 2 are wasted but the DB stays coherent.
 	appeal, err := s.repo.UpdateWithLock(ctx, approvalAction.AppealID, prevGrant, func(freshAppeal *domain.Appeal) error {
+		if err := checkIfAppealStatusStillPending(freshAppeal.Status); err != nil {
+			return err
+		}
+		freshStep := freshAppeal.GetApproval(approvalAction.ApprovalName)
+		if freshStep == nil {
+			return fmt.Errorf("%w: %q", ErrApprovalNotFound, approvalAction.ApprovalName)
+		}
+		if freshAppeal.Revision != guard.revision || freshStep.ID != guard.approvalID {
+			return fmt.Errorf("%w: request changed before commit", ErrApprovalNotEligibleForAction)
+		}
 		if approvalAction.Action == domain.AppealActionNameApprove {
 			freshAppeal.Policy = policyObj
 		}
 		if err := applyApprovalMutation(freshAppeal, approvalAction, policyObj); err != nil {
 			return err
+		}
+		if freshAppeal.Status == domain.AppealStatusApproved && newGrant == nil {
+			// Another parallel step completed after our snapshot. Abort this transaction
+			// before writing any appeal/approval state, then prepare access from a fresh read.
+			return errApprovalNeedsGrantPreparation
 		}
 		if freshAppeal.Status == domain.AppealStatusApproved && newGrant != nil {
 			// Use the expiration date computed in phase 2 so the persisted appeal options
@@ -1158,11 +1209,12 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 					"account_id":    appeal.AccountID,
 					"appeal_id":     appeal.ID,
 					"requestor":     appeal.CreatedBy,
+					"reason":        approvalAction.Reason,
 				},
 			},
 		})
 	} else {
-		notifications = append(notifications, s.getApprovalNotifications(ctx, appeal)...)
+		notifications = append(notifications, s.getNewApprovalNotifications(ctx, initialAppeal, appeal)...)
 	}
 	if len(notifications) > 0 {
 		go func() {
@@ -1264,6 +1316,9 @@ func applyApprovalMutation(
 	if currentApproval == nil {
 		return fmt.Errorf("%w: %q", ErrApprovalNotFound, approvalAction.ApprovalName)
 	}
+	if err := checkApprovalRevision(appeal, currentApproval); err != nil {
+		return err
+	}
 
 	for _, prevIdx := range appeal.GetSortedStageIndices() {
 		if prevIdx >= currentApproval.Index {
@@ -1320,7 +1375,7 @@ func applyApprovalMutation(
 			isSelfApprovalNotAllowed = policyStep.DontAllowSelfApproval
 		}
 
-		if isSelfApprovalNotAllowed && approvalAction.Actor == appeal.CreatedBy {
+		if isSelfApprovalNotAllowed && strings.EqualFold(approvalAction.Actor, appeal.CreatedBy) {
 			return ErrSelfApprovalNotAllowed
 		}
 
@@ -1483,48 +1538,24 @@ func (s *Service) AddApprover(ctx context.Context, appealID, approvalID, email s
 		}
 	}()
 
-	duration := domain.PermanentDurationLabel
-	if !appeal.IsDurationEmpty() {
-		duration, err = utils.GetReadableDuration(appeal.Options.Duration)
-		if err != nil {
-			s.logger.Error(ctx, "failed to get readable duration", "error", err, "appeal_id", appeal.ID)
-		}
-	}
-
-	go func() {
-		ctx := context.WithoutCancel(ctx)
-		if errs := s.notifier.Notify(ctx, []domain.Notification{
-			{
-				User: email,
-				Labels: map[string]string{
-					"appeal_id": appeal.ID,
-				},
-				Message: domain.NotificationMessage{
-					Type: domain.NotificationTypeApproverNotification,
-					Variables: map[string]interface{}{
-						"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-						"role":          appeal.Role,
-						"requestor":     appeal.CreatedBy,
-						"appeal_id":     appeal.ID,
-						"account_id":    appeal.AccountID,
-						"account_type":  appeal.AccountType,
-						"provider_type": appeal.Resource.ProviderType,
-						"resource_type": appeal.Resource.Type,
-						"created_at":    appeal.CreatedAt,
-						"approval_step": approval.Name,
-						"actor":         email,
-						"details":       appeal.Details,
-						"duration":      duration,
-						"creator":       appeal.Creator,
-					},
-				},
-			},
-		}); errs != nil {
-			for _, err1 := range errs {
-				s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+	if approval.Status == domain.ApprovalStatusPending {
+		var notifications []domain.Notification
+		for _, notification := range s.getApprovalNotifications(ctx, appeal) {
+			if strings.EqualFold(notification.User, email) {
+				notifications = append(notifications, notification)
 			}
 		}
-	}()
+		if len(notifications) > 0 {
+			go func() {
+				ctx := context.WithoutCancel(ctx)
+				if errs := s.notifier.Notify(ctx, notifications); errs != nil {
+					for _, notifyErr := range errs {
+						s.logger.Error(ctx, "failed to send notifications", "error", notifyErr.Error())
+					}
+				}
+			}()
+		}
+	}
 
 	return appeal, nil
 }
@@ -1867,7 +1898,6 @@ func (s *Service) getPoliciesMap(ctx context.Context) (map[string]map[uint]*doma
 
 func (s *Service) getApprovalNotifications(ctx context.Context, appeal *domain.Appeal) []domain.Notification {
 	notifications := []domain.Notification{}
-	approval := appeal.GetNextPendingApproval()
 
 	duration := domain.PermanentDurationLabel
 	var err error
@@ -1878,10 +1908,20 @@ func (s *Service) getApprovalNotifications(ctx context.Context, appeal *domain.A
 		}
 	}
 
-	if approval != nil {
+	for _, approval := range appeal.Approvals {
+		if approval.IsStale || approval.AppealRevision != appeal.Revision || approval.Status != domain.ApprovalStatusPending || !approval.IsManualApproval() {
+			continue
+		}
+		seenApprovers := map[string]bool{}
 		for _, approver := range approval.Approvers {
+			key := strings.ToLower(strings.TrimSpace(approver))
+			if seenApprovers[key] {
+				continue
+			}
+			seenApprovers[key] = true
 			notifications = append(notifications, domain.Notification{
-				User: approver,
+				User:     approver,
+				Approval: &domain.NotificationApproval{AppealID: appeal.ID, ApprovalID: approval.ID, Revision: uint32(appeal.Revision)},
 				Labels: map[string]string{
 					"appeal_id": appeal.ID,
 				},
@@ -1905,6 +1945,46 @@ func (s *Service) getApprovalNotifications(ctx context.Context, appeal *domain.A
 					},
 				},
 			})
+		}
+	}
+	return notifications
+}
+
+// getNewApprovalNotifications avoids re-notifying an unchanged pending stage after another
+// parallel step resolves. A newly eligible recipient gets all their current pending steps so
+// the v2 adapter can build one complete card without including blocked steps.
+func (s *Service) getNewApprovalNotifications(ctx context.Context, before, after *domain.Appeal) []domain.Notification {
+	type pendingKey struct{ id, name, recipient string }
+	previous := map[pendingKey]bool{}
+	if before != nil {
+		for _, step := range before.Approvals {
+			if step.IsStale || step.AppealRevision != before.Revision || step.Status != domain.ApprovalStatusPending {
+				continue
+			}
+			for _, recipient := range step.Approvers {
+				previous[pendingKey{step.ID, step.Name, strings.ToLower(strings.TrimSpace(recipient))}] = true
+			}
+		}
+	}
+	eligible := map[string]bool{}
+	for _, step := range after.Approvals {
+		if step.IsStale || step.AppealRevision != after.Revision || step.Status != domain.ApprovalStatusPending {
+			continue
+		}
+		for _, recipient := range step.Approvers {
+			normalized := strings.ToLower(strings.TrimSpace(recipient))
+			if !previous[pendingKey{step.ID, step.Name, normalized}] {
+				eligible[normalized] = true
+			}
+		}
+	}
+	if len(eligible) == 0 {
+		return nil
+	}
+	var notifications []domain.Notification
+	for _, notification := range s.getApprovalNotifications(ctx, after) {
+		if eligible[strings.ToLower(strings.TrimSpace(notification.User))] {
+			notifications = append(notifications, notification)
 		}
 	}
 	return notifications
@@ -1938,6 +2018,15 @@ func checkPreviousApprovalStatus(status, name string) error {
 	default:
 		return fmt.Errorf("%w: found previous approval %q with unrecognized status %q", ErrApprovalStatusUnrecognized, name, status)
 	}
+}
+
+// checkApprovalRevision also protects direct approval-ID actions: GetApproval accepts IDs
+// for historical rows, so checking pending status alone would allow an obsolete card to act.
+func checkApprovalRevision(appeal *domain.Appeal, approval *domain.Approval) error {
+	if approval.IsStale || approval.AppealRevision != appeal.Revision {
+		return fmt.Errorf("%w: approval belongs to an obsolete appeal revision", ErrApprovalNotEligibleForAction)
+	}
+	return nil
 }
 
 func checkApprovalStatus(status string) error {

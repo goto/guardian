@@ -107,6 +107,13 @@ func RunServer(config *Config) error {
 		return fmt.Errorf("initializing services: %w", err)
 	}
 
+	cardSetupCtx, cardSetupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	cardErr := notifier.ConfigureCards(cardSetupCtx, postgres.NewNotificationCardRepository(services.Store.DB()), services.AppealService)
+	cardSetupCancel()
+	if cardErr != nil {
+		return cardErr
+	}
+
 	// init grpc server
 	logrusEntry := logrus.NewEntry(logrus.New()) // TODO: get logrus instance from `logger` var
 
@@ -192,7 +199,9 @@ func RunServer(config *Config) error {
 	}
 
 	runtimeCtx, runtimeCancel := context.WithCancel(context.Background())
-	defer runtimeCancel()
+	cardSyncDone := make(chan struct{})
+	go func() { defer close(cardSyncDone); notifier.RunCardSync(runtimeCtx) }()
+	defer func() { runtimeCancel(); <-cardSyncDone }()
 
 	if err := guardianv1beta1.RegisterGuardianServiceHandler(runtimeCtx, gwmux, grpcConn); err != nil {
 		return err

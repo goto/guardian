@@ -1,5 +1,7 @@
 # Notification configuration
 
+For the optional external Lark worker and interactive approval cards, see [Lark notification v2](notification-v2.md).
+
 Templates of slack notifications sent through guardian can be configured.
 It is a Json string having list of blocks(Json). Developers can configure list of blocks according to the notification UI needed.
 It can be list of Texts, Sections, Buttons, inputs etc (Ref:https://api.slack.com/reference/block-kit/block-elements)
