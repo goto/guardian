@@ -1,7 +1,6 @@
 package notifiers_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/goto/guardian/pkg/log"
@@ -9,7 +8,7 @@ import (
 )
 
 func TestLarkV2AvailableInBothFactories(t *testing.T) {
-	cfg := notifiers.Config{Provider: notifiers.ProviderTypeLarkV2, WorkerURL: "http://worker.example.com", WorkerToken: strings.Repeat("t", 32), Criteria: "false"}
+	cfg := notifiers.Config{Provider: notifiers.ProviderTypeLarkV2, WorkerURL: "http://worker.example.com", Criteria: "false"}
 	if _, err := notifiers.NewClient(&cfg, log.NewNoop()); err != nil {
 		t.Fatal(err)
 	}
@@ -17,7 +16,7 @@ func TestLarkV2AvailableInBothFactories(t *testing.T) {
 	if _, err := notifiers.NewMultiClient(&configs, log.NewNoop()); err != nil {
 		t.Fatal(err)
 	}
-	cfg.WorkerToken = ""
+	cfg.WorkerURL = ""
 	if _, err := notifiers.NewClient(&cfg, log.NewNoop()); err == nil {
 		t.Fatal("invalid v2 configuration accepted")
 	}

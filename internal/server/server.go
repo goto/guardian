@@ -207,6 +207,10 @@ func RunServer(config *Config) error {
 		return err
 	}
 
+	if err := registerNotificationCardLookup(gwmux, authInterceptor, authUserContextKey[config.Auth.Provider], postgres.NewNotificationCardRepository(services.Store.DB())); err != nil {
+		return err
+	}
+
 	baseMux := http.NewServeMux()
 	baseMux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "pong")

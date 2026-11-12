@@ -14,6 +14,7 @@ type NotificationCard struct {
 	EventID          string
 	WorkerURL        string
 	MessageID        string
+	Closed           bool
 	AppealID         string
 	Revision         uint32
 	Recipient        string

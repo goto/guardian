@@ -19,8 +19,8 @@ func TestNotificationContractAndRetryIdentity(t *testing.T) {
 	var first []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		if r.URL.Path != "/v1/notifications" || r.Header.Get("Authorization") != "Bearer "+strings.Repeat("t", 32) {
-			t.Error("wrong endpoint or token")
+		if r.URL.Path != "/v1/notifications" || r.Header.Get("Authorization") != "" {
+			t.Error("wrong private endpoint or unexpected authorization header")
 		}
 		body, _ := io.ReadAll(r.Body)
 		var value envelope
@@ -40,7 +40,7 @@ func TestNotificationContractAndRetryIdentity(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]string{"event_id": value.EventID, "message_id": "om_message", "bot": "pending"})
 	}))
 	defer server.Close()
-	n, err := New(Config{URL: server.URL, Token: strings.Repeat("t", 32)})
+	n, err := New(Config{URL: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestPermanentFailuresDoNotRetryOrLeakBody(t *testing.T) {
 				_, _ = io.WriteString(w, "private-response")
 			}))
 			defer server.Close()
-			n, _ := New(Config{URL: server.URL, Token: strings.Repeat("t", 32)})
+			n, _ := New(Config{URL: server.URL})
 			n.delays = []time.Duration{0, 0}
 			errs := n.Notify(context.Background(), []domain.Notification{{User: "person@example.com", Message: domain.NotificationMessage{Type: domain.NotificationTypeAppealApproved}}})
 			if len(errs) != 1 || calls != 1 {
@@ -81,7 +81,7 @@ func TestTransientFailuresAreBounded(t *testing.T) {
 			calls := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.WriteHeader(status) }))
 			defer server.Close()
-			n, _ := New(Config{URL: server.URL, Token: strings.Repeat("t", 32)})
+			n, _ := New(Config{URL: server.URL})
 			n.delays = []time.Duration{0, 0}
 			errs := n.Notify(context.Background(), []domain.Notification{{User: "person@example.com", Message: domain.NotificationMessage{Type: domain.NotificationTypeAppealApproved}}})
 			if len(errs) != 1 || calls != 3 {
@@ -92,12 +92,12 @@ func TestTransientFailuresAreBounded(t *testing.T) {
 }
 
 func TestLarkV2ConfigurationAndMissingApprovalContext(t *testing.T) {
-	for _, cfg := range []Config{{}, {URL: "https://user:private@example.com", Token: strings.Repeat("t", 32)}, {URL: "https://example.com/api", Token: strings.Repeat("t", 32)}, {URL: "https://example.com", Token: "short"}, {URL: "https://example.com", Token: strings.Repeat("t", 32), TimeoutSeconds: 1}} {
+	for _, cfg := range []Config{{}, {URL: "https://user:private@example.com"}, {URL: "https://example.com/api"}, {URL: "https://example.com", TimeoutSeconds: 1}} {
 		if _, err := New(cfg); err == nil {
 			t.Fatal("invalid configuration accepted")
 		}
 	}
-	n, _ := New(Config{URL: "https://example.com", Token: strings.Repeat("t", 32)})
+	n, _ := New(Config{URL: "https://example.com"})
 	errs := n.Notify(context.Background(), []domain.Notification{{User: "person@example.com", Message: domain.NotificationMessage{Type: domain.NotificationTypeApproverNotification}}})
 	if len(errs) != 1 || !strings.Contains(errs[0].Error(), "exact approval context") {
 		t.Fatal("missing approval identity accepted")

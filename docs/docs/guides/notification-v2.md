@@ -11,15 +11,14 @@ callbacks. Approval decisions use Guardian's existing internal API and authentic
     "provider": "lark_v2",
     "criteria": "false",
     "worker_url": "http://notification-worker.example.com:8080",
-    "worker_token": "<injected at runtime>",
     "timeout_seconds": 30
   }
 }
 ```
 
 Use the existing NOTIFIERS configuration mechanism. The worker URL is an origin without a path;
-the adapter appends `/v1/notifications`. Inject a token of at least 32 bytes through the deployment's
-secret mechanism. Guardian no longer needs Lark app credentials for this provider. Timeout defaults
+the adapter appends `/v1/notifications`. Worker HTTP caller access is controlled by the internal
+network/proxy boundary. Guardian needs no worker token or Lark app credentials for this provider. Timeout defaults
 to 30 seconds and must be between 5 and 120 seconds.
 
 The adapter sends a structured event with a stable ID across up to three transient attempts,
@@ -58,7 +57,7 @@ custom JSON message templates apply to v1; v2 card rendering belongs to the work
 
 The worker has one replica with Recreate deployment and no database. Guardian's server stores
 pending-card receipts before delivery, confirms Lark message IDs, and reconciles changed card
-state with the worker's authenticated POST /v1/cards/refresh endpoint. This updates other approvers'
+state with the worker's private POST /v1/cards/refresh endpoint. This updates other approvers'
 cards after Lark or console/API decisions, cancellations and revision changes. Reconciliation
 survives restarts, uses DB leases across Guardian processes, and does not rewrite unchanged cards.
 Pending delivery recovery reuses the saved event ID for up to 55 minutes, within Lark's one-hour
@@ -78,3 +77,11 @@ prepared grant, then safely retries from a fresh snapshot. Retries are bounded a
 original appeal revision and exact step; provider work remains outside DB transactions. No
 Approved state can be committed through that path before the necessary grant work is prepared.
 An uncertain worker approval is read back rather than automatically retried.
+
+Card action integrity now uses persisted receipts rather than a worker signing key. The worker
+reads GET /api/v1beta1/notification-cards/{message_id} through Guardian's existing configured
+authentication. The endpoint only returns the authenticated recipient's message/appeal/revision,
+covered step IDs and closed status. The worker refuses unknown/mismatched/closed receipts and
+never expands the original covered steps. Callback app/operator and live email checks remain.
+The existing notification_card_receipts table is reused without another migration. Rebuild both
+images and update their deployment pins; previously supplied images still require the retired keys.

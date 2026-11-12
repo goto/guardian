@@ -12,6 +12,7 @@ import (
 	"github.com/goto/guardian/internal/store/postgres"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/pkg/postgrestest"
+	"gorm.io/gorm"
 )
 
 func TestNotificationCardRepositoryPersistenceLeasesAndMigration(t *testing.T) {
@@ -48,6 +49,13 @@ func TestNotificationCardRepositoryPersistenceLeasesAndMigration(t *testing.T) {
 	if err := repo.Confirm(ctx, card.EventID, "om_b"); err != nil {
 		t.Fatal(err)
 	}
+	saved, err := repo.GetByMessageID(ctx, "om_b")
+	if err != nil || saved == nil || saved.AppealID != appealID || saved.Revision != 2 || saved.Recipient != "b@example.com" || len(saved.ApprovalIDs) != 1 || saved.ApprovalIDs[0] != "approval-1" || saved.Closed {
+		t.Fatalf("receipt lookup lost immutable scope: %+v %v", saved, err)
+	}
+	if _, err := repo.GetByMessageID(ctx, "om_unknown"); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatal("unknown card has a receipt")
+	}
 	owner := uuid.NewString()
 	claimed, err := repo.Claim(ctx, card.WorkerURL, owner, 10)
 	if err != nil || len(claimed) != 1 {
@@ -82,6 +90,10 @@ func TestNotificationCardRepositoryPersistenceLeasesAndMigration(t *testing.T) {
 	}
 	if err := repo.Complete(ctx, recovered[0], "approved", true, time.Second); err != nil {
 		t.Fatal(err)
+	}
+	closedCard, err := repo.GetByMessageID(ctx, "om_b")
+	if err != nil || !closedCard.Closed || closedCard.ApprovalIDs[0] != "approval-1" {
+		t.Fatal("closed receipt lost stored scope")
 	}
 	if cards, err := repo.Claim(ctx, card.WorkerURL, uuid.NewString(), 10); err != nil || len(cards) != 0 {
 		t.Fatal("closed card was reclaimed")

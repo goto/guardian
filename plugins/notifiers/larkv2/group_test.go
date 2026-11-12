@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/goto/guardian/domain"
@@ -26,7 +25,7 @@ func TestParallelStepsProduceExactlyOneHTTPNotificationForD(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]string{"event_id": e.EventID, "message_id": "om_message", "bot": "pending"})
 	}))
 	defer server.Close()
-	n, _ := New(Config{URL: server.URL, Token: strings.Repeat("t", 32)})
+	n, _ := New(Config{URL: server.URL})
 	items := []domain.Notification{approvalItem("appeal", "b", "Step B", "c@example.com"), approvalItem("appeal", "b", "Step B", "d@example.com"), approvalItem("appeal", "c", "Step C", "D@example.com"), approvalItem("appeal", "c", "Step C", "e@example.com")}
 	if errs := n.Notify(context.Background(), items); len(errs) > 0 {
 		t.Fatal(errs)

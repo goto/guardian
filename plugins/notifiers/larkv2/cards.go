@@ -127,7 +127,6 @@ func (n *Notifier) reconcileCard(parent context.Context, card domain.Notificatio
 		retry(15 * time.Second)
 		return
 	}
-	req.Header.Set("Authorization", "Bearer "+n.token)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := n.http.Do(req)
 	if err != nil {

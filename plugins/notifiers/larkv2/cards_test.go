@@ -6,7 +6,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -121,7 +120,7 @@ func TestSiblingReceiptsReconcileAfterNotifierRestart(t *testing.T) {
 		id := uuid.NewString()
 		store.cards[id] = domain.NotificationCard{EventID: id, WorkerURL: server.URL, MessageID: "om_" + person, AppealID: a.ID, Revision: 2, Recipient: person + "@example.com", ApprovalIDs: []string{"approval-1"}, LastStateHash: domain.PendingNotificationCardHash(2, []string{"approval-1"}, person+"@example.com")}
 	}
-	restarted, _ := New(Config{URL: server.URL, Token: strings.Repeat("t", 32)})
+	restarted, _ := New(Config{URL: server.URL})
 	restarted.ConfigureCards(store, cardReader{a})
 	if err := restarted.ReconcileCards(context.Background()); err != nil {
 		t.Fatal(err)
@@ -150,7 +149,7 @@ func TestUnchangedStateDoesNotResetAnOpenCardForm(t *testing.T) {
 	defer server.Close()
 	id := uuid.NewString()
 	store.cards[id] = domain.NotificationCard{EventID: id, WorkerURL: server.URL, MessageID: "om_b", AppealID: a.ID, Revision: 2, Recipient: "b@example.com", ApprovalIDs: []string{"approval-1"}, LastStateHash: domain.PendingNotificationCardHash(2, []string{"approval-1"}, "b@example.com")}
-	n, _ := New(Config{URL: server.URL, Token: strings.Repeat("t", 32)})
+	n, _ := New(Config{URL: server.URL})
 	n.ConfigureCards(store, cardReader{a})
 	if err := n.ReconcileCards(context.Background()); err != nil {
 		t.Fatal(err)
@@ -176,7 +175,7 @@ func TestPendingDeliveryRecoveryReusesPersistedEventID(t *testing.T) {
 	}))
 	defer server.Close()
 	store.cards[id] = domain.NotificationCard{EventID: id, WorkerURL: server.URL, AppealID: a.ID, Revision: 2, Recipient: "b@example.com", ApprovalIDs: []string{"approval-1"}, LastStateHash: domain.PendingNotificationCardHash(2, []string{"approval-1"}, "b@example.com"), DeliveryDeadline: time.Now().Add(time.Hour)}
-	n, _ := New(Config{URL: server.URL, Token: strings.Repeat("t", 32)})
+	n, _ := New(Config{URL: server.URL})
 	n.ConfigureCards(store, cardReader{a})
 	if err := n.ReconcileCards(context.Background()); err != nil {
 		t.Fatal(err)
@@ -203,7 +202,7 @@ func TestDeliveryConfirmsDurableReceiptWithStableRetry(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]string{"event_id": e.EventID, "message_id": "om_b", "bot": "pending"})
 	}))
 	defer server.Close()
-	n, _ := New(Config{URL: server.URL, Token: strings.Repeat("t", 32)})
+	n, _ := New(Config{URL: server.URL})
 	n.ConfigureCards(store, cardReader{trackedAppeal("pending")})
 	n.delays = []time.Duration{0, 0}
 	if errs := n.Notify(context.Background(), []domain.Notification{approvalItem("appeal", "approval-1", "Owner", "b@example.com")}); len(errs) > 0 {
@@ -234,7 +233,7 @@ func TestFailedSiblingUpdateRemainsRetryableAfterRestart(t *testing.T) {
 	defer server.Close()
 	id := uuid.NewString()
 	store.cards[id] = domain.NotificationCard{EventID: id, WorkerURL: server.URL, MessageID: "om_b", AppealID: a.ID, Revision: 2, Recipient: "b@example.com", ApprovalIDs: []string{"approval-1"}, LastStateHash: domain.PendingNotificationCardHash(2, []string{"approval-1"}, "b@example.com")}
-	n, _ := New(Config{URL: server.URL, Token: strings.Repeat("t", 32)})
+	n, _ := New(Config{URL: server.URL})
 	n.ConfigureCards(store, cardReader{a})
 	if err := n.ReconcileCards(context.Background()); err == nil {
 		t.Fatal("failed card update was not reported")
@@ -243,7 +242,7 @@ func TestFailedSiblingUpdateRemainsRetryableAfterRestart(t *testing.T) {
 		t.Fatal("failed update was lost")
 	}
 	fail = false
-	restarted, _ := New(Config{URL: server.URL, Token: strings.Repeat("t", 32)})
+	restarted, _ := New(Config{URL: server.URL})
 	restarted.ConfigureCards(store, cardReader{a})
 	if err := restarted.ReconcileCards(context.Background()); err != nil {
 		t.Fatal(err)
@@ -260,7 +259,7 @@ func TestExpiredUnconfirmedDeliveryDoesNotSendOutsideDeduplicationWindow(t *test
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.WriteHeader(500) }))
 	defer server.Close()
 	store.cards[id] = domain.NotificationCard{EventID: id, WorkerURL: server.URL, AppealID: "appeal", ApprovalIDs: []string{"approval-1"}, DeliveryDeadline: time.Now().Add(-time.Minute)}
-	n, _ := New(Config{URL: server.URL, Token: strings.Repeat("t", 32)})
+	n, _ := New(Config{URL: server.URL})
 	n.ConfigureCards(store, cardReader{trackedAppeal("approved")})
 	if err := n.ReconcileCards(context.Background()); err != nil {
 		t.Fatal(err)

@@ -20,7 +20,6 @@ import (
 
 type Config struct {
 	URL            string
-	Token          string
 	TimeoutSeconds int
 }
 
@@ -35,7 +34,6 @@ type envelope struct {
 
 type Notifier struct {
 	endpoint string
-	token    string
 	timeout  time.Duration
 	http     *http.Client
 	delays   []time.Duration
@@ -48,16 +46,13 @@ func New(config Config) (*Notifier, error) {
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.RawQuery != "" || u.Fragment != "" || strings.Trim(u.Path, "/") != "" {
 		return nil, errors.New("lark_v2 worker_url must be an HTTP(S) origin without credentials or a path")
 	}
-	if len(config.Token) < 32 {
-		return nil, errors.New("lark_v2 worker_token must contain at least 32 bytes")
-	}
 	if config.TimeoutSeconds == 0 {
 		config.TimeoutSeconds = 30
 	}
 	if config.TimeoutSeconds < 5 || config.TimeoutSeconds > 120 {
 		return nil, errors.New("lark_v2 timeout_seconds must be between 5 and 120")
 	}
-	return &Notifier{endpoint: strings.TrimRight(config.URL, "/") + "/v1/notifications", token: config.Token, timeout: time.Duration(config.TimeoutSeconds) * time.Second,
+	return &Notifier{endpoint: strings.TrimRight(config.URL, "/") + "/v1/notifications", timeout: time.Duration(config.TimeoutSeconds) * time.Second,
 		http: &http.Client{Timeout: 22 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, delays: []time.Duration{250 * time.Millisecond, time.Second}}, nil
 }
 
@@ -116,7 +111,6 @@ func (n *Notifier) attempt(ctx context.Context, data []byte, eventID string, tra
 	if err != nil {
 		return false, 0, errors.New("lark_v2 request could not be prepared")
 	}
-	req.Header.Set("Authorization", "Bearer "+n.token)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := n.http.Do(req)
 	if err != nil {

@@ -81,7 +81,6 @@ type Config struct {
 
 	// lark_v2: the worker owns Lark application credentials.
 	WorkerURL      string `mapstructure:"worker_url"`
-	WorkerToken    string `mapstructure:"worker_token"`
 	TimeoutSeconds int    `mapstructure:"timeout_seconds"`
 
 	// slack
@@ -222,7 +221,7 @@ func (nm *NotifyManager) addNotifier(notifier Config) {
 }
 
 func newLarkV2Client(config *Config) (Client, error) {
-	return larkv2.New(larkv2.Config{URL: config.WorkerURL, Token: config.WorkerToken, TimeoutSeconds: config.TimeoutSeconds})
+	return larkv2.New(larkv2.Config{URL: config.WorkerURL, TimeoutSeconds: config.TimeoutSeconds})
 }
 
 // ConfigureCards attaches Guardian's existing DB only to v2; legacy-only servers need no new table.

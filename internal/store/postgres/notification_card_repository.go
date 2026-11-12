@@ -74,3 +74,26 @@ func (r *NotificationCardRepository) Retry(ctx context.Context, card domain.Noti
 	return r.db.WithContext(ctx).Exec(`UPDATE notification_card_receipts SET next_check_at=NOW()+(? * interval '1 second'),lease_owner=NULL,lease_until=NULL,updated_at=NOW()
         WHERE event_id=? AND lease_owner=?::uuid`, delay.Seconds(), card.EventID, card.LeaseOwner).Error
 }
+
+// GetByMessageID reads immutable delivered scope without claiming a reconciliation lease.
+func (r *NotificationCardRepository) GetByMessageID(ctx context.Context, messageID string) (*domain.NotificationCard, error) {
+	var row struct {
+		EventID, WorkerURL, MessageID, AppealID, Recipient string
+		AppealRevision                                     uint32
+		ApprovalIDs                                        json.RawMessage
+		Closed                                             bool
+	}
+	query := r.db.WithContext(ctx).Raw(`SELECT event_id,worker_url,message_id,appeal_id,appeal_revision,recipient,approval_ids,closed
+ FROM notification_card_receipts WHERE message_id=?`, messageID).Scan(&row)
+	if query.Error != nil {
+		return nil, query.Error
+	}
+	if query.RowsAffected == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	var ids []string
+	if json.Unmarshal(row.ApprovalIDs, &ids) != nil || len(ids) == 0 {
+		return nil, errors.New("invalid persisted card context")
+	}
+	return &domain.NotificationCard{EventID: row.EventID, WorkerURL: row.WorkerURL, MessageID: row.MessageID, AppealID: row.AppealID, Revision: row.AppealRevision, Recipient: row.Recipient, ApprovalIDs: ids, Closed: row.Closed}, nil
+}
