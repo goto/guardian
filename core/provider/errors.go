@@ -3,6 +3,9 @@ package provider
 import "errors"
 
 var (
+	// ErrPartialResourceSync means provider enumeration succeeded, but individual
+	// providers failed. Batch jobs may log and continue; API callers still see it.
+	ErrPartialResourceSync = errors.New("failed to add resources for providers")
 	// ErrInvalidProviderType is the error value if provider is unable to find the matching provider type
 	ErrInvalidProviderType = errors.New("unable to find provider based on provider type")
 	// ErrEmptyIDParam is the error value if the policy id is empty

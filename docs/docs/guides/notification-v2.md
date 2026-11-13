@@ -27,6 +27,35 @@ failures are not retried; 429/5xx and unconfirmed transport responses are bounde
 Returned errors omit request URLs, recipients, tokens and response bodies. Notifications remain
 best effort and do not roll back an appeal when delivery fails.
 
+Grant notifications link to their appeal when one exists. Otherwise the worker links to the
+known package or the Console access resources page, never the Console homepage. Dormant-access
+digests preserve safe per-entry appeal/package identifiers for individual links. Hosts come from
+the worker's configured Console origin. Imported grants do not acquire fabricated appeal IDs.
+
+Scheduled resource fetching logs and skips individual provider failures, including stale provider
+configuration, and continues with the remaining providers. Failure to enumerate providers or a
+canceled execution still fails the job. Direct API callers retain the partial-sync error. Dormancy
+checks skip unsupported activity providers and log genuine provider failures. Reminder and bot-expiry
+delivery failures are logged per recipient/team and do not stop the remaining batch. Skipping an error
+does not imply that access was successfully changed or that a notification was delivered.
+
+Guardian suppresses separate routine user notifications for identified package implementation
+grants: CloudSSO group membership and bot STS trust under `package_user`, plus resource copies
+under `package_access_bot_ram_role` and `package_access_bot_ram_user`. Classification requires
+package linkage and the matching account/resource type, including children with their own appeal.
+The actual Guardian package membership and root package resource access remain visible.
+Expiry, revocation, owner-change, dormant-access digests, and child appeal outcome notifications
+use this rule before delivery, so it applies to legacy notifiers as well as v2. Suppression is logged
+with the grant/appeal identifier and reason. Actual access changes and audit records still execute.
+Pending manual approvals and explicit comments remain visible; Siren bot-expiry alerts are separate
+and unchanged. Unknown/unlinked grants and imported direct access are not hidden simply because
+they lack an appeal. No extra table, lookup, or dependency on the worker is introduced.
+
+MaxCompute project-member prerequisites are normally permanent and therefore outside expiry
+reminders. Ungrouped prerequisites cannot reliably be distinguished from legacy/imported access
+with current persisted provenance, so this filter does not guess. Functional-role package setup
+grants are likewise not classified as technical children merely because they use a package account.
+
 Approval notifications identify the persisted appeal ID, approval IDs and revision. Guardian
 selects recipients from pending manual steps and excludes stale revisions. The v2 adapter groups the
 batch by recipient, appeal and revision into one card listing all that person's pending steps.

@@ -40,7 +40,16 @@ func (h *handler) GrantExpirationReminder(ctx context.Context, cfg Config) error
 		// TODO: group notifications by username
 		var notifications []domain.Notification
 		for _, g := range grants {
+			if reason := g.NotificationSuppressionReason(); reason != "" {
+				h.logger.Info(ctx, "skipping technical grant expiry notification", "grant_id", g.ID, "group_id", g.GroupID, "reason", reason)
+				continue
+			}
+			if g.Resource == nil || g.ExpirationDate == nil {
+				h.logger.Warn(ctx, "skipping incomplete grant expiry notification", "grant_id", g.ID)
+				continue
+			}
 			msgVars := map[string]interface{}{
+				"appeal_id":                 g.AppealID,
 				"resource_name":             fmt.Sprintf("%s (%s: %s)", g.Resource.Name, g.Resource.ProviderType, g.Resource.URN),
 				"resource_id":               g.Resource.ID,
 				"resource_display_name":     g.Resource.Name,

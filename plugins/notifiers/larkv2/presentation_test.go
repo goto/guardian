@@ -37,6 +37,20 @@ func TestOwnerChangeUsesOnlyPublicGrantContext(t *testing.T) {
 	}
 }
 
+func TestUnusedGrantLinksRetainOnlySafeIdentity(t *testing.T) {
+	result := presentationVariables(map[string]interface{}{"dormant_grants": []map[string]interface{}{{
+		"appeal_id": "appeal-1", "group_id": "package-1", "group_type": "package_access", "account_type": "ram_role", "resource": map[string]interface{}{"id": "resource-1", "type": "table", "provider_type": "maxcompute", "details": "PRIVATE_CANARY"}, "details": "PRIVATE_CANARY",
+	}}})
+	items := result["unused_grants"].([]map[string]interface{})
+	if len(items) != 1 || items[0]["appeal_id"] != "appeal-1" || items[0]["group_id"] != "package-1" || items[0]["resource_type"] != "table" {
+		t.Fatalf("link context lost: %v", items)
+	}
+	b, _ := json.Marshal(result)
+	if strings.Contains(string(b), "PRIVATE_CANARY") {
+		t.Fatal("private metadata leaked")
+	}
+}
+
 func TestV2DurationUsesRawValueWithoutInferringPermanent(t *testing.T) {
 	for _, duration := range []string{"", "0h", "90d"} {
 		input := map[string]interface{}{"duration": "Permanent", "requested_duration": duration}

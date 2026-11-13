@@ -45,12 +45,12 @@ func presentationVariables(input map[string]interface{}) map[string]interface{} 
 			}
 			summary := map[string]interface{}{}
 			resource, _ := grant["resource"].(map[string]interface{})
-			for dst, src := range map[string]string{"resource_display_name": "name", "resource_urn": "urn"} {
+			for dst, src := range map[string]string{"resource_display_name": "name", "resource_urn": "urn", "resource_id": "id", "provider_type": "provider_type", "resource_type": "type"} {
 				if value, ok := resource[src].(string); ok {
 					summary[dst] = presentationPreview(value)
 				}
 			}
-			for _, key := range []string{"account_id", "role"} {
+			for _, key := range []string{"account_id", "role", "appeal_id", "group_id", "group_type", "account_type"} {
 				if value, ok := grant[key].(string); ok {
 					summary[key] = presentationPreview(value)
 				}

@@ -410,7 +410,11 @@ func (s *Service) Update(ctx context.Context, payload *domain.GrantUpdate) (*dom
 		}
 	}()
 
-	if previousOwner != latestGrant.Owner {
+	ownerNotificationReason := latestGrant.NotificationSuppressionReason()
+	if previousOwner != latestGrant.Owner && ownerNotificationReason != "" {
+		s.logger.Info(ctx, "skipping technical grant owner notification", "grant_id", latestGrant.ID, "group_id", latestGrant.GroupID, "reason", ownerNotificationReason)
+	}
+	if previousOwner != latestGrant.Owner && ownerNotificationReason == "" {
 		go func() {
 			message := domain.NotificationMessage{
 				Type: domain.NotificationTypeGrantOwnerChanged,
@@ -508,7 +512,11 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 		}
 	}
 
-	if !options.skipNotification {
+	revokeNotificationReason := grant.NotificationSuppressionReason()
+	if !options.skipNotification && revokeNotificationReason != "" {
+		s.logger.Info(ctx, "skipping technical grant revocation notification", "grant_id", grant.ID, "group_id", grant.GroupID, "reason", revokeNotificationReason)
+	}
+	if !options.skipNotification && revokeNotificationReason == "" {
 		notifications := []domain.Notification{{
 			User: grant.CreatedBy,
 			Labels: map[string]string{
@@ -924,12 +932,20 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 			var grantIDs []string
 
 			for _, g := range grants {
+				if reason := g.NotificationSuppressionReason(); reason != "" {
+					s.logger.Info(ctx, "skipping technical grant dormancy notification", "grant_id", g.ID, "group_id", g.GroupID, "reason", reason)
+					continue
+				}
 				grantMap, err := utils.StructToMap(g)
 				if err != nil {
 					s.logger.Error(ctx, "failed to convert grant to map", "error", err)
 					continue prepare_notifications
 				}
 				grantsMap = append(grantsMap, grantMap)
+				grantIDs = append(grantIDs, g.ID)
+			}
+			if len(grantsMap) == 0 {
+				continue
 			}
 
 			notifications = append(notifications, domain.Notification{

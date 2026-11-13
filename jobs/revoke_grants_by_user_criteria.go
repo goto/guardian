@@ -53,13 +53,14 @@ func (h *handler) RevokeGrantsByUserCriteria(ctx context.Context, c Config) erro
 	grantsOwnedByUser := map[string][]*domain.Grant{} // map[owner][]grant
 	uniqueUserEmails := map[string]bool{}             // map[account_id]bool
 	for _, g := range activeGrants {
+		g := g // Keep each indexed grant distinct under Go 1.21 loop semantics.
 		if g.AccountType == domain.DefaultAppealAccountType {
 			// collecting grants for individual users
 			grantsForUser[g.AccountID] = append(grantsForUser[g.AccountID], &g)
 			uniqueUserEmails[g.AccountID] = true
 		} else if g.Owner != domain.SystemActorName {
 			// collecting other grants owned by the user
-			grantsOwnedByUser[g.Owner] = append(grantsOwnedByUser[g.AccountID], &g)
+			grantsOwnedByUser[g.Owner] = append(grantsOwnedByUser[g.Owner], &g)
 		}
 	}
 	h.logger.Info(ctx, fmt.Sprintf("found %d unique users", len(uniqueUserEmails)), "emails", uniqueUserEmails)
@@ -80,6 +81,7 @@ func (h *handler) RevokeGrantsByUserCriteria(ctx context.Context, c Config) erro
 		h.logger.Info(ctx, "checking criteria against user", "email", email, "criteria", cfg.UserCriteria.String())
 		if criteriaSatisfied, err := evaluateCriteria(cfg.UserCriteria, userDetails); err != nil {
 			h.logger.Error(ctx, "failed to check criteria", "email", email, "error", err)
+			continue
 		} else if !criteriaSatisfied {
 			h.logger.Info(ctx, "criteria not satisfied", "email", email)
 			continue

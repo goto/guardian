@@ -525,7 +525,8 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		notifications = append(notifications, s.getApprovalNotifications(ctx, a)...)
 	}
 
-	if len(notifications) > 0 {
+	notifications = s.filterTechnicalNotifications(ctx, notifications, appeals...)
+	if len(notifications) != 0 {
 		go func() {
 			ctx := context.WithoutCancel(ctx)
 			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
@@ -968,7 +969,8 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		notifications = append(notifications, s.getApprovalNotifications(ctx, appeal)...)
 	}
 
-	if len(notifications) > 0 {
+	notifications = s.filterTechnicalNotifications(ctx, notifications, appeal)
+	if len(notifications) != 0 {
 		go func() {
 			ctx := context.WithoutCancel(ctx)
 			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
@@ -1268,7 +1270,8 @@ func (s *Service) updateApprovalAttempt(ctx context.Context, approvalAction doma
 	} else {
 		notifications = append(notifications, s.getNewApprovalNotifications(ctx, notificationBefore, appeal)...)
 	}
-	if len(notifications) > 0 {
+	notifications = s.filterTechnicalNotifications(ctx, notifications, appeal)
+	if len(notifications) != 0 {
 		go func() {
 			ctx := context.WithoutCancel(ctx)
 			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
