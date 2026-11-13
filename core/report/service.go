@@ -104,16 +104,26 @@ func (s *Service) GetPendingApprovalsList(ctx context.Context, cfg *GetPendingAp
 	}
 
 	if !cfg.DryRun {
-		sent, failed := 0, 0
+		sent, failed, skipped := 0, 0, 0
 		for _, notification := range notifications {
 			if errs := s.notifier.Notify(ctx, []domain.Notification{notification}); len(errs) > 0 {
-				failed++
-				s.logger.Error(ctx, "reminder delivery failed", "recipient", notification.User, "error_count", len(errs))
+				allSkipped := true
+				for _, err := range errs {
+					if _, isSkip := domain.NotificationSkipCode(err); !isSkip {
+						allSkipped = false
+					}
+					notifiers.LogDeliveryError(ctx, s.logger, err)
+				}
+				if allSkipped {
+					skipped++
+				} else {
+					failed++
+				}
 			} else {
 				sent++
 			}
 		}
-		s.logger.Info(ctx, "pending approvals reminder completed", "sent", sent, "failed", failed)
+		s.logger.Info(ctx, "pending approvals reminder completed", "sent", sent, "skipped", skipped, "failed", failed)
 	}
 
 	return report, nil

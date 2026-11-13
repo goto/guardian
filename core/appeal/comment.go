@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/plugins/notifiers"
 )
 
 const CommentParentTypeAppeal = "appeal"
@@ -102,7 +103,7 @@ func (s *Service) notifyParticipants(ctx context.Context, appeal *domain.Appeal,
 	if len(notifications) > 0 {
 		if errs := s.notifier.Notify(ctx, notifications); errs != nil {
 			for _, err := range errs {
-				s.logger.Error(ctx, "failed to send notifications", "error", err.Error())
+				notifiers.LogDeliveryError(ctx, s.logger, err)
 			}
 		}
 	}

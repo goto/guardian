@@ -205,7 +205,9 @@ func TestDeliveryConfirmsDurableReceiptWithStableRetry(t *testing.T) {
 	n, _ := New(Config{URL: server.URL})
 	n.ConfigureCards(store, cardReader{trackedAppeal("pending")})
 	n.delays = []time.Duration{0, 0}
-	if errs := n.Notify(context.Background(), []domain.Notification{approvalItem("appeal", "approval-1", "Owner", "b@example.com")}); len(errs) > 0 {
+	item := approvalItem("appeal", "approval-1", "Owner", "b@example.com")
+	item.Approval.Revision = 2
+	if errs := n.Notify(context.Background(), []domain.Notification{item}); len(errs) > 0 {
 		t.Fatal(errs)
 	}
 	if calls != 2 || len(store.cards) != 1 || store.cards[event].MessageID != "om_b" {
