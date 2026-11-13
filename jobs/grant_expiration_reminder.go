@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/goto/guardian/domain"
+	"github.com/goto/guardian/plugins/notifiers"
 )
 
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
@@ -98,7 +99,7 @@ func (h *handler) GrantExpirationReminder(ctx context.Context, cfg Config) error
 
 		if errs := h.notifier.Notify(ctx, notifications); errs != nil {
 			for _, err1 := range errs {
-				h.logger.Error(ctx, "failed to send notifications", "error", err1)
+				notifiers.LogDeliveryError(ctx, h.logger, err1)
 			}
 		}
 	}

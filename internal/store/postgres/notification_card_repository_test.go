@@ -101,6 +101,28 @@ func TestNotificationCardRepositoryPersistenceLeasesAndMigration(t *testing.T) {
 	if cards, err := repo.Claim(ctx, card.WorkerURL, uuid.NewString(), 10); err != nil || len(cards) != 0 {
 		t.Fatal("closed card was reclaimed")
 	}
+	// An unresolved recipient is closed using the initial sender's existing
+	// event-ID lease, without creating a message ID or a new persistence model.
+	skipped := card
+	skipped.EventID = uuid.NewString()
+	skipped.Recipient = "missing@example.com"
+	skipped.MessageID = ""
+	skipped.LeaseOwner = skipped.EventID
+	if created, err := repo.Ensure(ctx, skipped, time.Minute); err != nil || !created {
+		t.Fatalf("prepare skipped delivery: created=%v err=%v", created, err)
+	}
+	if err := repo.Complete(ctx, skipped, skipped.LastStateHash, true, 0); err != nil {
+		t.Fatal(err)
+	}
+	var closed bool
+	if err := store.DB().Raw("SELECT closed FROM notification_card_receipts WHERE event_id=?", skipped.EventID).Scan(&closed).Error; err != nil || !closed {
+		t.Fatalf("initial lease did not close skip: %v", err)
+	}
+	skipped.EventID = uuid.NewString()
+	skipped.ApprovalIDs = []string{"later-approval"}
+	if created, err := repo.Ensure(ctx, skipped, time.Minute); err != nil || created {
+		t.Fatal("later stage reopened skipped recipient")
+	}
 	if err := store.DB().Exec("DELETE FROM appeals WHERE id=?", appealID).Error; err != nil {
 		t.Fatal(err)
 	}

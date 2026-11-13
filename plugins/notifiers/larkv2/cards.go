@@ -104,13 +104,25 @@ func (n *Notifier) reconcileCard(parent context.Context, card domain.Notificatio
 		return
 	}
 	if card.MessageID == "" {
+		// A pending-approval prompt is obsolete once the appeal finishes or is
+		// replaced by a new revision. Already-delivered cards still refresh below.
+		if appeal.Status != domain.AppealStatusPending || uint32(appeal.Revision) != card.Revision {
+			if err := n.store.Complete(ctx, card, card.LastStateHash, true, 0); err != nil {
+				failed = true
+			}
+			return
+		}
 		item := recoveryNotification(card, appeal)
 		data, err := json.Marshal(envelope{EventID: card.EventID, Recipient: card.Recipient, Type: item.Message.Type, Variables: presentationVariables(item.Message.Variables), Approval: item.Approval})
 		if err != nil || len(data) > 64*1024 {
 			retry(15 * time.Second)
 			return
 		}
-		if _, _, err := n.attempt(ctx, data, card.EventID, true); err != nil {
+		if _, _, err := n.attempt(ctx, data, card.EventID, true); errors.Is(err, errRecipientNotResolved) {
+			if err := n.store.Complete(ctx, card, card.LastStateHash, true, 0); err != nil {
+				failed = true
+			}
+		} else if err != nil {
 			retry(15 * time.Second)
 		}
 		return
