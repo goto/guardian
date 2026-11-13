@@ -136,3 +136,34 @@ Public notification fields now include typed package linkage, allowlisted packag
 and the committed grant expiry. No package-name lookup is added to the approval commit path; all
 notification transport still runs asynchronously after commit. Existing provider-before-commit race
 limitations remain separate. No migration or new runtime credential is needed.
+
+
+## Slow approval and reminder fixes
+
+Approval keeps its existing pre-check/provider-work/locked-commit flow. This change
+adds no approval execution table, durable admission, heartbeat, advisory lock,
+background decision endpoint or database migration. Concurrent Console/Lark calls
+can still overlap provider work before commit; ambiguous outcomes still require
+checking before another explicit attempt. These existing risks are accepted.
+
+Post-hooks retain their existing detached behavior, bounded by
+POST_APPEAL_HOOK_TIMEOUT_SECONDS (default1800, range60..86400). The post-hook timeout
+is separate from caller HTTP timeouts; it is not an approval lock. Dependency
+errgroup cancellation no longer replaces the context used for subsequent hooks.
+Successful hook response bodies are closed. A stable X-Guardian-Operation-ID header
+binds each hook to its appeal/revision/name. Dex package creation stores that identity
+and a canonical request hash on the created resource; an identical replay returns
+that resource, while different requests still conflict. Dex provisioning remains
+asynchronous and has its existing retry mechanism. Deploy Dex replay support before
+relying on this recovery behavior.
+
+The worker's existing queue shows processing feedback and waits longer using its
+configurable action budget. No new receipt schema or state field is required.
+Notification failure does not roll back approval or prevent the worker's decision.
+
+Pending reminders count distinct appeals per normalized recipient. Query/row-read
+errors are returned before any sends. Per-recipient delivery failures are logged
+and skipped while other recipients continue; the whole Job remains successful.
+No reminder-delivery table, daily key, application timezone or exact-once promise
+is added. Scheduling/timezone and retry policy belong to deployment configuration;
+manual reruns may resend reminders.

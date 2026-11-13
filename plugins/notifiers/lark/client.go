@@ -117,6 +117,7 @@ func (n *Notifier) sendMessage(workspace LarkWorkspace, email string, messageBlo
 		return err
 	}
 	payload["receive_id"] = email
+
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -167,6 +168,7 @@ func (n *Notifier) sendTenantAccessTokenRequest(req *http.Request) (*tokenRespon
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 	var result tokenResponse
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
@@ -183,6 +185,7 @@ func (n *Notifier) sendMessageRequest(req *http.Request, reqPayload map[string]i
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 	var result messageResponse
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {

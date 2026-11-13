@@ -2,6 +2,7 @@ package appeal
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -174,7 +175,8 @@ type Service struct {
 	logger      log.Logger
 	auditLogger auditLogger
 
-	TimeNow func() time.Time
+	postHookTimeout time.Duration
+	TimeNow         func() time.Time
 }
 
 // NewService returns service struct
@@ -195,6 +197,7 @@ func NewService(deps ServiceDeps) *Service {
 		deps.Validator,
 		deps.Logger,
 		deps.AuditLogger,
+		DefaultPostHookTimeout,
 		time.Now,
 	}
 }
@@ -2128,12 +2131,12 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 			createdAppeals := make([]*domain.Appeal, 0, len(r.Appeals))
 			var mu sync.Mutex
 
-			g, ctx := errgroup.WithContext(ctx)
+			g, childCtx := errgroup.WithContext(ctx)
 			for _, aa := range r.Appeals {
 				aa := aa // https://golang.org/doc/faq#closures_and_goroutines
 				g.Go(func() error {
 					// TODO: populate resource data from policyService
-					resource, err := s.resourceService.Get(ctx, aa.Resource)
+					resource, err := s.resourceService.Get(childCtx, aa.Resource)
 					if err != nil {
 						return fmt.Errorf("retrieving resource: %v", err)
 					}
@@ -2153,7 +2156,7 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 						additionalAppeal.PolicyVersion = uint(aa.Policy.Version)
 					}
 
-					if err := s.Create(ctx, []*domain.Appeal{additionalAppeal}, CreateWithAdditionalAppeal()); err != nil {
+					if err := s.Create(childCtx, []*domain.Appeal{additionalAppeal}, CreateWithAdditionalAppeal()); err != nil {
 						if errors.Is(err, ErrAppealDuplicate) {
 							s.logger.Warn(ctx, "creating additional appeals, duplicate appeal error log", "error", err)
 							// Still track the appeal even if duplicate
@@ -2883,12 +2886,10 @@ func (s *Service) executePostAppealHooks(
 	if len(hooks) == 0 {
 		return nil
 	}
-	// Use context.WithoutCancel to prevent post-hooks from being canceled
-	// when the parent gRPC context times out. Post-hooks can be long-running
-	// (e.g., creating additional resources, calling external services) and
-	// should complete independently of the approval response timing.
-	detachedCtx := context.WithoutCancel(ctx)
-	eg, egctx := errgroup.WithContext(detachedCtx)
+	// Preserve existing detached hooks, but bound their lifetime independently of HTTP waits.
+	hookCtx, cancelHooks := context.WithTimeout(context.WithoutCancel(ctx), s.postHookTimeoutDuration())
+	defer cancelHooks()
+	eg, egctx := errgroup.WithContext(hookCtx)
 
 	for _, hook := range hooks {
 		hook := hook
@@ -2950,6 +2951,12 @@ func (s *Service) executePostAppealHooks(
 					cfg.Headers[key] = evaluatedValue
 				}
 
+				// Bind replay identity to the original appeal revision and hook, not the HTTP attempt.
+				if cfg.Headers == nil {
+					cfg.Headers = map[string]string{}
+				}
+				cfg.Headers["X-Guardian-Operation-ID"] = fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%s", originalAppeal.ID, originalAppeal.Revision, hook.Name))))
+
 				// Create HTTP client (same pattern as metadata sources)
 				clientCreator := &http.HttpClientCreatorStruct{}
 				httpClient, err := http.NewHTTPClient(&cfg.HTTPClientConfig, clientCreator, "PostAppealHook")
@@ -2982,6 +2989,7 @@ func (s *Service) executePostAppealHooks(
 					return fmt.Errorf("error making request for hook %q: %w", hook.Name, err)
 				}
 
+				defer res.Body.Close()
 				// Check status code
 				if res.StatusCode < 200 || res.StatusCode >= 300 {
 					body, _ := io.ReadAll(res.Body)

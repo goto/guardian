@@ -219,6 +219,9 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		Logger:          deps.Logger,
 		AuditLogger:     auditLogger,
 	})
+	if err := appealService.ConfigurePostHookTimeout(deps.Config.PostAppealHookTimeoutSeconds); err != nil {
+		return nil, err
+	}
 	reportService := report.NewService(report.ServiceDeps{
 		Repository: reportRepository,
 		Logger:     deps.Logger,
