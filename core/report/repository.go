@@ -24,16 +24,8 @@ func (r *Repository) GetPendingApprovalsList(ctx context.Context, filters *Pendi
 		return nil, err
 	}
 
-	rows, err := db.Rows()
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		db.ScanRows(rows, &records)
-	}
-
-	return records, nil
+	err = db.Scan(&records).Error
+	return records, err
 }
 
 func applyAppealFilter(db *gorm.DB, filters *PendingApprovalsReportFilter) (*gorm.DB, error) {

@@ -291,6 +291,9 @@ func (s *Service) FetchResources(ctx context.Context) error {
 	totalFetchedCount := 0
 	updatedResourcesCount := 0
 	for _, p := range providers {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		startTime := time.Now()
 		s.logger.Info(ctx, "syncing resources", "provider_urn", p.URN)
 		resources, fetchedCount, err := s.syncResources(ctx, p)
@@ -316,7 +319,10 @@ func (s *Service) FetchResources(ctx context.Context) error {
 			s.logger.Error(ctx, "failed to add resources for provider", "provider_urn", providerURN, "error", err)
 			urns = append(urns, providerURN)
 		}
-		return fmt.Errorf("failed to add resources for providers: %v", urns)
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		return fmt.Errorf("%w: %v", ErrPartialResourceSync, urns)
 	}
 	return nil
 }

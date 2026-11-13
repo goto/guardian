@@ -2,6 +2,7 @@ package appeal
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -174,7 +175,8 @@ type Service struct {
 	logger      log.Logger
 	auditLogger auditLogger
 
-	TimeNow func() time.Time
+	postHookTimeout time.Duration
+	TimeNow         func() time.Time
 }
 
 // NewService returns service struct
@@ -195,6 +197,7 @@ func NewService(deps ServiceDeps) *Service {
 		deps.Validator,
 		deps.Logger,
 		deps.AuditLogger,
+		DefaultPostHookTimeout,
 		time.Now,
 	}
 }
@@ -456,11 +459,21 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeAppealApproved,
 				Variables: map[string]interface{}{
-					"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-					"role":          appeal.Role,
-					"account_id":    appeal.AccountID,
-					"appeal_id":     appeal.ID,
-					"requestor":     appeal.CreatedBy,
+					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+					"resource_id":           appeal.Resource.ID,
+					"resource_display_name": appeal.Resource.Name,
+					"resource_urn":          appeal.Resource.URN,
+					"resource_type":         appeal.Resource.Type,
+					"provider_type":         appeal.Resource.ProviderType,
+					"role":                  appeal.Role,
+					"account_id":            appeal.AccountID,
+					"requested_duration":    notificationDuration(appeal),
+					"expiration_date":       notificationExpiration(appeal),
+					"package_creation":      notificationPackageCreation(appeal),
+					"group_id":              appeal.GroupID,
+					"group_type":            appeal.GroupType,
+					"appeal_id":             appeal.ID,
+					"requestor":             appeal.CreatedBy,
 				},
 			},
 		})
@@ -493,12 +506,17 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 				Message: domain.NotificationMessage{
 					Type: domain.NotificationTypeAppealRejected,
 					Variables: map[string]interface{}{
-						"resource_name": fmt.Sprintf("%s (%s: %s)", a.Resource.Name, a.Resource.ProviderType, a.Resource.URN),
-						"role":          a.Role,
-						"account_id":    a.AccountID,
-						"appeal_id":     a.ID,
-						"requestor":     a.CreatedBy,
-						"reason":        reason,
+						"resource_name":         fmt.Sprintf("%s (%s: %s)", a.Resource.Name, a.Resource.ProviderType, a.Resource.URN),
+						"resource_id":           a.Resource.ID,
+						"resource_display_name": a.Resource.Name,
+						"resource_urn":          a.Resource.URN,
+						"resource_type":         a.Resource.Type,
+						"provider_type":         a.Resource.ProviderType,
+						"role":                  a.Role,
+						"account_id":            a.AccountID,
+						"appeal_id":             a.ID,
+						"requestor":             a.CreatedBy,
+						"reason":                reason,
 					},
 				},
 			})
@@ -507,7 +525,8 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 		notifications = append(notifications, s.getApprovalNotifications(ctx, a)...)
 	}
 
-	if len(notifications) > 0 {
+	notifications = s.filterTechnicalNotifications(ctx, notifications, appeals...)
+	if len(notifications) != 0 {
 		go func() {
 			ctx := context.WithoutCancel(ctx)
 			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
@@ -551,11 +570,21 @@ func addOnBehalfApprovedNotification(appeal *domain.Appeal, notifications []doma
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeOnBehalfAppealApproved,
 				Variables: map[string]interface{}{
-					"appeal_id":     appeal.ID,
-					"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-					"role":          appeal.Role,
-					"account_id":    appeal.AccountID,
-					"requestor":     appeal.CreatedBy,
+					"appeal_id":             appeal.ID,
+					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+					"resource_id":           appeal.Resource.ID,
+					"resource_display_name": appeal.Resource.Name,
+					"resource_urn":          appeal.Resource.URN,
+					"resource_type":         appeal.Resource.Type,
+					"provider_type":         appeal.Resource.ProviderType,
+					"role":                  appeal.Role,
+					"account_id":            appeal.AccountID,
+					"requested_duration":    notificationDuration(appeal),
+					"expiration_date":       notificationExpiration(appeal),
+					"package_creation":      notificationPackageCreation(appeal),
+					"group_id":              appeal.GroupID,
+					"group_type":            appeal.GroupType,
+					"requestor":             appeal.CreatedBy,
 				},
 			},
 		})
@@ -836,25 +865,6 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 				return fmt.Errorf("granting access: %w", err)
 			}
 		}
-
-		notifications = append(notifications, domain.Notification{
-			User: appeal.CreatedBy,
-			Labels: map[string]string{
-				"appeal_id": appeal.ID,
-			},
-			Message: domain.NotificationMessage{
-				Type: domain.NotificationTypeAppealApproved,
-				Variables: map[string]interface{}{
-					"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-					"role":          appeal.Role,
-					"account_id":    appeal.AccountID,
-					"appeal_id":     appeal.ID,
-					"requestor":     appeal.CreatedBy,
-				},
-			},
-		})
-
-		notifications = addOnBehalfApprovedNotification(appeal, notifications)
 	}
 
 	newApprovals := appeal.Approvals
@@ -901,11 +911,21 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeAppealApproved,
 				Variables: map[string]interface{}{
-					"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-					"role":          appeal.Role,
-					"account_id":    appeal.AccountID,
-					"appeal_id":     appeal.ID,
-					"requestor":     appeal.CreatedBy,
+					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+					"resource_id":           appeal.Resource.ID,
+					"resource_display_name": appeal.Resource.Name,
+					"resource_urn":          appeal.Resource.URN,
+					"resource_type":         appeal.Resource.Type,
+					"provider_type":         appeal.Resource.ProviderType,
+					"role":                  appeal.Role,
+					"account_id":            appeal.AccountID,
+					"requested_duration":    notificationDuration(appeal),
+					"expiration_date":       notificationExpiration(appeal),
+					"package_creation":      notificationPackageCreation(appeal),
+					"group_id":              appeal.GroupID,
+					"group_type":            appeal.GroupType,
+					"appeal_id":             appeal.ID,
+					"requestor":             appeal.CreatedBy,
 				},
 			},
 		})
@@ -926,12 +946,22 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeAppealRejected,
 				Variables: map[string]interface{}{
-					"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-					"role":          appeal.Role,
-					"account_id":    appeal.AccountID,
-					"appeal_id":     appeal.ID,
-					"requestor":     appeal.CreatedBy,
-					"reason":        reason,
+					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+					"resource_id":           appeal.Resource.ID,
+					"resource_display_name": appeal.Resource.Name,
+					"resource_urn":          appeal.Resource.URN,
+					"resource_type":         appeal.Resource.Type,
+					"provider_type":         appeal.Resource.ProviderType,
+					"role":                  appeal.Role,
+					"account_id":            appeal.AccountID,
+					"requested_duration":    notificationDuration(appeal),
+					"expiration_date":       notificationExpiration(appeal),
+					"package_creation":      notificationPackageCreation(appeal),
+					"group_id":              appeal.GroupID,
+					"group_type":            appeal.GroupType,
+					"appeal_id":             appeal.ID,
+					"requestor":             appeal.CreatedBy,
+					"reason":                reason,
 				},
 			},
 		})
@@ -939,7 +969,8 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		notifications = append(notifications, s.getApprovalNotifications(ctx, appeal)...)
 	}
 
-	if len(notifications) > 0 {
+	notifications = s.filterTechnicalNotifications(ctx, notifications, appeal)
+	if len(notifications) != 0 {
 		go func() {
 			ctx := context.WithoutCancel(ctx)
 			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
@@ -1008,6 +1039,16 @@ func validatePatchReq(appeal, existingAppeal *domain.Appeal) (bool, error) {
 	return isAppealUpdated, nil
 }
 
+// errApprovalNeedsGrantPreparation is returned only by an aborted locked mutation when
+// the fresh parallel-step state becomes terminal but the snapshot ran no grant side effects.
+var errApprovalNeedsGrantPreparation = errors.New("approval state advanced; grant preparation retry required")
+
+type approvalRetryGuard struct {
+	set        bool
+	revision   uint
+	approvalID string
+}
+
 // UpdateApproval Approve an approval step
 //
 // Flow:
@@ -1019,6 +1060,20 @@ func validatePatchReq(appeal, existingAppeal *domain.Appeal) (bool, error) {
 //     new grant, and revoke the previous grant in a single transaction.
 //  4. Notifications + audit (async, unchanged).
 func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.ApprovalAction) (*domain.Appeal, error) {
+	guard := &approvalRetryGuard{}
+	for attempt := 0; attempt < 3; attempt++ {
+		result, err := s.updateApprovalAttempt(ctx, approvalAction, guard)
+		if !errors.Is(err, errApprovalNeedsGrantPreparation) {
+			return result, err
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("%w: approval state kept changing; review the current request", ErrApprovalNotEligibleForAction)
+}
+
+func (s *Service) updateApprovalAttempt(ctx context.Context, approvalAction domain.ApprovalAction, guard *approvalRetryGuard) (*domain.Appeal, error) {
 	if err := approvalAction.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidUpdateApprovalParameter, err)
 	}
@@ -1034,8 +1089,20 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 	if err := checkIfAppealStatusStillPending(initialAppeal.Status); err != nil {
 		return nil, err
 	}
-	if initialAppeal.GetApproval(approvalAction.ApprovalName) == nil {
+	initialApproval := initialAppeal.GetApproval(approvalAction.ApprovalName)
+	if initialApproval == nil {
 		return nil, fmt.Errorf("%w: %q", ErrApprovalNotFound, approvalAction.ApprovalName)
+	}
+	if err := checkApprovalRevision(initialAppeal, initialApproval); err != nil {
+		return nil, err
+	}
+	if !guard.set {
+		guard.set = true
+		guard.revision = initialAppeal.Revision
+		guard.approvalID = initialApproval.ID
+	}
+	if initialAppeal.Revision != guard.revision || initialApproval.ID != guard.approvalID {
+		return nil, fmt.Errorf("%w: request changed; review the current appeal", ErrApprovalNotEligibleForAction)
 	}
 
 	// Load the policy for approve actions — it is immutable (versioned) so reading outside the lock is safe.
@@ -1087,12 +1154,30 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 	// then save the appeal (with new grant attached) and revoke the previous grant — all in
 	// one transaction. If the re-validation fails (e.g., another approver acted concurrently),
 	// the side effects from phase 2 are wasted but the DB stays coherent.
+	var notificationBefore *domain.Appeal
 	appeal, err := s.repo.UpdateWithLock(ctx, approvalAction.AppealID, prevGrant, func(freshAppeal *domain.Appeal) error {
+		if err := checkIfAppealStatusStillPending(freshAppeal.Status); err != nil {
+			return err
+		}
+		freshStep := freshAppeal.GetApproval(approvalAction.ApprovalName)
+		if freshStep == nil {
+			return fmt.Errorf("%w: %q", ErrApprovalNotFound, approvalAction.ApprovalName)
+		}
+		if freshAppeal.Revision != guard.revision || freshStep.ID != guard.approvalID {
+			return fmt.Errorf("%w: request changed before commit", ErrApprovalNotEligibleForAction)
+		}
 		if approvalAction.Action == domain.AppealActionNameApprove {
 			freshAppeal.Policy = policyObj
 		}
+		// Compare notifications against the state protected by this commit, not a stale pre-check.
+		notificationBefore = cloneAppealForMutation(freshAppeal)
 		if err := applyApprovalMutation(freshAppeal, approvalAction, policyObj); err != nil {
 			return err
+		}
+		if freshAppeal.Status == domain.AppealStatusApproved && newGrant == nil {
+			// Another parallel step completed after our snapshot. Abort this transaction
+			// before writing any appeal/approval state, then prepare access from a fresh read.
+			return errApprovalNeedsGrantPreparation
 		}
 		if freshAppeal.Status == domain.AppealStatusApproved && newGrant != nil {
 			// Use the expiration date computed in phase 2 so the persisted appeal options
@@ -1135,11 +1220,21 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeAppealApproved,
 				Variables: map[string]interface{}{
-					"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-					"role":          appeal.Role,
-					"account_id":    appeal.AccountID,
-					"appeal_id":     appeal.ID,
-					"requestor":     appeal.CreatedBy,
+					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+					"resource_id":           appeal.Resource.ID,
+					"resource_display_name": appeal.Resource.Name,
+					"resource_urn":          appeal.Resource.URN,
+					"resource_type":         appeal.Resource.Type,
+					"provider_type":         appeal.Resource.ProviderType,
+					"role":                  appeal.Role,
+					"account_id":            appeal.AccountID,
+					"requested_duration":    notificationDuration(appeal),
+					"expiration_date":       notificationExpiration(appeal),
+					"package_creation":      notificationPackageCreation(appeal),
+					"group_id":              appeal.GroupID,
+					"group_type":            appeal.GroupType,
+					"appeal_id":             appeal.ID,
+					"requestor":             appeal.CreatedBy,
 				},
 			},
 		})
@@ -1153,18 +1248,30 @@ func (s *Service) UpdateApproval(ctx context.Context, approvalAction domain.Appr
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeAppealRejected,
 				Variables: map[string]interface{}{
-					"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-					"role":          appeal.Role,
-					"account_id":    appeal.AccountID,
-					"appeal_id":     appeal.ID,
-					"requestor":     appeal.CreatedBy,
+					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+					"resource_id":           appeal.Resource.ID,
+					"resource_display_name": appeal.Resource.Name,
+					"resource_urn":          appeal.Resource.URN,
+					"resource_type":         appeal.Resource.Type,
+					"provider_type":         appeal.Resource.ProviderType,
+					"role":                  appeal.Role,
+					"account_id":            appeal.AccountID,
+					"requested_duration":    notificationDuration(appeal),
+					"expiration_date":       notificationExpiration(appeal),
+					"package_creation":      notificationPackageCreation(appeal),
+					"group_id":              appeal.GroupID,
+					"group_type":            appeal.GroupType,
+					"appeal_id":             appeal.ID,
+					"requestor":             appeal.CreatedBy,
+					"reason":                approvalAction.Reason,
 				},
 			},
 		})
 	} else {
-		notifications = append(notifications, s.getApprovalNotifications(ctx, appeal)...)
+		notifications = append(notifications, s.getNewApprovalNotifications(ctx, notificationBefore, appeal)...)
 	}
-	if len(notifications) > 0 {
+	notifications = s.filterTechnicalNotifications(ctx, notifications, appeal)
+	if len(notifications) != 0 {
 		go func() {
 			ctx := context.WithoutCancel(ctx)
 			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
@@ -1264,6 +1371,9 @@ func applyApprovalMutation(
 	if currentApproval == nil {
 		return fmt.Errorf("%w: %q", ErrApprovalNotFound, approvalAction.ApprovalName)
 	}
+	if err := checkApprovalRevision(appeal, currentApproval); err != nil {
+		return err
+	}
 
 	for _, prevIdx := range appeal.GetSortedStageIndices() {
 		if prevIdx >= currentApproval.Index {
@@ -1320,7 +1430,7 @@ func applyApprovalMutation(
 			isSelfApprovalNotAllowed = policyStep.DontAllowSelfApproval
 		}
 
-		if isSelfApprovalNotAllowed && approvalAction.Actor == appeal.CreatedBy {
+		if isSelfApprovalNotAllowed && strings.EqualFold(approvalAction.Actor, appeal.CreatedBy) {
 			return ErrSelfApprovalNotAllowed
 		}
 
@@ -1416,8 +1526,20 @@ func (s *Service) Cancel(ctx context.Context, id string) (*domain.Appeal, error)
 		return nil, err
 	}
 
-	appeal.Cancel()
-	if err := s.repo.Update(ctx, appeal); err != nil {
+	// A console/job cancellation may race a final approval or an appeal edit.
+	// Revalidate under the same row lock as approvals instead of saving the stale snapshot.
+	revision := appeal.Revision
+	appeal, err = s.repo.UpdateWithLock(ctx, id, nil, func(fresh *domain.Appeal) error {
+		if fresh.Revision != revision {
+			return fmt.Errorf("%w: request changed before cancellation", ErrApprovalNotEligibleForAction)
+		}
+		if err := checkIfAppealStatusStillPending(fresh.Status); err != nil {
+			return err
+		}
+		fresh.Cancel()
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -1483,48 +1605,24 @@ func (s *Service) AddApprover(ctx context.Context, appealID, approvalID, email s
 		}
 	}()
 
-	duration := domain.PermanentDurationLabel
-	if !appeal.IsDurationEmpty() {
-		duration, err = utils.GetReadableDuration(appeal.Options.Duration)
-		if err != nil {
-			s.logger.Error(ctx, "failed to get readable duration", "error", err, "appeal_id", appeal.ID)
-		}
-	}
-
-	go func() {
-		ctx := context.WithoutCancel(ctx)
-		if errs := s.notifier.Notify(ctx, []domain.Notification{
-			{
-				User: email,
-				Labels: map[string]string{
-					"appeal_id": appeal.ID,
-				},
-				Message: domain.NotificationMessage{
-					Type: domain.NotificationTypeApproverNotification,
-					Variables: map[string]interface{}{
-						"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-						"role":          appeal.Role,
-						"requestor":     appeal.CreatedBy,
-						"appeal_id":     appeal.ID,
-						"account_id":    appeal.AccountID,
-						"account_type":  appeal.AccountType,
-						"provider_type": appeal.Resource.ProviderType,
-						"resource_type": appeal.Resource.Type,
-						"created_at":    appeal.CreatedAt,
-						"approval_step": approval.Name,
-						"actor":         email,
-						"details":       appeal.Details,
-						"duration":      duration,
-						"creator":       appeal.Creator,
-					},
-				},
-			},
-		}); errs != nil {
-			for _, err1 := range errs {
-				s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+	if approval.Status == domain.ApprovalStatusPending {
+		var notifications []domain.Notification
+		for _, notification := range s.getApprovalNotifications(ctx, appeal) {
+			if strings.EqualFold(notification.User, email) {
+				notifications = append(notifications, notification)
 			}
 		}
-	}()
+		if len(notifications) > 0 {
+			go func() {
+				ctx := context.WithoutCancel(ctx)
+				if errs := s.notifier.Notify(ctx, notifications); errs != nil {
+					for _, notifyErr := range errs {
+						s.logger.Error(ctx, "failed to send notifications", "error", notifyErr.Error())
+					}
+				}
+			}()
+		}
+	}
 
 	return appeal, nil
 }
@@ -1867,7 +1965,6 @@ func (s *Service) getPoliciesMap(ctx context.Context) (map[string]map[uint]*doma
 
 func (s *Service) getApprovalNotifications(ctx context.Context, appeal *domain.Appeal) []domain.Notification {
 	notifications := []domain.Notification{}
-	approval := appeal.GetNextPendingApproval()
 
 	duration := domain.PermanentDurationLabel
 	var err error
@@ -1878,33 +1975,91 @@ func (s *Service) getApprovalNotifications(ctx context.Context, appeal *domain.A
 		}
 	}
 
-	if approval != nil {
+	for _, approval := range appeal.Approvals {
+		if approval.IsStale || approval.AppealRevision != appeal.Revision || approval.Status != domain.ApprovalStatusPending || !approval.IsManualApproval() {
+			continue
+		}
+		seenApprovers := map[string]bool{}
 		for _, approver := range approval.Approvers {
+			key := strings.ToLower(strings.TrimSpace(approver))
+			if seenApprovers[key] {
+				continue
+			}
+			seenApprovers[key] = true
 			notifications = append(notifications, domain.Notification{
-				User: approver,
+				User:     approver,
+				Approval: &domain.NotificationApproval{AppealID: appeal.ID, ApprovalID: approval.ID, Revision: uint32(appeal.Revision), PlannedSteps: domain.NotificationApprovalPlan(appeal, approver, nil)},
 				Labels: map[string]string{
 					"appeal_id": appeal.ID,
 				},
 				Message: domain.NotificationMessage{
 					Type: domain.NotificationTypeApproverNotification,
 					Variables: map[string]interface{}{
-						"resource_name": fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-						"role":          appeal.Role,
-						"requestor":     appeal.CreatedBy,
-						"appeal_id":     appeal.ID,
-						"account_id":    appeal.AccountID,
-						"account_type":  appeal.AccountType,
-						"provider_type": appeal.Resource.ProviderType,
-						"resource_type": appeal.Resource.Type,
-						"created_at":    appeal.CreatedAt,
-						"approval_step": approval.Name,
-						"actor":         approver,
-						"details":       appeal.Details,
-						"duration":      duration,
-						"creator":       appeal.Creator,
+						"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+						"resource_id":           appeal.Resource.ID,
+						"resource_display_name": appeal.Resource.Name,
+						"resource_urn":          appeal.Resource.URN,
+						"role":                  appeal.Role,
+						"requestor":             appeal.CreatedBy,
+						"appeal_id":             appeal.ID,
+						"account_id":            appeal.AccountID,
+						"requested_duration":    notificationDuration(appeal),
+						"expiration_date":       notificationExpiration(appeal),
+						"package_creation":      notificationPackageCreation(appeal),
+						"group_id":              appeal.GroupID,
+						"group_type":            appeal.GroupType,
+						"account_type":          appeal.AccountType,
+						"provider_type":         appeal.Resource.ProviderType,
+						"resource_type":         appeal.Resource.Type,
+						"created_at":            appeal.CreatedAt,
+						"approval_step":         approval.Name,
+						"actor":                 approver,
+						"details":               appeal.Details,
+						"duration":              duration,
+						"creator":               appeal.Creator,
 					},
 				},
 			})
+		}
+	}
+	return notifications
+}
+
+// getNewApprovalNotifications avoids re-notifying an unchanged pending stage after another
+// parallel step resolves. A newly eligible recipient gets all their current pending steps so
+// the v2 adapter can build one complete card without including blocked steps.
+func (s *Service) getNewApprovalNotifications(ctx context.Context, before, after *domain.Appeal) []domain.Notification {
+	type pendingKey struct{ id, name, recipient string }
+	previous := map[pendingKey]bool{}
+	if before != nil {
+		for _, step := range before.Approvals {
+			if step.IsStale || step.AppealRevision != before.Revision || step.Status != domain.ApprovalStatusPending {
+				continue
+			}
+			for _, recipient := range step.Approvers {
+				previous[pendingKey{step.ID, step.Name, strings.ToLower(strings.TrimSpace(recipient))}] = true
+			}
+		}
+	}
+	eligible := map[string]bool{}
+	for _, step := range after.Approvals {
+		if step.IsStale || step.AppealRevision != after.Revision || step.Status != domain.ApprovalStatusPending {
+			continue
+		}
+		for _, recipient := range step.Approvers {
+			normalized := strings.ToLower(strings.TrimSpace(recipient))
+			if !previous[pendingKey{step.ID, step.Name, normalized}] {
+				eligible[normalized] = true
+			}
+		}
+	}
+	if len(eligible) == 0 {
+		return nil
+	}
+	var notifications []domain.Notification
+	for _, notification := range s.getApprovalNotifications(ctx, after) {
+		if eligible[strings.ToLower(strings.TrimSpace(notification.User))] {
+			notifications = append(notifications, notification)
 		}
 	}
 	return notifications
@@ -1940,6 +2095,15 @@ func checkPreviousApprovalStatus(status, name string) error {
 	}
 }
 
+// checkApprovalRevision also protects direct approval-ID actions: GetApproval accepts IDs
+// for historical rows, so checking pending status alone would allow an obsolete card to act.
+func checkApprovalRevision(appeal *domain.Appeal, approval *domain.Approval) error {
+	if approval.IsStale || approval.AppealRevision != appeal.Revision {
+		return fmt.Errorf("%w: approval belongs to an obsolete appeal revision", ErrApprovalNotEligibleForAction)
+	}
+	return nil
+}
+
 func checkApprovalStatus(status string) error {
 	switch status {
 	case domain.ApprovalStatusPending:
@@ -1970,12 +2134,12 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 			createdAppeals := make([]*domain.Appeal, 0, len(r.Appeals))
 			var mu sync.Mutex
 
-			g, ctx := errgroup.WithContext(ctx)
+			g, childCtx := errgroup.WithContext(ctx)
 			for _, aa := range r.Appeals {
 				aa := aa // https://golang.org/doc/faq#closures_and_goroutines
 				g.Go(func() error {
 					// TODO: populate resource data from policyService
-					resource, err := s.resourceService.Get(ctx, aa.Resource)
+					resource, err := s.resourceService.Get(childCtx, aa.Resource)
 					if err != nil {
 						return fmt.Errorf("retrieving resource: %v", err)
 					}
@@ -1995,7 +2159,7 @@ func (s *Service) handleAppealRequirements(ctx context.Context, a *domain.Appeal
 						additionalAppeal.PolicyVersion = uint(aa.Policy.Version)
 					}
 
-					if err := s.Create(ctx, []*domain.Appeal{additionalAppeal}, CreateWithAdditionalAppeal()); err != nil {
+					if err := s.Create(childCtx, []*domain.Appeal{additionalAppeal}, CreateWithAdditionalAppeal()); err != nil {
 						if errors.Is(err, ErrAppealDuplicate) {
 							s.logger.Warn(ctx, "creating additional appeals, duplicate appeal error log", "error", err)
 							// Still track the appeal even if duplicate
@@ -2725,12 +2889,10 @@ func (s *Service) executePostAppealHooks(
 	if len(hooks) == 0 {
 		return nil
 	}
-	// Use context.WithoutCancel to prevent post-hooks from being canceled
-	// when the parent gRPC context times out. Post-hooks can be long-running
-	// (e.g., creating additional resources, calling external services) and
-	// should complete independently of the approval response timing.
-	detachedCtx := context.WithoutCancel(ctx)
-	eg, egctx := errgroup.WithContext(detachedCtx)
+	// Preserve existing detached hooks, but bound their lifetime independently of HTTP waits.
+	hookCtx, cancelHooks := context.WithTimeout(context.WithoutCancel(ctx), s.postHookTimeoutDuration())
+	defer cancelHooks()
+	eg, egctx := errgroup.WithContext(hookCtx)
 
 	for _, hook := range hooks {
 		hook := hook
@@ -2792,6 +2954,12 @@ func (s *Service) executePostAppealHooks(
 					cfg.Headers[key] = evaluatedValue
 				}
 
+				// Bind replay identity to the original appeal revision and hook, not the HTTP attempt.
+				if cfg.Headers == nil {
+					cfg.Headers = map[string]string{}
+				}
+				cfg.Headers["X-Guardian-Operation-ID"] = fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%s", originalAppeal.ID, originalAppeal.Revision, hook.Name))))
+
 				// Create HTTP client (same pattern as metadata sources)
 				clientCreator := &http.HttpClientCreatorStruct{}
 				httpClient, err := http.NewHTTPClient(&cfg.HTTPClientConfig, clientCreator, "PostAppealHook")
@@ -2824,6 +2992,7 @@ func (s *Service) executePostAppealHooks(
 					return fmt.Errorf("error making request for hook %q: %w", hook.Name, err)
 				}
 
+				defer res.Body.Close()
 				// Check status code
 				if res.StatusCode < 200 || res.StatusCode >= 300 {
 					body, _ := io.ReadAll(res.Body)
@@ -2907,4 +3076,39 @@ func evaluateExpressionWithParams(params map[string]interface{}, expr string) (s
 		}
 		return string(jsonBytes), nil
 	}
+}
+
+// Keep missing distinct from explicit permanent access in v2. Legacy duration labels remain unchanged.
+func notificationDuration(a *domain.Appeal) string {
+	if a.Options == nil {
+		return ""
+	}
+	return a.Options.Duration
+}
+
+func notificationPackageCreation(a *domain.Appeal) map[string]interface{} {
+	if a.Resource == nil || a.Resource.Type != "package-create" {
+		return nil
+	}
+	result := map[string]interface{}{}
+	for _, key := range []string{"name", "description", "created_by", "type", "functional_roles"} {
+		result[key] = a.Details[key]
+	}
+	return result
+}
+
+func notificationExpiration(a *domain.Appeal) *time.Time {
+	if a.Status != domain.AppealStatusApproved {
+		return nil
+	}
+	if a.Grant != nil {
+		if a.Grant.IsPermanent {
+			return nil
+		}
+		return a.Grant.ExpirationDate
+	}
+	if a.Options != nil {
+		return a.Options.ExpirationDate
+	}
+	return nil
 }

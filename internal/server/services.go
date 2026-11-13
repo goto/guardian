@@ -50,6 +50,7 @@ import (
 )
 
 type Services struct {
+	Store           *postgres.Store
 	ResourceService *resource.Service
 	ActivityService *activity.Service
 	ProviderService *provider.Service
@@ -218,6 +219,9 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 		Logger:          deps.Logger,
 		AuditLogger:     auditLogger,
 	})
+	if err := appealService.ConfigurePostHookTimeout(deps.Config.PostAppealHookTimeoutSeconds); err != nil {
+		return nil, err
+	}
 	reportService := report.NewService(report.ServiceDeps{
 		Repository: reportRepository,
 		Logger:     deps.Logger,
@@ -227,15 +231,9 @@ func InitServices(deps ServiceDeps) (*Services, error) {
 	grantService.SetAppealService(appealService)
 
 	return &Services{
-		resourceService,
-		activityService,
-		providerService,
-		policyService,
-		approvalService,
-		appealService,
-		grantService,
-		commentService,
-		reportService,
+		Store: store, ResourceService: resourceService, ActivityService: activityService, ProviderService: providerService,
+		PolicyService: policyService, ApprovalService: approvalService, AppealService: appealService, GrantService: grantService,
+		CommentService: commentService, ReportService: reportService,
 	}, nil
 }
 

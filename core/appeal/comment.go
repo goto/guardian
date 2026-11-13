@@ -77,15 +77,27 @@ func (s *Service) notifyParticipants(ctx context.Context, appeal *domain.Appeal,
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeNewComment,
 				Variables: map[string]interface{}{
-					"appeal_id":          appeal.ID,
-					"appeal_created_by":  appeal.CreatedBy,
-					"resource_name":      fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
-					"comment_id":         comment.ID,
-					"comment_created_by": comment.CreatedBy,
-					"body":               comment.Body,
+					"appeal_id":             appeal.ID,
+					"appeal_created_by":     appeal.CreatedBy,
+					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
+					"resource_id":           appeal.Resource.ID,
+					"resource_display_name": appeal.Resource.Name,
+					"resource_urn":          appeal.Resource.URN,
+					"provider_type":         appeal.Resource.ProviderType,
+					"resource_type":         appeal.Resource.Type,
+					"comment_id":            comment.ID,
+					"comment_created_by":    comment.CreatedBy,
+					"body":                  comment.Body,
 				},
 			},
 		})
+		if appeal.Resource.Type == "package-create" {
+			notifications[len(notifications)-1].Message.Variables["package_creation"] = notificationPackageCreation(appeal)
+		}
+		if appeal.GroupType != "" {
+			notifications[len(notifications)-1].Message.Variables["group_id"] = appeal.GroupID
+			notifications[len(notifications)-1].Message.Variables["group_type"] = appeal.GroupType
+		}
 	}
 	if len(notifications) > 0 {
 		if errs := s.notifier.Notify(ctx, notifications); errs != nil {

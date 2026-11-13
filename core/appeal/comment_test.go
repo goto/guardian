@@ -90,12 +90,17 @@ func TestCreateComment(t *testing.T) {
 				expectedNotifMsg := domain.NotificationMessage{
 					Type: domain.NotificationTypeNewComment,
 					Variables: map[string]interface{}{
-						"appeal_id":          appealID,
-						"appeal_created_by":  appealRequestor,
-						"resource_name":      fmt.Sprintf("%s (%s: %s)", dummyAppeal.Resource.Name, dummyAppeal.Resource.ProviderType, dummyAppeal.Resource.URN),
-						"comment_id":         newComment.ID,
-						"comment_created_by": newComment.CreatedBy,
-						"body":               newComment.Body,
+						"appeal_id":             appealID,
+						"appeal_created_by":     appealRequestor,
+						"resource_name":         fmt.Sprintf("%s (%s: %s)", dummyAppeal.Resource.Name, dummyAppeal.Resource.ProviderType, dummyAppeal.Resource.URN),
+						"resource_id":           dummyAppeal.Resource.ID,
+						"resource_display_name": dummyAppeal.Resource.Name,
+						"resource_urn":          dummyAppeal.Resource.URN,
+						"provider_type":         dummyAppeal.Resource.ProviderType,
+						"resource_type":         dummyAppeal.Resource.Type,
+						"comment_id":            newComment.ID,
+						"comment_created_by":    newComment.CreatedBy,
+						"body":                  newComment.Body,
 					},
 				}
 				for _, n := range notifications {

@@ -2,9 +2,11 @@ package jobs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/goto/guardian/core/provider"
 	"github.com/goto/guardian/domain"
 )
 
@@ -17,7 +19,7 @@ type GrantDormancyCheckConfig struct {
 func (h *handler) GrantDormancyCheck(ctx context.Context, c Config) error {
 	var cfg GrantDormancyCheckConfig
 	if err := c.Decode(&cfg); err != nil {
-		return fmt.Errorf("invalid config for %s job: %w", TypeRevokeGrantsByUserCriteria, err)
+		return fmt.Errorf("invalid config for %s job: %w", TypeGrantDormancyCheck, err)
 	}
 
 	period, err := time.ParseDuration(cfg.Period)
@@ -42,6 +44,10 @@ func (h *handler) GrantDormancyCheck(ctx context.Context, c Config) error {
 			RetainDuration: retainGrantFor,
 			DryRun:         cfg.DryRun,
 		}); err != nil {
+			if errors.Is(err, provider.ErrGetActivityMethodNotSupported) {
+				h.logger.Info(ctx, "skipping dormancy check: provider has no activity support", "provider_urn", p.URN, "provider_type", p.Type)
+				continue
+			}
 			h.logger.Error(ctx, fmt.Sprintf("failed to check dormancy for provider %q", p.URN), "error", err)
 		}
 	}

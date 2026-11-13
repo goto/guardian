@@ -10,6 +10,7 @@ import (
 	"github.com/goto/guardian/pkg/evaluator"
 	"github.com/goto/guardian/pkg/log"
 	"github.com/goto/guardian/plugins/notifiers/lark"
+	"github.com/goto/guardian/plugins/notifiers/larkv2"
 	"github.com/goto/guardian/plugins/notifiers/slack"
 	"github.com/mitchellh/mapstructure"
 
@@ -23,6 +24,7 @@ type Client interface {
 type NotifyManager struct {
 	clients []Client
 	configs []Config
+	logger  log.Logger
 }
 
 func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notification) []error {
@@ -31,21 +33,25 @@ func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notifi
 		return errs
 	}
 	for i, client := range m.clients {
-		// evaluate criteria
 		config := m.configs[i]
-		v, err := evaluator.Expression(config.Criteria).EvaluateWithVars(map[string]interface{}{
-			"email": notification[0].User,
-		})
-		if err != nil {
-			errs = append(errs, err)
-			continue
+		var selected []domain.Notification
+		for _, item := range notification {
+			value, err := evaluator.Expression(config.Criteria).EvaluateWithVars(map[string]interface{}{"email": item.User})
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			match, ok := value.(bool)
+			if !ok {
+				errs = append(errs, fmt.Errorf("notifier expression did not evaluate to a boolean: %s", config.Criteria))
+				continue
+			}
+			if match {
+				selected = append(selected, item)
+			}
 		}
-
-		// if the expression evaluates to true, notify the client
-		if match, ok := v.(bool); !ok {
-			errs = append(errs, fmt.Errorf("notifier expression did not evaluate to a boolean: %s", config.Criteria))
-		} else if match {
-			if notifyErrs := client.Notify(ctx, notification); notifyErrs != nil {
+		if len(selected) > 0 {
+			if notifyErrs := client.Notify(ctx, selected); notifyErrs != nil {
 				errs = append(errs, notifyErrs...)
 			}
 		}
@@ -54,8 +60,9 @@ func (m *NotifyManager) Notify(ctx context.Context, notification []domain.Notifi
 }
 
 const (
-	ProviderTypeSlack = "slack"
-	ProviderTypeLark  = "lark"
+	ProviderTypeSlack  = "slack"
+	ProviderTypeLark   = "lark"
+	ProviderTypeLarkV2 = "lark_v2"
 )
 
 // SlackConfig is a map of workspace name to config
@@ -66,11 +73,15 @@ func (c SlackConfig) Decode(v interface{}) error {
 }
 
 type Config struct {
-	Provider     string `mapstructure:"provider" validate:"omitempty,oneof=slack lark"`
+	Provider     string `mapstructure:"provider" validate:"omitempty,oneof=slack lark lark_v2"`
 	Name         string `mapstructure:"name"`
 	ClientID     string `mapstructure:"client_id,omitempty"`
 	ClientSecret string `mapstructure:"client_secret,omitempty"`
 	Criteria     string `mapstructure:"criteria"`
+
+	// lark_v2: the worker owns Lark application credentials.
+	WorkerURL      string `mapstructure:"worker_url"`
+	TimeoutSeconds int    `mapstructure:"timeout_seconds"`
 
 	// slack
 	AccessToken string      `mapstructure:"access_token" validate:"required_without=SlackConfig"`
@@ -80,8 +91,16 @@ type Config struct {
 }
 
 func NewMultiClient(notifiers *[]Config, logger log.Logger) (*NotifyManager, error) {
-	notifyManager := &NotifyManager{}
+	notifyManager := &NotifyManager{logger: logger}
 	for _, notifier := range *notifiers {
+		if notifier.Provider == ProviderTypeLarkV2 {
+			client, err := newLarkV2Client(&notifier)
+			if err != nil {
+				return nil, err
+			}
+			notifyManager.addClient(client)
+			notifyManager.addNotifier(notifier)
+		}
 		if notifier.Provider == ProviderTypeSlack {
 			slackConfig, err := NewSlackConfig(&notifier)
 			if err != nil {
@@ -108,6 +127,9 @@ func NewMultiClient(notifiers *[]Config, logger log.Logger) (*NotifyManager, err
 }
 
 func NewClient(config *Config, logger log.Logger) (Client, error) {
+	if config.Provider == ProviderTypeLarkV2 {
+		return newLarkV2Client(config)
+	}
 	if config.Provider == ProviderTypeSlack {
 		slackConfig, err := NewSlackConfig(config)
 		if err != nil {
@@ -196,4 +218,54 @@ func (nm *NotifyManager) addClient(client Client) {
 
 func (nm *NotifyManager) addNotifier(notifier Config) {
 	nm.configs = append(nm.configs, notifier)
+}
+
+func newLarkV2Client(config *Config) (Client, error) {
+	return larkv2.New(larkv2.Config{URL: config.WorkerURL, TimeoutSeconds: config.TimeoutSeconds})
+}
+
+// ConfigureCards attaches Guardian's existing DB only to v2; legacy-only servers need no new table.
+func (m *NotifyManager) ConfigureCards(ctx context.Context, store larkv2.CardStore, reader larkv2.AppealReader) error {
+	checked := false
+	for _, client := range m.clients {
+		if v2, ok := client.(*larkv2.Notifier); ok {
+			if store == nil || reader == nil {
+				return errors.New("notification card synchronization requires a store and appeal reader")
+			}
+			if !checked {
+				if err := store.Ready(ctx); err != nil {
+					return errors.New("notification card migration is required")
+				}
+				checked = true
+			}
+			v2.ConfigureCards(store, reader)
+		}
+	}
+	return nil
+}
+
+func (m *NotifyManager) RunCardSync(ctx context.Context) {
+	var clients []*larkv2.Notifier
+	for _, client := range m.clients {
+		if v2, ok := client.(*larkv2.Notifier); ok {
+			clients = append(clients, v2)
+		}
+	}
+	if len(clients) == 0 {
+		return
+	}
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		for _, client := range clients {
+			if err := client.ReconcileCards(ctx); err != nil && ctx.Err() == nil && m.logger != nil {
+				m.logger.Error(ctx, "notification card reconciliation failed")
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }

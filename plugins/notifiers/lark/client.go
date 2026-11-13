@@ -117,6 +117,7 @@ func (n *Notifier) sendMessage(workspace LarkWorkspace, email string, messageBlo
 		return err
 	}
 	payload["receive_id"] = email
+
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -167,6 +168,7 @@ func (n *Notifier) sendTenantAccessTokenRequest(req *http.Request) (*tokenRespon
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 	var result tokenResponse
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
@@ -183,18 +185,15 @@ func (n *Notifier) sendMessageRequest(req *http.Request, reqPayload map[string]i
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 	var result messageResponse
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
 		return nil, err
 	}
 	if result.Code != 0 { // non 0 code means the API has returned some error(s)
-		result.Data = reqPayload
-		d, err := json.Marshal(result)
-		if err != nil {
-			return nil, errors.New(result.Message)
-		}
-		return nil, errors.New(string(d))
+		// Do not echo card content or arbitrary response data into job logs.
+		return nil, fmt.Errorf("Lark rejected message: code=%d message=%s", result.Code, result.Message)
 	}
 	return &result, nil
 }
@@ -216,6 +215,7 @@ func ParseMessage(message domain.NotificationMessage, templates domain.Notificat
 		domain.NotificationTypeExpirationReminder:       templates.ExpirationReminder,
 		domain.NotificationTypeOnBehalfAppealApproved:   templates.OthersAppealApproved,
 		domain.NotificationTypeGrantOwnerChanged:        templates.GrantOwnerChanged,
+		domain.NotificationTypeUnusedGrant:              templates.UnusedGrant,
 		domain.NotificationTypeNewComment:               templates.NewComment,
 		domain.NotificationTypePendingApprovalsReminder: templates.PendingApprovalsReminder,
 	}

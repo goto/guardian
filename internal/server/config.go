@@ -35,10 +35,11 @@ type Jobs struct {
 }
 
 type Config struct {
-	Port                   int        `mapstructure:"port" default:"8080"`
-	GRPC                   GRPCConfig `mapstructure:"grpc"`
-	EncryptionSecretKeyKey string     `mapstructure:"encryption_secret_key"`
-	Notifiers              string     `mapstructure:"notifiers"`
+	PostAppealHookTimeoutSeconds int        `mapstructure:"post_appeal_hook_timeout_seconds" default:"1800"`
+	Port                         int        `mapstructure:"port" default:"8080"`
+	GRPC                         GRPCConfig `mapstructure:"grpc"`
+	EncryptionSecretKeyKey       string     `mapstructure:"encryption_secret_key"`
+	Notifiers                    string     `mapstructure:"notifiers"`
 	// Deprecated: use Notifiers instead
 	Notifier notifiers.Config `mapstructure:"notifier"`
 	LogLevel string           `mapstructure:"log_level" default:"info"`

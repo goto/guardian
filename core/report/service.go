@@ -2,6 +2,8 @@ package report
 
 import (
 	"context"
+	"sort"
+	"strings"
 
 	"github.com/goto/guardian/domain"
 	"github.com/goto/guardian/pkg/log"
@@ -57,15 +59,30 @@ func (s *Service) GetPendingApprovalsList(ctx context.Context, cfg *GetPendingAp
 	s.logger.Info(ctx, "retrieved pending approvals", "count", len(pendingApprovals))
 
 	approverPendingApprovalsMap := make(map[string][]PendingAppeal)
+	seen := make(map[string]map[string]bool)
 	for _, approval := range pendingApprovals {
-		approverPendingApprovalsMap[approval.Approver] = append(approverPendingApprovalsMap[approval.Approver], PendingAppeal{
+		email := strings.ToLower(strings.TrimSpace(approval.Approver))
+		if seen[email] == nil {
+			seen[email] = map[string]bool{}
+		}
+		if seen[email][approval.AppealID] {
+			continue
+		}
+		seen[email][approval.AppealID] = true
+		approverPendingApprovalsMap[email] = append(approverPendingApprovalsMap[email], PendingAppeal{
 			ID: approval.AppealID,
 		})
 	}
 
 	var report []*PendingApproval
 	var notifications []domain.Notification
-	for approver, appeals := range approverPendingApprovalsMap {
+	var recipients []string
+	for recipient := range approverPendingApprovalsMap {
+		recipients = append(recipients, recipient)
+	}
+	sort.Strings(recipients)
+	for _, approver := range recipients {
+		appeals := approverPendingApprovalsMap[approver]
 		count := len(appeals)
 		report = append(report, &PendingApproval{
 			Approver: approver,
@@ -87,12 +104,16 @@ func (s *Service) GetPendingApprovalsList(ctx context.Context, cfg *GetPendingAp
 	}
 
 	if !cfg.DryRun {
-		if errs := s.notifier.Notify(ctx, notifications); errs != nil {
-			for _, e := range errs {
-				s.logger.Error(ctx, "failed to send notifications", "error", e.Error())
+		sent, failed := 0, 0
+		for _, notification := range notifications {
+			if errs := s.notifier.Notify(ctx, []domain.Notification{notification}); len(errs) > 0 {
+				failed++
+				s.logger.Error(ctx, "reminder delivery failed", "recipient", notification.User, "error_count", len(errs))
+			} else {
+				sent++
 			}
-			s.logger.Info(ctx, "pending approvals notifications sent")
 		}
+		s.logger.Info(ctx, "pending approvals reminder completed", "sent", sent, "failed", failed)
 	}
 
 	return report, nil

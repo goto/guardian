@@ -194,7 +194,7 @@ func (h *handler) BotExpirationAlert(ctx context.Context, rawCfg Config) error {
 					"bot_email", botEmail,
 					"team_name", teamName,
 					"error", err)
-				return err
+				continue
 			}
 			h.logger.Info(ctx, "successfully dispatched bot expiration notifications",
 				"severity", severity,
