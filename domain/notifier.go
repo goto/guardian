@@ -34,15 +34,17 @@ type NotificationMessage struct {
 // NotificationApproval binds an interactive notification to persisted approval steps.
 // It is transport metadata and is not persisted in Guardian's database.
 type NotificationApproval struct {
-	AppealID   string                     `json:"appeal_id"`
-	ApprovalID string                     `json:"approval_id,omitempty"`
-	Revision   uint32                     `json:"revision"`
-	Steps      []NotificationApprovalStep `json:"steps,omitempty"`
+	AppealID     string                     `json:"appeal_id"`
+	ApprovalID   string                     `json:"approval_id,omitempty"`
+	Revision     uint32                     `json:"revision"`
+	Steps        []NotificationApprovalStep `json:"steps,omitempty"`
+	PlannedSteps []NotificationApprovalStep `json:"-"`
 }
 
 type NotificationApprovalStep struct {
 	ApprovalID string `json:"approval_id"`
 	Name       string `json:"name"`
+	Status     string `json:"status,omitempty"`
 }
 
 type Notification struct {

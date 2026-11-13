@@ -115,6 +115,32 @@ func (n *Notifier) reconcileCard(parent context.Context, card domain.Notificatio
 		}
 		return
 	}
+	if appeal.Status == domain.AppealStatusPending && uint32(appeal.Revision) == card.Revision && !card.Expired(time.Now()) {
+		seen := map[string]bool{}
+		for _, id := range card.ApprovalIDs {
+			seen[id] = true
+		}
+		extended := card
+		extended.ApprovalIDs = append([]string(nil), card.ApprovalIDs...)
+		canExtend := true
+		for _, step := range domain.NotificationApprovalPlan(appeal, card.Recipient, nil) {
+			if !seen[step.ApprovalID] {
+				if step.Status != "blocked" {
+					canExtend = false
+					break
+				}
+				extended.ApprovalIDs = append(extended.ApprovalIDs, step.ApprovalID)
+				seen[step.ApprovalID] = true
+			}
+		}
+		if canExtend && len(extended.ApprovalIDs) != len(card.ApprovalIDs) {
+			if _, err := n.store.Ensure(ctx, extended, 0); err != nil {
+				retry(15 * time.Second)
+			}
+			// Ensure fences this lease and schedules a repaint of the expanded plan.
+			return
+		}
+	}
 	hash := domain.NotificationCardStateHash(appeal, card.ApprovalIDs, card.Recipient)
 	terminal := uint32(appeal.Revision) != card.Revision || appeal.Status != domain.AppealStatusPending
 	if hash == card.LastStateHash && !card.Expired(time.Now()) {
@@ -180,7 +206,7 @@ func recoveryNotification(card domain.NotificationCard, a *domain.Appeal) domain
 		}
 		context.Steps = append(context.Steps, domain.NotificationApprovalStep{ApprovalID: id, Name: name})
 	}
-	vars := map[string]interface{}{"appeal_id": a.ID, "requestor": a.CreatedBy, "account_id": a.AccountID, "account_type": a.AccountType, "role": a.Role, "details": a.Details, "duration": "Not specified"}
+	vars := map[string]interface{}{"appeal_id": a.ID, "requestor": a.CreatedBy, "account_id": a.AccountID, "account_type": a.AccountType, "group_id": a.GroupID, "group_type": a.GroupType, "role": a.Role, "details": a.Details, "duration": "Not specified"}
 	if a.Options != nil && a.Options.Duration != "" {
 		vars["duration"] = a.Options.Duration
 	}

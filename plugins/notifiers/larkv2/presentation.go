@@ -8,7 +8,7 @@ func presentationVariables(input map[string]interface{}) map[string]interface{} 
 	output := map[string]interface{}{}
 	for _, key := range []string{
 		"resource_id", "resource_display_name", "resource_name", "resource_urn", "resource_type", "provider_type",
-		"requestor", "appeal_created_by", "account_id", "account_type", "role", "duration", "appeal_id", "approval_step", "created_at",
+		"group_id", "group_type", "requestor", "appeal_created_by", "account_id", "account_type", "role", "duration", "appeal_id", "approval_step", "created_at",
 		"reason", "revoke_reason", "reason_to_access", "comment", "body", "comment_created_by", "comment_id",
 		"period", "retain_duration", "start_date_formatted", "pending_approvals_count", "expiration_date", "expiration_date_formatted", "previous_owner", "old_owner", "new_owner",
 	} {
@@ -58,6 +58,54 @@ func presentationVariables(input map[string]interface{}) map[string]interface{} 
 			summaries = append(summaries, summary)
 		}
 		output["unused_grants"] = summaries
+	}
+	if input["resource_type"] == "package-create" {
+		creation, _ := input["package_creation"].(map[string]interface{})
+		if creation == nil {
+			creation, _ = input["details"].(map[string]interface{})
+		}
+		safe := map[string]interface{}{}
+		for _, key := range []string{"name", "description", "created_by", "type"} {
+			if value, ok := creation[key].(string); ok {
+				limit := 401
+				if key == "description" {
+					limit = 1001
+				}
+				runes := []rune(value)
+				if len(runes) > limit {
+					value = string(runes[:limit])
+				}
+				safe[key] = value
+			}
+		}
+		var roles []string
+		switch values := creation["functional_roles"].(type) {
+		case []string:
+			roles = append([]string(nil), values...)
+		case []interface{}:
+			for _, value := range values {
+				if role, ok := value.(string); ok {
+					roles = append(roles, role)
+				} else {
+					safe["incomplete"] = true
+				}
+			}
+		case nil:
+		default:
+			safe["incomplete"] = true
+		}
+		if len(roles) > 8 {
+			roles = roles[:8]
+			safe["incomplete"] = true
+		}
+		for i, role := range roles {
+			if len([]rune(role)) > 120 {
+				roles[i] = string([]rune(role)[:120])
+				safe["incomplete"] = true
+			}
+		}
+		safe["functional_roles"] = roles
+		output["package_creation"] = safe
 	}
 	// Compatibility for integrations that supply a typed grant rather than flat resource fields.
 	var grant *domain.Grant

@@ -28,14 +28,14 @@ Returned errors omit request URLs, recipients, tokens and response bodies. Notif
 best effort and do not roll back an appeal when delivery fails.
 
 Approval notifications identify the persisted appeal ID, approval IDs and revision. Guardian
-collects every pending manual step and excludes blocked/stale steps. The v2 adapter groups the
+selects recipients from pending manual steps and excludes stale revisions. The v2 adapter groups the
 batch by recipient, appeal and revision into one card listing all that person's pending steps.
 Legacy v1/Slack links keep their individual step names.
 
 After approval commits, Guardian notifies newly eligible recipients with all their current pending
 steps. Resolving another parallel step does not resend unchanged pending notifications. Adding an
 approver to a blocked step sends no card until the step becomes pending. Approve all acts only on
-the displayed IDs; a later sequential stage requires a new card and fresh review. If a later step
+the displayed IDs; consecutive future steps may be included explicitly and processed after Guardian unlocks them. If a later step
 call fails, previously committed approvals remain and the worker stops with an explicit partial/
 unconfirmed result. No batch transaction or automatic mutation retry is introduced.
 
@@ -93,7 +93,7 @@ environment's CONSOLE_BASE_URL for request and package routes. The v2 adapter fi
 private policy/HR fields before delivery, including recovery; only the user-facing access reason
 is extracted from policy questions. Notification criteria still run before presentation filtering.
 
-The shared v4 card fingerprint triggers a one-time repaint of active tracked cards on this UI
+The shared v5 card fingerprint triggers a one-time repaint of active tracked cards on this UI
 upgrade. Later unchanged checks preserve forms as before; the upgrade itself can reset an open
 rejection form. Closed historical receipts are not reopened. Rebuild/deploy compatible Guardian
 and worker images together; no additional database migration is needed.
@@ -122,3 +122,17 @@ The worker renders the current saved scope even for a delayed old callback/refre
 on IDs from the actual clicked button. Deploy the matching worker first, then Guardian. Older
 Guardian processes can still send per-stage cards during rollout overlap; only the new Ensure
 path coordinates producers. Callback/operator/receipt validation and policy checks still apply.
+
+A pure domain planner groups approvals by their actual stage index. It includes the recipient's
+ready steps, then eligible consecutive manual stages, stopping where another approver, self-approval
+restriction or unresolved automatic check prevents completion. Only people with a pending step
+receive notifications. lark_v2 expansion respects admitted pending-step criteria. Receipt lookup
+adds the current bounded approval_plan; the existing appeal/step API remains unchanged. Reconciliation
+can extend legacy receipts with consecutive blocked future IDs only if all ready seed IDs were
+already admitted. It preserves event/message/created_at and fences older leases through Ensure.
+The shared fingerprint includes plan membership so changed barriers repaint the actions.
+
+Public notification fields now include typed package linkage, allowlisted package-creation details
+and the committed grant expiry. No package-name lookup is added to the approval commit path; all
+notification transport still runs asynchronously after commit. Existing provider-before-commit race
+limitations remain separate. No migration or new runtime credential is needed.

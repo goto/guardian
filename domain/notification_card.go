@@ -30,7 +30,7 @@ func NotificationCardStateHash(a *Appeal, ids []string, recipient string) string
 	ordered := append([]string(nil), ids...)
 	sort.Strings(ordered)
 	h := sha256.New()
-	fmt.Fprintf(h, "v4\n%d\n%s\n", a.Revision, a.Status)
+	fmt.Fprintf(h, "v5\n%d\n%s\n", a.Revision, a.Status)
 	for _, id := range ordered {
 		var step *Approval
 		for _, candidate := range a.Approvals {
@@ -51,6 +51,15 @@ func NotificationCardStateHash(a *Appeal, ids []string, recipient string) string
 			}
 		}
 		fmt.Fprintf(h, "%s\n%s\n%d\n%t\n%t\n", id, step.Status, step.AppealRevision, step.IsStale, allowed)
+	}
+	planIDs := []string{}
+	for _, step := range NotificationApprovalPlan(a, recipient, ids) {
+		planIDs = append(planIDs, step.ApprovalID)
+	}
+	sort.Strings(planIDs)
+	fmt.Fprintln(h, "plan")
+	for _, id := range planIDs {
+		fmt.Fprintln(h, id)
 	}
 	return hex.EncodeToString(h.Sum(nil))
 }

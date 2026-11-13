@@ -91,6 +91,13 @@ func (s *Service) notifyParticipants(ctx context.Context, appeal *domain.Appeal,
 				},
 			},
 		})
+		if appeal.Resource.Type == "package-create" {
+			notifications[len(notifications)-1].Message.Variables["package_creation"] = notificationPackageCreation(appeal)
+		}
+		if appeal.GroupType != "" {
+			notifications[len(notifications)-1].Message.Variables["group_id"] = appeal.GroupID
+			notifications[len(notifications)-1].Message.Variables["group_type"] = appeal.GroupType
+		}
 	}
 	if len(notifications) > 0 {
 		if errs := s.notifier.Notify(ctx, notifications); errs != nil {

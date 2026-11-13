@@ -50,6 +50,9 @@ func (h *handler) GrantExpirationReminder(ctx context.Context, cfg Config) error
 				"role":                      g.Role,
 				"expiration_date":           g.ExpirationDate,
 				"expiration_date_formatted": g.ExpirationDate.Format("Jan 02, 2006 15:04:05 UTC"),
+				"group_id":                  g.GroupID,
+				"group_type":                g.GroupType,
+				"account_type":              g.AccountType,
 				"account_id":                g.AccountID,
 				"requestor":                 g.Owner,
 			}

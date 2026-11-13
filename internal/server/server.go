@@ -207,7 +207,7 @@ func RunServer(config *Config) error {
 		return err
 	}
 
-	if err := registerNotificationCardLookup(gwmux, authInterceptor, authUserContextKey[config.Auth.Provider], postgres.NewNotificationCardRepository(services.Store.DB())); err != nil {
+	if err := registerNotificationCardLookup(gwmux, authInterceptor, authUserContextKey[config.Auth.Provider], postgres.NewNotificationCardRepository(services.Store.DB()), services.AppealService); err != nil {
 		return err
 	}
 

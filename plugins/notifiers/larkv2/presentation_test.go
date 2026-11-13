@@ -74,3 +74,18 @@ func TestLongPublicTextCannotPreventNotificationDelivery(t *testing.T) {
 		t.Fatal("original comment was truncated")
 	}
 }
+
+func TestPackageCreationPresentationUsesBusinessFieldsOnly(t *testing.T) {
+	result := presentationVariables(map[string]interface{}{"resource_type": "package-create", "package_creation": map[string]interface{}{"name": "Analytics", "description": "Reporting access", "created_by": "creator@example.com", "type": "bot-only", "functional_roles": []string{"data-reader"}, "private": "PRIVATE_CANARY"}, "details": map[string]interface{}{"__policy_metadata": "PRIVATE_CANARY"}})
+	body, _ := json.Marshal(result)
+	if !strings.Contains(string(body), "Analytics") || strings.Contains(string(body), "PRIVATE_CANARY") {
+		t.Fatal("creation context lost or private metadata leaked")
+	}
+}
+
+func TestMalformedCreationRolesAreMarkedIncomplete(t *testing.T) {
+	result := presentationVariables(map[string]interface{}{"resource_type": "package-create", "package_creation": map[string]interface{}{"functional_roles": "unexpected"}})
+	if result["package_creation"].(map[string]interface{})["incomplete"] != true {
+		t.Fatal("malformed roles were presented as complete")
+	}
+}

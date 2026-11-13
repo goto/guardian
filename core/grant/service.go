@@ -420,6 +420,10 @@ func (s *Service) Update(ctx context.Context, payload *domain.GrantUpdate) (*dom
 					"new_owner":      latestGrant.Owner,
 				},
 			}
+			if latestGrant.GroupType != "" {
+				message.Variables["group_id"] = latestGrant.GroupID
+				message.Variables["group_type"] = latestGrant.GroupType
+			}
 			message.Variables["account_id"] = latestGrant.AccountID
 			message.Variables["account_type"] = latestGrant.AccountType
 			message.Variables["role"] = latestGrant.Role
@@ -528,6 +532,10 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 				},
 			},
 		}}
+		if grant.GroupType != "" {
+			notifications[0].Message.Variables["group_id"] = grant.GroupID
+			notifications[0].Message.Variables["group_type"] = grant.GroupType
+		}
 		go func() {
 			ctx := context.WithoutCancel(ctx)
 			if errs := s.notifier.Notify(ctx, notifications); errs != nil {

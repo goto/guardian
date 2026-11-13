@@ -465,6 +465,10 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 					"role":                  appeal.Role,
 					"account_id":            appeal.AccountID,
 					"requested_duration":    notificationDuration(appeal),
+					"expiration_date":       notificationExpiration(appeal),
+					"package_creation":      notificationPackageCreation(appeal),
+					"group_id":              appeal.GroupID,
+					"group_type":            appeal.GroupType,
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
 				},
@@ -572,6 +576,10 @@ func addOnBehalfApprovedNotification(appeal *domain.Appeal, notifications []doma
 					"role":                  appeal.Role,
 					"account_id":            appeal.AccountID,
 					"requested_duration":    notificationDuration(appeal),
+					"expiration_date":       notificationExpiration(appeal),
+					"package_creation":      notificationPackageCreation(appeal),
+					"group_id":              appeal.GroupID,
+					"group_type":            appeal.GroupType,
 					"requestor":             appeal.CreatedBy,
 				},
 			},
@@ -908,6 +916,10 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 					"role":                  appeal.Role,
 					"account_id":            appeal.AccountID,
 					"requested_duration":    notificationDuration(appeal),
+					"expiration_date":       notificationExpiration(appeal),
+					"package_creation":      notificationPackageCreation(appeal),
+					"group_id":              appeal.GroupID,
+					"group_type":            appeal.GroupType,
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
 				},
@@ -939,6 +951,10 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 					"role":                  appeal.Role,
 					"account_id":            appeal.AccountID,
 					"requested_duration":    notificationDuration(appeal),
+					"expiration_date":       notificationExpiration(appeal),
+					"package_creation":      notificationPackageCreation(appeal),
+					"group_id":              appeal.GroupID,
+					"group_type":            appeal.GroupType,
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
 					"reason":                reason,
@@ -1208,6 +1224,10 @@ func (s *Service) updateApprovalAttempt(ctx context.Context, approvalAction doma
 					"role":                  appeal.Role,
 					"account_id":            appeal.AccountID,
 					"requested_duration":    notificationDuration(appeal),
+					"expiration_date":       notificationExpiration(appeal),
+					"package_creation":      notificationPackageCreation(appeal),
+					"group_id":              appeal.GroupID,
+					"group_type":            appeal.GroupType,
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
 				},
@@ -1232,6 +1252,10 @@ func (s *Service) updateApprovalAttempt(ctx context.Context, approvalAction doma
 					"role":                  appeal.Role,
 					"account_id":            appeal.AccountID,
 					"requested_duration":    notificationDuration(appeal),
+					"expiration_date":       notificationExpiration(appeal),
+					"package_creation":      notificationPackageCreation(appeal),
+					"group_id":              appeal.GroupID,
+					"group_type":            appeal.GroupType,
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
 					"reason":                approvalAction.Reason,
@@ -1958,7 +1982,7 @@ func (s *Service) getApprovalNotifications(ctx context.Context, appeal *domain.A
 			seenApprovers[key] = true
 			notifications = append(notifications, domain.Notification{
 				User:     approver,
-				Approval: &domain.NotificationApproval{AppealID: appeal.ID, ApprovalID: approval.ID, Revision: uint32(appeal.Revision)},
+				Approval: &domain.NotificationApproval{AppealID: appeal.ID, ApprovalID: approval.ID, Revision: uint32(appeal.Revision), PlannedSteps: domain.NotificationApprovalPlan(appeal, approver, nil)},
 				Labels: map[string]string{
 					"appeal_id": appeal.ID,
 				},
@@ -1974,6 +1998,10 @@ func (s *Service) getApprovalNotifications(ctx context.Context, appeal *domain.A
 						"appeal_id":             appeal.ID,
 						"account_id":            appeal.AccountID,
 						"requested_duration":    notificationDuration(appeal),
+						"expiration_date":       notificationExpiration(appeal),
+						"package_creation":      notificationPackageCreation(appeal),
+						"group_id":              appeal.GroupID,
+						"group_type":            appeal.GroupType,
 						"account_type":          appeal.AccountType,
 						"provider_type":         appeal.Resource.ProviderType,
 						"resource_type":         appeal.Resource.Type,
@@ -3045,4 +3073,31 @@ func notificationDuration(a *domain.Appeal) string {
 		return ""
 	}
 	return a.Options.Duration
+}
+
+func notificationPackageCreation(a *domain.Appeal) map[string]interface{} {
+	if a.Resource == nil || a.Resource.Type != "package-create" {
+		return nil
+	}
+	result := map[string]interface{}{}
+	for _, key := range []string{"name", "description", "created_by", "type", "functional_roles"} {
+		result[key] = a.Details[key]
+	}
+	return result
+}
+
+func notificationExpiration(a *domain.Appeal) *time.Time {
+	if a.Status != domain.AppealStatusApproved {
+		return nil
+	}
+	if a.Grant != nil {
+		if a.Grant.IsPermanent {
+			return nil
+		}
+		return a.Grant.ExpirationDate
+	}
+	if a.Options != nil {
+		return a.Options.ExpirationDate
+	}
+	return nil
 }

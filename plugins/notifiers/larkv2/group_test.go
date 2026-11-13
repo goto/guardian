@@ -62,3 +62,17 @@ func TestGroupingPreservesAppealRevisionAndTypeBoundaries(t *testing.T) {
 		t.Fatal("duplicate step was not deduplicated")
 	}
 }
+
+func TestSequentialPlanDoesNotReintroduceFilteredPendingSteps(t *testing.T) {
+	n := approvalItem("appeal", "p", "Package admin", "a@example.com")
+	n.Approval.PlannedSteps = []domain.NotificationApprovalStep{{ApprovalID: "p", Name: "Package admin"}, {ApprovalID: "filtered", Name: "Filtered parallel step"}, {ApprovalID: "later", Name: "Later", Status: "blocked"}}
+	got := groupApprovals([]domain.Notification{n})
+	if len(got) != 1 || got[0].Approval.ApprovalID != "p" || len(got[0].Approval.Steps) != 0 {
+		t.Fatal("notification criteria were bypassed by expansion")
+	}
+	n.Approval.PlannedSteps = []domain.NotificationApprovalStep{{ApprovalID: "p", Name: "Package admin"}, {ApprovalID: "later", Name: "Later", Status: "blocked"}}
+	got = groupApprovals([]domain.Notification{n})
+	if len(got[0].Approval.Steps) != 2 || got[0].Approval.Steps[1].Status != "blocked" {
+		t.Fatal("eligible sequence not included")
+	}
+}

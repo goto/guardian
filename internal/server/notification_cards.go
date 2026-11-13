@@ -21,7 +21,11 @@ type notificationCardLookup interface {
 
 // Reuse the configured Guardian authentication interceptor, including OIDC when selected.
 // A receipt is visible only to its recipient; callback payloads never authorize a wider scope.
-func registerNotificationCardLookup(mux *runtime.ServeMux, authenticate grpc.UnaryServerInterceptor, actorKey interface{}, store notificationCardLookup) error {
+type notificationAppealReader interface {
+	GetByID(context.Context, string) (*domain.Appeal, error)
+}
+
+func registerNotificationCardLookup(mux *runtime.ServeMux, authenticate grpc.UnaryServerInterceptor, actorKey interface{}, store notificationCardLookup, readers ...notificationAppealReader) error {
 	const method = "/guardian.NotificationCards/Get"
 	return mux.HandlePath(http.MethodGet, "/v1beta1/notification-cards/{message_id}", func(w http.ResponseWriter, r *http.Request, params map[string]string) {
 		ctx, err := runtime.AnnotateIncomingContext(r.Context(), mux, r, method)
@@ -44,10 +48,24 @@ func registerNotificationCardLookup(mux *runtime.ServeMux, authenticate grpc.Una
 				if lookupErr != nil {
 					return nil, status.Error(codes.Unavailable, "card receipt lookup failed")
 				}
-				return map[string]interface{}{"card": map[string]interface{}{
+				result := map[string]interface{}{
 					"message_id": card.MessageID, "appeal_id": card.AppealID, "revision": card.Revision,
 					"recipient": card.Recipient, "approval_ids": card.ApprovalIDs, "closed": card.Closed, "created_at": card.CreatedAt,
-				}}, nil
+				}
+				if len(readers) > 0 {
+					plan := []domain.NotificationApprovalStep{}
+					if !card.Closed {
+						appeal, readErr := readers[0].GetByID(ctx, card.AppealID)
+						if readErr != nil {
+							return nil, status.Error(codes.Unavailable, "approval plan unavailable")
+						}
+						if appeal != nil && uint32(appeal.Revision) == card.Revision {
+							plan = domain.NotificationApprovalPlan(appeal, actor, card.ApprovalIDs)
+						}
+					}
+					result["approval_plan"] = plan
+				}
+				return map[string]interface{}{"card": result}, nil
 			})
 		}
 		if ctx == nil {

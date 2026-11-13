@@ -429,3 +429,35 @@ func TestSequentialStagesReuseMessageAfterNotifierRestart(t *testing.T) {
 		t.Fatal("expired card was replaced or expanded")
 	}
 }
+
+func TestReconcilerAddsOnlyConsecutiveFutureScope(t *testing.T) {
+	for _, filteredParallel := range []bool{false, true} {
+		store := newMemoryCardStore()
+		a := trackedAppeal("pending")
+		a.Approvals[0].Index = 0
+		if filteredParallel {
+			a.Approvals = append(a.Approvals, &domain.Approval{ID: "unnotified", Name: "Filtered step", Index: 0, Status: "pending", AppealRevision: 2, Approvers: []string{"b@example.com"}})
+		}
+		a.Approvals = append(a.Approvals, &domain.Approval{ID: "later", Name: "Manager", Index: 1, Status: "blocked", AppealRevision: 2, Approvers: []string{"b@example.com"}})
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Error("scope extension should schedule a repaint, not send immediately")
+			w.WriteHeader(500)
+		}))
+		id := uuid.NewString()
+		created := time.Now().Add(-time.Hour)
+		store.cards[id] = domain.NotificationCard{EventID: id, WorkerURL: server.URL, MessageID: "om_original", AppealID: a.ID, Revision: 2, Recipient: "b@example.com", ApprovalIDs: []string{"approval-1"}, CreatedAt: created, LastStateHash: domain.NotificationCardStateHash(a, []string{"approval-1"}, "b@example.com")}
+		n, _ := New(Config{URL: server.URL})
+		n.ConfigureCards(store, cardReader{a})
+		if err := n.ReconcileCards(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		want := 2
+		if filteredParallel {
+			want = 1
+		}
+		if len(store.cards[id].ApprovalIDs) != want || !store.cards[id].CreatedAt.Equal(created) || len(store.cards) != 1 {
+			t.Fatal("scope/age or notification filter changed")
+		}
+		server.Close()
+	}
+}
