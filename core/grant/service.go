@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bearaujus/bjson"
@@ -93,6 +94,7 @@ type grantCreation struct {
 }
 
 type Service struct {
+	notificationWG  sync.WaitGroup
 	repo            repository
 	AppealService   appealService
 	providerService providerService
@@ -444,7 +446,9 @@ func (s *Service) Update(ctx context.Context, payload *domain.GrantUpdate) (*dom
 		s.logger.Info(ctx, "skipping technical grant owner notification", "grant_id", latestGrant.ID, "group_id", latestGrant.GroupID, "reason", ownerNotificationReason)
 	}
 	if previousOwner != latestGrant.Owner && ownerNotificationReason == "" {
+		s.notificationWG.Add(1)
 		go func() {
+			defer s.notificationWG.Done()
 			message := domain.NotificationMessage{
 				Type: domain.NotificationTypeGrantOwnerChanged,
 				Variables: map[string]interface{}{
@@ -573,7 +577,9 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 			notifications[0].Message.Variables["group_id"] = grant.GroupID
 			notifications[0].Message.Variables["group_type"] = grant.GroupType
 		}
+		s.notificationWG.Add(1)
 		go func() {
+			defer s.notificationWG.Done()
 			ctx := context.WithoutCancel(ctx)
 			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
 				for _, err1 := range errs {
@@ -952,7 +958,9 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 		return fmt.Errorf("updating grants expiration date: %w", err)
 	}
 
+	s.notificationWG.Add(1)
 	go func() {
+		defer s.notificationWG.Done()
 		ctx := context.WithoutCancel(ctx)
 		var notifications []domain.Notification
 	prepare_notifications:
@@ -1402,4 +1410,11 @@ func (s *Service) fetchPackageGrants(ctx context.Context, botAccountIDs []string
 	}
 
 	return botAccessPackageGrants, nil
+}
+
+// WaitNotifications drains grant notifications after producers have stopped.
+// Callers must finish grant operations before waiting; it is not an admission gate.
+// It intentionally waits without a timeout until every tracked goroutine finishes.
+func (s *Service) WaitNotifications() {
+	s.notificationWG.Wait()
 }
