@@ -259,7 +259,8 @@ func (m *NotifyManager) RunCardSync(ctx context.Context) {
 	for {
 		for _, client := range clients {
 			if err := client.ReconcileCards(ctx); err != nil && ctx.Err() == nil && m.logger != nil {
-				m.logger.Error(ctx, "notification card reconciliation failed")
+				// ReconcileCards returns only code-owned diagnostics, never upstream bodies.
+				m.logger.Error(ctx, "notification card reconciliation failed", "reason", err.Error())
 			}
 		}
 		select {

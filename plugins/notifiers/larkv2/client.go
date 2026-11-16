@@ -172,13 +172,8 @@ func (n *Notifier) attempt(ctx context.Context, data []byte, eventID string, tra
 		}
 		return false, 0, nil
 	}
-	if resp.StatusCode == http.StatusUnprocessableEntity {
-		var result struct {
-			Error string `json:"error"`
-		}
-		if json.NewDecoder(io.LimitReader(resp.Body, 64*1024)).Decode(&result) == nil && result.Error == "recipient_not_resolved" {
-			return false, 0, errRecipientNotResolved
-		}
+	if recipientNotResolvedResponse(resp) {
+		return false, 0, errRecipientNotResolved
 	}
 	retry := resp.StatusCode == 429 || resp.StatusCode >= 500
 	delay := time.Duration(0)
@@ -190,4 +185,17 @@ func (n *Notifier) attempt(ctx context.Context, data []byte, eventID string, tra
 	}
 	// Do not include a response body, URL, recipient or token in returned errors.
 	return retry, delay, fmt.Errorf("lark_v2 delivery failed (status %d)", resp.StatusCode)
+}
+
+// Share the exact delivery/refresh contract. Generic 422, malformed bodies and
+// transient statuses must never retire a notification receipt.
+func recipientNotResolvedResponse(resp *http.Response) bool {
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		return false
+	}
+	var result struct {
+		Error string `json:"error"`
+	}
+	decoder := json.NewDecoder(io.LimitReader(resp.Body, 64*1024+1))
+	return decoder.Decode(&result) == nil && result.Error == "recipient_not_resolved" && decoder.Decode(new(interface{})) == io.EOF
 }
