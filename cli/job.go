@@ -126,6 +126,10 @@ func runJobCmd() *cobra.Command {
 				return fmt.Errorf("initializing services: %w", err)
 			}
 
+			// Jobs own short-lived processes. Drain detached grant notifications on
+			// success and failure, before telemetry and the process shut down.
+			defer services.GrantService.WaitNotifications()
+
 			alertManagerClient := alertmanager.GetAlertManagerSender(config.AlertManager)
 
 			handler := jobs.NewHandler(

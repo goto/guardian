@@ -23,6 +23,10 @@ type Config struct {
 	TimeoutSeconds int
 }
 
+// Only this explicit worker disposition is an expected, final non-delivery.
+// Generic 422 responses can also mean invalid cards or application permissions.
+var errRecipientNotResolved = &domain.NotificationSkippedError{Code: domain.NotificationRecipientNotResolved}
+
 type envelope struct {
 	EventID   string                       `json:"event_id"`
 	Recipient string                       `json:"recipient"`
@@ -78,8 +82,12 @@ func (n *Notifier) send(parent context.Context, item domain.Notification) error 
 	ctx, cancel := context.WithTimeout(parent, n.timeout)
 	defer cancel()
 	tracked := n.store != nil && item.Message.Type == domain.NotificationTypeApproverNotification
+	var card domain.NotificationCard
 	if tracked {
-		created, err := n.store.Ensure(ctx, cardForDelivery(payload.EventID, item, n.workerURL()), n.timeout+10*time.Second)
+		card = cardForDelivery(payload.EventID, item, n.workerURL())
+		// Prepare owns the initial delivery lease under its event ID.
+		card.LeaseOwner = card.EventID
+		created, err := n.store.Ensure(ctx, card, n.timeout+10*time.Second)
 		if err != nil {
 			return errors.New("lark_v2 card receipt preparation failed")
 		}
@@ -90,7 +98,29 @@ func (n *Notifier) send(parent context.Context, item domain.Notification) error 
 		}
 	}
 	for attempt := 0; attempt <= len(n.delays); attempt++ {
+		if tracked && n.reader != nil {
+			appeal, err := n.reader.GetByID(ctx, card.AppealID)
+			if err != nil || appeal == nil {
+				return errors.New("lark_v2 delivery appeal state could not be read")
+			}
+			if appeal.Status != domain.AppealStatusPending || uint32(appeal.Revision) != card.Revision {
+				if err := n.store.Complete(ctx, card, card.LastStateHash, true, 0); err != nil {
+					return errors.New("lark_v2 obsolete delivery could not be persisted")
+				}
+				return &domain.NotificationSkippedError{Code: domain.NotificationAppealObsolete}
+			}
+		}
 		retry, retryAfter, err := n.attempt(ctx, data, payload.EventID, tracked)
+		if errors.Is(err, errRecipientNotResolved) {
+			// The worker already logs a sanitized warning. Persist the skip so
+			// reconciliation and later stages cannot repeatedly try this recipient.
+			if tracked {
+				if err := n.store.Complete(ctx, card, card.LastStateHash, true, 0); err != nil {
+					return errors.New("lark_v2 skipped delivery could not be persisted")
+				}
+			}
+			return errRecipientNotResolved
+		}
 		if err == nil {
 			return nil
 		}
@@ -141,6 +171,14 @@ func (n *Notifier) attempt(ctx context.Context, data []byte, eventID string, tra
 			}
 		}
 		return false, 0, nil
+	}
+	if resp.StatusCode == http.StatusUnprocessableEntity {
+		var result struct {
+			Error string `json:"error"`
+		}
+		if json.NewDecoder(io.LimitReader(resp.Body, 64*1024)).Decode(&result) == nil && result.Error == "recipient_not_resolved" {
+			return false, 0, errRecipientNotResolved
+		}
 	}
 	retry := resp.StatusCode == 429 || resp.StatusCode >= 500
 	delay := time.Duration(0)

@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bearaujus/bjson"
@@ -93,6 +94,7 @@ type grantCreation struct {
 }
 
 type Service struct {
+	notificationWG  sync.WaitGroup
 	repo            repository
 	AppealService   appealService
 	providerService providerService
@@ -205,13 +207,38 @@ func (s *Service) GenerateUserExcludedGrantIDsForSmartInactiveGrants(ctx context
 		return nil, err
 	}
 
-	// get active grants
-	acf := filter
-	acf.Offset, acf.Size, acf.OrderBy = 0, 0, nil
-	acf.Statuses = []string{string(domain.GrantStatusActive)}
-	activeGrants, err := s.repo.List(ctx, acf)
-	if err != nil {
-		return nil, err
+	// The caller's owner/request filters select the history they may see, not
+	// who must have requested its replacement. An admin can renew the same
+	// beneficiary's access on their behalf, with a different owner and date.
+	// Derive bounded lookup scopes from those already-authorized inactive rows.
+	var activeGrants []domain.Grant
+	const counterpartBatchSize = 250
+	for start := 0; start < len(inactiveGrants); start += counterpartBatchSize {
+		end := start + counterpartBatchSize
+		if end > len(inactiveGrants) {
+			end = len(inactiveGrants)
+		}
+		var accounts, resources []string
+		for _, g := range inactiveGrants[start:end] {
+			if g.AccountID == "" || g.ResourceID == "" {
+				continue
+			}
+			accounts = append(accounts, strings.ToLower(g.AccountID))
+			resources = append(resources, g.ResourceID)
+		}
+		if len(accounts) == 0 {
+			continue
+		}
+		acf := domain.ListGrantsFilter{
+			Statuses:    []string{string(domain.GrantStatusActive)},
+			AccountIDs:  slicesUtil.GenericsUniqueSliceValues(accounts),
+			ResourceIDs: slicesUtil.GenericsUniqueSliceValues(resources),
+		}
+		counterparts, err := s.repo.List(ctx, acf)
+		if err != nil {
+			return nil, err
+		}
+		activeGrants = append(activeGrants, counterparts...)
 	}
 
 	return smartExcludedGrantIDs(activeGrants, inactiveGrants), nil
@@ -308,15 +335,19 @@ func (s *Service) GenerateExcludedGrantIDsForSmartInactiveGrants(ctx context.Con
 // It excludes inactive grants that have an active counterpart (same resource+account+role),
 // and for duplicate inactives with no active counterpart, keeps only the latest; excludes the rest.
 func smartExcludedGrantIDs(activeGrants, inactiveGrants []domain.Grant) []string {
+	type grantKey struct{ resource, account, role string }
+	keyFor := func(g domain.Grant) grantKey {
+		return grantKey{g.ResourceID, strings.ToLower(g.AccountID), g.Role}
+	}
 	// Exclude inactive grants that have an active counterpart (same resource+account+role).
-	activeMap := make(map[string]struct{})
+	activeMap := make(map[grantKey]struct{})
 	for _, ag := range activeGrants {
-		key := ag.ResourceID + ":" + ag.AccountID + ":" + ag.Role
+		key := keyFor(ag)
 		activeMap[key] = struct{}{}
 	}
 	var ret []string
 	for _, ig := range inactiveGrants {
-		key := ig.ResourceID + ":" + ig.AccountID + ":" + ig.Role
+		key := keyFor(ig)
 		if _, found := activeMap[key]; found {
 			ret = append(ret, ig.ID)
 		}
@@ -327,11 +358,11 @@ func smartExcludedGrantIDs(activeGrants, inactiveGrants []domain.Grant) []string
 		latest      domain.Grant
 		excludedIDs []string
 	}
-	group := make(map[string]*inactiveData)
+	group := make(map[grantKey]*inactiveData)
 
 	for _, ig := range inactiveGrants {
 		ig := ig // capture loop variable
-		key := ig.ResourceID + ":" + ig.AccountID + ":" + ig.Role
+		key := keyFor(ig)
 		if _, found := activeMap[key]; found {
 			continue // skip already excluded by active
 		}
@@ -415,7 +446,9 @@ func (s *Service) Update(ctx context.Context, payload *domain.GrantUpdate) (*dom
 		s.logger.Info(ctx, "skipping technical grant owner notification", "grant_id", latestGrant.ID, "group_id", latestGrant.GroupID, "reason", ownerNotificationReason)
 	}
 	if previousOwner != latestGrant.Owner && ownerNotificationReason == "" {
+		s.notificationWG.Add(1)
 		go func() {
+			defer s.notificationWG.Done()
 			message := domain.NotificationMessage{
 				Type: domain.NotificationTypeGrantOwnerChanged,
 				Variables: map[string]interface{}{
@@ -459,7 +492,7 @@ func (s *Service) Update(ctx context.Context, payload *domain.GrantUpdate) (*dom
 			ctx := context.WithoutCancel(ctx)
 			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
 				for _, err1 := range errs {
-					s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+					notifiers.LogDeliveryError(ctx, s.logger, err1)
 				}
 			}
 		}()
@@ -544,11 +577,13 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 			notifications[0].Message.Variables["group_id"] = grant.GroupID
 			notifications[0].Message.Variables["group_type"] = grant.GroupType
 		}
+		s.notificationWG.Add(1)
 		go func() {
+			defer s.notificationWG.Done()
 			ctx := context.WithoutCancel(ctx)
 			if errs := s.notifier.Notify(ctx, notifications); errs != nil {
 				for _, err1 := range errs {
-					s.logger.Error(ctx, "failed to send notifications", "error", err1.Error())
+					notifiers.LogDeliveryError(ctx, s.logger, err1)
 				}
 			}
 		}()
@@ -923,7 +958,9 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 		return fmt.Errorf("updating grants expiration date: %w", err)
 	}
 
+	s.notificationWG.Add(1)
 	go func() {
+		defer s.notificationWG.Done()
 		ctx := context.WithoutCancel(ctx)
 		var notifications []domain.Notification
 	prepare_notifications:
@@ -968,7 +1005,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 
 		if errs := s.notifier.Notify(ctx, notifications); errs != nil {
 			for _, err1 := range errs {
-				s.logger.Error(ctx, "failed to send notifications", "error", err1.Error(), "provider_urn", provider.URN)
+				notifiers.LogDeliveryError(ctx, s.logger, err1, "provider_urn", provider.URN)
 			}
 		}
 	}()
@@ -1373,4 +1410,11 @@ func (s *Service) fetchPackageGrants(ctx context.Context, botAccountIDs []string
 	}
 
 	return botAccessPackageGrants, nil
+}
+
+// WaitNotifications drains grant notifications after producers have stopped.
+// Callers must finish grant operations before waiting; it is not an admission gate.
+// It intentionally waits without a timeout until every tracked goroutine finishes.
+func (s *Service) WaitNotifications() {
+	s.notificationWG.Wait()
 }

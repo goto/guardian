@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS idx_grants_lower_account_status_resource;
