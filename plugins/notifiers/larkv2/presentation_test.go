@@ -26,6 +26,47 @@ func TestV2PresentationOmitsPrivateAndOversizedPolicyMetadata(t *testing.T) {
 	}
 }
 
+func TestV2PresentationIncludesOnlyAnsweredQuestionKeys(t *testing.T) {
+	input := map[string]interface{}{"details": map[string]interface{}{
+		"__policy_questions": map[string]interface{}{"business_reason": "Review reports", "ticket": "DATA-123", " ": "EMPTY_KEY_CANARY", "optional": " \n", "nested": map[string]interface{}{"secret": "NESTED_CANARY"}, "choices": []string{"one", "two"}, "empty_choices": []string{"", " "}},
+		"__policy_metadata":  map[string]interface{}{"private": "METADATA_CANARY"}, "internal": "INTERNAL_CANARY",
+	}}
+	result := presentationVariables(input)
+	data, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"business_reason", "Review reports", "ticket", "DATA-123", "one, two"} {
+		if !strings.Contains(string(data), want) {
+			t.Fatalf("missing%q", want)
+		}
+	}
+	for _, absent := range []string{"CANARY", "optional", "nested", "empty_choices", "__policy_metadata", "__policy_questions"} {
+		if strings.Contains(string(data), absent) {
+			t.Fatalf("unexpected%q", absent)
+		}
+	}
+	questions := result["policy_questions"].(map[string]string)
+	if len(questions) != 3 {
+		t.Fatalf("got%d answers", len(questions))
+	}
+}
+
+func TestV2QuestionPayloadIsBounded(t *testing.T) {
+	questions := map[string]interface{}{}
+	for _, key := range []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"} {
+		questions[key] = strings.Repeat("x", 20000)
+	}
+	result := presentationVariables(map[string]interface{}{"details": map[string]interface{}{"__policy_questions": questions}})
+	if len(result["policy_questions"].(map[string]string)) != 8 || result["policy_questions_incomplete"] != true {
+		t.Fatal("question preview bounds missing")
+	}
+	data, err := json.Marshal(result)
+	if err != nil || len(data) > 10000 {
+		t.Fatal("question transport too large")
+	}
+}
+
 func TestOwnerChangeUsesOnlyPublicGrantContext(t *testing.T) {
 	grant := &domain.Grant{AccountID: "bot@example.com", AccountType: "bot", Role: "reader", Resource: &domain.Resource{ID: "package-id", Name: "Example package", URN: "example-package", Type: "package", ProviderType: "guardian"}}
 	result := presentationVariables(map[string]interface{}{"grant": grant, "new_owner": "owner@example.com"})

@@ -1,6 +1,9 @@
 package larkv2
 
-import "github.com/goto/guardian/domain"
+import (
+	"github.com/goto/guardian/domain"
+	"sort"
+)
 
 // presentationVariables keeps private policy/HR data out of v2 delivery payloads.
 // Criteria and legacy notifiers continue to receive the original notification.
@@ -21,17 +24,31 @@ func presentationVariables(input map[string]interface{}) map[string]interface{} 
 	}
 	if details, ok := input["details"].(map[string]interface{}); ok {
 		questions, _ := details["__policy_questions"].(map[string]interface{})
-		for _, key := range []string{"reason_to_access", "justification"} {
-			if value, ok := questions[key].(string); ok && value != "" {
-				if output["reason_to_access"] == nil {
-					output["reason_to_access"] = value
-				}
-				break
-			}
+		answers := domain.NotificationQuestionAnswers(questions)
+		keys := make([]string, 0, len(answers))
+		for key := range answers {
+			keys = append(keys, key)
 		}
-		if output["reason_to_access"] == nil {
-			if value, ok := details["reason_to_access"].(string); ok {
+		sort.Strings(keys)
+		preview := map[string]string{}
+		for _, key := range keys {
+			if len(preview) == 8 || len([]rune(key)) > 120 {
+				output["policy_questions_incomplete"] = true
+				continue
+			}
+			value := []rune(answers[key])
+			if len(value) > 1000 {
+				value = value[:1000]
+				output["policy_questions_incomplete"] = true
+			}
+			preview[key] = string(value)
+		}
+		output["policy_questions"] = preview
+		// Older workers can still display the conventional reason during rollout.
+		for _, key := range []string{"reason_to_access", "justification"} {
+			if value := preview[key]; value != "" {
 				output["reason_to_access"] = value
+				break
 			}
 		}
 	}

@@ -867,8 +867,6 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		}
 	}
 
-	newApprovals := appeal.Approvals
-
 	// mark previous approvals as stale
 	for _, approval := range existingAppeal.Approvals {
 		approval.IsStale = true
@@ -901,7 +899,16 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		}
 	}()
 
-	appeal.Approvals = newApprovals
+	// UpdateByID replaces the appeal with persisted models, including generated
+	// approval IDs. Keep those objects when selecting the new revision; the
+	// pre-save slice cannot be used for interactive approval notifications.
+	currentApprovals := make([]*domain.Approval, 0, len(appeal.Approvals))
+	for _, approval := range appeal.Approvals {
+		if !approval.IsStale && approval.AppealRevision == appeal.Revision {
+			currentApprovals = append(currentApprovals, approval)
+		}
+	}
+	appeal.Approvals = currentApprovals
 	if appeal.Status == domain.AppealStatusApproved {
 		notifications = append(notifications, domain.Notification{
 			User: appeal.CreatedBy,

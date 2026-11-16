@@ -148,7 +148,7 @@ func TestUnchangedStateDoesNotResetAnOpenCardForm(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.WriteHeader(500) }))
 	defer server.Close()
 	id := uuid.NewString()
-	store.cards[id] = domain.NotificationCard{EventID: id, WorkerURL: server.URL, MessageID: "om_b", AppealID: a.ID, Revision: 2, Recipient: "b@example.com", ApprovalIDs: []string{"approval-1"}, LastStateHash: domain.PendingNotificationCardHash(2, []string{"approval-1"}, "b@example.com")}
+	store.cards[id] = domain.NotificationCard{EventID: id, WorkerURL: server.URL, MessageID: "om_b", AppealID: a.ID, Revision: 2, Recipient: "b@example.com", ApprovalIDs: []string{"approval-1"}, LastStateHash: domain.NotificationCardStateHash(a, []string{"approval-1"}, "b@example.com")}
 	n, _ := New(Config{URL: server.URL})
 	n.ConfigureCards(store, cardReader{a})
 	if err := n.ReconcileCards(context.Background()); err != nil {
@@ -156,6 +156,33 @@ func TestUnchangedStateDoesNotResetAnOpenCardForm(t *testing.T) {
 	}
 	if calls != 0 {
 		t.Fatal("unchanged pending card was rewritten")
+	}
+}
+
+func TestQuestionEditSchedulesCardRefresh(t *testing.T) {
+	store := newMemoryCardStore()
+	a := trackedAppeal("pending")
+	a.Details = map[string]interface{}{"__policy_questions": map[string]interface{}{"business_reason": "Old reason"}}
+	before := domain.NotificationCardStateHash(a, []string{"approval-1"}, "b@example.com")
+	a.Details["__policy_questions"].(map[string]interface{})["business_reason"] = "Edited reason"
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.URL.Path != "/v1/cards/refresh" {
+			t.Error("unexpected request path")
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"message_id": "om_b", "state_hash": domain.NotificationCardStateHash(a, []string{"approval-1"}, "b@example.com"), "terminal": false})
+	}))
+	defer server.Close()
+	id := uuid.NewString()
+	store.cards[id] = domain.NotificationCard{EventID: id, WorkerURL: server.URL, MessageID: "om_b", AppealID: a.ID, Revision: 2, Recipient: "b@example.com", ApprovalIDs: []string{"approval-1"}, LastStateHash: before}
+	n, _ := New(Config{URL: server.URL})
+	n.ConfigureCards(store, cardReader{a})
+	if err := n.ReconcileCards(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatal("answer edit did not trigger repaint")
 	}
 }
 
@@ -308,7 +335,7 @@ func TestDay13CardReceivesFinalExpiryUpdateWithoutReplacement(t *testing.T) {
 	}))
 	defer server.Close()
 	id := uuid.NewString()
-	store.cards[id] = domain.NotificationCard{EventID: id, WorkerURL: server.URL, MessageID: "om_expiring", AppealID: a.ID, Revision: 2, Recipient: "b@example.com", ApprovalIDs: []string{"approval-1"}, LastStateHash: domain.PendingNotificationCardHash(2, []string{"approval-1"}, "b@example.com"), CreatedAt: time.Now().Add(-13*24*time.Hour - time.Minute)}
+	store.cards[id] = domain.NotificationCard{EventID: id, WorkerURL: server.URL, MessageID: "om_expiring", AppealID: a.ID, Revision: 2, Recipient: "b@example.com", ApprovalIDs: []string{"approval-1"}, LastStateHash: domain.NotificationCardStateHash(a, []string{"approval-1"}, "b@example.com"), CreatedAt: time.Now().Add(-13*24*time.Hour - time.Minute)}
 	n, _ := New(Config{URL: server.URL})
 	n.ConfigureCards(store, cardReader{a})
 	if err := n.ReconcileCards(context.Background()); err != nil {
