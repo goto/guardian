@@ -67,6 +67,8 @@ func (h *handler) GrantExpirationReminder(ctx context.Context, cfg Config) error
 				"requestor":                 g.Owner,
 			}
 
+			domain.WithNotificationDisplayContext(msgVars, g.Resource, g.Appeal)
+
 			// notify the creator (the person who submitted the appeal)
 			notifications = append(notifications, domain.Notification{
 				User: g.CreatedBy,

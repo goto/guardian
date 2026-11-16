@@ -458,7 +458,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 			},
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeAppealApproved,
-				Variables: map[string]interface{}{
+				Variables: domain.WithNotificationDisplayContext(map[string]interface{}{
 					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
 					"resource_id":           appeal.Resource.ID,
 					"resource_display_name": appeal.Resource.Name,
@@ -474,7 +474,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 					"group_type":            appeal.GroupType,
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
-				},
+				}, appeal.Resource, appeal),
 			},
 		})
 
@@ -505,7 +505,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 				},
 				Message: domain.NotificationMessage{
 					Type: domain.NotificationTypeAppealRejected,
-					Variables: map[string]interface{}{
+					Variables: domain.WithNotificationDisplayContext(map[string]interface{}{
 						"resource_name":         fmt.Sprintf("%s (%s: %s)", a.Resource.Name, a.Resource.ProviderType, a.Resource.URN),
 						"resource_id":           a.Resource.ID,
 						"resource_display_name": a.Resource.Name,
@@ -517,7 +517,7 @@ func (s *Service) Create(ctx context.Context, appeals []*domain.Appeal, opts ...
 						"appeal_id":             a.ID,
 						"requestor":             a.CreatedBy,
 						"reason":                reason,
-					},
+					}, a.Resource, a),
 				},
 			})
 		}
@@ -569,7 +569,7 @@ func addOnBehalfApprovedNotification(appeal *domain.Appeal, notifications []doma
 			},
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeOnBehalfAppealApproved,
-				Variables: map[string]interface{}{
+				Variables: domain.WithNotificationDisplayContext(map[string]interface{}{
 					"appeal_id":             appeal.ID,
 					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
 					"resource_id":           appeal.Resource.ID,
@@ -585,7 +585,7 @@ func addOnBehalfApprovedNotification(appeal *domain.Appeal, notifications []doma
 					"group_id":              appeal.GroupID,
 					"group_type":            appeal.GroupType,
 					"requestor":             appeal.CreatedBy,
-				},
+				}, appeal.Resource, appeal),
 			},
 		})
 	}
@@ -867,8 +867,6 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		}
 	}
 
-	newApprovals := appeal.Approvals
-
 	// mark previous approvals as stale
 	for _, approval := range existingAppeal.Approvals {
 		approval.IsStale = true
@@ -901,7 +899,16 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 		}
 	}()
 
-	appeal.Approvals = newApprovals
+	// UpdateByID replaces the appeal with persisted models, including generated
+	// approval IDs. Keep those objects when selecting the new revision; the
+	// pre-save slice cannot be used for interactive approval notifications.
+	currentApprovals := make([]*domain.Approval, 0, len(appeal.Approvals))
+	for _, approval := range appeal.Approvals {
+		if !approval.IsStale && approval.AppealRevision == appeal.Revision {
+			currentApprovals = append(currentApprovals, approval)
+		}
+	}
+	appeal.Approvals = currentApprovals
 	if appeal.Status == domain.AppealStatusApproved {
 		notifications = append(notifications, domain.Notification{
 			User: appeal.CreatedBy,
@@ -910,7 +917,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 			},
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeAppealApproved,
-				Variables: map[string]interface{}{
+				Variables: domain.WithNotificationDisplayContext(map[string]interface{}{
 					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
 					"resource_id":           appeal.Resource.ID,
 					"resource_display_name": appeal.Resource.Name,
@@ -926,7 +933,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 					"group_type":            appeal.GroupType,
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
-				},
+				}, appeal.Resource, appeal),
 			},
 		})
 		notifications = addOnBehalfApprovedNotification(appeal, notifications)
@@ -945,7 +952,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 			},
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeAppealRejected,
-				Variables: map[string]interface{}{
+				Variables: domain.WithNotificationDisplayContext(map[string]interface{}{
 					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
 					"resource_id":           appeal.Resource.ID,
 					"resource_display_name": appeal.Resource.Name,
@@ -962,7 +969,7 @@ func (s *Service) Patch(ctx context.Context, appeal *domain.Appeal) error {
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
 					"reason":                reason,
-				},
+				}, appeal.Resource, appeal),
 			},
 		})
 	} else {
@@ -1219,7 +1226,7 @@ func (s *Service) updateApprovalAttempt(ctx context.Context, approvalAction doma
 			},
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeAppealApproved,
-				Variables: map[string]interface{}{
+				Variables: domain.WithNotificationDisplayContext(map[string]interface{}{
 					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
 					"resource_id":           appeal.Resource.ID,
 					"resource_display_name": appeal.Resource.Name,
@@ -1235,7 +1242,7 @@ func (s *Service) updateApprovalAttempt(ctx context.Context, approvalAction doma
 					"group_type":            appeal.GroupType,
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
-				},
+				}, appeal.Resource, appeal),
 			},
 		})
 		notifications = addOnBehalfApprovedNotification(appeal, notifications)
@@ -1247,7 +1254,7 @@ func (s *Service) updateApprovalAttempt(ctx context.Context, approvalAction doma
 			},
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeAppealRejected,
-				Variables: map[string]interface{}{
+				Variables: domain.WithNotificationDisplayContext(map[string]interface{}{
 					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
 					"resource_id":           appeal.Resource.ID,
 					"resource_display_name": appeal.Resource.Name,
@@ -1264,7 +1271,7 @@ func (s *Service) updateApprovalAttempt(ctx context.Context, approvalAction doma
 					"appeal_id":             appeal.ID,
 					"requestor":             appeal.CreatedBy,
 					"reason":                approvalAction.Reason,
-				},
+				}, appeal.Resource, appeal),
 			},
 		})
 	} else {
@@ -1994,7 +2001,7 @@ func (s *Service) getApprovalNotifications(ctx context.Context, appeal *domain.A
 				},
 				Message: domain.NotificationMessage{
 					Type: domain.NotificationTypeApproverNotification,
-					Variables: map[string]interface{}{
+					Variables: domain.WithNotificationDisplayContext(map[string]interface{}{
 						"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
 						"resource_id":           appeal.Resource.ID,
 						"resource_display_name": appeal.Resource.Name,
@@ -2017,7 +2024,7 @@ func (s *Service) getApprovalNotifications(ctx context.Context, appeal *domain.A
 						"details":               appeal.Details,
 						"duration":              duration,
 						"creator":               appeal.Creator,
-					},
+					}, appeal.Resource, appeal),
 				},
 			})
 		}

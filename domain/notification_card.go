@@ -3,6 +3,7 @@ package domain
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -30,7 +31,14 @@ func NotificationCardStateHash(a *Appeal, ids []string, recipient string) string
 	ordered := append([]string(nil), ids...)
 	sort.Strings(ordered)
 	h := sha256.New()
-	fmt.Fprintf(h, "v5\n%d\n%s\n", a.Revision, a.Status)
+	fmt.Fprintf(h, "v6\n%d\n%s\n", a.Revision, a.Status)
+	updated := ""
+	if !a.UpdatedAt.IsZero() {
+		updated = a.UpdatedAt.UTC().Format(time.RFC3339Nano)
+	}
+	fmt.Fprintln(h, updated)
+	questions, _ := a.Details[ReservedDetailsKeyPolicyQuestions].(map[string]interface{})
+	_ = json.NewEncoder(h).Encode(NotificationQuestionAnswers(questions))
 	for _, id := range ordered {
 		var step *Approval
 		for _, candidate := range a.Approvals {
@@ -51,6 +59,16 @@ func NotificationCardStateHash(a *Appeal, ids []string, recipient string) string
 			}
 		}
 		fmt.Fprintf(h, "%s\n%s\n%d\n%t\n%t\n", id, step.Status, step.AppealRevision, step.IsStale, allowed)
+		approvers := make([]string, 0, len(step.Approvers))
+		for _, email := range step.Approvers {
+			approvers = append(approvers, strings.ToLower(strings.TrimSpace(email)))
+		}
+		sort.Strings(approvers)
+		actor := ""
+		if step.Actor != nil {
+			actor = *step.Actor
+		}
+		_ = json.NewEncoder(h).Encode([]interface{}{step.Name, approvers, actor, step.Reason, step.DontAllowSelfApproval})
 	}
 	planIDs := []string{}
 	for _, step := range NotificationApprovalPlan(a, recipient, ids) {

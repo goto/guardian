@@ -471,6 +471,7 @@ func (s *Service) Update(ctx context.Context, payload *domain.GrantUpdate) (*dom
 				message.Variables["provider_type"] = latestGrant.Resource.ProviderType
 				message.Variables["resource_type"] = latestGrant.Resource.Type
 			}
+			domain.WithNotificationDisplayContext(message.Variables, latestGrant.Resource, latestGrant.Appeal)
 			notifications := []domain.Notification{{
 				User: latestGrant.Owner,
 				Labels: map[string]string{
@@ -558,7 +559,7 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 			},
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeAccessRevoked,
-				Variables: map[string]interface{}{
+				Variables: domain.WithNotificationDisplayContext(map[string]interface{}{
 					"resource_name":         fmt.Sprintf("%s (%s: %s)", grant.Resource.Name, grant.Resource.ProviderType, grant.Resource.URN),
 					"resource_id":           grant.Resource.ID,
 					"resource_display_name": grant.Resource.Name,
@@ -570,7 +571,7 @@ func (s *Service) Revoke(ctx context.Context, id, actor, reason string, opts ...
 					"account_id":            grant.AccountID,
 					"requestor":             grant.Owner,
 					"revoke_reason":         grant.RevokeReason,
-				},
+				}, grant.Resource, grant.Appeal),
 			},
 		}}
 		if grant.GroupType != "" {
@@ -978,6 +979,7 @@ func (s *Service) DormancyCheck(ctx context.Context, criteria domain.DormancyChe
 					s.logger.Error(ctx, "failed to convert grant to map", "error", err)
 					continue prepare_notifications
 				}
+				domain.WithNotificationDisplayContext(grantMap, g.Resource, g.Appeal)
 				grantsMap = append(grantsMap, grantMap)
 				grantIDs = append(grantIDs, g.ID)
 			}

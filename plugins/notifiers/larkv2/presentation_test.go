@@ -7,6 +7,27 @@ import (
 	"testing"
 )
 
+func TestV2ProjectsOnlyLinkAndRAMDisplayName(t *testing.T) {
+	input := map[string]interface{}{
+		"provider_type": "gitlab", "resource_type": "project", "resource_web_url": "https://gitlab.example.test/team/repo",
+		"account_id": "RAM$123:456", "details": map[string]interface{}{"__policy_metadata": map[string]interface{}{
+			"ram_user_details": map[string]interface{}{"display_name": "monitoring", "user_id": "456", "email": "PRIVATE_CANARY", "mobile_phone": "PRIVATE_CANARY"},
+		}},
+	}
+	output := presentationVariables(input)
+	if output["resource_web_url"] != input["resource_web_url"] || output["account_display_name"] != "monitoring" {
+		t.Fatal("display fields missing")
+	}
+	data, _ := json.Marshal(output)
+	if strings.Contains(string(data), "PRIVATE_CANARY") || strings.Contains(string(data), "ram_user_details") {
+		t.Fatal("raw identity metadata leaked")
+	}
+	input["resource_web_url"] = "javascript:alert(1)"
+	if presentationVariables(input)["resource_web_url"] != nil {
+		t.Fatal("invalid link forwarded")
+	}
+}
+
 func TestV2PresentationOmitsPrivateAndOversizedPolicyMetadata(t *testing.T) {
 	input := map[string]interface{}{
 		"resource_id": "package-id", "resource_name": "Example package", "role": "reader",
@@ -23,6 +44,47 @@ func TestV2PresentationOmitsPrivateAndOversizedPolicyMetadata(t *testing.T) {
 	}
 	if _, ok := input["details"]; !ok {
 		t.Fatal("legacy/shared variables were mutated")
+	}
+}
+
+func TestV2PresentationIncludesOnlyAnsweredQuestionKeys(t *testing.T) {
+	input := map[string]interface{}{"details": map[string]interface{}{
+		"__policy_questions": map[string]interface{}{"business_reason": "Review reports", "ticket": "DATA-123", " ": "EMPTY_KEY_CANARY", "optional": " \n", "nested": map[string]interface{}{"secret": "NESTED_CANARY"}, "choices": []string{"one", "two"}, "empty_choices": []string{"", " "}},
+		"__policy_metadata":  map[string]interface{}{"private": "METADATA_CANARY"}, "internal": "INTERNAL_CANARY",
+	}}
+	result := presentationVariables(input)
+	data, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"business_reason", "Review reports", "ticket", "DATA-123", "one, two"} {
+		if !strings.Contains(string(data), want) {
+			t.Fatalf("missing%q", want)
+		}
+	}
+	for _, absent := range []string{"CANARY", "optional", "nested", "empty_choices", "__policy_metadata", "__policy_questions"} {
+		if strings.Contains(string(data), absent) {
+			t.Fatalf("unexpected%q", absent)
+		}
+	}
+	questions := result["policy_questions"].(map[string]string)
+	if len(questions) != 3 {
+		t.Fatalf("got%d answers", len(questions))
+	}
+}
+
+func TestV2QuestionPayloadIsBounded(t *testing.T) {
+	questions := map[string]interface{}{}
+	for _, key := range []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"} {
+		questions[key] = strings.Repeat("x", 20000)
+	}
+	result := presentationVariables(map[string]interface{}{"details": map[string]interface{}{"__policy_questions": questions}})
+	if len(result["policy_questions"].(map[string]string)) != 8 || result["policy_questions_incomplete"] != true {
+		t.Fatal("question preview bounds missing")
+	}
+	data, err := json.Marshal(result)
+	if err != nil || len(data) > 10000 {
+		t.Fatal("question transport too large")
 	}
 }
 

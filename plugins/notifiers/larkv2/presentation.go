@@ -1,6 +1,9 @@
 package larkv2
 
-import "github.com/goto/guardian/domain"
+import (
+	"github.com/goto/guardian/domain"
+	"sort"
+)
 
 // presentationVariables keeps private policy/HR data out of v2 delivery payloads.
 // Criteria and legacy notifiers continue to receive the original notification.
@@ -21,17 +24,31 @@ func presentationVariables(input map[string]interface{}) map[string]interface{} 
 	}
 	if details, ok := input["details"].(map[string]interface{}); ok {
 		questions, _ := details["__policy_questions"].(map[string]interface{})
-		for _, key := range []string{"reason_to_access", "justification"} {
-			if value, ok := questions[key].(string); ok && value != "" {
-				if output["reason_to_access"] == nil {
-					output["reason_to_access"] = value
-				}
-				break
-			}
+		answers := domain.NotificationQuestionAnswers(questions)
+		keys := make([]string, 0, len(answers))
+		for key := range answers {
+			keys = append(keys, key)
 		}
-		if output["reason_to_access"] == nil {
-			if value, ok := details["reason_to_access"].(string); ok {
+		sort.Strings(keys)
+		preview := map[string]string{}
+		for _, key := range keys {
+			if len(preview) == 8 || len([]rune(key)) > 120 {
+				output["policy_questions_incomplete"] = true
+				continue
+			}
+			value := []rune(answers[key])
+			if len(value) > 1000 {
+				value = value[:1000]
+				output["policy_questions_incomplete"] = true
+			}
+			preview[key] = string(value)
+		}
+		output["policy_questions"] = preview
+		// Older workers can still display the conventional reason during rollout.
+		for _, key := range []string{"reason_to_access", "justification"} {
+			if value := preview[key]; value != "" {
 				output["reason_to_access"] = value
+				break
 			}
 		}
 	}
@@ -54,6 +71,12 @@ func presentationVariables(input map[string]interface{}) map[string]interface{} 
 				if value, ok := grant[key].(string); ok {
 					summary[key] = presentationPreview(value)
 				}
+			}
+			if link, _ := grant["resource_web_url"].(string); summary["provider_type"] == "gitlab" && domain.NotificationBrowserURL(link) != "" {
+				summary["resource_web_url"] = link
+			}
+			if name, _ := grant["account_display_name"].(string); name != "" && len([]rune(name)) <= 400 {
+				summary["account_display_name"] = name
 			}
 			summaries = append(summaries, summary)
 		}
@@ -126,6 +149,21 @@ func presentationVariables(input map[string]interface{}) map[string]interface{} 
 		output["account_id"] = grant.AccountID
 		output["account_type"] = grant.AccountType
 		output["role"] = grant.Role
+		domain.WithNotificationDisplayContext(output, grant.Resource, grant.Appeal)
+	}
+	if output["provider_type"] == "gitlab" {
+		if value, _ := input["resource_web_url"].(string); domain.NotificationBrowserURL(value) != "" {
+			output["resource_web_url"] = value
+		}
+	}
+	if accountID, _ := output["account_id"].(string); accountID != "" {
+		if name, _ := input["account_display_name"].(string); name != "" && len([]rune(name)) <= 400 {
+			output["account_display_name"] = name
+		} else if details, ok := input["details"].(map[string]interface{}); ok {
+			if name := domain.NotificationAccountDisplayName(accountID, details); name != "" {
+				output["account_display_name"] = name
+			}
+		}
 	}
 	// Leave one extra rune so the worker marks these as shortened previews. Full text stays in Guardian.
 	for _, key := range []string{"reason", "revoke_reason", "reason_to_access", "comment", "body"} {
