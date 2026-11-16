@@ -72,6 +72,12 @@ func presentationVariables(input map[string]interface{}) map[string]interface{} 
 					summary[key] = presentationPreview(value)
 				}
 			}
+			if link, _ := grant["resource_web_url"].(string); summary["provider_type"] == "gitlab" && domain.NotificationBrowserURL(link) != "" {
+				summary["resource_web_url"] = link
+			}
+			if name, _ := grant["account_display_name"].(string); name != "" && len([]rune(name)) <= 400 {
+				summary["account_display_name"] = name
+			}
 			summaries = append(summaries, summary)
 		}
 		output["unused_grants"] = summaries
@@ -143,6 +149,21 @@ func presentationVariables(input map[string]interface{}) map[string]interface{} 
 		output["account_id"] = grant.AccountID
 		output["account_type"] = grant.AccountType
 		output["role"] = grant.Role
+		domain.WithNotificationDisplayContext(output, grant.Resource, grant.Appeal)
+	}
+	if output["provider_type"] == "gitlab" {
+		if value, _ := input["resource_web_url"].(string); domain.NotificationBrowserURL(value) != "" {
+			output["resource_web_url"] = value
+		}
+	}
+	if accountID, _ := output["account_id"].(string); accountID != "" {
+		if name, _ := input["account_display_name"].(string); name != "" && len([]rune(name)) <= 400 {
+			output["account_display_name"] = name
+		} else if details, ok := input["details"].(map[string]interface{}); ok {
+			if name := domain.NotificationAccountDisplayName(accountID, details); name != "" {
+				output["account_display_name"] = name
+			}
+		}
 	}
 	// Leave one extra rune so the worker marks these as shortened previews. Full text stays in Guardian.
 	for _, key := range []string{"reason", "revoke_reason", "reason_to_access", "comment", "body"} {

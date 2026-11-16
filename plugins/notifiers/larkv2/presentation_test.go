@@ -7,6 +7,27 @@ import (
 	"testing"
 )
 
+func TestV2ProjectsOnlyLinkAndRAMDisplayName(t *testing.T) {
+	input := map[string]interface{}{
+		"provider_type": "gitlab", "resource_type": "project", "resource_web_url": "https://gitlab.example.test/team/repo",
+		"account_id": "RAM$123:456", "details": map[string]interface{}{"__policy_metadata": map[string]interface{}{
+			"ram_user_details": map[string]interface{}{"display_name": "monitoring", "user_id": "456", "email": "PRIVATE_CANARY", "mobile_phone": "PRIVATE_CANARY"},
+		}},
+	}
+	output := presentationVariables(input)
+	if output["resource_web_url"] != input["resource_web_url"] || output["account_display_name"] != "monitoring" {
+		t.Fatal("display fields missing")
+	}
+	data, _ := json.Marshal(output)
+	if strings.Contains(string(data), "PRIVATE_CANARY") || strings.Contains(string(data), "ram_user_details") {
+		t.Fatal("raw identity metadata leaked")
+	}
+	input["resource_web_url"] = "javascript:alert(1)"
+	if presentationVariables(input)["resource_web_url"] != nil {
+		t.Fatal("invalid link forwarded")
+	}
+}
+
 func TestV2PresentationOmitsPrivateAndOversizedPolicyMetadata(t *testing.T) {
 	input := map[string]interface{}{
 		"resource_id": "package-id", "resource_name": "Example package", "role": "reader",

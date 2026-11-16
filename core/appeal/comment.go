@@ -77,7 +77,7 @@ func (s *Service) notifyParticipants(ctx context.Context, appeal *domain.Appeal,
 			User: recipient,
 			Message: domain.NotificationMessage{
 				Type: domain.NotificationTypeNewComment,
-				Variables: map[string]interface{}{
+				Variables: domain.WithNotificationDisplayContext(map[string]interface{}{
 					"appeal_id":             appeal.ID,
 					"appeal_created_by":     appeal.CreatedBy,
 					"resource_name":         fmt.Sprintf("%s (%s: %s)", appeal.Resource.Name, appeal.Resource.ProviderType, appeal.Resource.URN),
@@ -89,7 +89,7 @@ func (s *Service) notifyParticipants(ctx context.Context, appeal *domain.Appeal,
 					"comment_id":            comment.ID,
 					"comment_created_by":    comment.CreatedBy,
 					"body":                  comment.Body,
-				},
+				}, appeal.Resource, appeal),
 			},
 		})
 		if appeal.Resource.Type == "package-create" {
