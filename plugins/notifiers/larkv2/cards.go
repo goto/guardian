@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -75,7 +76,7 @@ func (n *Notifier) ReconcileCards(ctx context.Context) error {
 	}
 	wg.Wait()
 	if len(failures) > 0 {
-		return errors.New("notification card updates require retry")
+		return fmt.Errorf("notification card updates require retry: failed=%d claimed=%d; inspect worker refresh diagnostics", len(failures), len(cards))
 	}
 	return nil
 }
@@ -181,6 +182,14 @@ func (n *Notifier) reconcileCard(parent context.Context, card domain.Notificatio
 		return
 	}
 	defer resp.Body.Close()
+	if recipientNotResolvedResponse(resp) {
+		// Preserve the existing message/hash: no update or appeal decision occurred.
+		// Closing under the current lease survives restarts and later stages.
+		if err := n.store.Complete(ctx, card, card.LastStateHash, true, 0); err != nil {
+			retry(15 * time.Second)
+		}
+		return
+	}
 	if resp.StatusCode == 409 {
 		if err := n.store.Retry(ctx, card, time.Second); err != nil {
 			failed = true
