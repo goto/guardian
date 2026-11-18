@@ -67,3 +67,15 @@ func TestConfigAcceptsTieredStorageRoleNames(t *testing.T) {
 		}
 	}
 }
+
+func TestConfigRejectsNonPositiveVerificationTimeout(t *testing.T) {
+	for _, seconds := range []int{0, -1} {
+		cfg := permissionConfig(resourceTypeTable, "select")
+		creds := cfg.Credentials.(credentials)
+		creds.AccessVerificationTimeoutSeconds = &seconds
+		cfg.Credentials = creds
+		if err := cfg.validate(); err == nil {
+			t.Fatalf("accepted timeout %d", seconds)
+		}
+	}
+}
