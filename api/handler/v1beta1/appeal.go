@@ -3,8 +3,10 @@ package v1beta1
 import (
 	"context"
 	"errors"
+	"time"
 
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -70,7 +72,7 @@ func (s *GRPCServer) ListUserAppeals(ctx context.Context, req *guardianv1beta1.L
 		ProviderUrnNotStartsWith:  req.GetProviderUrnNotStartsWith(),
 		ProviderUrnNotEndsWith:    req.GetProviderUrnNotEndsWith(),
 		ProviderUrnNotContains:    req.GetProviderUrnNotContains(),
-		NotProviderURNs:             req.GetNotProviderUrns(),
+		NotProviderURNs:           req.GetNotProviderUrns(),
 		Durations:                 req.GetDurations(),
 		NotDurations:              req.GetNotDurations(),
 		DetailsPaths:              req.GetDetailsPaths(),
@@ -165,7 +167,7 @@ func (s *GRPCServer) ListAppeals(ctx context.Context, req *guardianv1beta1.ListA
 		ProviderUrnNotStartsWith:  req.GetProviderUrnNotStartsWith(),
 		ProviderUrnNotEndsWith:    req.GetProviderUrnNotEndsWith(),
 		ProviderUrnNotContains:    req.GetProviderUrnNotContains(),
-		NotProviderURNs:             req.GetNotProviderUrns(),
+		NotProviderURNs:           req.GetNotProviderUrns(),
 		Durations:                 req.GetDurations(),
 		NotDurations:              req.GetNotDurations(),
 		DetailsPaths:              req.GetDetailsPaths(),
@@ -227,7 +229,10 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 	}
 
 	if err := s.appealService.Create(ctx, appeals, createOpts...); err != nil {
+		var conflict *appeal.ActiveGrantConflict
 		switch {
+		case errors.As(err, &conflict):
+			return nil, s.activeGrantConflictError(ctx, conflict)
 		case errors.Is(err, provider.ErrAppealValidationInvalidAccountType),
 			errors.Is(err, provider.ErrAppealValidationInvalidRole),
 			errors.Is(err, provider.ErrAppealValidationDurationNotSpecified),
@@ -239,8 +244,7 @@ func (s *GRPCServer) CreateAppeal(ctx context.Context, req *guardianv1beta1.Crea
 			errors.Is(err, appeal.ErrCannotCreateAppealForOtherUser):
 			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		case errors.Is(err, appeal.ErrAppealDuplicate):
-			s.logger.Error(ctx, err.Error())
-			return nil, status.Errorf(codes.AlreadyExists, "%s", err.Error())
+			return nil, s.pendingAppealConflictError(ctx, err)
 		case errors.Is(err, appeal.ErrResourceNotFound),
 			errors.Is(err, appeal.ErrResourceDeleted),
 			errors.Is(err, appeal.ErrProviderNotFound),
@@ -289,7 +293,10 @@ func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.Patch
 	}
 
 	if err := s.appealService.Patch(ctx, a); err != nil {
+		var conflict *appeal.ActiveGrantConflict
 		switch {
+		case errors.As(err, &conflict):
+			return nil, s.activeGrantConflictError(ctx, conflict)
 		case errors.Is(err, provider.ErrAppealValidationInvalidAccountType),
 			errors.Is(err, provider.ErrAppealValidationInvalidRole),
 			errors.Is(err, provider.ErrAppealValidationDurationNotSpecified),
@@ -301,8 +308,7 @@ func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.Patch
 			errors.Is(err, appeal.ErrCannotCreateAppealForOtherUser):
 			return nil, s.invalidArgument(ctx, "%s", err.Error())
 		case errors.Is(err, appeal.ErrAppealDuplicate):
-			s.logger.Error(ctx, err.Error())
-			return nil, status.Errorf(codes.AlreadyExists, "%s", err.Error())
+			return nil, s.pendingAppealConflictError(ctx, err)
 		case errors.Is(err, appeal.ErrResourceNotFound),
 			errors.Is(err, appeal.ErrResourceDeleted),
 			errors.Is(err, appeal.ErrProviderNotFound),
@@ -340,6 +346,60 @@ func (s *GRPCServer) PatchAppeal(ctx context.Context, req *guardianv1beta1.Patch
 	return &guardianv1beta1.PatchAppealResponse{
 		Appeal: appealProto,
 	}, nil
+}
+
+func (s *GRPCServer) pendingAppealConflictError(ctx context.Context, err error) error {
+	metadata := make(map[string]string)
+	var conflict *appeal.PendingAppealConflict
+	if errors.As(err, &conflict) && conflict.AppealID != "" {
+		metadata["appeal_id"] = conflict.AppealID
+	}
+	s.logger.Error(ctx, err.Error())
+	return guardianErrorInfo(codes.AlreadyExists, err.Error(), "PENDING_APPEAL_EXISTS", metadata)
+}
+
+func (s *GRPCServer) activeGrantConflictError(ctx context.Context, conflict *appeal.ActiveGrantConflict) error {
+	reason := "ACTIVE_GRANT_EXISTS"
+	if errors.Is(conflict, appeal.ErrGrantNotEligibleForExtension) {
+		reason = "GRANT_RENEWAL_TOO_EARLY"
+	}
+
+	metadata := make(map[string]string)
+	for key, value := range map[string]string{
+		"resource_id":    conflict.ResourceID,
+		"resource_name":  conflict.ResourceName,
+		"appeal_id":      conflict.AppealID,
+		"renewal_window": conflict.RenewalWindow,
+	} {
+		if value != "" {
+			metadata[key] = value
+		}
+	}
+	if conflict.ExpiresAt != nil {
+		metadata["expires_at"] = conflict.ExpiresAt.UTC().Format(time.RFC3339Nano)
+	}
+	if conflict.RenewalEligibleAt != nil {
+		metadata["renewal_eligible_at"] = conflict.RenewalEligibleAt.UTC().Format(time.RFC3339Nano)
+	}
+	if conflict.IsPermanent {
+		metadata["is_permanent"] = "true"
+	}
+
+	s.logger.Error(ctx, conflict.Error())
+	return guardianErrorInfo(codes.FailedPrecondition, conflict.Error(), reason, metadata)
+}
+
+func guardianErrorInfo(code codes.Code, message, reason string, metadata map[string]string) error {
+	base := status.New(code, message)
+	withDetails, err := base.WithDetails(&errdetails.ErrorInfo{
+		Reason:   reason,
+		Domain:   "guardian.golabs.io",
+		Metadata: metadata,
+	})
+	if err != nil {
+		return base.Err()
+	}
+	return withDetails.Err()
 }
 
 func (s *GRPCServer) GetAppeal(ctx context.Context, req *guardianv1beta1.GetAppealRequest) (*guardianv1beta1.GetAppealResponse, error) {

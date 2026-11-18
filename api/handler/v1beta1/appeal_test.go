@@ -2,16 +2,22 @@ package v1beta1_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
 	guardianv1beta1 "github.com/goto/guardian/api/proto/gotocompany/guardian/v1beta1"
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/domain"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -967,13 +973,19 @@ func (s *GrpcHandlersSuite) TestCreateAppeal() {
 	s.Run("should return duplicate error if appeal already exists", func() {
 		s.setup()
 
-		s.appealService.EXPECT().Create(mock.AnythingOfType("*context.valueCtx"), mock.Anything).Return(appeal.ErrAppealDuplicate).Once()
+		s.appealService.EXPECT().Create(mock.AnythingOfType("*context.valueCtx"), mock.Anything).Return(&appeal.PendingAppealConflict{AppealID: "pending-appeal"}).Once()
 
 		req := &guardianv1beta1.CreateAppealRequest{}
 		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.com")
 		res, err := s.grpcServer.CreateAppeal(ctx, req)
 
 		s.Equal(codes.AlreadyExists, status.Code(err))
+		details := status.Convert(err).Details()
+		s.Require().Len(details, 1)
+		info, ok := details[0].(*errdetails.ErrorInfo)
+		s.Require().True(ok)
+		s.Equal("PENDING_APPEAL_EXISTS", info.Reason)
+		s.Equal("pending-appeal", info.Metadata["appeal_id"])
 		s.Nil(res)
 		s.appealService.AssertExpectations(s.T())
 	})
@@ -1490,4 +1502,68 @@ func (s *GrpcHandlersSuite) TestCancelAppeal() {
 		s.Nil(res)
 		s.appealService.AssertExpectations(s.T())
 	})
+}
+
+func (s *GrpcHandlersSuite) TestActiveGrantConflictGateway() {
+	for _, test := range []struct {
+		reason string
+		window string
+	}{
+		{reason: "GRANT_RENEWAL_TOO_EARLY", window: "336h"},
+		{reason: "ACTIVE_GRANT_EXISTS"},
+	} {
+		s.Run(test.reason, func() {
+			s.setup()
+			expiresAt := time.Date(2027, 2, 2, 0, 0, 0, 0, time.UTC)
+			conflict := &appeal.ActiveGrantConflict{
+				AppealID:      "active-appeal",
+				ResourceID:    "maxcompute-resource",
+				ResourceName:  "example_project.archive",
+				ExpiresAt:     &expiresAt,
+				RenewalWindow: test.window,
+			}
+			want := map[string]string{
+				"appeal_id":     "active-appeal",
+				"resource_id":   "maxcompute-resource",
+				"resource_name": "example_project.archive",
+				"expires_at":    "2027-02-02T00:00:00Z",
+			}
+			if test.window != "" {
+				eligibility := expiresAt.Add(-336 * time.Hour)
+				conflict.RenewalEligibleAt = &eligibility
+				want["renewal_window"] = "336h"
+				want["renewal_eligible_at"] = "2027-01-19T00:00:00Z"
+			}
+			s.appealService.EXPECT().Create(mock.Anything, mock.Anything).Return(conflict).Once()
+
+			ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "member@example.test")
+			mux := runtime.NewServeMux()
+			s.Require().NoError(guardianv1beta1.RegisterGuardianServiceHandlerServer(ctx, mux, s.grpcServer))
+			w := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodPost, "/v1beta1/appeals", strings.NewReader("{}")).WithContext(ctx)
+			request.Header.Set("Content-Type", "application/json")
+			mux.ServeHTTP(w, request)
+
+			s.Require().Equal(http.StatusBadRequest, w.Code, w.Body.String())
+			var response struct {
+				Code    int    `json:"code"`
+				Message string `json:"message"`
+				Details []struct {
+					Type     string            `json:"@type"`
+					Reason   string            `json:"reason"`
+					Domain   string            `json:"domain"`
+					Metadata map[string]string `json:"metadata"`
+				} `json:"details"`
+			}
+			s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &response))
+			s.Equal(int(codes.FailedPrecondition), response.Code)
+			s.Equal(conflict.Error(), response.Message)
+			s.Require().Len(response.Details, 1)
+			s.Equal("type.googleapis.com/google.rpc.ErrorInfo", response.Details[0].Type)
+			s.Equal(test.reason, response.Details[0].Reason)
+			s.Equal("guardian.golabs.io", response.Details[0].Domain)
+			s.Equal(want, response.Details[0].Metadata)
+			s.appealService.AssertExpectations(s.T())
+		})
+	}
 }

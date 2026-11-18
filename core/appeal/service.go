@@ -2333,7 +2333,7 @@ func (s *Service) checkExtensionEligibility(a *domain.Appeal, p *domain.Provider
 	}
 
 	if allowActiveAccessExtensionIn == "" {
-		return ErrAppealFoundActiveGrant
+		return newActiveGrantConflict(a, activeGrant, "", 0)
 	}
 
 	extensionDurationRule, err := time.ParseDuration(allowActiveAccessExtensionIn)
@@ -2342,9 +2342,40 @@ func (s *Service) checkExtensionEligibility(a *domain.Appeal, p *domain.Provider
 	}
 
 	if !activeGrant.IsEligibleForExtension(extensionDurationRule) {
-		return fmt.Errorf("%w: extension is allowed %q before grant expiration", ErrGrantNotEligibleForExtension, allowActiveAccessExtensionIn)
+		return newActiveGrantConflict(a, activeGrant, allowActiveAccessExtensionIn, extensionDurationRule)
 	}
 	return nil
+}
+
+func newActiveGrantConflict(a *domain.Appeal, grant *domain.Grant, window string, duration time.Duration) *ActiveGrantConflict {
+	conflict := &ActiveGrantConflict{
+		ResourceID:    a.ResourceID,
+		RenewalWindow: window,
+	}
+	if a.Resource != nil {
+		conflict.ResourceName = a.Resource.Name
+		if a.Resource.ProviderType == "maxcompute" || conflict.ResourceName == "" {
+			conflict.ResourceName = a.Resource.URN
+		}
+	}
+
+	// Guardian also checks for grants from other access paths. Only disclose a
+	// grant's details when it belongs to the same account type and request scope.
+	if grant.AccountType != a.AccountType || grant.GroupID != a.GroupID || grant.GroupType != a.GroupType ||
+		(a.AccountType == domain.DefaultAppealAccountType && !strings.EqualFold(a.AccountID, a.CreatedBy)) {
+		return conflict
+	}
+	conflict.AppealID = grant.AppealID
+	if grant.ExpirationDate == nil || grant.ExpirationDate.IsZero() {
+		conflict.IsPermanent = true
+		return conflict
+	}
+	conflict.ExpiresAt = grant.ExpirationDate
+	if window != "" {
+		eligibleAt := grant.ExpirationDate.Add(-duration)
+		conflict.RenewalEligibleAt = &eligibleAt
+	}
+	return conflict
 }
 
 func (s *Service) getPolicy(ctx context.Context, a *domain.Appeal, p *domain.Provider, policiesMap map[string]map[uint]*domain.Policy) (*domain.Policy, error) {
@@ -2774,10 +2805,8 @@ func getProvider(a *domain.Appeal, providersMap map[string]map[string]*domain.Pr
 
 func validateAppeal(a *domain.Appeal, pendingAppealsMap map[string]map[string]map[string]*domain.Appeal) error {
 	accountID := strings.ToLower(a.AccountID)
-	if pendingAppealsMap[accountID] != nil &&
-		pendingAppealsMap[accountID][a.ResourceID] != nil &&
-		pendingAppealsMap[accountID][a.ResourceID][a.Role] != nil {
-		return fmt.Errorf("%w. appeal id: %q", ErrAppealDuplicate, pendingAppealsMap[accountID][a.ResourceID][a.Role].ID)
+	if pending := pendingAppealsMap[accountID][a.ResourceID][a.Role]; pending != nil {
+		return &PendingAppealConflict{AppealID: pending.ID}
 	}
 
 	return nil
