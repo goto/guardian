@@ -11,6 +11,7 @@ import (
 	"github.com/goto/guardian/core/appeal"
 	"github.com/goto/guardian/domain"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -357,6 +358,23 @@ func (s *GrpcHandlersSuite) TestListApprovals() {
 }
 
 func (s *GrpcHandlersSuite) TestUpdateApproval() {
+	s.Run("self-approval reports a permission error with a next step", func() {
+		s.setup()
+		ctx := context.WithValue(context.Background(), authEmailTestContextKey{}, "user@example.test")
+		s.appealService.EXPECT().UpdateApproval(mock.Anything, mock.Anything).Return(nil, appeal.ErrSelfApprovalNotAllowed).Once()
+		res, err := s.grpcServer.UpdateApproval(ctx, &guardianv1beta1.UpdateApprovalRequest{Id: "test-appeal"})
+
+		s.Nil(res)
+		s.Equal(codes.PermissionDenied, status.Code(err))
+		s.Contains(status.Convert(err).Message(), "Ask another approver")
+		details := status.Convert(err).Details()
+		s.Require().Len(details, 1)
+		info, ok := details[0].(*errdetails.ErrorInfo)
+		s.Require().True(ok)
+		s.Equal("SELF_APPROVAL_NOT_ALLOWED", info.Reason)
+		s.Equal("test-appeal", info.Metadata["appeal_id"])
+	})
+
 	s.Run("should return appeal details on success", func() {
 		s.setup()
 		timeNow := time.Now()

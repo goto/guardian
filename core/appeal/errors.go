@@ -3,6 +3,7 @@ package appeal
 import (
 	"errors"
 	"fmt"
+	"time"
 )
 
 var (
@@ -58,6 +59,42 @@ var (
 	ErrSelfApprovalNotAllowed = errors.New("requestor is not allowed to approve their own request")
 	ErrAppealHasNoGrant       = errors.New("appeal has no active grant to revoke")
 )
+
+// PendingAppealConflict identifies the request that is already awaiting approval.
+type PendingAppealConflict struct {
+	AppealID string
+}
+
+func (e *PendingAppealConflict) Error() string {
+	return fmt.Sprintf("%s. appeal id: %q", ErrAppealDuplicate, e.AppealID)
+}
+
+func (e *PendingAppealConflict) Unwrap() error { return ErrAppealDuplicate }
+
+// ActiveGrantConflict describes the grant that blocked a new or updated appeal.
+type ActiveGrantConflict struct {
+	ResourceID        string
+	ResourceName      string
+	AppealID          string
+	ExpiresAt         *time.Time
+	IsPermanent       bool
+	RenewalWindow     string
+	RenewalEligibleAt *time.Time
+}
+
+func (e *ActiveGrantConflict) Error() string {
+	if e.RenewalWindow != "" {
+		return fmt.Sprintf("%s: extension is allowed %q before grant expiration", ErrGrantNotEligibleForExtension, e.RenewalWindow)
+	}
+	return ErrAppealFoundActiveGrant.Error()
+}
+
+func (e *ActiveGrantConflict) Unwrap() error {
+	if e.RenewalWindow != "" {
+		return ErrGrantNotEligibleForExtension
+	}
+	return ErrAppealFoundActiveGrant
+}
 
 type InvalidError struct {
 	AppealID string

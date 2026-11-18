@@ -246,6 +246,13 @@ func (s *GRPCServer) UpdateApproval(ctx context.Context, req *guardianv1beta1.Up
 			errors.Is(err, appeal.ErrApprovalNotEligibleForAction),
 			errors.Is(err, appeal.ErrApprovalStatusUnrecognized):
 			return nil, s.failedPrecondition(ctx, "%s", err.Error())
+		case errors.Is(err, appeal.ErrSelfApprovalNotAllowed):
+			return nil, guardianErrorInfo(
+				codes.PermissionDenied,
+				"You can’t approve your own request. Ask another approver to review it.",
+				"SELF_APPROVAL_NOT_ALLOWED",
+				map[string]string{"appeal_id": id},
+			)
 		case errors.Is(err, appeal.ErrActionForbidden):
 			return nil, status.Error(codes.PermissionDenied, "permission denied")
 		case
